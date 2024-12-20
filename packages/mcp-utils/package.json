@@ -1,7 +1,7 @@
 {
-  "name": "@supabase/mcp-server-postgrest",
+  "name": "@supabase/mcp-utils",
   "version": "0.1.0",
-  "description": "MCP server for PostgREST",
+  "description": "MCP utilities",
   "license": "MIT",
   "type": "module",
   "main": "dist/index.cjs",
@@ -9,8 +9,7 @@
   "sideEffects": false,
   "scripts": {
     "build": "tsup --clean",
-    "prepublishOnly": "npm run build",
-    "test": "vitest"
+    "prepublishOnly": "npm run build"
   },
   "files": [
     "dist/**/*"
@@ -22,19 +21,13 @@
       "default": "./dist/index.cjs"
     }
   },
-  "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.4",
-    "@supabase/mcp-utils": "*",
-    "zod": "^3.24.1",
-    "zod-to-json-schema": "^3.24.1"
-  },
+  "dependencies": {},
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.4",
     "@total-typescript/tsconfig": "^1.0.4",
     "@types/node": "^22.8.6",
     "prettier": "^3.3.3",
     "tsup": "^8.3.5",
-    "tsx": "^4.19.2",
-    "typescript": "^5.6.3",
-    "vitest": "^2.1.4"
+    "typescript": "^5.6.3"
   }
 }

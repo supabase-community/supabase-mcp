@@ -1,7 +1,7 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { StreamTransport } from '@supabase/mcp-utils';
 import { describe, expect, test } from 'vitest';
 import PostgrestMcpServer from './server.js';
-import { StreamTransport } from './stream-transport.js';
 
 // Requires local Supabase stack running
 const BASE_URL = 'http://127.0.0.1:54321/rest/v1';

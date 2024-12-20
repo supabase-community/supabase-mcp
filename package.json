@@ -1,0 +1,12 @@
+{
+  "workspaces": [
+    "packages/*"
+  ],
+  "scripts": {
+    "start": "supabase start",
+    "stop": "supabase stop"
+  },
+  "devDependencies": {
+    "supabase": "^2.1.1"
+  }
+}

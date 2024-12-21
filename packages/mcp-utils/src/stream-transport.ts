@@ -1,6 +1,12 @@
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import type { JSONRPCMessage } from '@modelcontextprotocol/sdk/types.js';
 
+/**
+ * An MCP transport built on top of a duplex stream.
+ * It uses a `ReadableStream` to receive messages and a `WritableStream` to send messages.
+ *
+ * Useful if you wish to pipe messages over your own stream-based transport or directly between two streams.
+ */
 export class StreamTransport implements Transport {
   #readableStreamController?: ReadableStreamDefaultController<JSONRPCMessage>;
   #writeableStreamController?: WritableStreamDefaultController;

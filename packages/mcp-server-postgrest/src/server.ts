@@ -10,21 +10,35 @@ import { zodToJsonSchema } from 'zod-to-json-schema';
 import { version } from '../package.json';
 import { ensureNoTrailingSlash, ensureTrailingSlash } from './util.js';
 
+export type PostgrestMcpServerOptions = {
+  apiUrl: string;
+  apiKey?: string;
+  schema: string;
+};
+
 export default class PostgrestMcpServer extends Server {
-  readonly #baseUrl: string;
+  readonly #apiUrl: string;
+  readonly #apiKey?: string;
   readonly #schema: string;
   readonly #tools = {
-    fetch: {
-      description: 'Performs fetch against the PostgREST API',
+    postgrestRequest: {
+      description: 'Performs HTTP request against the PostgREST API',
       parameters: z.object({
         method: z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']),
         path: z.string(),
       }),
-      execute: async ({ method, path }: { method: string; path: string }) => {
-        const url = new URL(`${this.#baseUrl}${path}`);
+      execute: async ({
+        method,
+        path,
+      }: {
+        method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+        path: string;
+      }) => {
+        const url = new URL(`${this.#apiUrl}${path}`);
 
         const response = await fetch(url, {
           method,
+          headers: this.#getHeaders(method),
         });
 
         return await response.json();
@@ -32,7 +46,7 @@ export default class PostgrestMcpServer extends Server {
     },
   };
 
-  constructor(baseUrl: string, schema = 'public') {
+  constructor(options: PostgrestMcpServerOptions) {
     super(
       {
         name: 'supabase/postgrest',
@@ -46,8 +60,9 @@ export default class PostgrestMcpServer extends Server {
       }
     );
 
-    this.#baseUrl = ensureNoTrailingSlash(baseUrl);
-    this.#schema = schema;
+    this.#apiUrl = ensureNoTrailingSlash(options.apiUrl);
+    this.#apiKey = options.apiKey;
+    this.#schema = options.schema;
 
     this.setRequestHandler(ListResourcesRequestSchema, async () => {
       const openApiSpec = await this.#fetchOpenApiSpec();
@@ -150,12 +165,23 @@ export default class PostgrestMcpServer extends Server {
   }
 
   async #fetchOpenApiSpec() {
-    const response = await fetch(ensureTrailingSlash(this.#baseUrl), {
-      headers: {
-        'accept-profile': this.#schema,
-      },
+    const response = await fetch(ensureTrailingSlash(this.#apiUrl), {
+      headers: this.#getHeaders(),
     });
 
     return (await response.json()) as any;
+  }
+
+  #getHeaders(method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' = 'GET') {
+    const headers: HeadersInit = {
+      [method === 'GET' ? 'accept-profile' : 'content-profile']: this.#schema,
+    };
+
+    if (this.#apiKey) {
+      headers.apikey = this.#apiKey;
+      headers.authorization = `Bearer ${this.#apiKey}`;
+    }
+
+    return headers;
   }
 }

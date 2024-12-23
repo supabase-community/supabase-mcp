@@ -4,7 +4,7 @@ import { describe, expect, test } from 'vitest';
 import PostgrestMcpServer from './server.js';
 
 // Requires local Supabase stack running
-const BASE_URL = 'http://127.0.0.1:54321/rest/v1';
+const API_URL = 'http://127.0.0.1:54321/rest/v1';
 
 /**
  * Sets up a client and server for testing.
@@ -26,7 +26,10 @@ async function setup() {
     }
   );
 
-  const server = new PostgrestMcpServer(BASE_URL);
+  const server = new PostgrestMcpServer({
+    apiUrl: API_URL,
+    schema: 'public',
+  });
 
   await server.connect(serverTransport);
   await client.connect(clientTransport);
@@ -90,7 +93,7 @@ describe('tools', () => {
 
     expect(firstTool).toMatchInlineSnapshot(`
       {
-        "description": "Performs fetch against the PostgREST API",
+        "description": "Performs HTTP request against the PostgREST API",
         "inputSchema": {
           "$schema": "http://json-schema.org/draft-07/schema#",
           "additionalProperties": false,
@@ -115,7 +118,7 @@ describe('tools', () => {
           ],
           "type": "object",
         },
-        "name": "fetch",
+        "name": "postgrestRequest",
       }
     `);
   });
@@ -123,7 +126,7 @@ describe('tools', () => {
   test('execute', async () => {
     const { client } = await setup();
     const output = await client.callTool({
-      name: 'fetch',
+      name: 'postgrestRequest',
       arguments: {
         method: 'GET',
         path: '/todos',

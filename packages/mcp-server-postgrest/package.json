@@ -15,6 +15,9 @@
   "files": [
     "dist/**/*"
   ],
+  "bin": {
+    "mcp-server-postgrest": "./dist/stdio.js"
+  },
   "exports": {
     ".": {
       "import": "./dist/index.js",

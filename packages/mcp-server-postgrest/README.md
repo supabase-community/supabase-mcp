@@ -26,22 +26,27 @@ To add your Supabase project _(or any PostgREST server)_ to Claude Desktop, add 
         "@supabase/mcp-server-postgrest",
         "--apiUrl",
         "https://your-project-ref.supabase.co/rest/v1",
-        // or http://127.0.0.1:54321/rest/v1 for local
         "--apiKey",
         "your-anon-key",
-        // or service role key, or user JWT
         "--schema",
         "public"
-        // or any other exposed schema
       ]
     }
   }
 }
 ```
 
+#### Configuration
+
+- `apiUrl`: The base URL of your PostgREST endpoint
+
+- `apiKey`: Your API key for authentication _(optional)_
+
+- `schema`: The Postgres schema to serve the API from. Note any non-public schemas must be manually exposed from PostgREST.
+
 ### Programmatically (custom MCP client)
 
-If you're building your own MCP client, you can connect to a PostgREST server programmatically using your preferred transport. The [MCP SDK](https://github.com/modelcontextprotocol/typescript-sdk) offers built-in [stdio](https://modelcontextprotocol.io/docs/concepts/transports#standard-input-output-stdio) and [SSE](https://modelcontextprotocol.io/docs/concepts/transports#server-sent-events-sse) transports. We also offer a [`StreamTransport`](../mcp-utils/) if you wish to directly connect to MCP servers in-memory or over your own stream-based transport.
+If you're building your own MCP client, you can connect to a PostgREST server programmatically using your preferred transport. The [MCP SDK](https://github.com/modelcontextprotocol/typescript-sdk) offers built-in [stdio](https://modelcontextprotocol.io/docs/concepts/transports#standard-input-output-stdio) and [SSE](https://modelcontextprotocol.io/docs/concepts/transports#server-sent-events-sse) transports. We also offer a [`StreamTransport`](../mcp-utils#streamtransport) if you wish to directly connect to MCP servers in-memory or over your own stream-based transport.
 
 #### Installation
 
@@ -59,7 +64,7 @@ pnpm add @supabase/mcp-server-postgrest
 
 #### Example
 
-The following example uses the [`StreamTransport`](../mcp-utils/) to connect directly between an MCP client and server.
+The following example uses the [`StreamTransport`](../mcp-utils#streamtransport) to connect directly between an MCP client and server.
 
 ```ts
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
@@ -107,11 +112,3 @@ const output = await client.callTool({
   },
 });
 ```
-
-### Configuration
-
-- `apiUrl`: The base URL of your PostgREST endpoint
-
-- `apiKey`: Your API key for authentication _(optional)_
-
-- `schema`: The Postgres schema to serve the API from. Note any non-public schemas must be manually exposed from PostgREST.

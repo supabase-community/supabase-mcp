@@ -27,11 +27,11 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.4",
-    "@supabase/mcp-utils": "*",
     "zod": "^3.24.1",
     "zod-to-json-schema": "^3.24.1"
   },
   "devDependencies": {
+    "@supabase/mcp-utils": "*",
     "@total-typescript/tsconfig": "^1.0.4",
     "@types/node": "^22.8.6",
     "prettier": "^3.3.3",

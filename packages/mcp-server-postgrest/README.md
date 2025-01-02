@@ -14,7 +14,7 @@ You can add MCP servers to Claude Desktop via its config file at:
 
 - Windows:`%APPDATA%\Claude\claude_desktop_config.json`
 
-To add your Supabase project _(or any PostgREST server)_ to Claude Desktop, add the following configuration to the `servers` array in the config file:
+To add your Supabase project _(or any PostgREST server)_ to Claude Desktop, add the following configuration to the `mcpServers` object in the config file:
 
 ```json
 {
@@ -69,7 +69,7 @@ The following example uses the [`StreamTransport`](../mcp-utils#streamtransport)
 ```ts
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamTransport } from '@supabase/mcp-utils';
-import { PostgrestMcpServer } from '@supabase/mcp-server-postgrest';
+import { createPostgrestMcpServer } from '@supabase/mcp-server-postgrest';
 
 // Create a stream transport for both client and server
 const clientTransport = new StreamTransport();
@@ -93,7 +93,7 @@ const supabaseUrl = 'https://your-project-ref.supabase.co'; // http://127.0.0.1:
 const apiKey = 'your-anon-key'; // or service role, or user JWT
 const schema = 'public'; // or any other exposed schema
 
-const server = new PostgrestMcpServer({
+const server = createPostgrestMcpServer({
   apiUrl: `${supabaseUrl}/rest/v1`,
   apiKey,
   schema,

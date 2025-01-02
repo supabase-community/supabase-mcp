@@ -1,6 +1,6 @@
 import type { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
 import type { JSONRPCMessage } from '@modelcontextprotocol/sdk/types.js';
-import type { DuplexStream } from './types';
+import type { DuplexStream } from './types.js';
 
 /**
  * An MCP transport built on top of a duplex stream.

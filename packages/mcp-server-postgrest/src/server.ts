@@ -26,19 +26,23 @@ export default class PostgrestMcpServer extends Server {
       parameters: z.object({
         method: z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']),
         path: z.string(),
+        body: z.record(z.unknown()).optional(),
       }),
-      execute: async ({
+      execute: async <Body>({
         method,
         path,
+        body,
       }: {
         method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
         path: string;
+        body?: Body;
       }) => {
         const url = new URL(`${this.#apiUrl}${path}`);
 
         const response = await fetch(url, {
           method,
           headers: this.#getHeaders(method),
+          body: body ? JSON.stringify(body) : undefined,
         });
 
         return await response.json();
@@ -135,7 +139,6 @@ export default class PostgrestMcpServer extends Server {
 
     this.setRequestHandler(CallToolRequestSchema, async (request) => {
       const tools = this.#tools;
-
       const toolName = request.params.name as keyof typeof tools;
 
       if (!(toolName in this.#tools)) {
@@ -143,9 +146,7 @@ export default class PostgrestMcpServer extends Server {
       }
 
       const tool = this.#tools[toolName];
-      const args = request.params.arguments as z.infer<
-        (typeof tool)['parameters']
-      >;
+      const args = tool.parameters.parse(request.params.arguments);
 
       if (!args) {
         throw new Error('missing arguments');
@@ -173,8 +174,13 @@ export default class PostgrestMcpServer extends Server {
   }
 
   #getHeaders(method: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' = 'GET') {
+    const schemaHeader =
+      method === 'GET' ? 'accept-profile' : 'content-profile';
+
     const headers: HeadersInit = {
-      [method === 'GET' ? 'accept-profile' : 'content-profile']: this.#schema,
+      'content-type': 'application/json',
+      prefer: 'return=representation',
+      [schemaHeader]: this.#schema,
     };
 
     if (this.#apiKey) {

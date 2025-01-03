@@ -98,6 +98,10 @@ describe('tools', () => {
           "$schema": "http://json-schema.org/draft-07/schema#",
           "additionalProperties": false,
           "properties": {
+            "body": {
+              "additionalProperties": {},
+              "type": "object",
+            },
             "method": {
               "enum": [
                 "GET",
@@ -129,7 +133,7 @@ describe('tools', () => {
       name: 'postgrestRequest',
       arguments: {
         method: 'GET',
-        path: '/todos',
+        path: '/todos?order=id.asc',
       },
     });
 
@@ -180,5 +184,46 @@ describe('tools', () => {
         },
       ]
     `);
+  });
+
+  test('execute with body', async () => {
+    const { client } = await setup();
+    const output = await client.callTool({
+      name: 'postgrestRequest',
+      arguments: {
+        method: 'POST',
+        path: '/todos',
+        body: {
+          title: 'Test',
+          description: 'Test',
+          due_date: '2023-10-15',
+          is_completed: false,
+        },
+      },
+    });
+
+    const [firstContent] = output.content as any[];
+
+    if (!firstContent) {
+      throw new Error('no content');
+    }
+
+    const [result] = JSON.parse(firstContent.text);
+
+    expect(result).toMatchObject({
+      title: 'Test',
+      description: 'Test',
+      due_date: '2023-10-15',
+      is_completed: false,
+    });
+
+    // Clean up
+    await client.callTool({
+      name: 'postgrestRequest',
+      arguments: {
+        method: 'DELETE',
+        path: `/todos?id=eq.${result.id}`,
+      },
+    });
   });
 });

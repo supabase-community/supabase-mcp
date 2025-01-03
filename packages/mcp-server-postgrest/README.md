@@ -1,6 +1,8 @@
 # @supabase/mcp-server-postgrest
 
-This is an MCP server for PostgREST. It allows LLMs perform database queries and operations on Postgres databases via PostgREST.
+This is an MCP server for [PostgREST](https://postgrest.org). It allows LLMs perform database queries and operations on Postgres databases via PostgREST.
+
+This server works with both Supabase projects (which use PostgREST) and standalone PostgREST servers.
 
 ## Tools
 

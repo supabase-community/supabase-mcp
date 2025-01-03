@@ -83,9 +83,9 @@ describe('tools', () => {
     const { client } = await setup();
     const { tools } = await client.listTools();
 
-    expect(tools).toHaveLength(1);
+    expect(tools).toHaveLength(2);
 
-    const [firstTool] = tools;
+    const [firstTool, secondTool] = tools;
 
     if (!firstTool) {
       throw new Error('no tools');
@@ -123,6 +123,30 @@ describe('tools', () => {
           "type": "object",
         },
         "name": "postgrestRequest",
+      }
+    `);
+
+    if (!secondTool) {
+      throw new Error('missing second tool');
+    }
+
+    expect(secondTool).toMatchInlineSnapshot(`
+      {
+        "description": "Converts SQL query to a PostgREST API request (method, path)",
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "additionalProperties": false,
+          "properties": {
+            "sql": {
+              "type": "string",
+            },
+          },
+          "required": [
+            "sql",
+          ],
+          "type": "object",
+        },
+        "name": "sqlToRest",
       }
     `);
   });
@@ -225,5 +249,30 @@ describe('tools', () => {
         path: `/todos?id=eq.${result.id}`,
       },
     });
+  });
+
+  test('sql-to-rest', async () => {
+    const { client } = await setup();
+    const output = await client.callTool({
+      name: 'sqlToRest',
+      arguments: {
+        sql: 'SELECT * FROM todos ORDER BY id ASC',
+      },
+    });
+
+    const [firstContent] = output.content as any[];
+
+    if (!firstContent) {
+      throw new Error('no content');
+    }
+
+    const result = JSON.parse(firstContent.text);
+
+    expect(result).toMatchInlineSnapshot(`
+      {
+        "method": "GET",
+        "path": "/todos?order=id.asc",
+      }
+    `);
   });
 });

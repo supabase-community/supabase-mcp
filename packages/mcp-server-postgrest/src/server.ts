@@ -5,6 +5,7 @@ import {
   ListToolsRequestSchema,
   ReadResourceRequestSchema,
 } from '@modelcontextprotocol/sdk/types.js';
+import { processSql, renderHttp } from '@supabase/sql-to-rest';
 import { z } from 'zod';
 import { zodToJsonSchema } from 'zod-to-json-schema';
 import { version } from '../package.json';
@@ -46,6 +47,22 @@ export default class PostgrestMcpServer extends Server {
         });
 
         return await response.json();
+      },
+    },
+    sqlToRest: {
+      description:
+        'Converts SQL query to a PostgREST API request (method, path)',
+      parameters: z.object({
+        sql: z.string(),
+      }),
+      execute: async ({ sql }: { sql: string }) => {
+        const statement = await processSql(sql);
+        const request = await renderHttp(statement);
+
+        return {
+          method: request.method,
+          path: request.fullPath,
+        };
       },
     },
   };
@@ -152,7 +169,7 @@ export default class PostgrestMcpServer extends Server {
         throw new Error('missing arguments');
       }
 
-      const result = await tool.execute(args);
+      const result = await tool.execute(args as any);
 
       return {
         content: [

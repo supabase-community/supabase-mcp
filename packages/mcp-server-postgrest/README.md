@@ -1,6 +1,34 @@
 # @supabase/mcp-server-postgrest
 
-This is an MCP server for PostgREST. It allows LLMs perform database queries and operations on Postgres databases via PostgREST.
+This is an MCP server for [PostgREST](https://postgrest.org). It allows LLMs perform database queries and operations on Postgres databases via PostgREST.
+
+This server works with both Supabase projects (which use PostgREST) and standalone PostgREST servers.
+
+## Tools
+
+The following tools are available:
+
+### `postgrestRequest`
+
+Performs an HTTP request to a [configured](#usage) PostgREST server. It accepts the following arguments:
+
+- `method`: The HTTP method to use (eg. `GET`, `POST`, `PATCH`, `DELETE`)
+- `path`: The path to query (eg. `/todos?id=eq.1`)
+- `body`: The request body (for `POST` and `PATCH` requests)
+
+It returns the JSON response from the PostgREST server, including selected rows for `GET` requests and updated rows for `POST` and `PATCH` requests.
+
+### `sqlToRest`
+
+Converts a SQL query to the equivalent PostgREST syntax (as method and path). Useful for complex queries that LLMs would otherwise struggle to convert to valid PostgREST syntax.
+
+Note that PostgREST only supports a subset of SQL, so not all queries will convert. See [`sql-to-rest`](https://github.com/supabase-community/sql-to-rest) for more details.
+
+It accepts the following arguments:
+
+- `sql`: The SQL query to convert.
+
+It returns an object containing `method` and `path` properties for the request. LLMs can then use the `postgrestRequest` tool to execute the request.
 
 ## Usage
 
@@ -42,11 +70,11 @@ To add your Supabase project _(or any PostgREST server)_ to Claude Desktop, add 
 
 - `apiKey`: Your API key for authentication _(optional)_
 
-- `schema`: The Postgres schema to serve the API from. Note any non-public schemas must be manually exposed from PostgREST.
+- `schema`: The Postgres schema to serve the API from (eg. `public`). Note any non-public schemas must be manually exposed from PostgREST.
 
 ### Programmatically (custom MCP client)
 
-If you're building your own MCP client, you can connect to a PostgREST server programmatically using your preferred transport. The [MCP SDK](https://github.com/modelcontextprotocol/typescript-sdk) offers built-in [stdio](https://modelcontextprotocol.io/docs/concepts/transports#standard-input-output-stdio) and [SSE](https://modelcontextprotocol.io/docs/concepts/transports#server-sent-events-sse) transports. We also offer a [`StreamTransport`](../mcp-utils#streamtransport) if you wish to directly connect to MCP servers in-memory or over your own stream-based transport.
+If you're building your own MCP client, you can connect to a PostgREST server programmatically using your preferred transport. The [MCP SDK](https://github.com/modelcontextprotocol/typescript-sdk) offers built-in [stdio](https://modelcontextprotocol.io/docs/concepts/transports#standard-input-output-stdio) and [SSE](https://modelcontextprotocol.io/docs/concepts/transports#server-sent-events-sse) transports. We also offer a [`StreamTransport`](../mcp-utils#streamtransport) if you wish to directly connect to MCP servers in-memory or by piping over your own stream-based transport.
 
 #### Installation
 

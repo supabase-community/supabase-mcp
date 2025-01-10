@@ -5,6 +5,7 @@ import {
   resources,
   tool,
 } from '@supabase/mcp-utils';
+import { processSql, renderHttp } from '@supabase/sql-to-rest';
 import { z } from 'zod';
 import { version } from '../package.json';
 import { ensureNoTrailingSlash, ensureTrailingSlash } from './util.js';
@@ -84,6 +85,22 @@ export function createPostgrestMcpServer(options: PostgrestMcpServerOptions) {
           });
 
           return await response.json();
+        },
+      }),
+      sqlToRest: tool({
+        description:
+          'Converts SQL query to a PostgREST API request (method, path)',
+        parameters: z.object({
+          sql: z.string(),
+        }),
+        execute: async ({ sql }) => {
+          const statement = await processSql(sql);
+          const request = await renderHttp(statement);
+
+          return {
+            method: request.method,
+            path: request.fullPath,
+          };
         },
       }),
     },

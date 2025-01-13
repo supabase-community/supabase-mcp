@@ -13,6 +13,16 @@ export function assertValidUri(uri: string) {
 }
 
 /**
+ * Compares two URIs.
+ */
+export function compareUris(uriA: string, uriB: string): boolean {
+  const urlA = new URL(uriA);
+  const urlB = new URL(uriB);
+
+  return urlA.href === urlB.href;
+}
+
+/**
  * Matches a URI to a RFC 6570 URI Template (resourceUris) and extracts
  * the parameters.
  *

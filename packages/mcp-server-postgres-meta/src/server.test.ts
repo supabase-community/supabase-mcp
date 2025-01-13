@@ -56,94 +56,105 @@ describe('SupabaseBuilderMcpServer', () => {
           "uri": "postgres-meta:///schemas",
         },
         {
-          "description": "Postgres schema",
-          "mimeType": "application/json",
-          "name": "schema",
-          "uri": "postgres-meta:///schemas/{schema}",
-        },
-        {
-          "description": "Postgres tables, including columns, constraints, and indexes",
-          "mimeType": "application/json",
-          "name": "tables",
-          "uri": "postgres-meta:///schemas/{schema}/tables",
-        },
-        {
-          "description": "Postgres table, including columns, constraints, and indexes",
-          "mimeType": "application/json",
-          "name": "table",
-          "uri": "postgres-meta:///schemas/{schema}/tables/{table}",
-        },
-        {
-          "description": "Postgres RLS policies for a table",
-          "mimeType": "application/json",
-          "name": "policies",
-          "uri": "postgres-meta:///schemas/{schema}/tables/{table}/policies",
-        },
-        {
-          "description": "Postgres RLS policy",
-          "mimeType": "application/json",
-          "name": "policy",
-          "uri": "postgres-meta:///schemas/{schema}/tables/{table}/policies/{policy}",
-        },
-        {
-          "description": "Postgres triggers",
-          "mimeType": "application/json",
-          "name": "triggers",
-          "uri": "postgres-meta:///schemas/{schema}/tables/{table}/triggers",
-        },
-        {
-          "description": "Postgres trigger",
-          "mimeType": "application/json",
-          "name": "trigger",
-          "uri": "postgres-meta:///schemas/{schema}/tables/{table}/triggers/{trigger}",
-        },
-        {
-          "description": "Postgres views",
-          "mimeType": "application/json",
-          "name": "views",
-          "uri": "postgres-meta:///schemas/{schema}/views",
-        },
-        {
-          "description": "Postgres view",
-          "mimeType": "application/json",
-          "name": "view",
-          "uri": "postgres-meta:///schemas/{schema}/views/{view}",
-        },
-        {
-          "description": "Postgres materialized views",
-          "mimeType": "application/json",
-          "name": "materialized-views",
-          "uri": "postgres-meta:///schemas/{schema}/materialized-views",
-        },
-        {
-          "description": "Postgres materialized view",
-          "mimeType": "application/json",
-          "name": "materialized-view",
-          "uri": "postgres-meta:///schemas/{schema}/materialized-views/{view}",
-        },
-        {
-          "description": "Postgres functions",
-          "mimeType": "application/json",
-          "name": "functions",
-          "uri": "postgres-meta:///schemas/{schema}/functions",
-        },
-        {
-          "description": "Postgres function",
-          "mimeType": "application/json",
-          "name": "function",
-          "uri": "postgres-meta:///schemas/{schema}/functions/{func}",
-        },
-        {
           "description": "Postgres extensions",
           "mimeType": "application/json",
           "name": "extensions",
           "uri": "postgres-meta:///extensions",
         },
+      ]
+    `);
+  });
+
+  test('lists resource templates', async () => {
+    const { client } = await setup();
+
+    const { resourceTemplates } = await client.listResourceTemplates();
+
+    expect(resourceTemplates).toMatchInlineSnapshot(`
+      [
+        {
+          "description": "Postgres schema",
+          "mimeType": "application/json",
+          "name": "schema",
+          "uriTemplate": "postgres-meta:///schemas/{schema}",
+        },
+        {
+          "description": "Postgres tables, including columns, constraints, and indexes",
+          "mimeType": "application/json",
+          "name": "tables",
+          "uriTemplate": "postgres-meta:///schemas/{schema}/tables",
+        },
+        {
+          "description": "Postgres table, including columns, constraints, and indexes",
+          "mimeType": "application/json",
+          "name": "table",
+          "uriTemplate": "postgres-meta:///schemas/{schema}/tables/{table}",
+        },
+        {
+          "description": "Postgres RLS policies for a table",
+          "mimeType": "application/json",
+          "name": "policies",
+          "uriTemplate": "postgres-meta:///schemas/{schema}/tables/{table}/policies",
+        },
+        {
+          "description": "Postgres RLS policy",
+          "mimeType": "application/json",
+          "name": "policy",
+          "uriTemplate": "postgres-meta:///schemas/{schema}/tables/{table}/policies/{policy}",
+        },
+        {
+          "description": "Postgres triggers",
+          "mimeType": "application/json",
+          "name": "triggers",
+          "uriTemplate": "postgres-meta:///schemas/{schema}/tables/{table}/triggers",
+        },
+        {
+          "description": "Postgres trigger",
+          "mimeType": "application/json",
+          "name": "trigger",
+          "uriTemplate": "postgres-meta:///schemas/{schema}/tables/{table}/triggers/{trigger}",
+        },
+        {
+          "description": "Postgres views",
+          "mimeType": "application/json",
+          "name": "views",
+          "uriTemplate": "postgres-meta:///schemas/{schema}/views",
+        },
+        {
+          "description": "Postgres view",
+          "mimeType": "application/json",
+          "name": "view",
+          "uriTemplate": "postgres-meta:///schemas/{schema}/views/{view}",
+        },
+        {
+          "description": "Postgres materialized views",
+          "mimeType": "application/json",
+          "name": "materialized-views",
+          "uriTemplate": "postgres-meta:///schemas/{schema}/materialized-views",
+        },
+        {
+          "description": "Postgres materialized view",
+          "mimeType": "application/json",
+          "name": "materialized-view",
+          "uriTemplate": "postgres-meta:///schemas/{schema}/materialized-views/{view}",
+        },
+        {
+          "description": "Postgres functions",
+          "mimeType": "application/json",
+          "name": "functions",
+          "uriTemplate": "postgres-meta:///schemas/{schema}/functions",
+        },
+        {
+          "description": "Postgres function",
+          "mimeType": "application/json",
+          "name": "function",
+          "uriTemplate": "postgres-meta:///schemas/{schema}/functions/{func}",
+        },
         {
           "description": "Postgres extension",
           "mimeType": "application/json",
           "name": "extension",
-          "uri": "postgres-meta:///extensions/{extension}",
+          "uriTemplate": "postgres-meta:///extensions/{extension}",
         },
       ]
     `);
@@ -248,7 +259,7 @@ describe('SupabaseBuilderMcpServer', () => {
       [
         {
           "mimeType": "application/json",
-          "text": "{"id":"18261","schema":"public","name":"todos","rls_enabled":true,"rls_forced":false,"replica_identity":"DEFAULT","bytes":"65536","size":"64 kB","live_rows_estimate":"5","dead_rows_estimate":"0","comment":"Table to manage todo items with details such as title, description, due date, and completion status.","primary_keys":[{"name":"id","schema":"public","table_id":18261,"table_name":"todos"}],"relationships":[{"id":18270,"source_schema":"public","constraint_name":"todos_user_id_fkey","source_table_name":"todos","target_table_name":"users","source_column_name":"user_id","target_column_name":"id","target_table_schema":"auth"}],"columns":[{"table_id":18261,"schema":"public","table":"todos","id":"18261.1","ordinal_position":1,"name":"id","default_value":null,"data_type":"bigint","format":"int8","is_identity":true,"identity_generation":"ALWAYS","is_generated":false,"is_nullable":false,"is_updatable":true,"is_unique":false,"check":null,"enums":[],"comment":null},{"table_id":18261,"schema":"public","table":"todos","id":"18261.2","ordinal_position":2,"name":"title","default_value":null,"data_type":"text","format":"text","is_identity":false,"identity_generation":null,"is_generated":false,"is_nullable":false,"is_updatable":true,"is_unique":false,"check":null,"enums":[],"comment":null},{"table_id":18261,"schema":"public","table":"todos","id":"18261.3","ordinal_position":3,"name":"description","default_value":null,"data_type":"text","format":"text","is_identity":false,"identity_generation":null,"is_generated":false,"is_nullable":true,"is_updatable":true,"is_unique":false,"check":null,"enums":[],"comment":null},{"table_id":18261,"schema":"public","table":"todos","id":"18261.4","ordinal_position":4,"name":"due_date","default_value":null,"data_type":"date","format":"date","is_identity":false,"identity_generation":null,"is_generated":false,"is_nullable":true,"is_updatable":true,"is_unique":false,"check":null,"enums":[],"comment":null},{"table_id":18261,"schema":"public","table":"todos","id":"18261.5","ordinal_position":5,"name":"is_completed","default_value":"false","data_type":"boolean","format":"bool","is_identity":false,"identity_generation":null,"is_generated":false,"is_nullable":true,"is_updatable":true,"is_unique":false,"check":null,"enums":[],"comment":null},{"table_id":18261,"schema":"public","table":"todos","id":"18261.6","ordinal_position":6,"name":"user_id","default_value":"auth.uid()","data_type":"uuid","format":"uuid","is_identity":false,"identity_generation":null,"is_generated":false,"is_nullable":false,"is_updatable":true,"is_unique":false,"check":null,"enums":[],"comment":null}]}",
+          "text": "{"id":"18261","schema":"public","name":"todos","rls_enabled":true,"rls_forced":false,"replica_identity":"DEFAULT","bytes":"65536","size":"64 kB","live_rows_estimate":"0","dead_rows_estimate":"0","comment":"Table to manage todo items with details such as title, description, due date, and completion status.","primary_keys":[{"name":"id","schema":"public","table_id":18261,"table_name":"todos"}],"relationships":[{"id":18270,"source_schema":"public","constraint_name":"todos_user_id_fkey","source_table_name":"todos","target_table_name":"users","source_column_name":"user_id","target_column_name":"id","target_table_schema":"auth"}],"columns":[{"table_id":18261,"schema":"public","table":"todos","id":"18261.1","ordinal_position":1,"name":"id","default_value":null,"data_type":"bigint","format":"int8","is_identity":true,"identity_generation":"ALWAYS","is_generated":false,"is_nullable":false,"is_updatable":true,"is_unique":false,"check":null,"enums":[],"comment":null},{"table_id":18261,"schema":"public","table":"todos","id":"18261.2","ordinal_position":2,"name":"title","default_value":null,"data_type":"text","format":"text","is_identity":false,"identity_generation":null,"is_generated":false,"is_nullable":false,"is_updatable":true,"is_unique":false,"check":null,"enums":[],"comment":null},{"table_id":18261,"schema":"public","table":"todos","id":"18261.3","ordinal_position":3,"name":"description","default_value":null,"data_type":"text","format":"text","is_identity":false,"identity_generation":null,"is_generated":false,"is_nullable":true,"is_updatable":true,"is_unique":false,"check":null,"enums":[],"comment":null},{"table_id":18261,"schema":"public","table":"todos","id":"18261.4","ordinal_position":4,"name":"due_date","default_value":null,"data_type":"date","format":"date","is_identity":false,"identity_generation":null,"is_generated":false,"is_nullable":true,"is_updatable":true,"is_unique":false,"check":null,"enums":[],"comment":null},{"table_id":18261,"schema":"public","table":"todos","id":"18261.5","ordinal_position":5,"name":"is_completed","default_value":"false","data_type":"boolean","format":"bool","is_identity":false,"identity_generation":null,"is_generated":false,"is_nullable":true,"is_updatable":true,"is_unique":false,"check":null,"enums":[],"comment":null},{"table_id":18261,"schema":"public","table":"todos","id":"18261.6","ordinal_position":6,"name":"user_id","default_value":"auth.uid()","data_type":"uuid","format":"uuid","is_identity":false,"identity_generation":null,"is_generated":false,"is_nullable":false,"is_updatable":true,"is_unique":false,"check":null,"enums":[],"comment":null}]}",
           "uri": "postgres-meta:///schemas/public/tables/todos",
         },
       ]
@@ -266,7 +277,7 @@ describe('SupabaseBuilderMcpServer', () => {
       [
         {
           "mimeType": "application/json",
-          "text": "{"id":"18261","schema":"public","name":"todos","rls_enabled":true,"rls_forced":false,"replica_identity":"DEFAULT","bytes":"65536","size":"64 kB","live_rows_estimate":"5","dead_rows_estimate":"0","comment":"Table to manage todo items with details such as title, description, due date, and completion status.","primary_keys":[{"name":"id","schema":"public","table_id":18261,"table_name":"todos"}],"relationships":[{"id":18270,"source_schema":"public","constraint_name":"todos_user_id_fkey","source_table_name":"todos","target_table_name":"users","source_column_name":"user_id","target_column_name":"id","target_table_schema":"auth"}],"columns":[{"table_id":18261,"schema":"public","table":"todos","id":"18261.1","ordinal_position":1,"name":"id","default_value":null,"data_type":"bigint","format":"int8","is_identity":true,"identity_generation":"ALWAYS","is_generated":false,"is_nullable":false,"is_updatable":true,"is_unique":false,"check":null,"enums":[],"comment":null},{"table_id":18261,"schema":"public","table":"todos","id":"18261.2","ordinal_position":2,"name":"title","default_value":null,"data_type":"text","format":"text","is_identity":false,"identity_generation":null,"is_generated":false,"is_nullable":false,"is_updatable":true,"is_unique":false,"check":null,"enums":[],"comment":null},{"table_id":18261,"schema":"public","table":"todos","id":"18261.3","ordinal_position":3,"name":"description","default_value":null,"data_type":"text","format":"text","is_identity":false,"identity_generation":null,"is_generated":false,"is_nullable":true,"is_updatable":true,"is_unique":false,"check":null,"enums":[],"comment":null},{"table_id":18261,"schema":"public","table":"todos","id":"18261.4","ordinal_position":4,"name":"due_date","default_value":null,"data_type":"date","format":"date","is_identity":false,"identity_generation":null,"is_generated":false,"is_nullable":true,"is_updatable":true,"is_unique":false,"check":null,"enums":[],"comment":null},{"table_id":18261,"schema":"public","table":"todos","id":"18261.5","ordinal_position":5,"name":"is_completed","default_value":"false","data_type":"boolean","format":"bool","is_identity":false,"identity_generation":null,"is_generated":false,"is_nullable":true,"is_updatable":true,"is_unique":false,"check":null,"enums":[],"comment":null},{"table_id":18261,"schema":"public","table":"todos","id":"18261.6","ordinal_position":6,"name":"user_id","default_value":"auth.uid()","data_type":"uuid","format":"uuid","is_identity":false,"identity_generation":null,"is_generated":false,"is_nullable":false,"is_updatable":true,"is_unique":false,"check":null,"enums":[],"comment":null}]}",
+          "text": "{"id":"18261","schema":"public","name":"todos","rls_enabled":true,"rls_forced":false,"replica_identity":"DEFAULT","bytes":"65536","size":"64 kB","live_rows_estimate":"0","dead_rows_estimate":"0","comment":"Table to manage todo items with details such as title, description, due date, and completion status.","primary_keys":[{"name":"id","schema":"public","table_id":18261,"table_name":"todos"}],"relationships":[{"id":18270,"source_schema":"public","constraint_name":"todos_user_id_fkey","source_table_name":"todos","target_table_name":"users","source_column_name":"user_id","target_column_name":"id","target_table_schema":"auth"}],"columns":[{"table_id":18261,"schema":"public","table":"todos","id":"18261.1","ordinal_position":1,"name":"id","default_value":null,"data_type":"bigint","format":"int8","is_identity":true,"identity_generation":"ALWAYS","is_generated":false,"is_nullable":false,"is_updatable":true,"is_unique":false,"check":null,"enums":[],"comment":null},{"table_id":18261,"schema":"public","table":"todos","id":"18261.2","ordinal_position":2,"name":"title","default_value":null,"data_type":"text","format":"text","is_identity":false,"identity_generation":null,"is_generated":false,"is_nullable":false,"is_updatable":true,"is_unique":false,"check":null,"enums":[],"comment":null},{"table_id":18261,"schema":"public","table":"todos","id":"18261.3","ordinal_position":3,"name":"description","default_value":null,"data_type":"text","format":"text","is_identity":false,"identity_generation":null,"is_generated":false,"is_nullable":true,"is_updatable":true,"is_unique":false,"check":null,"enums":[],"comment":null},{"table_id":18261,"schema":"public","table":"todos","id":"18261.4","ordinal_position":4,"name":"due_date","default_value":null,"data_type":"date","format":"date","is_identity":false,"identity_generation":null,"is_generated":false,"is_nullable":true,"is_updatable":true,"is_unique":false,"check":null,"enums":[],"comment":null},{"table_id":18261,"schema":"public","table":"todos","id":"18261.5","ordinal_position":5,"name":"is_completed","default_value":"false","data_type":"boolean","format":"bool","is_identity":false,"identity_generation":null,"is_generated":false,"is_nullable":true,"is_updatable":true,"is_unique":false,"check":null,"enums":[],"comment":null},{"table_id":18261,"schema":"public","table":"todos","id":"18261.6","ordinal_position":6,"name":"user_id","default_value":"auth.uid()","data_type":"uuid","format":"uuid","is_identity":false,"identity_generation":null,"is_generated":false,"is_nullable":false,"is_updatable":true,"is_unique":false,"check":null,"enums":[],"comment":null}]}",
           "uri": "postgres-meta:///schemas/public/tables/todos",
         },
       ]

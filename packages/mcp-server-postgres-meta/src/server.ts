@@ -7,6 +7,7 @@ import {
   createMcpServer,
   jsonResource,
   jsonResourceResponse,
+  jsonResourceTemplate,
   resources,
 } from '@supabase/mcp-utils';
 import { version } from '../package.json';
@@ -38,7 +39,7 @@ export function createPostgresMetaMcpServer(
   });
 
   return createMcpServer({
-    name: 'supabase/builder',
+    name: 'supabase/postgres-meta',
     version,
     resources: resources('postgres-meta', [
       jsonResource('/schemas', {
@@ -52,7 +53,7 @@ export function createPostgresMetaMcpServer(
           );
         },
       }),
-      jsonResource('/schemas/{schema}', {
+      jsonResourceTemplate('/schemas/{schema}', {
         name: 'schema',
         description: 'Postgres schema',
         read: async (uri, { schema }) => {
@@ -65,7 +66,7 @@ export function createPostgresMetaMcpServer(
           return jsonResourceResponse(uri, result);
         },
       }),
-      jsonResource('/schemas/{schema}/tables', {
+      jsonResourceTemplate('/schemas/{schema}/tables', {
         name: 'tables',
         description:
           'Postgres tables, including columns, constraints, and indexes',
@@ -82,7 +83,7 @@ export function createPostgresMetaMcpServer(
           );
         },
       }),
-      jsonResource('/schemas/{schema}/tables/{table}', {
+      jsonResourceTemplate('/schemas/{schema}/tables/{table}', {
         name: 'table',
         description:
           'Postgres table, including columns, constraints, and indexes',
@@ -97,7 +98,7 @@ export function createPostgresMetaMcpServer(
           return jsonResourceResponse(uri, result);
         },
       }),
-      jsonResource('/schemas/{schema}/tables/{table}/policies', {
+      jsonResourceTemplate('/schemas/{schema}/tables/{table}/policies', {
         name: 'policies',
         description: 'Postgres RLS policies for a table',
         read: async (uri, { schema, table }) => {
@@ -114,22 +115,25 @@ export function createPostgresMetaMcpServer(
             );
         },
       }),
-      jsonResource('/schemas/{schema}/tables/{table}/policies/{policy}', {
-        name: 'policy',
-        description: 'Postgres RLS policy',
-        read: async (uri, { schema, table, policy }) => {
-          const result = await unwrapResult(
-            pgMeta.policies.retrieve({
-              schema,
-              table,
-              name: policy,
-            })
-          );
+      jsonResourceTemplate(
+        '/schemas/{schema}/tables/{table}/policies/{policy}',
+        {
+          name: 'policy',
+          description: 'Postgres RLS policy',
+          read: async (uri, { schema, table, policy }) => {
+            const result = await unwrapResult(
+              pgMeta.policies.retrieve({
+                schema,
+                table,
+                name: policy,
+              })
+            );
 
-          return jsonResourceResponse(uri, result);
-        },
-      }),
-      jsonResource('/schemas/{schema}/tables/{table}/triggers', {
+            return jsonResourceResponse(uri, result);
+          },
+        }
+      ),
+      jsonResourceTemplate('/schemas/{schema}/tables/{table}/triggers', {
         name: 'triggers',
         description: 'Postgres triggers',
         read: async (uri, { schema, table }) => {
@@ -146,22 +150,25 @@ export function createPostgresMetaMcpServer(
             );
         },
       }),
-      jsonResource('/schemas/{schema}/tables/{table}/triggers/{trigger}', {
-        name: 'trigger',
-        description: 'Postgres trigger',
-        read: async (uri, { schema, table, trigger }) => {
-          const result = await unwrapResult(
-            pgMeta.triggers.retrieve({
-              schema,
-              table,
-              name: trigger,
-            })
-          );
+      jsonResourceTemplate(
+        '/schemas/{schema}/tables/{table}/triggers/{trigger}',
+        {
+          name: 'trigger',
+          description: 'Postgres trigger',
+          read: async (uri, { schema, table, trigger }) => {
+            const result = await unwrapResult(
+              pgMeta.triggers.retrieve({
+                schema,
+                table,
+                name: trigger,
+              })
+            );
 
-          return jsonResourceResponse(uri, result);
-        },
-      }),
-      jsonResource('/schemas/{schema}/views', {
+            return jsonResourceResponse(uri, result);
+          },
+        }
+      ),
+      jsonResourceTemplate('/schemas/{schema}/views', {
         name: 'views',
         description: 'Postgres views',
         read: async (uri, { schema }) => {
@@ -176,7 +183,7 @@ export function createPostgresMetaMcpServer(
           );
         },
       }),
-      jsonResource('/schemas/{schema}/views/{view}', {
+      jsonResourceTemplate('/schemas/{schema}/views/{view}', {
         name: 'view',
         description: 'Postgres view',
         read: async (uri, { schema, view }) => {
@@ -190,7 +197,7 @@ export function createPostgresMetaMcpServer(
           return jsonResourceResponse(uri, result);
         },
       }),
-      jsonResource('/schemas/{schema}/materialized-views', {
+      jsonResourceTemplate('/schemas/{schema}/materialized-views', {
         name: 'materialized-views',
         description: 'Postgres materialized views',
         read: async (uri, { schema }) => {
@@ -205,7 +212,7 @@ export function createPostgresMetaMcpServer(
           );
         },
       }),
-      jsonResource('/schemas/{schema}/materialized-views/{view}', {
+      jsonResourceTemplate('/schemas/{schema}/materialized-views/{view}', {
         name: 'materialized-view',
         description: 'Postgres materialized view',
         read: async (uri, { schema, view }) => {
@@ -219,7 +226,7 @@ export function createPostgresMetaMcpServer(
           return jsonResourceResponse(uri, result);
         },
       }),
-      jsonResource('/schemas/{schema}/functions', {
+      jsonResourceTemplate('/schemas/{schema}/functions', {
         name: 'functions',
         description: 'Postgres functions',
         read: async (uri, { schema }) => {
@@ -234,7 +241,7 @@ export function createPostgresMetaMcpServer(
           );
         },
       }),
-      jsonResource('/schemas/{schema}/functions/{func}', {
+      jsonResourceTemplate('/schemas/{schema}/functions/{func}', {
         name: 'function',
         description: 'Postgres function',
         read: async (uri, { schema, func }) => {
@@ -260,7 +267,7 @@ export function createPostgresMetaMcpServer(
           );
         },
       }),
-      jsonResource('/extensions/{extension}', {
+      jsonResourceTemplate('/extensions/{extension}', {
         name: 'extension',
         description: 'Postgres extension',
         read: async (uri, { extension }) => {

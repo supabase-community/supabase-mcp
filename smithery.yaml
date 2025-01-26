@@ -1,0 +1,23 @@
+# Smithery configuration file: https://smithery.ai/docs/config#smitheryyaml
+
+build:
+  dockerBuildPath: ../../
+startCommand:
+  type: stdio
+  configSchema:
+    # JSON Schema defining the configuration options for the MCP.
+    type: object
+    required:
+      - supabaseUrl
+      - supabaseKey
+    properties:
+      supabaseUrl:
+        type: string
+        description: The URL of the Supabase instance.
+      supabaseKey:
+        type: string
+        description: The service role key for Supabase.
+  commandFunction:
+    # A function that produces the CLI command to start the MCP on stdio.
+    |-
+    (config) => ({command:'node',args:['dist/stdio.js'],env:{SUPABASE_URL:config.supabaseUrl, SUPABASE_KEY:config.supabaseKey}})

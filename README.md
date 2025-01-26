@@ -2,6 +2,8 @@
 
 > A collection of MCP servers that connect LLMs to Supabase
 
+[![smithery badge](https://smithery.ai/badge/@supabase-community/mcp-supabase)](https://smithery.ai/server/@supabase-community/mcp-supabase)
+
 The [Model Context Protocol](https://modelcontextprotocol.io/introduction) (MCP) is a standard for connecting Large Language Models (LLMs) to external services. It is an interface that provides custom resources, tools, and prompts to LLMs. This repository contains a collection of MCP servers that interface with Supabase.
 
 ## MCP clients vs. servers

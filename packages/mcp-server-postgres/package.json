@@ -43,7 +43,7 @@
   "dependencies": {
     "@electric-sql/pglite": "^0.2.15",
     "@gregnr/postgres-meta": "^0.82.0-dev.2",
-    "@modelcontextprotocol/sdk": "^1.0.4",
+    "@modelcontextprotocol/sdk": "^1.4.1",
     "@supabase/mcp-utils": "0.1.1",
     "openapi-fetch": "^0.13.4",
     "postgres": "^3.4.5",

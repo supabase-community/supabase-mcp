@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { resource, resources } from './server.js';
+import { resource, resources, resourceTemplate } from './server.js';
 
 describe('resources helper', () => {
   test('should add scheme to resource URIs', () => {
@@ -9,14 +9,16 @@ describe('resources helper', () => {
         description: 'Postgres schemas',
         read: async () => [],
       }),
-      resource('/schemas/{schema}', {
+      resourceTemplate('/schemas/{schema}', {
         name: 'schema',
         description: 'Postgres schema',
         read: async () => [],
       }),
     ]);
 
-    const outputUris = output.map(({ uri }) => uri);
+    const outputUris = output.map((resource) =>
+      'uri' in resource ? resource.uri : resource.uriTemplate
+    );
 
     expect(outputUris).toEqual([
       'my-scheme:///schemas',
@@ -26,23 +28,25 @@ describe('resources helper', () => {
 
   test('should not overwrite existing scheme in resource URIs', () => {
     const output = resources('my-scheme', [
-      resource('pg-meta:///schemas', {
+      resource('/schemas', {
         name: 'schemas',
         description: 'Postgres schemas',
         read: async () => [],
       }),
-      resource('pg-meta:///schemas/{schema}', {
+      resourceTemplate('/schemas/{schema}', {
         name: 'schema',
         description: 'Postgres schema',
         read: async () => [],
       }),
     ]);
 
-    const outputUris = output.map(({ uri }) => uri);
+    const outputUris = output.map((resource) =>
+      'uri' in resource ? resource.uri : resource.uriTemplate
+    );
 
     expect(outputUris).toEqual([
-      'pg-meta:///schemas',
-      'pg-meta:///schemas/{schema}',
+      'my-scheme:///schemas',
+      'my-scheme:///schemas/{schema}',
     ]);
   });
 });

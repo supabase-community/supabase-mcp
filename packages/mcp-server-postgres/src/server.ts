@@ -19,13 +19,11 @@ export type PostgresMetaMcpServerOptions = {
 };
 
 /**
- * Creates an MCP server for building Supabase projects.
+ * Creates an MCP server for querying Postgres and retrieving metadata.
  *
- * It provides resources for querying Postgres metadata.
+ * Useful for app builders who want to expose Postgres metadata to their LLMs
  */
-export function createPostgresMetaMcpServer(
-  options: PostgresMetaMcpServerOptions
-) {
+export function createPostgresMcpServer(options: PostgresMetaMcpServerOptions) {
   const pgMeta = new PostgresMetaBase({
     query: async (sql) => {
       try {
@@ -39,9 +37,9 @@ export function createPostgresMetaMcpServer(
   });
 
   return createMcpServer({
-    name: 'supabase/postgres-meta',
+    name: 'supabase/postgres',
     version,
-    resources: resources('postgres-meta', [
+    resources: resources('postgres', [
       jsonResource('/schemas', {
         name: 'schemas',
         description: 'Postgres schemas',

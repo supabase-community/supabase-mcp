@@ -3,7 +3,7 @@
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { parseArgs } from 'node:util';
 import { PostgresQuerier } from './queriers/postgres/index.js';
-import { createPostgresMetaMcpServer } from './server.js';
+import { createPostgresMcpServer } from './server.js';
 
 async function main() {
   const {
@@ -27,7 +27,7 @@ async function main() {
     connection,
   });
 
-  const server = createPostgresMetaMcpServer({
+  const server = createPostgresMcpServer({
     querier,
   });
 

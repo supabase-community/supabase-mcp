@@ -1,7 +1,7 @@
 {
-  "name": "@supabase/mcp-server-postgres-meta",
+  "name": "@supabase/mcp-server-postgres",
   "version": "0.1.0",
-  "description": "MCP server for retrieving schema, tables, and other metadata from a Postgres database",
+  "description": "MCP server for querying Postgres and retrieving metadata",
   "license": "MIT",
   "type": "module",
   "main": "dist/index.cjs",

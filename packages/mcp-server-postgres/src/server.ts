@@ -9,7 +9,9 @@ import {
   jsonResourceResponse,
   jsonResourceTemplate,
   resources,
+  tool,
 } from '@supabase/mcp-utils';
+import { z } from 'zod';
 import { version } from '../package.json';
 import type { Querier } from './queriers/types.js';
 import { unwrapResult } from './util.js';
@@ -21,7 +23,7 @@ export type PostgresMetaMcpServerOptions = {
 /**
  * Creates an MCP server for querying Postgres and retrieving metadata.
  *
- * Useful for app builders who want to expose Postgres metadata to their LLMs
+ * Useful for app builders who want to expose Postgres metadata to their LLMs.
  */
 export function createPostgresMcpServer(options: PostgresMetaMcpServerOptions) {
   const pgMeta = new PostgresMetaBase({
@@ -279,5 +281,16 @@ export function createPostgresMcpServer(options: PostgresMetaMcpServerOptions) {
         },
       }),
     ]),
+    tools: {
+      executeSql: tool({
+        description: 'Executes SQL against the Postgres database',
+        parameters: z.object({
+          sql: z.string(),
+        }),
+        execute: async ({ sql }) => {
+          return await options.querier.query(sql);
+        },
+      }),
+    },
   });
 }

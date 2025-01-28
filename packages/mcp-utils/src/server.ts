@@ -327,14 +327,12 @@ export function createMcpServer(options: McpServerOptions) {
 
       try {
         const result = await tool.execute(args);
+        const content = result
+          ? [{ type: 'text', text: JSON.stringify(result) }]
+          : [];
 
         return {
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify(result),
-            },
-          ],
+          content,
         };
       } catch (error) {
         return {
@@ -342,10 +340,7 @@ export function createMcpServer(options: McpServerOptions) {
           content: [
             {
               type: 'text',
-              text:
-                error && typeof error === 'object' && 'message' in error
-                  ? error.message
-                  : JSON.stringify(error),
+              text: JSON.stringify({ error: enumerateError(error) }),
             },
           ],
         };
@@ -359,4 +354,26 @@ export function createMcpServer(options: McpServerOptions) {
   type Result = ExpandRecursively<ExtractResult<typeof server>>;
 
   return server as Server<Request, Notification, Result>;
+}
+
+function enumerateError(error: unknown) {
+  if (!error) {
+    return error;
+  }
+
+  if (typeof error !== 'object') {
+    return error;
+  }
+
+  const newError: Record<string, unknown> = {};
+
+  const errorProps = ['name', 'message'] as const;
+
+  for (const prop of errorProps) {
+    if (prop in error) {
+      newError[prop] = (error as Record<string, unknown>)[prop];
+    }
+  }
+
+  return newError;
 }

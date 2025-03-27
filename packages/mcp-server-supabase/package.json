@@ -1,0 +1,48 @@
+{
+  "name": "@supabase/mcp-server-supabase",
+  "version": "0.1.0-dev.1",
+  "description": "MCP server for interacting with Supabase",
+  "license": "MIT",
+  "type": "module",
+  "main": "dist/index.cjs",
+  "types": "dist/index.d.ts",
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup --clean",
+    "prepublishOnly": "npm run build",
+    "test": "vitest",
+    "generate:management-api-types": "openapi-typescript https://api.supabase.com/api/v1-json -o ./src/management-api/types.ts"
+  },
+  "files": [
+    "dist/**/*"
+  ],
+  "bin": {
+    "mcp-server-supabase": "./dist/stdio.js"
+  },
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.cjs"
+    }
+  },
+  "dependencies": {
+    "@gregnr/postgres-meta": "^0.82.0-dev.2",
+    "@modelcontextprotocol/sdk": "^1.4.1",
+    "@supabase/mcp-utils": "0.1.1",
+    "openapi-fetch": "^0.13.4",
+    "postgres": "^3.4.5",
+    "zod": "^3.24.1",
+    "zod-to-json-schema": "^3.24.1"
+  },
+  "devDependencies": {
+    "@total-typescript/tsconfig": "^1.0.4",
+    "@types/node": "^22.8.6",
+    "openapi-typescript": "^7.5.0",
+    "prettier": "^3.3.3",
+    "tsup": "^8.3.5",
+    "tsx": "^4.19.2",
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.4"
+  }
+}

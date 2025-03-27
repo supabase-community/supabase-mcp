@@ -5,6 +5,8 @@ import {
   ListResourceTemplatesRequestSchema,
   ListToolsRequestSchema,
   ReadResourceRequestSchema,
+  type ClientCapabilities,
+  type Implementation,
   type ListResourcesResult,
   type ListResourceTemplatesResult,
   type ServerCapabilities,
@@ -167,6 +169,10 @@ export type McpServerOptions = {
   version: string;
   resources?: (Resource<string, unknown> | ResourceTemplate<string, unknown>)[];
   tools?: Record<string, Tool>;
+  onInitialize?: (
+    clientInfo: Implementation,
+    clientCapabilities: ClientCapabilities
+  ) => void;
 };
 
 /**
@@ -195,6 +201,21 @@ export function createMcpServer(options: McpServerOptions) {
       capabilities,
     }
   );
+
+  server.oninitialized = () => {
+    const clientInfo = server.getClientVersion();
+    const clientCapabilities = server.getClientCapabilities();
+
+    if (!clientInfo) {
+      throw new Error('client info not available after initialization');
+    }
+
+    if (!clientCapabilities) {
+      throw new Error('client capabilities not available after initialization');
+    }
+
+    options.onInitialize?.(clientInfo, clientCapabilities);
+  };
 
   if (options.resources) {
     const allResources = options.resources;

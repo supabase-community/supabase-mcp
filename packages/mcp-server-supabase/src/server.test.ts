@@ -4,6 +4,7 @@ import { StreamTransport } from '@supabase/mcp-utils';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { beforeEach, describe, expect, test } from 'vitest';
+import { version } from '../package.json';
 import type { components } from './management-api/types';
 import { createSupabaseMcpServer } from './server.js';
 
@@ -11,6 +12,10 @@ type Project = components['schemas']['V1ProjectWithDatabaseResponse'];
 type Organization = components['schemas']['OrganizationResponseV1'];
 
 const API_URL = 'https://api.supabase.com';
+const MCP_SERVER_NAME = 'supabase-mcp';
+const MCP_SERVER_VERSION = version;
+const MCP_CLIENT_NAME = 'test-client';
+const MCP_CLIENT_VERSION = '0.1.0';
 
 const mockOrgs: Organization[] = [
   { id: 'org-1', name: 'Org 1' },
@@ -49,7 +54,7 @@ const mockProjects: Project[] = [
 ];
 
 beforeEach(() => {
-  // Mock databases using PGlite
+  // Mock project databases using PGlite
   const projectDbs = new Map<string, PGliteInterface>();
   function getDb(projectId: string) {
     if (!mockProjects.find((p) => p.id === projectId)) {
@@ -65,6 +70,13 @@ beforeEach(() => {
 
   // Mock the management API
   const handlers = [
+    http.all('*', ({ request }) => {
+      const userAgent = request.headers.get('user-agent');
+      expect(userAgent).toBe(
+        `${MCP_SERVER_NAME}/${MCP_SERVER_VERSION} (${MCP_CLIENT_NAME}/${MCP_CLIENT_VERSION})`
+      );
+    }),
+
     http.get(`${API_URL}/v1/projects`, () => {
       return HttpResponse.json(mockProjects);
     }),
@@ -95,7 +107,10 @@ beforeEach(() => {
         const [results] = await db.exec(query);
 
         if (!results) {
-          return HttpResponse.json({ error: 'No results' }, { status: 404 });
+          return HttpResponse.json(
+            { error: 'Failed to execute query' },
+            { status: 500 }
+          );
         }
 
         return HttpResponse.json(results.rows);
@@ -110,7 +125,10 @@ beforeEach(() => {
         const [results] = await db.exec(query);
 
         if (!results) {
-          return HttpResponse.json({ error: 'No results' }, { status: 404 });
+          return HttpResponse.json(
+            { error: 'Failed to execute query' },
+            { status: 500 }
+          );
         }
 
         return HttpResponse.json(results.rows);
@@ -141,8 +159,8 @@ async function setup() {
 
   const client = new Client(
     {
-      name: 'TestClient',
-      version: '0.1.0',
+      name: MCP_CLIENT_NAME,
+      version: MCP_CLIENT_VERSION,
     },
     {
       capabilities: {},
@@ -178,7 +196,7 @@ describe('tools', () => {
 
     const result = JSON.parse(content.text);
     if (output.isError) {
-      throw new Error(`Error calling tool: ${result}`);
+      throw new Error(`Error calling tool: ${result.error.message}`);
     }
 
     expect(result).toEqual(mockOrgs);
@@ -203,7 +221,7 @@ describe('tools', () => {
 
     const result = JSON.parse(content.text);
     if (output.isError) {
-      throw new Error(`Error calling tool: ${result}`);
+      throw new Error(`Error calling tool: ${result.error.message}`);
     }
 
     expect(result).toEqual(firstOrg);
@@ -226,7 +244,7 @@ describe('tools', () => {
     const result = JSON.parse(content.text);
 
     if (output.isError) {
-      throw new Error(`Error calling tool: ${result}`);
+      throw new Error(`Error calling tool: ${result.error.message}`);
     }
 
     expect(result).toEqual(mockProjects);
@@ -296,7 +314,7 @@ describe('tools', () => {
     const result = JSON.parse(content.text);
 
     if (output.isError) {
-      throw new Error(`Error calling tool: ${result}`);
+      throw new Error(`Error calling tool: ${result.error.message}`);
     }
 
     expect(result).toEqual([{ sum: 2 }]);
@@ -328,7 +346,7 @@ describe('tools', () => {
     const result = JSON.parse(content.text);
 
     if (output.isError) {
-      throw new Error(`Error calling tool: ${result}`);
+      throw new Error(`Error calling tool: ${result.error.message}`);
     }
 
     expect(result).toEqual([]);
@@ -348,7 +366,7 @@ describe('tools', () => {
 
     const listResult = JSON.parse(listContent.text);
     if (listOutput.isError) {
-      throw new Error(`Error calling tool: ${listResult}`);
+      throw new Error(`Error calling tool: ${listResult.error.message}`);
     }
     expect(listResult).toMatchInlineSnapshot(`
       [
@@ -421,7 +439,7 @@ describe('tools', () => {
     const result = JSON.parse(content.text);
 
     if (output.isError) {
-      throw new Error(`Error calling tool: ${result}`);
+      throw new Error(`Error calling tool: ${result.error.message}`);
     }
 
     expect(result).toMatchInlineSnapshot(`

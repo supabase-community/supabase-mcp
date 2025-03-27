@@ -6,7 +6,10 @@ import {
 import { createMcpServer, tool } from '@supabase/mcp-utils';
 import { z } from 'zod';
 import { version } from '../package.json';
-import { createManagementApiClient } from './management-api/index.js';
+import {
+  createManagementApiClient,
+  type ManagementApiClient,
+} from './management-api/index.js';
 
 export type SupabasePlatformOptions = {
   apiUrl?: string;
@@ -24,10 +27,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
   const managementApiUrl =
     options.platform.apiUrl ?? 'https://api.supabase.com';
 
-  const managementApiClient = createManagementApiClient(
-    managementApiUrl,
-    options.platform.accessToken
-  );
+  let managementApiClient: ManagementApiClient;
 
   async function executeSql<T>(projectId: string, query: string): Promise<T[]> {
     const response = await managementApiClient.POST(
@@ -40,9 +40,6 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
         },
         body: {
           query,
-        },
-        headers: {
-          'user-agent': getUserAgent(),
         },
       }
     );
@@ -71,28 +68,26 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
   const server = createMcpServer({
     name: 'supabase',
     version,
+    onInitialize(clientInfo) {
+      managementApiClient = createManagementApiClient(
+        managementApiUrl,
+        options.platform.accessToken,
+        {
+          'User-Agent': `supabase-mcp/${version} (${clientInfo.name}/${clientInfo.version})`,
+        }
+      );
+    },
 
     // Note: tools are intentionally snake_case to align better with most MCP clients
     tools: {
-      get_user_agent: tool({
-        description: 'Gets the user agent string.',
-        parameters: z.object({}),
-        execute: async () => {
-          return getUserAgent();
-        },
-      }),
       get_projects: tool({
         description: 'Gets all Supabase projects for the user.',
         parameters: z.object({}),
         execute: async () => {
-          const response = await managementApiClient.GET('/v1/projects', {
-            headers: {
-              'user-agent': getUserAgent(),
-            },
-          });
+          const response = await managementApiClient.GET('/v1/projects');
 
           if (!response.response.ok) {
-            throw new Error('Failed to fetch projects');
+            throw new Error(`Failed to fetch projects`);
           }
 
           return response.data;
@@ -102,11 +97,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
         description: 'Gets all organizations for the user.',
         parameters: z.object({}),
         execute: async () => {
-          const response = await managementApiClient.GET('/v1/organizations', {
-            headers: {
-              'user-agent': getUserAgent(),
-            },
-          });
+          const response = await managementApiClient.GET('/v1/organizations');
 
           if (!response.response.ok) {
             throw new Error('Failed to fetch organizations');
@@ -128,9 +119,6 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
                 path: {
                   slug: organizationId,
                 },
-              },
-              headers: {
-                'user-agent': getUserAgent(),
               },
             }
           );
@@ -191,9 +179,6 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
           const response = await managementApiClient.POST(
             '/v1/projects/{ref}/database/migrations',
             {
-              headers: {
-                'user-agent': getUserAgent(),
-              },
               params: {
                 path: {
                   ref: projectId,
@@ -250,9 +235,6 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
                   reveal: false,
                 },
               },
-              headers: {
-                'user-agent': getUserAgent(),
-              },
             }
           );
 
@@ -283,9 +265,6 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
                   ref: projectId,
                 },
               },
-              headers: {
-                'user-agent': getUserAgent(),
-              },
             }
           );
 
@@ -298,14 +277,6 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       }),
     },
   });
-
-  function getUserAgent() {
-    const clientInfo = server.getClientVersion();
-    if (clientInfo) {
-      return `supabase-mcp/${version} (${clientInfo.name}/${clientInfo.version})`;
-    }
-    return `supabase-mcp/${version}`;
-  }
 
   return server;
 }

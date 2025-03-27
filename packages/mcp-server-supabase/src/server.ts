@@ -172,8 +172,8 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
           'Applies a migration to the database. Use this when executing DDL operations.',
         parameters: z.object({
           projectId: z.string(),
-          name: z.string(),
-          query: z.string(),
+          name: z.string().describe('The name of the migration in snake_case'),
+          query: z.string().describe('The SQL query to apply'),
         }),
         execute: async ({ projectId, name, query }) => {
           const response = await managementApiClient.POST(

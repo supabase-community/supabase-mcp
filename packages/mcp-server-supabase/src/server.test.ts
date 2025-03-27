@@ -1,5 +1,9 @@
 import { PGlite, type PGliteInterface } from '@electric-sql/pglite';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import {
+  CallToolResultSchema,
+  type CallToolRequest,
+} from '@modelcontextprotocol/sdk/types.js';
 import { StreamTransport } from '@supabase/mcp-utils';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
@@ -177,127 +181,109 @@ async function setup() {
   await server.connect(serverTransport);
   await client.connect(clientTransport);
 
-  return { client, clientTransport, server, serverTransport };
+  /**
+   * Calls a tool with the given parameters.
+   *
+   * Wrapper around the `client.callTool` method to handle the response and errors.
+   */
+  async function callTool(params: CallToolRequest['params']) {
+    const output = await client.callTool(params);
+    const { content } = CallToolResultSchema.parse(output);
+    const [textContent] = content;
+
+    if (!textContent) {
+      throw new Error('tool result content is missing');
+    }
+
+    if (textContent.type !== 'text') {
+      throw new Error('tool result content is not text');
+    }
+
+    if (textContent.text === '') {
+      throw new Error('tool result content is empty');
+    }
+
+    const result = JSON.parse(textContent.text);
+
+    if (output.isError) {
+      throw new Error(`error calling tool: ${result.error.message}`);
+    }
+
+    return result;
+  }
+
+  return { client, clientTransport, callTool, server, serverTransport };
 }
 
 describe('tools', () => {
   test('get organizations', async () => {
-    const { client } = await setup();
+    const { callTool } = await setup();
 
-    const output = await client.callTool({
+    const result = await callTool({
       name: 'get_organizations',
       arguments: {},
     });
-
-    const [content] = output.content as any[];
-    if (!content) {
-      throw new Error('no content');
-    }
-
-    const result = JSON.parse(content.text);
-    if (output.isError) {
-      throw new Error(`Error calling tool: ${result.error.message}`);
-    }
 
     expect(result).toEqual(mockOrgs);
   });
 
   test('get organization', async () => {
-    const { client } = await setup();
+    const { callTool } = await setup();
 
     const firstOrg = mockOrgs[0]!;
 
-    const output = await client.callTool({
+    const result = await callTool({
       name: 'get_organization',
       arguments: {
         id: firstOrg.id,
       },
     });
 
-    const [content] = output.content as any[];
-    if (!content) {
-      throw new Error('no content');
-    }
-
-    const result = JSON.parse(content.text);
-    if (output.isError) {
-      throw new Error(`Error calling tool: ${result.error.message}`);
-    }
-
     expect(result).toEqual(firstOrg);
   });
 
   test('get projects', async () => {
-    const { client } = await setup();
+    const { callTool } = await setup();
 
-    const output = await client.callTool({
+    const result = await callTool({
       name: 'get_projects',
       arguments: {},
     });
-
-    const [content] = output.content as any[];
-
-    if (!content) {
-      throw new Error('no content');
-    }
-
-    const result = JSON.parse(content.text);
-
-    if (output.isError) {
-      throw new Error(`Error calling tool: ${result.error.message}`);
-    }
 
     expect(result).toEqual(mockProjects);
   });
 
   test('get project url', async () => {
-    const { client } = await setup();
+    const { callTool } = await setup();
     const project = mockProjects[0]!;
-    const output = await client.callTool({
+    const result = await callTool({
       name: 'get_project_url',
       arguments: {
         projectId: project.id,
       },
     });
-    const [content] = output.content as any[];
-    if (!content) {
-      throw new Error('no content');
-    }
-    const result = JSON.parse(content.text);
-    if (output.isError) {
-      throw new Error(`Error calling tool: ${result.error.message}`);
-    }
     expect(result).toEqual(`https://${project.id}.supabase.co`);
   });
 
   test('get anon key', async () => {
-    const { client } = await setup();
+    const { callTool } = await setup();
     const project = mockProjects[0]!;
-    const output = await client.callTool({
+    const result = await callTool({
       name: 'get_anon_key',
       arguments: {
         projectId: project.id,
       },
     });
-    const [content] = output.content as any[];
-    if (!content) {
-      throw new Error('no content');
-    }
-
-    const result = JSON.parse(content.text);
-    if (output.isError) {
-      throw new Error(`Error calling tool: ${result.error.message}`);
-    }
     expect(result).toEqual('dummy-anon-key');
   });
 
   test('execute sql', async () => {
-    const { client } = await setup();
+    const { callTool } = await setup();
 
     const project = mockProjects[0]!;
     const query = 'select 1+1 as sum';
 
-    const output = await client.callTool({
+    const result = await callTool({
       name: 'execute_sql',
       arguments: {
         projectId: project.id,
@@ -305,30 +291,18 @@ describe('tools', () => {
       },
     });
 
-    const [content] = output.content as any[];
-
-    if (!content) {
-      throw new Error('no content');
-    }
-
-    const result = JSON.parse(content.text);
-
-    if (output.isError) {
-      throw new Error(`Error calling tool: ${result.error.message}`);
-    }
-
     expect(result).toEqual([{ sum: 2 }]);
   });
 
   test('apply migration and get tables', async () => {
-    const { client } = await setup();
+    const { callTool } = await setup();
 
     const project = mockProjects[0]!;
     const name = 'test-migration';
     const query =
       'create table test (id integer generated always as identity primary key)';
 
-    const output = await client.callTool({
+    const result = await callTool({
       name: 'apply_migration',
       arguments: {
         projectId: project.id,
@@ -337,21 +311,9 @@ describe('tools', () => {
       },
     });
 
-    const [content] = output.content as any[];
-
-    if (!content) {
-      throw new Error('no content');
-    }
-
-    const result = JSON.parse(content.text);
-
-    if (output.isError) {
-      throw new Error(`Error calling tool: ${result.error.message}`);
-    }
-
     expect(result).toEqual([]);
 
-    const listOutput = await client.callTool({
+    const listResult = await callTool({
       name: 'get_tables',
       arguments: {
         projectId: project.id,
@@ -359,15 +321,6 @@ describe('tools', () => {
       },
     });
 
-    const [listContent] = listOutput.content as any[];
-    if (!listContent) {
-      throw new Error('no content');
-    }
-
-    const listResult = JSON.parse(listContent.text);
-    if (listOutput.isError) {
-      throw new Error(`Error calling tool: ${listResult.error.message}`);
-    }
     expect(listResult).toMatchInlineSnapshot(`
       [
         {
@@ -419,28 +372,16 @@ describe('tools', () => {
   });
 
   test('get extensions', async () => {
-    const { client } = await setup();
+    const { callTool } = await setup();
 
     const project = mockProjects[0]!;
 
-    const output = await client.callTool({
+    const result = await callTool({
       name: 'get_extensions',
       arguments: {
         projectId: project.id,
       },
     });
-
-    const [content] = output.content as any[];
-
-    if (!content) {
-      throw new Error('no content');
-    }
-
-    const result = JSON.parse(content.text);
-
-    if (output.isError) {
-      throw new Error(`Error calling tool: ${result.error.message}`);
-    }
 
     expect(result).toMatchInlineSnapshot(`
       [

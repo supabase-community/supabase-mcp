@@ -302,7 +302,7 @@ describe('tools', () => {
     expect(result).toEqual([{ sum: 2 }]);
   });
 
-  test('apply migration', async () => {
+  test('apply migration and get tables', async () => {
     const { client } = await setup();
 
     const project = mockProjects[0]!;
@@ -395,6 +395,43 @@ describe('tools', () => {
           "rls_forced": false,
           "schema": "public",
           "size": "8192 bytes",
+        },
+      ]
+    `);
+  });
+
+  test('get extensions', async () => {
+    const { client } = await setup();
+
+    const project = mockProjects[0]!;
+
+    const output = await client.callTool({
+      name: 'get_extensions',
+      arguments: {
+        projectId: project.id,
+      },
+    });
+
+    const [content] = output.content as any[];
+
+    if (!content) {
+      throw new Error('no content');
+    }
+
+    const result = JSON.parse(content.text);
+
+    if (output.isError) {
+      throw new Error(`Error calling tool: ${result}`);
+    }
+
+    expect(result).toMatchInlineSnapshot(`
+      [
+        {
+          "comment": "PL/pgSQL procedural language",
+          "default_version": "1.0",
+          "installed_version": "1.0",
+          "name": "plpgsql",
+          "schema": "pg_catalog",
         },
       ]
     `);

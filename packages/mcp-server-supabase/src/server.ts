@@ -29,7 +29,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
     options.platform.accessToken
   );
 
-  async function query<T>(projectId: string, query: string): Promise<T[]> {
+  async function executeSql<T>(projectId: string, query: string): Promise<T[]> {
     const response = await managementApiClient.POST(
       '/v1/projects/{ref}/database/query',
       {
@@ -47,8 +47,8 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       }
     );
 
-    if (response.error) {
-      throw new Error(response.error);
+    if (!response.response.ok) {
+      throw new Error('Failed to execute SQL query');
     }
 
     return response.data as unknown as T[];
@@ -58,7 +58,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
     return new PostgresMetaBase({
       query: async (sql) => {
         try {
-          const res = await query(projectId, sql);
+          const res = await executeSql(projectId, sql);
           return wrapResult<any[]>(res);
         } catch (error) {
           return wrapError(error, sql);
@@ -90,6 +90,11 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
               'user-agent': getUserAgent(),
             },
           });
+
+          if (!response.response.ok) {
+            throw new Error('Failed to fetch projects');
+          }
+
           return response.data;
         },
       }),
@@ -102,15 +107,20 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
               'user-agent': getUserAgent(),
             },
           });
+
+          if (!response.response.ok) {
+            throw new Error('Failed to fetch organizations');
+          }
+
           return response.data;
         },
       }),
       get_organization: tool({
         description: 'Gets an organization by ID.',
         parameters: z.object({
-          orgId: z.string().describe('The organization ID'),
+          id: z.string().describe('The organization ID'),
         }),
-        execute: async ({ orgId: organizationId }) => {
+        execute: async ({ id: organizationId }) => {
           const response = await managementApiClient.GET(
             '/v1/organizations/{slug}',
             {
@@ -124,6 +134,11 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
               },
             }
           );
+
+          if (!response.response.ok) {
+            throw new Error('Failed to fetch organization');
+          }
+
           return response.data;
         },
       }),
@@ -131,11 +146,22 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
         description: 'Gets all tables in a schema.',
         parameters: z.object({
           projectId: z.string(),
-          schema: z.string(),
+          schemas: z
+            .optional(z.array(z.string()))
+            .describe(
+              'Optional list of schemas to include. Defaults to all schemas.'
+            ),
         }),
-        execute: async ({ projectId, schema }) => {
+        execute: async ({ projectId, schemas }) => {
           const pgMeta = createPGMeta(projectId);
-          return await pgMeta.tables.list({ includedSchemas: [schema] });
+          const { data, error } = await pgMeta.tables.list({
+            includedSchemas: schemas,
+          });
+
+          if (error) {
+            throw new Error(`Error fetching tables: ${error.message}`);
+          }
+          return data;
         },
       }),
       get_extensions: tool({
@@ -145,7 +171,12 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
         }),
         execute: async ({ projectId }) => {
           const pgMeta = createPGMeta(projectId);
-          return await pgMeta.extensions.list();
+          const { data, error } = await pgMeta.extensions.list();
+
+          if (error) {
+            throw new Error(`Error fetching extensions: ${error.message}`);
+          }
+          return data;
         },
       }),
       apply_migration: tool({
@@ -175,8 +206,8 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
             } as any // TODO: remove once API spec updated to include body
           );
 
-          if (response.error) {
-            throw new Error(JSON.stringify(response.error));
+          if (!response.response.ok) {
+            throw new Error('Failed to apply migration');
           }
 
           return response.data;
@@ -187,10 +218,10 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
           'Executes raw SQL in the Postgres database. Use `applyMigration` instead for DDL operations.',
         parameters: z.object({
           projectId: z.string(),
-          sql: z.string(),
+          query: z.string().describe('The SQL query to execute'),
         }),
-        execute: async ({ sql, projectId }) => {
-          return await query(projectId, sql);
+        execute: async ({ query, projectId }) => {
+          return await executeSql(projectId, query);
         },
       }),
       get_project_url: tool({
@@ -225,8 +256,8 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
             }
           );
 
-          if (response.error) {
-            throw new Error(response.error);
+          if (!response.response.ok) {
+            throw new Error('Failed to fetch API keys');
           }
 
           const anonKey = response.data?.find((key) => key.name === 'anon');
@@ -258,8 +289,8 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
             }
           );
 
-          if (response.error) {
-            throw new Error(response.error);
+          if (!response.response.ok) {
+            throw new Error('Failed to fetch TypeScript types');
           }
 
           return response.data;

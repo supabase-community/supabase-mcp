@@ -20,6 +20,7 @@ const MCP_SERVER_NAME = 'supabase-mcp';
 const MCP_SERVER_VERSION = version;
 const MCP_CLIENT_NAME = 'test-client';
 const MCP_CLIENT_VERSION = '0.1.0';
+const ACCESS_TOKEN = 'dummy-token';
 
 const mockOrgs: Organization[] = [
   { id: 'org-1', name: 'Org 1' },
@@ -74,6 +75,15 @@ beforeEach(() => {
 
   // Mock the management API
   const handlers = [
+    http.all('*', ({ request }) => {
+      const authHeader = request.headers.get('Authorization');
+
+      const accessToken = authHeader?.replace('Bearer ', '');
+      if (accessToken !== ACCESS_TOKEN) {
+        return HttpResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      }
+    }),
+
     http.all('*', ({ request }) => {
       const userAgent = request.headers.get('user-agent');
       expect(userAgent).toBe(
@@ -151,10 +161,15 @@ beforeEach(() => {
   });
 });
 
+type SetupOptions = {
+  accessToken?: string;
+};
+
 /**
  * Sets up an MCP client and server for testing.
  */
-async function setup() {
+async function setup(options: SetupOptions = {}) {
+  const { accessToken = ACCESS_TOKEN } = options;
   const clientTransport = new StreamTransport();
   const serverTransport = new StreamTransport();
 
@@ -174,7 +189,7 @@ async function setup() {
   const server = createSupabaseMcpServer({
     platform: {
       apiUrl: API_URL,
-      accessToken: 'dummy-token',
+      accessToken,
     },
   });
 
@@ -206,7 +221,7 @@ async function setup() {
     const result = JSON.parse(textContent.text);
 
     if (output.isError) {
-      throw new Error(`error calling tool: ${result.error.message}`);
+      throw new Error(result.error.message);
     }
 
     return result;
@@ -394,5 +409,60 @@ describe('tools', () => {
         },
       ]
     `);
+  });
+
+  test('invalid access token', async () => {
+    const { callTool } = await setup({ accessToken: 'bad-token' });
+
+    async function run() {
+      return await callTool({
+        name: 'get_organizations',
+        arguments: {},
+      });
+    }
+
+    await expect(run()).rejects.toThrow(
+      'Unauthorized. Please provide a valid access token to the MCP server via the --access-token flag.'
+    );
+  });
+
+  test('invalid sql for apply_migration', async () => {
+    const { callTool } = await setup();
+
+    const project = mockProjects[0]!;
+    const name = 'test-migration';
+    const query = 'invalid sql';
+
+    async function run() {
+      return await callTool({
+        name: 'apply_migration',
+        arguments: {
+          projectId: project.id,
+          name,
+          query,
+        },
+      });
+    }
+
+    await expect(run()).rejects.toThrow('syntax error at or near "invalid"');
+  });
+
+  test('invalid sql for execute_sql', async () => {
+    const { callTool } = await setup();
+
+    const project = mockProjects[0]!;
+    const query = 'invalid sql';
+
+    async function run() {
+      return await callTool({
+        name: 'execute_sql',
+        arguments: {
+          projectId: project.id,
+          query,
+        },
+      });
+    }
+
+    await expect(run()).rejects.toThrow('syntax error at or near "invalid"');
   });
 });

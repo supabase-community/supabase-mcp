@@ -1,4 +1,4 @@
-import createClient, { type Client } from 'openapi-fetch';
+import createClient, { type Client, type FetchResponse } from 'openapi-fetch';
 import type { paths } from './types.js';
 
 export function createManagementApiClient(
@@ -17,3 +17,17 @@ export function createManagementApiClient(
 }
 
 export type ManagementApiClient = Client<paths>;
+
+export function assertManagementApiResponse(
+  response: FetchResponse<any, any, any>,
+  errorMessage: string
+) {
+  if (!response.response.ok) {
+    if (response.response.status === 401) {
+      throw new Error(
+        'Unauthorized. Please provide a valid access token to the MCP server via the --access-token flag.'
+      );
+    }
+    throw new Error(errorMessage);
+  }
+}

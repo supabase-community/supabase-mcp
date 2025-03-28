@@ -7,6 +7,7 @@ import { createMcpServer, tool } from '@supabase/mcp-utils';
 import { z } from 'zod';
 import { version } from '../package.json';
 import {
+  assertManagementApiResponse,
   createManagementApiClient,
   type ManagementApiClient,
 } from './management-api/index.js';
@@ -44,9 +45,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       }
     );
 
-    if (!response.response.ok) {
-      throw new Error('Failed to execute SQL query');
-    }
+    assertManagementApiResponse(response, 'Failed to execute SQL query');
 
     return response.data as unknown as T[];
   }
@@ -86,9 +85,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
         execute: async () => {
           const response = await managementApiClient.GET('/v1/projects');
 
-          if (!response.response.ok) {
-            throw new Error(`Failed to fetch projects`);
-          }
+          assertManagementApiResponse(response, 'Failed to fetch projects');
 
           return response.data;
         },
@@ -99,9 +96,10 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
         execute: async () => {
           const response = await managementApiClient.GET('/v1/organizations');
 
-          if (!response.response.ok) {
-            throw new Error('Failed to fetch organizations');
-          }
+          assertManagementApiResponse(
+            response,
+            'Failed to fetch organizations'
+          );
 
           return response.data;
         },
@@ -123,9 +121,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
             }
           );
 
-          if (!response.response.ok) {
-            throw new Error('Failed to fetch organization');
-          }
+          assertManagementApiResponse(response, 'Failed to fetch organization');
 
           return response.data;
         },
@@ -149,6 +145,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
           if (error) {
             throw new Error(`Error fetching tables: ${error.message}`);
           }
+
           return data;
         },
       }),
@@ -191,9 +188,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
             } as any // TODO: remove once API spec updated to include body
           );
 
-          if (!response.response.ok) {
-            throw new Error('Failed to apply migration');
-          }
+          assertManagementApiResponse(response, 'Failed to apply migration');
 
           return response.data;
         },
@@ -238,9 +233,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
             }
           );
 
-          if (!response.response.ok) {
-            throw new Error('Failed to fetch API keys');
-          }
+          assertManagementApiResponse(response, 'Failed to fetch API keys');
 
           const anonKey = response.data?.find((key) => key.name === 'anon');
 
@@ -268,9 +261,10 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
             }
           );
 
-          if (!response.response.ok) {
-            throw new Error('Failed to fetch TypeScript types');
-          }
+          assertManagementApiResponse(
+            response,
+            'Failed to fetch TypeScript types'
+          );
 
           return response.data;
         },

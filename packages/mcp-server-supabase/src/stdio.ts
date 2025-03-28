@@ -25,11 +25,6 @@ async function main() {
     process.exit(1);
   }
 
-  if (!apiUrl) {
-    console.error('Please provide a Supabase API URL with the --api-url flag');
-    process.exit(1);
-  }
-
   const server = createSupabaseMcpServer({
     platform: {
       accessToken,

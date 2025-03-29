@@ -79,8 +79,8 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
 
     // Note: tools are intentionally snake_case to align better with most MCP clients
     tools: {
-      get_projects: tool({
-        description: 'Gets all Supabase projects for the user.',
+      list_projects: tool({
+        description: 'Lists all Supabase projects for the user.',
         parameters: z.object({}),
         execute: async () => {
           const response = await managementApiClient.GET('/v1/projects');
@@ -90,8 +90,8 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
           return response.data;
         },
       }),
-      get_organizations: tool({
-        description: 'Gets all organizations for the user.',
+      list_organizations: tool({
+        description: 'Lists all organizations for the user.',
         parameters: z.object({}),
         execute: async () => {
           const response = await managementApiClient.GET('/v1/organizations');
@@ -126,8 +126,8 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
           return response.data;
         },
       }),
-      get_tables: tool({
-        description: 'Gets all tables in a schema.',
+      list_tables: tool({
+        description: 'Lists all tables in a schema.',
         parameters: z.object({
           projectId: z.string(),
           schemas: z
@@ -149,8 +149,8 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
           return data;
         },
       }),
-      get_extensions: tool({
-        description: 'Gets all extensions in the database.',
+      list_extensions: tool({
+        description: 'Lists all extensions in the database.',
         parameters: z.object({
           projectId: z.string(),
         }),
@@ -162,6 +162,28 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
             throw new Error(`Error fetching extensions: ${error.message}`);
           }
           return data;
+        },
+      }),
+      list_migrations: tool({
+        description: 'Lists all migrations in the database.',
+        parameters: z.object({
+          projectId: z.string(),
+        }),
+        execute: async ({ projectId }) => {
+          const response = await managementApiClient.GET(
+            '/v1/projects/{ref}/database/migrations',
+            {
+              params: {
+                path: {
+                  ref: projectId,
+                },
+              },
+            }
+          );
+
+          assertManagementApiResponse(response, 'Failed to fetch migrations');
+
+          return response.data;
         },
       }),
       apply_migration: tool({

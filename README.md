@@ -117,14 +117,15 @@ The following Supabase tools are available to LLMs:
 
 #### Project Management
 
-- `get_projects`: Gets all Supabase projects for the user.
-- `get_organizations`: Gets all organizations for the user.
+- `list_projects`: Lists all Supabase projects for the user.
+- `list_organizations`: Lists all organizations for the user.
 - `get_organization`: Gets an organization by ID.
 
 #### Database Operations
 
-- `get_tables`: Gets all tables within the specified schemas.
-- `get_extensions`: Gets all extensions in the database.
+- `list_tables`: Lists all tables within the specified schemas.
+- `list_extensions`: Lists all extensions in the database.
+- `list_migrations`: Lists all migrations in the database.
 - `apply_migration`: Applies a SQL migration to the database. SQL passed to this tool will be tracked within the database, so LLMs should use this for DDL operations (schema changes).
 - `execute_sql`: Executes raw SQL in the database. LLMs should use this for regular queries that don't change the schema.
 

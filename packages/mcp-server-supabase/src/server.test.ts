@@ -5,6 +5,7 @@ import {
   type CallToolRequest,
 } from '@modelcontextprotocol/sdk/types.js';
 import { StreamTransport } from '@supabase/mcp-utils';
+import { format } from 'date-fns';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { beforeEach, describe, expect, test } from 'vitest';
@@ -58,19 +59,33 @@ const mockProjects: Project[] = [
   },
 ];
 
+type Migration = {
+  version: string;
+  name: string;
+  query: string;
+};
+
+type ProjectImpl = {
+  db: PGliteInterface;
+  migrations: Migration[];
+};
+
 beforeEach(() => {
-  // Mock project databases using PGlite
-  const projectDbs = new Map<string, PGliteInterface>();
-  function getDb(projectId: string) {
+  // Mock project using PGlite
+  const projects = new Map<string, ProjectImpl>();
+  function getProject(projectId: string) {
     if (!mockProjects.find((p) => p.id === projectId)) {
       throw new Error(`Project ${projectId} not found`);
     }
-    let db = projectDbs.get(projectId);
-    if (!db) {
-      db = new PGlite();
-      projectDbs.set(projectId, db);
+    let project = projects.get(projectId);
+    if (!project) {
+      project = {
+        db: new PGlite(),
+        migrations: [],
+      };
+      projects.set(projectId, project);
     }
-    return db;
+    return project;
   }
 
   // Mock the management API
@@ -116,7 +131,7 @@ beforeEach(() => {
     http.post<{ projectId: string }, { query: string }>(
       `${API_URL}/v1/projects/:projectId/database/query`,
       async ({ params, request }) => {
-        const db = getDb(params.projectId);
+        const { db } = getProject(params.projectId);
         const { query } = await request.json();
         const [results] = await db.exec(query);
 
@@ -128,14 +143,27 @@ beforeEach(() => {
         }
 
         return HttpResponse.json(results.rows);
+      }
+    ),
+
+    http.get<{ projectId: string }>(
+      `${API_URL}/v1/projects/:projectId/database/migrations`,
+      async ({ params }) => {
+        const { migrations } = getProject(params.projectId);
+        const modified = migrations.map(({ version, name }) => ({
+          version,
+          name,
+        }));
+
+        return HttpResponse.json(modified);
       }
     ),
 
     http.post<{ projectId: string }, { name: string; query: string }>(
       `${API_URL}/v1/projects/:projectId/database/migrations`,
       async ({ params, request }) => {
-        const db = getDb(params.projectId);
-        const { query } = await request.json();
+        const { db, migrations } = getProject(params.projectId);
+        const { name, query } = await request.json();
         const [results] = await db.exec(query);
 
         if (!results) {
@@ -145,9 +173,22 @@ beforeEach(() => {
           );
         }
 
+        migrations.push({
+          version: format(new Date(), 'yyyyMMddHHmmss'),
+          name,
+          query,
+        });
+
         return HttpResponse.json(results.rows);
       }
     ),
+
+    // Catch-all handler for any other requests
+    http.all('*', ({ request }) => {
+      throw new Error(
+        `No request handler found for ${request.method} ${request.url}`
+      );
+    }),
   ];
 
   const server = setupServer(...handlers);
@@ -231,11 +272,11 @@ async function setup(options: SetupOptions = {}) {
 }
 
 describe('tools', () => {
-  test('get organizations', async () => {
+  test('list organizations', async () => {
     const { callTool } = await setup();
 
     const result = await callTool({
-      name: 'get_organizations',
+      name: 'list_organizations',
       arguments: {},
     });
 
@@ -257,11 +298,11 @@ describe('tools', () => {
     expect(result).toEqual(firstOrg);
   });
 
-  test('get projects', async () => {
+  test('list projects', async () => {
     const { callTool } = await setup();
 
     const result = await callTool({
-      name: 'get_projects',
+      name: 'list_projects',
       arguments: {},
     });
 
@@ -309,11 +350,11 @@ describe('tools', () => {
     expect(result).toEqual([{ sum: 2 }]);
   });
 
-  test('apply migration and get tables', async () => {
+  test('apply migration, list migrations, check tables', async () => {
     const { callTool } = await setup();
 
     const project = mockProjects[0]!;
-    const name = 'test-migration';
+    const name = 'test_migration';
     const query =
       'create table test (id integer generated always as identity primary key)';
 
@@ -328,15 +369,29 @@ describe('tools', () => {
 
     expect(result).toEqual([]);
 
-    const listResult = await callTool({
-      name: 'get_tables',
+    const listMigrationsResult = await callTool({
+      name: 'list_migrations',
+      arguments: {
+        projectId: project.id,
+      },
+    });
+
+    expect(listMigrationsResult).toEqual([
+      {
+        name,
+        version: expect.stringMatching(/^\d{14}$/),
+      },
+    ]);
+
+    const listTablesResult = await callTool({
+      name: 'list_tables',
       arguments: {
         projectId: project.id,
         schemas: ['public'],
       },
     });
 
-    expect(listResult).toMatchInlineSnapshot(`
+    expect(listTablesResult).toMatchInlineSnapshot(`
       [
         {
           "bytes": 8192,
@@ -386,13 +441,13 @@ describe('tools', () => {
     `);
   });
 
-  test('get extensions', async () => {
+  test('list extensions', async () => {
     const { callTool } = await setup();
 
     const project = mockProjects[0]!;
 
     const result = await callTool({
-      name: 'get_extensions',
+      name: 'list_extensions',
       arguments: {
         projectId: project.id,
       },
@@ -416,7 +471,7 @@ describe('tools', () => {
 
     async function run() {
       return await callTool({
-        name: 'get_organizations',
+        name: 'list_organizations',
         arguments: {},
       });
     }

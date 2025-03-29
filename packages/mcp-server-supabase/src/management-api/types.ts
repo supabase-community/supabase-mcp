@@ -1346,6 +1346,9 @@ export interface components {
             /** @enum {string} */
             message: "ok";
         };
+        BranchActionBody: {
+            migration_version?: string;
+        };
         BranchUpdateResponse: {
             workflow_run_id: string;
             /** @enum {string} */
@@ -2364,6 +2367,10 @@ export interface components {
             version: string;
             name?: string;
         }[];
+        V1CreateMigrationBody: {
+            query: string;
+            name?: string;
+        };
         V1RunQueryBody: {
             query: string;
         };
@@ -2705,7 +2712,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BranchActionBody"];
+            };
+        };
         responses: {
             201: {
                 headers: {
@@ -2733,7 +2744,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BranchActionBody"];
+            };
+        };
         responses: {
             201: {
                 headers: {
@@ -2761,7 +2776,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BranchActionBody"];
+            };
+        };
         responses: {
             201: {
                 headers: {
@@ -5310,7 +5329,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["V1CreateMigrationBody"];
+            };
+        };
         responses: {
             200: {
                 headers: {

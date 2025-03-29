@@ -7,10 +7,17 @@ import { createMcpServer, tool } from '@supabase/mcp-utils';
 import { z } from 'zod';
 import { version } from '../package.json';
 import {
-  assertManagementApiResponse,
+  assertSuccess,
   createManagementApiClient,
   type ManagementApiClient,
 } from './management-api/index.js';
+import { generatePassword } from './password.js';
+import {
+  AWS_REGION_CODES,
+  getClosestAwsRegion,
+  getCountryCode,
+  getCountryCoordinates,
+} from './regions.js';
 
 export type SupabasePlatformOptions = {
   apiUrl?: string;
@@ -45,7 +52,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       }
     );
 
-    assertManagementApiResponse(response, 'Failed to execute SQL query');
+    assertSuccess(response, 'Failed to execute SQL query');
 
     return response.data as unknown as T[];
   }
@@ -62,6 +69,11 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       },
       end: async () => {},
     });
+  }
+
+  async function getClosestRegion() {
+    return getClosestAwsRegion(getCountryCoordinates(await getCountryCode()))
+      .code;
   }
 
   const server = createMcpServer({
@@ -85,7 +97,58 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
         execute: async () => {
           const response = await managementApiClient.GET('/v1/projects');
 
-          assertManagementApiResponse(response, 'Failed to fetch projects');
+          assertSuccess(response, 'Failed to fetch projects');
+
+          return response.data;
+        },
+      }),
+      get_project: tool({
+        description: 'Gets a project by ID.',
+        parameters: z.object({
+          id: z.string().describe('The project ID'),
+        }),
+        execute: async ({ id }) => {
+          const response = await managementApiClient.GET('/v1/projects/{ref}', {
+            params: {
+              path: {
+                ref: id,
+              },
+            },
+          });
+          assertSuccess(response, 'Failed to fetch project');
+          return response.data;
+        },
+      }),
+      create_project: tool({
+        description:
+          'Creates a new Supabase project. Always ask the user which organization to create the project in. The project can take a few minutes to initialize - use `getProject` to check the status.',
+        parameters: z.object({
+          name: z.string().describe('The name of the project'),
+          region: z.optional(
+            z
+              .enum(AWS_REGION_CODES)
+              .describe(
+                'The region to create the project in. Defaults to the closest region.'
+              )
+          ),
+          organization_id: z.string(),
+        }),
+        execute: async ({ name, region, organization_id }) => {
+          const response = await managementApiClient.POST('/v1/projects', {
+            body: {
+              name,
+              region: region ?? (await getClosestRegion()),
+              organization_id,
+              db_pass: generatePassword({
+                length: 16,
+                numbers: true,
+                uppercase: true,
+                lowercase: true,
+              }),
+            },
+          });
+
+          assertSuccess(response, 'Failed to create project');
 
           return response.data;
         },
@@ -96,10 +159,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
         execute: async () => {
           const response = await managementApiClient.GET('/v1/organizations');
 
-          assertManagementApiResponse(
-            response,
-            'Failed to fetch organizations'
-          );
+          assertSuccess(response, 'Failed to fetch organizations');
 
           return response.data;
         },
@@ -121,7 +181,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
             }
           );
 
-          assertManagementApiResponse(response, 'Failed to fetch organization');
+          assertSuccess(response, 'Failed to fetch organization');
 
           return response.data;
         },
@@ -129,15 +189,15 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       list_tables: tool({
         description: 'Lists all tables in a schema.',
         parameters: z.object({
-          projectId: z.string(),
+          project_id: z.string(),
           schemas: z
             .optional(z.array(z.string()))
             .describe(
               'Optional list of schemas to include. Defaults to all schemas.'
             ),
         }),
-        execute: async ({ projectId, schemas }) => {
-          const pgMeta = createPGMeta(projectId);
+        execute: async ({ project_id, schemas }) => {
+          const pgMeta = createPGMeta(project_id);
           const { data, error } = await pgMeta.tables.list({
             includedSchemas: schemas,
           });
@@ -152,10 +212,10 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       list_extensions: tool({
         description: 'Lists all extensions in the database.',
         parameters: z.object({
-          projectId: z.string(),
+          project_id: z.string(),
         }),
-        execute: async ({ projectId }) => {
-          const pgMeta = createPGMeta(projectId);
+        execute: async ({ project_id }) => {
+          const pgMeta = createPGMeta(project_id);
           const { data, error } = await pgMeta.extensions.list();
 
           if (error) {
@@ -167,21 +227,21 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       list_migrations: tool({
         description: 'Lists all migrations in the database.',
         parameters: z.object({
-          projectId: z.string(),
+          project_id: z.string(),
         }),
-        execute: async ({ projectId }) => {
+        execute: async ({ project_id }) => {
           const response = await managementApiClient.GET(
             '/v1/projects/{ref}/database/migrations',
             {
               params: {
                 path: {
-                  ref: projectId,
+                  ref: project_id,
                 },
               },
             }
           );
 
-          assertManagementApiResponse(response, 'Failed to fetch migrations');
+          assertSuccess(response, 'Failed to fetch migrations');
 
           return response.data;
         },
@@ -190,17 +250,17 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
         description:
           'Applies a migration to the database. Use this when executing DDL operations.',
         parameters: z.object({
-          projectId: z.string(),
+          project_id: z.string(),
           name: z.string().describe('The name of the migration in snake_case'),
           query: z.string().describe('The SQL query to apply'),
         }),
-        execute: async ({ projectId, name, query }) => {
+        execute: async ({ project_id, name, query }) => {
           const response = await managementApiClient.POST(
             '/v1/projects/{ref}/database/migrations',
             {
               params: {
                 path: {
-                  ref: projectId,
+                  ref: project_id,
                 },
               },
               body: {
@@ -210,7 +270,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
             } as any // TODO: remove once API spec updated to include body
           );
 
-          assertManagementApiResponse(response, 'Failed to apply migration');
+          assertSuccess(response, 'Failed to apply migration');
 
           return response.data;
         },
@@ -219,34 +279,34 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
         description:
           'Executes raw SQL in the Postgres database. Use `applyMigration` instead for DDL operations.',
         parameters: z.object({
-          projectId: z.string(),
+          project_id: z.string(),
           query: z.string().describe('The SQL query to execute'),
         }),
-        execute: async ({ query, projectId }) => {
-          return await executeSql(projectId, query);
+        execute: async ({ query, project_id }) => {
+          return await executeSql(project_id, query);
         },
       }),
       get_project_url: tool({
         description: 'Gets the API URL for a project.',
         parameters: z.object({
-          projectId: z.string(),
+          project_id: z.string(),
         }),
-        execute: async ({ projectId }) => {
-          return `https://${projectId}.supabase.co`;
+        execute: async ({ project_id }) => {
+          return `https://${project_id}.supabase.co`;
         },
       }),
       get_anon_key: tool({
         description: 'Gets the anonymous API key for a project.',
         parameters: z.object({
-          projectId: z.string(),
+          project_id: z.string(),
         }),
-        execute: async ({ projectId }) => {
+        execute: async ({ project_id }) => {
           const response = await managementApiClient.GET(
             '/v1/projects/{ref}/api-keys',
             {
               params: {
                 path: {
-                  ref: projectId,
+                  ref: project_id,
                 },
                 query: {
                   reveal: false,
@@ -255,7 +315,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
             }
           );
 
-          assertManagementApiResponse(response, 'Failed to fetch API keys');
+          assertSuccess(response, 'Failed to fetch API keys');
 
           const anonKey = response.data?.find((key) => key.name === 'anon');
 
@@ -269,24 +329,21 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       generate_typescript_types: tool({
         description: 'Generates TypeScript types for a project.',
         parameters: z.object({
-          projectId: z.string(),
+          project_id: z.string(),
         }),
-        execute: async ({ projectId }) => {
+        execute: async ({ project_id }) => {
           const response = await managementApiClient.GET(
             '/v1/projects/{ref}/types/typescript',
             {
               params: {
                 path: {
-                  ref: projectId,
+                  ref: project_id,
                 },
               },
             }
           );
 
-          assertManagementApiResponse(
-            response,
-            'Failed to fetch TypeScript types'
-          );
+          assertSuccess(response, 'Failed to fetch TypeScript types');
 
           return response.data;
         },

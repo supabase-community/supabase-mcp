@@ -9,6 +9,7 @@ import { format } from 'date-fns';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { beforeEach, describe, expect, test } from 'vitest';
+import { z } from 'zod';
 import { version } from '../package.json';
 import type { components } from './management-api/types';
 import { createSupabaseMcpServer } from './server.js';
@@ -37,7 +38,7 @@ const mockProjects: Project[] = [
     created_at: '2023-01-01T00:00:00Z',
     status: 'ACTIVE_HEALTHY',
     database: {
-      host: 'db.supabase.com',
+      host: 'db.project-1.supabase.co',
       version: '15.1',
       postgres_engine: '15',
       release_channel: 'ga',
@@ -51,7 +52,7 @@ const mockProjects: Project[] = [
     created_at: '2023-01-02T00:00:00Z',
     status: 'ACTIVE_HEALTHY',
     database: {
-      host: 'db.supabase.com',
+      host: 'db.project-2.supabase.co',
       version: '15.1',
       postgres_engine: '15',
       release_channel: 'ga',
@@ -108,6 +109,43 @@ beforeEach(() => {
 
     http.get(`${API_URL}/v1/projects`, () => {
       return HttpResponse.json(mockProjects);
+    }),
+
+    http.get(`${API_URL}/v1/projects/:projectId`, ({ params }) => {
+      const project = mockProjects.find((p) => p.id === params.projectId);
+      return HttpResponse.json(project);
+    }),
+
+    http.post(`${API_URL}/v1/projects`, async ({ request }) => {
+      const bodySchema = z.object({
+        name: z.string(),
+        region: z.string(),
+        organization_id: z.string(),
+        db_pass: z.string(),
+      });
+      const body = await request.json();
+      const { name, region, organization_id } = bodySchema.parse(body);
+      const id = `project-${mockProjects.length + 1}`;
+
+      const project: Project = {
+        id,
+        organization_id,
+        name,
+        region,
+        created_at: new Date().toISOString(),
+        status: 'UNKNOWN',
+        database: {
+          host: `db.${id}.supabase.co`,
+          version: '15.1',
+          postgres_engine: '15',
+          release_channel: 'ga',
+        },
+      };
+      mockProjects.push(project);
+
+      const { database, ...projectResponse } = project;
+
+      return HttpResponse.json(projectResponse);
     }),
 
     http.get(`${API_URL}/v1/organizations`, () => {
@@ -309,13 +347,53 @@ describe('tools', () => {
     expect(result).toEqual(mockProjects);
   });
 
+  test('get project', async () => {
+    const { callTool } = await setup();
+    const firstProject = mockProjects[0]!;
+    const result = await callTool({
+      name: 'get_project',
+      arguments: {
+        id: firstProject.id,
+      },
+    });
+
+    expect(result).toEqual(firstProject);
+  });
+
+  test('create project', async () => {
+    const { callTool } = await setup();
+
+    const newProject = {
+      name: 'New Project',
+      region: 'us-east-1',
+      organization_id: mockOrgs[0]!.id,
+      db_pass: 'dummy-password',
+    };
+
+    const result = await callTool({
+      name: 'create_project',
+      arguments: newProject,
+    });
+
+    const { db_pass, ...projectInfo } = newProject;
+
+    expect(result).toEqual({
+      ...projectInfo,
+      id: expect.stringMatching(/^project-\d+$/),
+      created_at: expect.stringMatching(
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
+      ),
+      status: 'UNKNOWN',
+    });
+  });
+
   test('get project url', async () => {
     const { callTool } = await setup();
     const project = mockProjects[0]!;
     const result = await callTool({
       name: 'get_project_url',
       arguments: {
-        projectId: project.id,
+        project_id: project.id,
       },
     });
     expect(result).toEqual(`https://${project.id}.supabase.co`);
@@ -327,7 +405,7 @@ describe('tools', () => {
     const result = await callTool({
       name: 'get_anon_key',
       arguments: {
-        projectId: project.id,
+        project_id: project.id,
       },
     });
     expect(result).toEqual('dummy-anon-key');
@@ -342,7 +420,7 @@ describe('tools', () => {
     const result = await callTool({
       name: 'execute_sql',
       arguments: {
-        projectId: project.id,
+        project_id: project.id,
         query,
       },
     });
@@ -361,7 +439,7 @@ describe('tools', () => {
     const result = await callTool({
       name: 'apply_migration',
       arguments: {
-        projectId: project.id,
+        project_id: project.id,
         name,
         query,
       },
@@ -372,7 +450,7 @@ describe('tools', () => {
     const listMigrationsResult = await callTool({
       name: 'list_migrations',
       arguments: {
-        projectId: project.id,
+        project_id: project.id,
       },
     });
 
@@ -386,7 +464,7 @@ describe('tools', () => {
     const listTablesResult = await callTool({
       name: 'list_tables',
       arguments: {
-        projectId: project.id,
+        project_id: project.id,
         schemas: ['public'],
       },
     });
@@ -449,7 +527,7 @@ describe('tools', () => {
     const result = await callTool({
       name: 'list_extensions',
       arguments: {
-        projectId: project.id,
+        project_id: project.id,
       },
     });
 
@@ -492,7 +570,7 @@ describe('tools', () => {
       return await callTool({
         name: 'apply_migration',
         arguments: {
-          projectId: project.id,
+          project_id: project.id,
           name,
           query,
         },
@@ -512,7 +590,7 @@ describe('tools', () => {
       return await callTool({
         name: 'execute_sql',
         arguments: {
-          projectId: project.id,
+          project_id: project.id,
           query,
         },
       });

@@ -118,6 +118,8 @@ The following Supabase tools are available to LLMs:
 #### Project Management
 
 - `list_projects`: Lists all Supabase projects for the user.
+- `get_project`: Gets a project by ID.
+- `create_project`: Creates a new Supabase project.
 - `list_organizations`: Lists all organizations for the user.
 - `get_organization`: Gets an organization by ID.
 

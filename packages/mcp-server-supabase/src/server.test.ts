@@ -598,4 +598,24 @@ describe('tools', () => {
 
     await expect(run()).rejects.toThrow('syntax error at or near "invalid"');
   });
+
+  // We use snake_case because it aligns better with most MCP clients
+  test('all tools follow snake_case naming convention', async () => {
+    const { client } = await setup();
+
+    const { tools } = await client.listTools();
+
+    for (const tool of tools) {
+      expect(tool.name, 'expected tool name to be snake_case').toMatch(
+        /^[a-z0-9_]+$/
+      );
+
+      const parameterNames = Object.keys(tool.inputSchema.properties ?? {});
+      for (const name of parameterNames) {
+        expect(name, 'expected parameter to be snake_case').toMatch(
+          /^[a-z0-9_]+$/
+        );
+      }
+    }
+  });
 });

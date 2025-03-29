@@ -113,7 +113,9 @@ Make sure Node.js is available in your system `PATH` environment variable. If yo
 
 ## Tools
 
-The following Supabase tools are available to LLMs:
+_**Note:** This server is currently pre-1.0, so expect some breaking changes between versions. Since LLMs will automatically adapt to the tools available, this shouldn't affect most users._
+
+The following Supabase tools are available to the LLM:
 
 #### Project Management
 

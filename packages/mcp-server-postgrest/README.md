@@ -51,7 +51,7 @@ To add your Supabase project _(or any PostgREST server)_ to Claude Desktop, add 
       "command": "npx",
       "args": [
         "-y",
-        "@supabase/mcp-server-postgrest",
+        "@supabase/mcp-server-postgrest@latest",
         "--apiUrl",
         "https://your-project-ref.supabase.co/rest/v1",
         "--apiKey",

@@ -29,7 +29,7 @@ This will be used to authenticate the MCP server with your Supabase account. Mak
 Next, configure your MCP client (like Cursor) with the following command:
 
 ```shell
-npx -y @supabase/mcp-server-supabase --access-token=<personal-access-token>
+npx -y @supabase/mcp-server-supabase@latest --access-token=<personal-access-token>
 ```
 
 Replacing `<personal-access-token>` with the token you created in step 1. If you are on Windows, you will need to [prefix this command](#windows).
@@ -45,7 +45,7 @@ Most MCP clients store the configuration as JSON in the following format:
       "command": "npx",
       "args": [
         "-y",
-        "@supabase/mcp-server-supabase",
+        "@supabase/mcp-server-supabase@latest",
         "--access-token",
         "<personal-access-token>"
       ]
@@ -67,7 +67,7 @@ On Windows, you will need to prefix the command with `cmd /c`:
         "/c",
         "npx",
         "-y",
-        "@supabase/mcp-server-supabase",
+        "@supabase/mcp-server-supabase@latest",
         "--access-token",
         "<personal-access-token>"
       ]
@@ -86,7 +86,7 @@ or with `wsl` if you are running Node.js inside WSL:
       "args": [
         "npx",
         "-y",
-        "@supabase/mcp-server-supabase",
+        "@supabase/mcp-server-supabase@latest",
         "--access-token",
         "<personal-access-token>"
       ]

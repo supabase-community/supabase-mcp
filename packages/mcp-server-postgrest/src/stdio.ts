@@ -2,7 +2,7 @@
 
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { parseArgs } from 'node:util';
-import PostgrestMcpServer from './server.js';
+import { createPostgrestMcpServer } from './server.js';
 
 async function main() {
   const {
@@ -31,7 +31,7 @@ async function main() {
     process.exit(1);
   }
 
-  const server = new PostgrestMcpServer({
+  const server = createPostgrestMcpServer({
     apiUrl,
     apiKey,
     schema,

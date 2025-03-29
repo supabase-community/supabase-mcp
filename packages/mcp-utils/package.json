@@ -1,6 +1,6 @@
 {
   "name": "@supabase/mcp-utils",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "MCP utilities",
   "license": "MIT",
   "type": "module",
@@ -9,6 +9,7 @@
   "sideEffects": false,
   "scripts": {
     "build": "tsup --clean",
+    "test": "vitest",
     "prepublishOnly": "npm run build"
   },
   "files": [
@@ -21,13 +22,17 @@
       "default": "./dist/index.cjs"
     }
   },
-  "dependencies": {},
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.4.1",
+    "zod": "^3.24.1",
+    "zod-to-json-schema": "^3.24.1"
+  },
   "devDependencies": {
-    "@modelcontextprotocol/sdk": "^1.0.4",
     "@total-typescript/tsconfig": "^1.0.4",
     "@types/node": "^22.8.6",
     "prettier": "^3.3.3",
     "tsup": "^8.3.5",
-    "typescript": "^5.6.3"
+    "typescript": "^5.6.3",
+    "vitest": "^2.1.8"
   }
 }

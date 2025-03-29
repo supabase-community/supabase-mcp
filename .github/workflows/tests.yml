@@ -1,0 +1,22 @@
+name: Tests
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+jobs:
+  test:
+    timeout-minutes: 60
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: lts/*
+          cache: 'npm'
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+      - name: Build libs
+        run: npm run build
+      - name: Tests
+        run: npm run test

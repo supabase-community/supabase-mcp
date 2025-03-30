@@ -8,6 +8,7 @@ import { StreamTransport } from '@supabase/mcp-utils';
 import { format } from 'date-fns';
 import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
+import { nanoid } from 'nanoid';
 import { beforeEach, describe, expect, test } from 'vitest';
 import { z } from 'zod';
 import { version } from '../package.json';
@@ -16,6 +17,7 @@ import { createSupabaseMcpServer } from './server.js';
 
 type Project = components['schemas']['V1ProjectWithDatabaseResponse'];
 type Organization = components['schemas']['OrganizationResponseV1'];
+type Branch = components['schemas']['BranchResponse'];
 
 const API_URL = 'https://api.supabase.com';
 const MCP_SERVER_NAME = 'supabase-mcp';
@@ -24,70 +26,233 @@ const MCP_CLIENT_NAME = 'test-client';
 const MCP_CLIENT_VERSION = '0.1.0';
 const ACCESS_TOKEN = 'dummy-token';
 
-const mockOrgs: Organization[] = [
-  { id: 'org-1', name: 'Org 1' },
-  { id: 'org-2', name: 'Org 2' },
-];
-
-const mockProjects: Project[] = [
-  {
-    id: 'project-1',
-    organization_id: 'org-1',
-    name: 'Project 1',
-    region: 'us-east-1',
-    created_at: '2023-01-01T00:00:00Z',
-    status: 'ACTIVE_HEALTHY',
-    database: {
-      host: 'db.project-1.supabase.co',
-      version: '15.1',
-      postgres_engine: '15',
-      release_channel: 'ga',
-    },
-  },
-  {
-    id: 'project-2',
-    organization_id: 'org-2',
-    name: 'Project 2',
-    region: 'us-west-2',
-    created_at: '2023-01-02T00:00:00Z',
-    status: 'ACTIVE_HEALTHY',
-    database: {
-      host: 'db.project-2.supabase.co',
-      version: '15.1',
-      postgres_engine: '15',
-      release_channel: 'ga',
-    },
-  },
-];
-
 type Migration = {
   version: string;
   name: string;
   query: string;
 };
 
-type ProjectImpl = {
-  db: PGliteInterface;
-  migrations: Migration[];
+type MockProjectOptions = {
+  name: string;
+  region: string;
+  organization_id: string;
 };
 
-beforeEach(() => {
-  // Mock project using PGlite
-  const projects = new Map<string, ProjectImpl>();
-  function getProject(projectId: string) {
-    if (!mockProjects.find((p) => p.id === projectId)) {
-      throw new Error(`Project ${projectId} not found`);
+class MockProject {
+  id: string;
+  organization_id: string;
+  name: string;
+  region: string;
+  created_at: Date;
+  status: Project['status'];
+  database: {
+    host: string;
+    version: string;
+    postgres_engine: string;
+    release_channel: string;
+  };
+
+  migrations: Migration[] = [];
+
+  #db: PGliteInterface;
+
+  // Lazy load the database connection
+  get db() {
+    if (!this.#db) {
+      this.#db = new PGlite();
     }
-    let project = projects.get(projectId);
-    if (!project) {
-      project = {
-        db: new PGlite(),
-        migrations: [],
-      };
-      projects.set(projectId, project);
-    }
-    return project;
+    return this.#db;
   }
+
+  get details(): Project {
+    return {
+      id: this.id,
+      organization_id: this.organization_id,
+      name: this.name,
+      region: this.region,
+      created_at: this.created_at.toISOString(),
+      status: this.status,
+      database: this.database,
+    };
+  }
+
+  constructor({ name, region, organization_id }: MockProjectOptions) {
+    this.id = nanoid();
+
+    this.name = name;
+    this.region = region;
+    this.organization_id = organization_id;
+
+    this.created_at = new Date();
+    this.status = 'UNKNOWN';
+    this.database = {
+      host: `db.${this.id}.supabase.co`,
+      version: '15.1',
+      postgres_engine: '15',
+      release_channel: 'ga',
+    };
+
+    this.#db = new PGlite();
+  }
+
+  async applyMigrations() {
+    for (const migration of this.migrations) {
+      const [results] = await this.db.exec(migration.query);
+      if (!results) {
+        throw new Error(`Failed to execute migration ${migration.name}`);
+      }
+    }
+  }
+
+  async resetDb() {
+    if (this.#db) {
+      await this.#db.close();
+    }
+    this.#db = new PGlite();
+    return this.#db;
+  }
+
+  async destroy() {
+    if (this.#db) {
+      await this.#db.close();
+    }
+  }
+}
+
+type MockBranchOptions = {
+  name: string;
+  project_ref: string;
+  parent_project_ref: string;
+  is_default: boolean;
+};
+
+class MockBranch {
+  id: string;
+  name: string;
+  project_ref: string;
+  parent_project_ref: string;
+  is_default: boolean;
+  persistent: boolean;
+  status: Branch['status'];
+  created_at: Date;
+  updated_at: Date;
+
+  get details(): Branch {
+    return {
+      id: this.id,
+      name: this.name,
+      project_ref: this.project_ref,
+      parent_project_ref: this.parent_project_ref,
+      is_default: this.is_default,
+      persistent: this.persistent,
+      status: this.status,
+      created_at: this.created_at.toISOString(),
+      updated_at: this.updated_at.toISOString(),
+    };
+  }
+
+  constructor({
+    name,
+    project_ref,
+    parent_project_ref,
+    is_default,
+  }: MockBranchOptions) {
+    this.id = nanoid();
+    this.name = name;
+    this.project_ref = project_ref;
+    this.parent_project_ref = parent_project_ref;
+    this.is_default = is_default;
+    this.persistent = false;
+    this.status = 'CREATING_PROJECT';
+    this.created_at = new Date();
+    this.updated_at = new Date();
+  }
+}
+
+const mockOrgs: Organization[] = [
+  { id: 'org-1', name: 'Org 1' },
+  { id: 'org-2', name: 'Org 2' },
+];
+const mockProjects = new Map<string, MockProject>();
+const mockBranches = new Map<string, MockBranch>();
+
+async function createProject(options: MockProjectOptions) {
+  const project = new MockProject(options);
+  const mainBranch = new MockBranch({
+    name: 'main',
+    project_ref: project.id,
+    parent_project_ref: project.id,
+    is_default: true,
+  });
+
+  mainBranch.status = 'MIGRATIONS_PASSED';
+
+  mockProjects.set(project.id, project);
+  mockBranches.set(mainBranch.id, mainBranch);
+
+  // Change the project status to ACTIVE_HEALTHY after a delay
+  setTimeout(async () => {
+    project.status = 'ACTIVE_HEALTHY';
+  }, 0);
+
+  return project;
+}
+
+async function createBranch(options: {
+  name: string;
+  parent_project_ref: string;
+}) {
+  const parentProject = mockProjects.get(options.parent_project_ref);
+  if (!parentProject) {
+    throw new Error(`Project with id ${options.parent_project_ref} not found`);
+  }
+
+  const project = new MockProject({
+    name: `${parentProject.name} - ${options.name}`,
+    region: parentProject.region,
+    organization_id: parentProject.organization_id,
+  });
+
+  const branch = new MockBranch({
+    name: options.name,
+    project_ref: project.id,
+    parent_project_ref: options.parent_project_ref,
+    is_default: false,
+  });
+
+  mockProjects.set(project.id, project);
+  mockBranches.set(branch.id, branch);
+
+  project.migrations = [...parentProject.migrations];
+
+  // Run migrations on the new branch in the background
+  setTimeout(async () => {
+    try {
+      await project.applyMigrations();
+      branch.status = 'MIGRATIONS_PASSED';
+    } catch (error) {
+      branch.status = 'MIGRATIONS_FAILED';
+      console.error('Migration error:', error);
+    }
+  }, 0);
+
+  return branch;
+}
+
+beforeEach(() => {
+  mockProjects.clear();
+  mockBranches.clear();
+
+  createProject({
+    name: 'Project 1',
+    region: 'us-east-1',
+    organization_id: 'org-1',
+  });
+  createProject({
+    name: 'Project 2',
+    region: 'us-west-2',
+    organization_id: 'org-2',
+  });
 
   // Mock the management API
   const handlers = [
@@ -108,13 +273,24 @@ beforeEach(() => {
     }),
 
     http.get(`${API_URL}/v1/projects`, () => {
-      return HttpResponse.json(mockProjects);
+      return HttpResponse.json(
+        Array.from(mockProjects.values()).map((project) => project.details)
+      );
     }),
 
-    http.get(`${API_URL}/v1/projects/:projectId`, ({ params }) => {
-      const project = mockProjects.find((p) => p.id === params.projectId);
-      return HttpResponse.json(project);
-    }),
+    http.get<{ projectId: string }>(
+      `${API_URL}/v1/projects/:projectId`,
+      ({ params }) => {
+        const project = mockProjects.get(params.projectId);
+        if (!project) {
+          return HttpResponse.json(
+            { error: 'Project not found' },
+            { status: 404 }
+          );
+        }
+        return HttpResponse.json(project.details);
+      }
+    ),
 
     http.post(`${API_URL}/v1/projects`, async ({ request }) => {
       const bodySchema = z.object({
@@ -125,25 +301,14 @@ beforeEach(() => {
       });
       const body = await request.json();
       const { name, region, organization_id } = bodySchema.parse(body);
-      const id = `project-${mockProjects.length + 1}`;
 
-      const project: Project = {
-        id,
-        organization_id,
+      const project = await createProject({
         name,
         region,
-        created_at: new Date().toISOString(),
-        status: 'UNKNOWN',
-        database: {
-          host: `db.${id}.supabase.co`,
-          version: '15.1',
-          postgres_engine: '15',
-          release_channel: 'ga',
-        },
-      };
-      mockProjects.push(project);
+        organization_id,
+      });
 
-      const { database, ...projectResponse } = project;
+      const { database, ...projectResponse } = project.details;
 
       return HttpResponse.json(projectResponse);
     }),
@@ -169,7 +334,14 @@ beforeEach(() => {
     http.post<{ projectId: string }, { query: string }>(
       `${API_URL}/v1/projects/:projectId/database/query`,
       async ({ params, request }) => {
-        const { db } = getProject(params.projectId);
+        const project = mockProjects.get(params.projectId);
+        if (!project) {
+          return HttpResponse.json(
+            { error: 'Project not found' },
+            { status: 404 }
+          );
+        }
+        const { db } = project;
         const { query } = await request.json();
         const [results] = await db.exec(query);
 
@@ -187,7 +359,15 @@ beforeEach(() => {
     http.get<{ projectId: string }>(
       `${API_URL}/v1/projects/:projectId/database/migrations`,
       async ({ params }) => {
-        const { migrations } = getProject(params.projectId);
+        const project = mockProjects.get(params.projectId);
+        if (!project) {
+          return HttpResponse.json(
+            { error: 'Project not found' },
+            { status: 404 }
+          );
+        }
+
+        const { migrations } = project;
         const modified = migrations.map(({ version, name }) => ({
           version,
           name,
@@ -200,7 +380,14 @@ beforeEach(() => {
     http.post<{ projectId: string }, { name: string; query: string }>(
       `${API_URL}/v1/projects/:projectId/database/migrations`,
       async ({ params, request }) => {
-        const { db, migrations } = getProject(params.projectId);
+        const project = mockProjects.get(params.projectId);
+        if (!project) {
+          return HttpResponse.json(
+            { error: 'Project not found' },
+            { status: 404 }
+          );
+        }
+        const { db, migrations } = project;
         const { name, query } = await request.json();
         const [results] = await db.exec(query);
 
@@ -218,6 +405,202 @@ beforeEach(() => {
         });
 
         return HttpResponse.json(results.rows);
+      }
+    ),
+
+    http.post<{ projectId: string }, { branch_name: string }>(
+      `${API_URL}/v1/projects/:projectId/branches`,
+      async ({ params, request }) => {
+        const { branch_name } = await request.json();
+
+        const project = mockProjects.get(params.projectId);
+        if (!project) {
+          return HttpResponse.json(
+            { error: 'Project not found' },
+            { status: 404 }
+          );
+        }
+
+        const branch = await createBranch({
+          name: branch_name,
+          parent_project_ref: project.id,
+        });
+
+        return HttpResponse.json(branch.details);
+      }
+    ),
+
+    http.get<{ projectId: string }>(
+      `${API_URL}/v1/projects/:projectId/branches`,
+      async ({ params }) => {
+        const projectBranches = Array.from(mockBranches.values()).filter(
+          (branch) => branch.parent_project_ref === params.projectId
+        );
+
+        return HttpResponse.json(
+          projectBranches.map((branch) => branch.details)
+        );
+      }
+    ),
+
+    http.delete<{ branchId: string }>(
+      `${API_URL}/v1/branches/:branchId`,
+      async ({ params }) => {
+        const branch = mockBranches.get(params.branchId);
+
+        if (!branch) {
+          return HttpResponse.json(
+            { error: 'Branch not found' },
+            { status: 404 }
+          );
+        }
+
+        const project = mockProjects.get(branch.project_ref);
+        if (!project) {
+          return HttpResponse.json(
+            { error: 'Project not found' },
+            { status: 404 }
+          );
+        }
+
+        await project.destroy();
+        mockProjects.delete(project.id);
+        mockBranches.delete(branch.id);
+
+        return HttpResponse.json({ message: 'ok' });
+      }
+    ),
+
+    // Merges migrations from a development branch to production
+    http.post<{ branchId: string }>(
+      `${API_URL}/v1/branches/:branchId/merge`,
+      async ({ params }) => {
+        const branch = mockBranches.get(params.branchId);
+        if (!branch) {
+          return HttpResponse.json(
+            { error: 'Branch not found' },
+            { status: 404 }
+          );
+        }
+
+        const parentProject = mockProjects.get(branch.parent_project_ref);
+        if (!parentProject) {
+          return HttpResponse.json(
+            { error: 'Parent project not found' },
+            { status: 404 }
+          );
+        }
+
+        const project = mockProjects.get(branch.project_ref);
+        if (!project) {
+          return HttpResponse.json(
+            { error: 'Project not found' },
+            { status: 404 }
+          );
+        }
+
+        // Simulate merge by resetting the parent DB and running branch migrations
+        parentProject.migrations = [...project.migrations];
+        await parentProject.resetDb();
+        try {
+          await parentProject.applyMigrations();
+        } catch (error) {
+          return HttpResponse.json(
+            { error: 'Failed to apply migrations' },
+            { status: 500 }
+          );
+        }
+
+        const migration_version = parentProject.migrations.at(-1)?.version;
+
+        return HttpResponse.json({ migration_version });
+      }
+    ),
+
+    // Resets a branch and re-runs migrations
+    http.post<{ branchId: string }>(
+      `${API_URL}/v1/branches/:branchId/reset`,
+      async ({ params }) => {
+        const branch = mockBranches.get(params.branchId);
+        if (!branch) {
+          return HttpResponse.json(
+            { error: 'Branch not found' },
+            { status: 404 }
+          );
+        }
+
+        const project = mockProjects.get(branch.project_ref);
+        if (!project) {
+          return HttpResponse.json(
+            { error: 'Project not found' },
+            { status: 404 }
+          );
+        }
+
+        // Reset the DB a re-run migrations
+        await project.resetDb();
+        try {
+          await project.applyMigrations();
+          branch.status = 'MIGRATIONS_PASSED';
+        } catch (error) {
+          branch.status = 'MIGRATIONS_FAILED';
+          return HttpResponse.json(
+            { error: 'Failed to apply migrations' },
+            { status: 500 }
+          );
+        }
+
+        const migration_version = project.migrations.at(-1)?.version;
+
+        return HttpResponse.json({ migration_version });
+      }
+    ),
+
+    // Rebase migrations from production on a development branch
+    http.post<{ branchId: string }>(
+      `${API_URL}/v1/branches/:branchId/push`,
+      async ({ params }) => {
+        const branch = mockBranches.get(params.branchId);
+        if (!branch) {
+          return HttpResponse.json(
+            { error: 'Branch not found' },
+            { status: 404 }
+          );
+        }
+
+        const parentProject = mockProjects.get(branch.parent_project_ref);
+        if (!parentProject) {
+          return HttpResponse.json(
+            { error: 'Parent project not found' },
+            { status: 404 }
+          );
+        }
+
+        const project = mockProjects.get(branch.project_ref);
+        if (!project) {
+          return HttpResponse.json(
+            { error: 'Project not found' },
+            { status: 404 }
+          );
+        }
+
+        // Simulate rebase by resetting the branch DB and running production migrations
+        project.migrations = [...parentProject.migrations];
+        await project.resetDb();
+        try {
+          await project.applyMigrations();
+          branch.status = 'MIGRATIONS_PASSED';
+        } catch (error) {
+          branch.status = 'MIGRATIONS_FAILED';
+          return HttpResponse.json(
+            { error: 'Failed to apply migrations' },
+            { status: 500 }
+          );
+        }
+
+        const migration_version = project.migrations.at(-1)?.version;
+
+        return HttpResponse.json({ migration_version });
       }
     ),
 
@@ -344,12 +727,14 @@ describe('tools', () => {
       arguments: {},
     });
 
-    expect(result).toEqual(mockProjects);
+    expect(result).toEqual(
+      Array.from(mockProjects.values()).map((project) => project.details)
+    );
   });
 
   test('get project', async () => {
     const { callTool } = await setup();
-    const firstProject = mockProjects[0]!;
+    const firstProject = mockProjects.values().next().value!;
     const result = await callTool({
       name: 'get_project',
       arguments: {
@@ -357,7 +742,7 @@ describe('tools', () => {
       },
     });
 
-    expect(result).toEqual(firstProject);
+    expect(result).toEqual(firstProject.details);
   });
 
   test('create project', async () => {
@@ -379,7 +764,7 @@ describe('tools', () => {
 
     expect(result).toEqual({
       ...projectInfo,
-      id: expect.stringMatching(/^project-\d+$/),
+      id: expect.stringMatching(/^.+$/),
       created_at: expect.stringMatching(
         /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
       ),
@@ -389,7 +774,7 @@ describe('tools', () => {
 
   test('get project url', async () => {
     const { callTool } = await setup();
-    const project = mockProjects[0]!;
+    const project = mockProjects.values().next().value!;
     const result = await callTool({
       name: 'get_project_url',
       arguments: {
@@ -401,7 +786,7 @@ describe('tools', () => {
 
   test('get anon key', async () => {
     const { callTool } = await setup();
-    const project = mockProjects[0]!;
+    const project = mockProjects.values().next().value!;
     const result = await callTool({
       name: 'get_anon_key',
       arguments: {
@@ -414,7 +799,7 @@ describe('tools', () => {
   test('execute sql', async () => {
     const { callTool } = await setup();
 
-    const project = mockProjects[0]!;
+    const project = mockProjects.values().next().value!;
     const query = 'select 1+1 as sum';
 
     const result = await callTool({
@@ -431,7 +816,7 @@ describe('tools', () => {
   test('apply migration, list migrations, check tables', async () => {
     const { callTool } = await setup();
 
-    const project = mockProjects[0]!;
+    const project = mockProjects.values().next().value!;
     const name = 'test_migration';
     const query =
       'create table test (id integer generated always as identity primary key)';
@@ -522,7 +907,7 @@ describe('tools', () => {
   test('list extensions', async () => {
     const { callTool } = await setup();
 
-    const project = mockProjects[0]!;
+    const project = mockProjects.values().next().value!;
 
     const result = await callTool({
       name: 'list_extensions',
@@ -562,7 +947,7 @@ describe('tools', () => {
   test('invalid sql for apply_migration', async () => {
     const { callTool } = await setup();
 
-    const project = mockProjects[0]!;
+    const project = mockProjects.values().next().value!;
     const name = 'test-migration';
     const query = 'invalid sql';
 
@@ -583,7 +968,7 @@ describe('tools', () => {
   test('invalid sql for execute_sql', async () => {
     const { callTool } = await setup();
 
-    const project = mockProjects[0]!;
+    const project = mockProjects.values().next().value!;
     const query = 'invalid sql';
 
     async function run() {
@@ -597,6 +982,202 @@ describe('tools', () => {
     }
 
     await expect(run()).rejects.toThrow('syntax error at or near "invalid"');
+  });
+
+  test('create branch', async () => {
+    const { callTool } = await setup();
+    const project = mockProjects.values().next().value!;
+    const branchName = 'test-branch';
+    const result = await callTool({
+      name: 'create_branch',
+      arguments: {
+        project_id: project.id,
+        name: branchName,
+      },
+    });
+
+    expect(result).toEqual({
+      id: expect.stringMatching(/^.+$/),
+      name: branchName,
+      project_ref: expect.stringMatching(/^.+$/),
+      parent_project_ref: project.id,
+      is_default: false,
+      persistent: false,
+      status: 'CREATING_PROJECT',
+      created_at: expect.stringMatching(
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
+      ),
+      updated_at: expect.stringMatching(
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
+      ),
+    });
+  });
+
+  test('list branches', async () => {
+    const { callTool } = await setup();
+    const project = mockProjects.values().next().value!;
+    const result = await callTool({
+      name: 'list_branches',
+      arguments: {
+        project_id: project.id,
+      },
+    });
+
+    expect(result).toEqual(
+      Array.from(mockBranches.values())
+        .filter((branch) => branch.parent_project_ref === project.id)
+        .map((branch) => branch.details)
+    );
+  });
+
+  test('merge branch', async () => {
+    const { callTool } = await setup();
+    const project = mockProjects.values().next().value!;
+
+    const branch = await callTool({
+      name: 'create_branch',
+      arguments: {
+        project_id: project.id,
+        name: 'test-branch',
+      },
+    });
+
+    const migrationName = 'sample_migration';
+    const migrationQuery =
+      'create table sample (id integer generated always as identity primary key)';
+    await callTool({
+      name: 'apply_migration',
+      arguments: {
+        project_id: branch.project_ref,
+        name: migrationName,
+        query: migrationQuery,
+      },
+    });
+
+    const mergeResult = await callTool({
+      name: 'merge_branch',
+      arguments: {
+        branch_id: branch.id,
+      },
+    });
+
+    expect(mergeResult).toEqual({
+      migration_version: expect.stringMatching(/^\d{14}$/),
+    });
+
+    // Check that the migration was applied to the parent project
+    const listResult = await callTool({
+      name: 'list_migrations',
+      arguments: {
+        project_id: project.id,
+      },
+    });
+
+    expect(listResult).toContainEqual({
+      name: migrationName,
+      version: expect.stringMatching(/^\d{14}$/),
+    });
+  });
+
+  test('reset branch', async () => {
+    const { callTool } = await setup();
+    const project = mockProjects.values().next().value!;
+    const branch = await callTool({
+      name: 'create_branch',
+      arguments: {
+        project_id: project.id,
+        name: 'test-branch',
+      },
+    });
+
+    // Create a table via execute_sql so that it is untracked
+    const query =
+      'create table test_untracked (id integer generated always as identity primary key)';
+    await callTool({
+      name: 'execute_sql',
+      arguments: {
+        project_id: branch.project_ref,
+        query,
+      },
+    });
+
+    const firstTablesResult = await callTool({
+      name: 'list_tables',
+      arguments: {
+        project_id: branch.project_ref,
+      },
+    });
+
+    expect(firstTablesResult).toContainEqual(
+      expect.objectContaining({ name: 'test_untracked' })
+    );
+
+    await callTool({
+      name: 'reset_branch',
+      arguments: {
+        branch_id: branch.id,
+      },
+    });
+
+    const secondTablesResult = await callTool({
+      name: 'list_tables',
+      arguments: {
+        project_id: branch.project_ref,
+      },
+    });
+
+    // Expect the untracked table to be removed after reset
+    expect(secondTablesResult).not.toContainEqual(
+      expect.objectContaining({ name: 'test_untracked' })
+    );
+  });
+
+  test('rebase branch', async () => {
+    const { callTool } = await setup();
+    const project = mockProjects.values().next().value!;
+    const branch = await callTool({
+      name: 'create_branch',
+      arguments: {
+        project_id: project.id,
+        name: 'test-branch',
+      },
+    });
+
+    const migrationName = 'sample_migration';
+    const migrationQuery =
+      'create table sample (id integer generated always as identity primary key)';
+    await callTool({
+      name: 'apply_migration',
+      arguments: {
+        project_id: project.id,
+        name: migrationName,
+        query: migrationQuery,
+      },
+    });
+
+    const rebaseResult = await callTool({
+      name: 'rebase_branch',
+      arguments: {
+        branch_id: branch.id,
+      },
+    });
+
+    expect(rebaseResult).toEqual({
+      migration_version: expect.stringMatching(/^\d{14}$/),
+    });
+
+    // Check that the production migration was applied to the branch
+    const listResult = await callTool({
+      name: 'list_migrations',
+      arguments: {
+        project_id: branch.project_ref,
+      },
+    });
+
+    expect(listResult).toContainEqual({
+      name: migrationName,
+      version: expect.stringMatching(/^\d{14}$/),
+    });
   });
 
   // We use snake_case because it aligns better with most MCP clients

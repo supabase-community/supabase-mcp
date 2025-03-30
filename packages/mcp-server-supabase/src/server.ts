@@ -348,10 +348,11 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
           return response.data;
         },
       }),
+
       // Experimental features
       create_branch: tool({
         description:
-          'Creates a development branch with migrations from production project.',
+          'Creates a development branch on a Supabase project. This will apply all migrations from the main project to the branch. The branch will get its own project_id via the resulting project_ref. Use this ID to execute queries and migrations on the branch.',
         parameters: z.object({
           project_id: z.string(),
           name: z
@@ -380,7 +381,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
         },
       }),
       list_branches: tool({
-        description: 'Lists all development branches.',
+        description: 'Lists all development branches of a Supabase project.',
         parameters: z.object({
           project_id: z.string(),
         }),

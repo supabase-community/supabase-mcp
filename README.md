@@ -138,6 +138,15 @@ The following Supabase tools are available to the LLM:
 - `get_project_url`: Gets the API URL for a project.
 - `get_anon_key`: Gets the anonymous API key for a project.
 
+#### Branching (Experimental)
+
+- `create_branch`: Creates a development branch with migrations from production project.
+- `list_branches`: Lists all development branches.
+- `delete_branch`: Deletes a development branch.
+- `merge_branch`: Merges migrations and edge functions from a development branch to production.
+- `reset_branch`: Resets migrations of a development branch to a prior version.
+- `rebase_branch`: Rebases development branch on production to handle migration drift.
+
 #### Development Tools
 
 - `generate_typescript_types`: Generates TypeScript types based on the database schema. LLMs can save this to a file and use it in their code.

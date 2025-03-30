@@ -352,7 +352,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       // Experimental features
       create_branch: tool({
         description:
-          'Creates a development branch on a Supabase project. This will apply all migrations from the main project to the branch. The branch will get its own project_id via the resulting project_ref. Use this ID to execute queries and migrations on the branch.',
+          'Creates a development branch on a Supabase project. This will apply all migrations from the main project to a fresh branch database. Note that production data will not carry over. The branch will get its own project_id via the resulting project_ref. Use this ID to execute queries and migrations on the branch.',
         parameters: z.object({
           project_id: z.string(),
           name: z
@@ -450,7 +450,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       }),
       reset_branch: tool({
         description:
-          'Resets migrations of a development branch to a prior version.',
+          'Resets migrations of a development branch. Any untracked data or schema changes will be lost.',
         parameters: z.object({
           branch_id: z.string(),
         }),
@@ -474,7 +474,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       }),
       rebase_branch: tool({
         description:
-          'Rebases development branch on production to handle migration drift.',
+          'Rebases a development branch on production. This will effectively run any newer migrations from production onto this branch to help handle migration drift.',
         parameters: z.object({
           branch_id: z.string(),
         }),

@@ -2,9 +2,15 @@ import { describe, expect, it } from 'vitest';
 import {
   EARTH_RADIUS,
   getClosestAwsRegion,
+  getCountryCode,
   getCountryCoordinates,
   getDistance,
+  TRACE_URL,
 } from './regions.js';
+import { http, HttpResponse } from 'msw';
+import { setupServer } from 'msw/node';
+
+const COUNTRY_CODE = 'US';
 
 describe('getDistance', () => {
   it('should return 0 for the same coordinates', () => {
@@ -61,34 +67,52 @@ describe('getDistance', () => {
 });
 
 describe('getClosestRegion', () => {
-  it('should find the closest AWS region to a specific location', async () => {
+  it('should find the closest AWS region to a specific location', () => {
     const tokyo = { lat: 35.6762, lng: 139.6503 };
-    const result = await getClosestAwsRegion(tokyo);
+    const result = getClosestAwsRegion(tokyo);
     expect(result.code).toBe('ap-northeast-1'); // Tokyo region
   });
 
-  it('should find the correct AWS region for European location', async () => {
+  it('should find the correct AWS region for European location', () => {
     const london = { lat: 51.5074, lng: -0.1278 };
-    const result = await getClosestAwsRegion(london);
+    const result = getClosestAwsRegion(london);
     expect(result.code).toBe('eu-west-2'); // London region
   });
 
-  it('should find the correct AWS region for US West Coast location', async () => {
+  it('should find the correct AWS region for US West Coast location', () => {
     const sanFrancisco = { lat: 37.7749, lng: -122.4194 };
-    const result = await getClosestAwsRegion(sanFrancisco);
+    const result = getClosestAwsRegion(sanFrancisco);
     expect(result.code).toBe('us-west-1'); // North California region
   });
 
-  it('should find the correct AWS region for Sydney location', async () => {
+  it('should find the correct AWS region for Sydney location', () => {
     const sydney = { lat: -33.8688, lng: 151.2093 };
-    const result = await getClosestAwsRegion(sydney);
+    const result = getClosestAwsRegion(sydney);
     expect(result.code).toBe('ap-southeast-2'); // Sydney region
   });
 
-  it('should find the correct AWS region for a location in South America', async () => {
+  it('should find the correct AWS region for a location in South America', () => {
     const saoPaulo = { lat: -23.5505, lng: -46.6333 };
-    const result = await getClosestAwsRegion(saoPaulo);
+    const result = getClosestAwsRegion(saoPaulo);
     expect(result.code).toBe('sa-east-1'); // São Paulo region
+  });
+});
+
+describe('getCountryCode', () => {
+  const handlers = [
+    http.get(TRACE_URL, () => {
+      return HttpResponse.text(
+        `fl=123abc\nvisit_scheme=https\nloc=${COUNTRY_CODE}\ntls=TLSv1.3\nhttp=http/2`
+      );
+    }),
+  ];
+
+  const server = setupServer(...handlers);
+  server.listen({ onUnhandledRequest: 'error' });
+
+  it('should return the correct country code for a given location', async () => {
+    const code = await getCountryCode();
+    expect(code).toEqual(COUNTRY_CODE);
   });
 });
 

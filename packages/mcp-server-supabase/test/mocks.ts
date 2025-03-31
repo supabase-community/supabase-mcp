@@ -98,6 +98,36 @@ export const mockManagementApi = [
     return HttpResponse.json(projectResponse);
   }),
 
+  http.post<{ projectId: string }>(
+    `${API_URL}/v1/projects/:projectId/pause`,
+    ({ params }) => {
+      const project = mockProjects.get(params.projectId);
+      if (!project) {
+        return HttpResponse.json(
+          { error: 'Project not found' },
+          { status: 404 }
+        );
+      }
+      project.status = 'INACTIVE';
+      return HttpResponse.json(project.details);
+    }
+  ),
+
+  http.post<{ projectId: string }>(
+    `${API_URL}/v1/projects/:projectId/restore`,
+    ({ params }) => {
+      const project = mockProjects.get(params.projectId);
+      if (!project) {
+        return HttpResponse.json(
+          { error: 'Project not found' },
+          { status: 404 }
+        );
+      }
+      project.status = 'ACTIVE_HEALTHY';
+      return HttpResponse.json(project.details);
+    }
+  ),
+
   http.get(`${API_URL}/v1/organizations`, () => {
     return HttpResponse.json(mockOrgs);
   }),

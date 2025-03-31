@@ -85,7 +85,7 @@ async function setup(options: SetupOptions = {}) {
     const [textContent] = content;
 
     if (!textContent) {
-      throw new Error('tool result content is missing');
+      return undefined;
     }
 
     if (textContent.type !== 'text') {
@@ -213,6 +213,32 @@ describe('tools', () => {
       status: 'UNKNOWN',
       region: CLOSEST_REGION,
     });
+  });
+
+  test('pause project', async () => {
+    const { callTool } = await setup();
+    const project = mockProjects.values().next().value!;
+    await callTool({
+      name: 'pause_project',
+      arguments: {
+        project_id: project.id,
+      },
+    });
+
+    expect(project.status).toEqual('INACTIVE');
+  });
+
+  test('restore project', async () => {
+    const { callTool } = await setup();
+    const project = mockProjects.values().next().value!;
+    await callTool({
+      name: 'restore_project',
+      arguments: {
+        project_id: project.id,
+      },
+    });
+
+    expect(project.status).toEqual('ACTIVE_HEALTHY');
   });
 
   test('get project url', async () => {

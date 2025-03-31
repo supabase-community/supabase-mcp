@@ -427,9 +427,44 @@ describe('tools', () => {
     await expect(run()).rejects.toThrow('syntax error at or near "invalid"');
   });
 
+  test('enable branching', async () => {
+    const { callTool } = await setup();
+    const project = mockProjects.values().next().value!;
+    const result = await callTool({
+      name: 'enable_branching',
+      arguments: {
+        project_id: project.id,
+      },
+    });
+
+    expect(result).toEqual({
+      id: expect.stringMatching(/^.+$/),
+      name: 'main',
+      project_ref: expect.stringMatching(/^.+$/),
+      parent_project_ref: project.id,
+      is_default: true,
+      persistent: false,
+      status: 'MIGRATIONS_PASSED',
+      created_at: expect.stringMatching(
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
+      ),
+      updated_at: expect.stringMatching(
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
+      ),
+    });
+  });
+
   test('create branch', async () => {
     const { callTool } = await setup();
     const project = mockProjects.values().next().value!;
+
+    await callTool({
+      name: 'enable_branching',
+      arguments: {
+        project_id: project.id,
+      },
+    });
+
     const branchName = 'test-branch';
     const result = await callTool({
       name: 'create_branch',
@@ -459,6 +494,14 @@ describe('tools', () => {
   test('list branches', async () => {
     const { callTool } = await setup();
     const project = mockProjects.values().next().value!;
+
+    await callTool({
+      name: 'enable_branching',
+      arguments: {
+        project_id: project.id,
+      },
+    });
+
     const result = await callTool({
       name: 'list_branches',
       arguments: {
@@ -466,16 +509,35 @@ describe('tools', () => {
       },
     });
 
-    expect(result).toEqual(
-      Array.from(mockBranches.values())
-        .filter((branch) => branch.parent_project_ref === project.id)
-        .map((branch) => branch.details)
-    );
+    expect(result).toEqual([
+      {
+        id: expect.stringMatching(/^.+$/),
+        name: 'main',
+        project_ref: project.id,
+        parent_project_ref: project.id,
+        is_default: true,
+        persistent: false,
+        status: 'MIGRATIONS_PASSED',
+        created_at: expect.stringMatching(
+          /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
+        ),
+        updated_at: expect.stringMatching(
+          /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
+        ),
+      },
+    ]);
   });
 
   test('merge branch', async () => {
     const { callTool } = await setup();
     const project = mockProjects.values().next().value!;
+
+    await callTool({
+      name: 'enable_branching',
+      arguments: {
+        project_id: project.id,
+      },
+    });
 
     const branch = await callTool({
       name: 'create_branch',
@@ -525,6 +587,14 @@ describe('tools', () => {
   test('reset branch', async () => {
     const { callTool } = await setup();
     const project = mockProjects.values().next().value!;
+
+    await callTool({
+      name: 'enable_branching',
+      arguments: {
+        project_id: project.id,
+      },
+    });
+
     const branch = await callTool({
       name: 'create_branch',
       arguments: {
@@ -578,6 +648,14 @@ describe('tools', () => {
   test('rebase branch', async () => {
     const { callTool } = await setup();
     const project = mockProjects.values().next().value!;
+
+    await callTool({
+      name: 'enable_branching',
+      arguments: {
+        project_id: project.id,
+      },
+    });
+
     const branch = await callTool({
       name: 'create_branch',
       arguments: {
@@ -621,6 +699,34 @@ describe('tools', () => {
       name: migrationName,
       version: expect.stringMatching(/^\d{14}$/),
     });
+  });
+
+  test('list and create branch fails when branching disabled', async () => {
+    const { callTool } = await setup();
+    const project = mockProjects.values().next().value!;
+
+    const listBranchesPromise = callTool({
+      name: 'list_branches',
+      arguments: {
+        project_id: project.id,
+      },
+    });
+
+    await expect(listBranchesPromise).rejects.toThrow(
+      'Preview branching is not enabled for this project.'
+    );
+
+    const createBranchPromise = callTool({
+      name: 'create_branch',
+      arguments: {
+        project_id: project.id,
+        name: 'test-branch',
+      },
+    });
+
+    await expect(createBranchPromise).rejects.toThrow(
+      'Preview branching is not enabled for this project.'
+    );
   });
 
   // We use snake_case because it aligns better with most MCP clients

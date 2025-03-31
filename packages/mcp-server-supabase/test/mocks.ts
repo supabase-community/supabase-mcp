@@ -206,10 +206,30 @@ export const mockManagementApi = [
         );
       }
 
-      const branch = await createBranch({
-        name: branch_name,
-        parent_project_ref: project.id,
-      });
+      const projectBranches = Array.from(mockBranches.values()).filter(
+        (branch) => branch.parent_project_ref === project.id
+      );
+
+      let branch: MockBranch;
+
+      if (projectBranches.length === 0) {
+        // If this is the first branch, set it as the default branch pointing to the same project
+        branch = new MockBranch({
+          name: branch_name,
+          project_ref: project.id,
+          parent_project_ref: project.id,
+          is_default: true,
+        });
+
+        branch.status = 'MIGRATIONS_PASSED';
+        mockBranches.set(branch.id, branch);
+      } else {
+        // Otherwise, create a new branch
+        branch = await createBranch({
+          name: branch_name,
+          parent_project_ref: project.id,
+        });
+      }
 
       return HttpResponse.json(branch.details);
     }
@@ -221,6 +241,13 @@ export const mockManagementApi = [
       const projectBranches = Array.from(mockBranches.values()).filter(
         (branch) => branch.parent_project_ref === params.projectId
       );
+
+      if (projectBranches.length === 0) {
+        return HttpResponse.json(
+          { message: 'Preview branching is not enabled for this project.' },
+          { status: 400 }
+        );
+      }
 
       return HttpResponse.json(projectBranches.map((branch) => branch.details));
     }
@@ -397,17 +424,8 @@ export const mockManagementApi = [
 
 export async function createProject(options: MockProjectOptions) {
   const project = new MockProject(options);
-  const mainBranch = new MockBranch({
-    name: 'main',
-    project_ref: project.id,
-    parent_project_ref: project.id,
-    is_default: true,
-  });
-
-  mainBranch.status = 'MIGRATIONS_PASSED';
 
   mockProjects.set(project.id, project);
-  mockBranches.set(mainBranch.id, mainBranch);
 
   // Change the project status to ACTIVE_HEALTHY after a delay
   setTimeout(async () => {

@@ -352,7 +352,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       // Experimental features
       enable_branching: tool({
         description:
-          'Enables branching on a Supabase project if the organisation has a paid subscription.',
+          'Enables branching on a Supabase project if the organization has a paid subscription.',
         parameters: z.object({
           project_id: z.string(),
         }),
@@ -403,7 +403,21 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
             .describe('Name of the branch to create'),
         }),
         execute: async ({ project_id, name }) => {
-          const response = await managementApiClient.POST(
+          // First ensure branching is enabled by listing branches
+          const listBranchesResponse = await managementApiClient.GET(
+            '/v1/projects/{ref}/branches',
+            {
+              params: {
+                path: {
+                  ref: project_id,
+                },
+              },
+            }
+          );
+
+          assertSuccess(listBranchesResponse, 'Failed to list branches');
+
+          const createBranchResponse = await managementApiClient.POST(
             '/v1/projects/{ref}/branches',
             {
               params: {
@@ -417,9 +431,9 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
             }
           );
 
-          assertSuccess(response, 'Failed to create branch');
+          assertSuccess(createBranchResponse, 'Failed to create branch');
 
-          return response.data;
+          return createBranchResponse.data;
         },
       }),
       list_branches: tool({

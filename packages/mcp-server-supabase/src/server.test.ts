@@ -12,6 +12,7 @@ import { beforeEach, describe, expect, test } from 'vitest';
 import { z } from 'zod';
 import { version } from '../package.json';
 import type { components } from './management-api/types';
+import { TRACE_URL } from './regions.js';
 import { createSupabaseMcpServer } from './server.js';
 
 type Project = components['schemas']['V1ProjectWithDatabaseResponse'];
@@ -23,6 +24,8 @@ const MCP_SERVER_VERSION = version;
 const MCP_CLIENT_NAME = 'test-client';
 const MCP_CLIENT_VERSION = '0.1.0';
 const ACCESS_TOKEN = 'dummy-token';
+const COUNTRY_CODE = 'US';
+const CLOSEST_REGION = 'us-east-2';
 
 const mockOrgs: Organization[] = [
   { id: 'org-1', name: 'Org 1' },
@@ -91,6 +94,12 @@ beforeEach(() => {
 
   // Mock the management API
   const handlers = [
+    http.get(TRACE_URL, () => {
+      return HttpResponse.text(
+        `fl=123abc\nvisit_scheme=https\nloc=${COUNTRY_CODE}\ntls=TLSv1.3\nhttp=http/2`
+      );
+    }),
+
     http.all('*', ({ request }) => {
       const authHeader = request.headers.get('Authorization');
 
@@ -230,14 +239,7 @@ beforeEach(() => {
   ];
 
   const server = setupServer(...handlers);
-
-  server.listen({
-    onUnhandledRequest: (request) => {
-      throw new Error(
-        `No request handler found for ${request.method} ${request.url}`
-      );
-    },
-  });
+  server.listen({ onUnhandledRequest: 'error' });
 });
 
 type SetupOptions = {
@@ -384,6 +386,33 @@ describe('tools', () => {
         /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
       ),
       status: 'UNKNOWN',
+    });
+  });
+
+  test('create project chooses closest region when undefined', async () => {
+    const { callTool } = await setup();
+
+    const newProject = {
+      name: 'New Project',
+      organization_id: mockOrgs[0]!.id,
+      db_pass: 'dummy-password',
+    };
+
+    const result = await callTool({
+      name: 'create_project',
+      arguments: newProject,
+    });
+
+    const { db_pass, ...projectInfo } = newProject;
+
+    expect(result).toEqual({
+      ...projectInfo,
+      id: expect.stringMatching(/^project-\d+$/),
+      created_at: expect.stringMatching(
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
+      ),
+      status: 'UNKNOWN',
+      region: CLOSEST_REGION,
     });
   });
 

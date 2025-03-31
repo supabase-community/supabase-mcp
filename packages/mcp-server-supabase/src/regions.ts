@@ -12,6 +12,7 @@ export type Location = {
 };
 
 export const EARTH_RADIUS = 6371; // in kilometers
+export const TRACE_URL = 'https://www.cloudflare.com/cdn-cgi/trace';
 
 export const COUNTRY_COORDINATES = {
   AF: { lat: 33, lng: 65 },
@@ -387,7 +388,7 @@ export function getClosestAwsRegion(location: Location) {
  * Fetches the user's country code based on their IP address.
  */
 export async function getCountryCode() {
-  const response = await fetch('https://www.cloudflare.com/cdn-cgi/trace');
+  const response = await fetch(TRACE_URL);
   const data = await response.text();
   const info = parseKeyValueList(data);
   const countryCode = info['loc'];

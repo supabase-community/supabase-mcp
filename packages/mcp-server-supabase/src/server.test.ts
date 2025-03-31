@@ -35,14 +35,7 @@ beforeEach(() => {
   });
 
   const server = setupServer(...mockManagementApi);
-
-  server.listen({
-    onUnhandledRequest: (request) => {
-      throw new Error(
-        `No request handler found for ${request.method} ${request.url}`
-      );
-    },
-  });
+  server.listen({ onUnhandledRequest: 'error' });
 });
 
 type SetupOptions = {
@@ -191,6 +184,33 @@ describe('tools', () => {
         /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
       ),
       status: 'UNKNOWN',
+    });
+  });
+
+  test('create project chooses closest region when undefined', async () => {
+    const { callTool } = await setup();
+
+    const newProject = {
+      name: 'New Project',
+      organization_id: mockOrgs[0]!.id,
+      db_pass: 'dummy-password',
+    };
+
+    const result = await callTool({
+      name: 'create_project',
+      arguments: newProject,
+    });
+
+    const { db_pass, ...projectInfo } = newProject;
+
+    expect(result).toEqual({
+      ...projectInfo,
+      id: expect.stringMatching(/^project-\d+$/),
+      created_at: expect.stringMatching(
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
+      ),
+      status: 'UNKNOWN',
+      region: CLOSEST_REGION,
     });
   });
 

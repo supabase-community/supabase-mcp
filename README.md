@@ -123,7 +123,7 @@ The following Supabase tools are available to the LLM:
 - `get_project`: Gets details for a project.
 - `create_project`: Creates a new Supabase project.
 - `pause_project`: Pauses a project.
-- `restore_project`: Resumes a project.
+- `restore_project`: Restores a project.
 - `list_organizations`: Lists all organizations that the user is a member of.
 - `get_organization`: Gets details for an organization.
 

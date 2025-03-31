@@ -103,7 +103,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
         },
       }),
       get_project: tool({
-        description: 'Gets a project by ID.',
+        description: 'Gets details for a Supabase project.',
         parameters: z.object({
           id: z.string().describe('The project ID'),
         }),
@@ -153,8 +153,49 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
           return response.data;
         },
       }),
+      pause_project: tool({
+        description: 'Pauses a Supabase project.',
+        parameters: z.object({
+          project_id: z.string(),
+        }),
+        execute: async ({ project_id }) => {
+          const response = await managementApiClient.POST(
+            '/v1/projects/{ref}/pause',
+            {
+              params: {
+                path: {
+                  ref: project_id,
+                },
+              },
+            }
+          );
+
+          assertSuccess(response, 'Failed to pause project');
+        },
+      }),
+      restore_project: tool({
+        description: 'Restores a Supabase project.',
+        parameters: z.object({
+          project_id: z.string(),
+        }),
+        execute: async ({ project_id }) => {
+          const response = await managementApiClient.POST(
+            '/v1/projects/{ref}/restore',
+            {
+              params: {
+                path: {
+                  ref: project_id,
+                },
+              },
+              body: {},
+            }
+          );
+
+          assertSuccess(response, 'Failed to restore project');
+        },
+      }),
       list_organizations: tool({
-        description: 'Lists all organizations for the user.',
+        description: 'Lists all organizations that the user is a member of.',
         parameters: z.object({}),
         execute: async () => {
           const response = await managementApiClient.GET('/v1/organizations');
@@ -165,7 +206,8 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
         },
       }),
       get_organization: tool({
-        description: 'Gets an organization by ID.',
+        description:
+          'Gets details for an organization. Includes subscription plan.',
         parameters: z.object({
           id: z.string().describe('The organization ID'),
         }),

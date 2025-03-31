@@ -375,14 +375,12 @@ describe('tools', () => {
   test('invalid access token', async () => {
     const { callTool } = await setup({ accessToken: 'bad-token' });
 
-    async function run() {
-      return await callTool({
-        name: 'list_organizations',
-        arguments: {},
-      });
-    }
+    const listOrganizationsPromise = callTool({
+      name: 'list_organizations',
+      arguments: {},
+    });
 
-    await expect(run()).rejects.toThrow(
+    await expect(listOrganizationsPromise).rejects.toThrow(
       'Unauthorized. Please provide a valid access token to the MCP server via the --access-token flag.'
     );
   });
@@ -394,18 +392,18 @@ describe('tools', () => {
     const name = 'test-migration';
     const query = 'invalid sql';
 
-    async function run() {
-      return await callTool({
-        name: 'apply_migration',
-        arguments: {
-          project_id: project.id,
-          name,
-          query,
-        },
-      });
-    }
+    const applyMigrationPromise = callTool({
+      name: 'apply_migration',
+      arguments: {
+        project_id: project.id,
+        name,
+        query,
+      },
+    });
 
-    await expect(run()).rejects.toThrow('syntax error at or near "invalid"');
+    await expect(applyMigrationPromise).rejects.toThrow(
+      'syntax error at or near "invalid"'
+    );
   });
 
   test('invalid sql for execute_sql', async () => {
@@ -414,17 +412,17 @@ describe('tools', () => {
     const project = mockProjects.values().next().value!;
     const query = 'invalid sql';
 
-    async function run() {
-      return await callTool({
-        name: 'execute_sql',
-        arguments: {
-          project_id: project.id,
-          query,
-        },
-      });
-    }
+    const executeSqlPromise = callTool({
+      name: 'execute_sql',
+      arguments: {
+        project_id: project.id,
+        query,
+      },
+    });
 
-    await expect(run()).rejects.toThrow('syntax error at or near "invalid"');
+    await expect(executeSqlPromise).rejects.toThrow(
+      'syntax error at or near "invalid"'
+    );
   });
 
   test('enable branching', async () => {
@@ -479,7 +477,7 @@ describe('tools', () => {
       },
     });
 
-    expect(listResult.length).toBe(1);
+    expect(listResult).toHaveLength(1);
     expect(listResult[0]).toEqual(firstResult);
     expect(firstResult).toEqual(secondResult);
   });
@@ -519,6 +517,91 @@ describe('tools', () => {
         /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
       ),
     });
+  });
+
+  test('delete branch', async () => {
+    const { callTool } = await setup();
+    const project = mockProjects.values().next().value!;
+
+    await callTool({
+      name: 'enable_branching',
+      arguments: {
+        project_id: project.id,
+      },
+    });
+
+    const branch = await callTool({
+      name: 'create_branch',
+      arguments: {
+        project_id: project.id,
+        name: 'test-branch',
+      },
+    });
+
+    const listBranchesResult = await callTool({
+      name: 'list_branches',
+      arguments: {
+        project_id: project.id,
+      },
+    });
+
+    expect(listBranchesResult).toContainEqual(
+      expect.objectContaining({ id: branch.id })
+    );
+    expect(listBranchesResult).toHaveLength(2);
+
+    await callTool({
+      name: 'delete_branch',
+      arguments: {
+        branch_id: branch.id,
+      },
+    });
+
+    const listBranchesResultAfterDelete = await callTool({
+      name: 'list_branches',
+      arguments: {
+        project_id: project.id,
+      },
+    });
+
+    expect(listBranchesResultAfterDelete).not.toContainEqual(
+      expect.objectContaining({ id: branch.id })
+    );
+    expect(listBranchesResultAfterDelete).toHaveLength(1);
+  });
+
+  test('delete main branch fails', async () => {
+    const { callTool } = await setup();
+    const project = mockProjects.values().next().value!;
+
+    await callTool({
+      name: 'enable_branching',
+      arguments: {
+        project_id: project.id,
+      },
+    });
+
+    const listBranchesResult = await callTool({
+      name: 'list_branches',
+      arguments: {
+        project_id: project.id,
+      },
+    });
+
+    expect(listBranchesResult).toHaveLength(1);
+
+    const mainBranch = listBranchesResult[0]!;
+
+    const deleteBranchPromise = callTool({
+      name: 'delete_branch',
+      arguments: {
+        branch_id: mainBranch.id,
+      },
+    });
+
+    await expect(deleteBranchPromise).rejects.toThrow(
+      'Cannot delete the default branch.'
+    );
   });
 
   test('list branches', async () => {

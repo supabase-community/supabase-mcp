@@ -437,7 +437,8 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
         },
       }),
       list_branches: tool({
-        description: 'Lists all development branches of a Supabase project.',
+        description:
+          'Lists all development branches of a Supabase project. This will return branch details including status which you can use to check when operations like merge/rebase/reset complete.',
         parameters: z.object({
           project_id: z.string(),
         }),

@@ -46,7 +46,7 @@ export const mockManagementApi = [
 
     const accessToken = authHeader?.replace('Bearer ', '');
     if (accessToken !== ACCESS_TOKEN) {
-      return HttpResponse.json({ error: 'Unauthorized' }, { status: 401 });
+      return HttpResponse.json({ message: 'Unauthorized' }, { status: 401 });
     }
   }),
 
@@ -69,7 +69,7 @@ export const mockManagementApi = [
       const project = mockProjects.get(params.projectId);
       if (!project) {
         return HttpResponse.json(
-          { error: 'Project not found' },
+          { message: 'Project not found' },
           { status: 404 }
         );
       }
@@ -122,7 +122,7 @@ export const mockManagementApi = [
       const project = mockProjects.get(params.projectId);
       if (!project) {
         return HttpResponse.json(
-          { error: 'Project not found' },
+          { message: 'Project not found' },
           { status: 404 }
         );
       }
@@ -132,7 +132,7 @@ export const mockManagementApi = [
 
       if (!results) {
         return HttpResponse.json(
-          { error: 'Failed to execute query' },
+          { message: 'Failed to execute query' },
           { status: 500 }
         );
       }
@@ -147,7 +147,7 @@ export const mockManagementApi = [
       const project = mockProjects.get(params.projectId);
       if (!project) {
         return HttpResponse.json(
-          { error: 'Project not found' },
+          { message: 'Project not found' },
           { status: 404 }
         );
       }
@@ -168,7 +168,7 @@ export const mockManagementApi = [
       const project = mockProjects.get(params.projectId);
       if (!project) {
         return HttpResponse.json(
-          { error: 'Project not found' },
+          { message: 'Project not found' },
           { status: 404 }
         );
       }
@@ -178,7 +178,7 @@ export const mockManagementApi = [
 
       if (!results) {
         return HttpResponse.json(
-          { error: 'Failed to execute query' },
+          { message: 'Failed to execute query' },
           { status: 500 }
         );
       }
@@ -201,7 +201,7 @@ export const mockManagementApi = [
       const project = mockProjects.get(params.projectId);
       if (!project) {
         return HttpResponse.json(
-          { error: 'Project not found' },
+          { message: 'Project not found' },
           { status: 404 }
         );
       }
@@ -260,15 +260,23 @@ export const mockManagementApi = [
 
       if (!branch) {
         return HttpResponse.json(
-          { error: 'Branch not found' },
+          { message: 'Branch not found' },
           { status: 404 }
+        );
+      }
+
+      // if default branch, return error
+      if (branch.is_default) {
+        return HttpResponse.json(
+          { message: 'Cannot delete the default branch.' },
+          { status: 400 }
         );
       }
 
       const project = mockProjects.get(branch.project_ref);
       if (!project) {
         return HttpResponse.json(
-          { error: 'Project not found' },
+          { message: 'Project not found' },
           { status: 404 }
         );
       }
@@ -288,7 +296,7 @@ export const mockManagementApi = [
       const branch = mockBranches.get(params.branchId);
       if (!branch) {
         return HttpResponse.json(
-          { error: 'Branch not found' },
+          { message: 'Branch not found' },
           { status: 404 }
         );
       }
@@ -296,7 +304,7 @@ export const mockManagementApi = [
       const parentProject = mockProjects.get(branch.parent_project_ref);
       if (!parentProject) {
         return HttpResponse.json(
-          { error: 'Parent project not found' },
+          { message: 'Parent project not found' },
           { status: 404 }
         );
       }
@@ -304,7 +312,7 @@ export const mockManagementApi = [
       const project = mockProjects.get(branch.project_ref);
       if (!project) {
         return HttpResponse.json(
-          { error: 'Project not found' },
+          { message: 'Project not found' },
           { status: 404 }
         );
       }
@@ -316,7 +324,7 @@ export const mockManagementApi = [
         await parentProject.applyMigrations();
       } catch (error) {
         return HttpResponse.json(
-          { error: 'Failed to apply migrations' },
+          { message: 'Failed to apply migrations' },
           { status: 500 }
         );
       }
@@ -334,7 +342,7 @@ export const mockManagementApi = [
       const branch = mockBranches.get(params.branchId);
       if (!branch) {
         return HttpResponse.json(
-          { error: 'Branch not found' },
+          { message: 'Branch not found' },
           { status: 404 }
         );
       }
@@ -342,7 +350,7 @@ export const mockManagementApi = [
       const project = mockProjects.get(branch.project_ref);
       if (!project) {
         return HttpResponse.json(
-          { error: 'Project not found' },
+          { message: 'Project not found' },
           { status: 404 }
         );
       }
@@ -355,7 +363,7 @@ export const mockManagementApi = [
       } catch (error) {
         branch.status = 'MIGRATIONS_FAILED';
         return HttpResponse.json(
-          { error: 'Failed to apply migrations' },
+          { message: 'Failed to apply migrations' },
           { status: 500 }
         );
       }
@@ -373,7 +381,7 @@ export const mockManagementApi = [
       const branch = mockBranches.get(params.branchId);
       if (!branch) {
         return HttpResponse.json(
-          { error: 'Branch not found' },
+          { message: 'Branch not found' },
           { status: 404 }
         );
       }
@@ -381,7 +389,7 @@ export const mockManagementApi = [
       const parentProject = mockProjects.get(branch.parent_project_ref);
       if (!parentProject) {
         return HttpResponse.json(
-          { error: 'Parent project not found' },
+          { message: 'Parent project not found' },
           { status: 404 }
         );
       }
@@ -389,7 +397,7 @@ export const mockManagementApi = [
       const project = mockProjects.get(branch.project_ref);
       if (!project) {
         return HttpResponse.json(
-          { error: 'Project not found' },
+          { message: 'Project not found' },
           { status: 404 }
         );
       }
@@ -403,7 +411,7 @@ export const mockManagementApi = [
       } catch (error) {
         branch.status = 'MIGRATIONS_FAILED';
         return HttpResponse.json(
-          { error: 'Failed to apply migrations' },
+          { message: 'Failed to apply migrations' },
           { status: 500 }
         );
       }

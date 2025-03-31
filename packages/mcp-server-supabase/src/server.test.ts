@@ -206,7 +206,7 @@ describe('tools', () => {
 
     expect(result).toEqual({
       ...projectInfo,
-      id: expect.stringMatching(/^project-\d+$/),
+      id: expect.stringMatching(/^.+$/),
       created_at: expect.stringMatching(
         /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
       ),

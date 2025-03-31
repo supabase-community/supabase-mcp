@@ -140,7 +140,7 @@ The following Supabase tools are available to the LLM:
 
 #### Branching (Experimental)
 
-- `enable_branching`: Enables branching on a project (requires Pro plan).
+- `enable_branching`: Enables branching on a project (requires a paid plan).
 - `create_branch`: Creates a development branch with migrations from production branch.
 - `list_branches`: Lists all development branches.
 - `delete_branch`: Deletes a development branch.

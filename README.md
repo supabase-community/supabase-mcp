@@ -4,7 +4,7 @@
 
 ![supabase-mcp-demo](https://github.com/user-attachments/assets/3fce101a-b7d4-482f-9182-0be70ed1ad56)
 
-The [Model Context Protocol](https://modelcontextprotocol.io/introduction) (MCP) standardizes how Large Language Models (LLMs) talk to external services like Supabase. It connects AI assistants directly with your Supabase project and allows them to perform tasks like managing tables, fetching config, and querying data.
+The [Model Context Protocol](https://modelcontextprotocol.io/introduction) (MCP) standardizes how Large Language Models (LLMs) talk to external services like Supabase. It connects AI assistants directly with your Supabase project and allows them to perform tasks like managing tables, fetching config, and querying data. See the [full list of tools](#tools).
 
 ## Prerequisites
 
@@ -113,17 +113,19 @@ Make sure Node.js is available in your system `PATH` environment variable. If yo
 
 ## Tools
 
-_**Note:** This server is currently pre-1.0, so expect some breaking changes between versions. Since LLMs will automatically adapt to the tools available, this shouldn't affect most users._
+_**Note:** This server is pre-1.0, so expect some breaking changes between versions. Since LLMs will automatically adapt to the tools available, this shouldn't affect most users._
 
 The following Supabase tools are available to the LLM:
 
 #### Project Management
 
 - `list_projects`: Lists all Supabase projects for the user.
-- `get_project`: Gets a project by ID.
+- `get_project`: Gets details for a project.
 - `create_project`: Creates a new Supabase project.
-- `list_organizations`: Lists all organizations for the user.
-- `get_organization`: Gets an organization by ID.
+- `pause_project`: Pauses a project.
+- `restore_project`: Restores a project.
+- `list_organizations`: Lists all organizations that the user is a member of.
+- `get_organization`: Gets details for an organization.
 
 #### Database Operations
 

@@ -9,6 +9,7 @@ import { beforeEach, describe, expect, test } from 'vitest';
 import {
   ACCESS_TOKEN,
   API_URL,
+  CLOSEST_REGION,
   createProject,
   MCP_CLIENT_NAME,
   MCP_CLIENT_VERSION,

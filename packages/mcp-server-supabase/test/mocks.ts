@@ -6,6 +6,7 @@ import { expect } from 'vitest';
 import { z } from 'zod';
 import { version } from '../package.json';
 import type { components } from '../src/management-api/types';
+import { TRACE_URL } from '../src/regions.js';
 
 export const API_URL = 'https://api.supabase.com';
 export const MCP_SERVER_NAME = 'supabase-mcp';
@@ -13,6 +14,8 @@ export const MCP_SERVER_VERSION = version;
 export const MCP_CLIENT_NAME = 'test-client';
 export const MCP_CLIENT_VERSION = '0.1.0';
 export const ACCESS_TOKEN = 'dummy-token';
+export const COUNTRY_CODE = 'US';
+export const CLOSEST_REGION = 'us-east-2';
 
 type Organization = components['schemas']['OrganizationResponseV1'];
 type Project = components['schemas']['V1ProjectWithDatabaseResponse'];
@@ -32,6 +35,12 @@ export const mockProjects = new Map<string, MockProject>();
 export const mockBranches = new Map<string, MockBranch>();
 
 export const mockManagementApi = [
+  http.get(TRACE_URL, () => {
+    return HttpResponse.text(
+      `fl=123abc\nvisit_scheme=https\nloc=${COUNTRY_CODE}\ntls=TLSv1.3\nhttp=http/2`
+    );
+  }),
+
   http.all('*', ({ request }) => {
     const authHeader = request.headers.get('Authorization');
 

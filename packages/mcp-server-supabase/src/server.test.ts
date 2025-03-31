@@ -454,6 +454,36 @@ describe('tools', () => {
     });
   });
 
+  test('enabling branching twice returns the same main branch', async () => {
+    const { callTool } = await setup();
+    const project = mockProjects.values().next().value!;
+
+    const firstResult = await callTool({
+      name: 'enable_branching',
+      arguments: {
+        project_id: project.id,
+      },
+    });
+
+    const secondResult = await callTool({
+      name: 'enable_branching',
+      arguments: {
+        project_id: project.id,
+      },
+    });
+
+    const listResult = await callTool({
+      name: 'list_branches',
+      arguments: {
+        project_id: project.id,
+      },
+    });
+
+    expect(listResult.length).toBe(1);
+    expect(listResult[0]).toEqual(firstResult);
+    expect(firstResult).toEqual(secondResult);
+  });
+
   test('create branch', async () => {
     const { callTool } = await setup();
     const project = mockProjects.values().next().value!;

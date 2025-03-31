@@ -41,6 +41,7 @@
     "@types/node": "^22.8.6",
     "date-fns": "^4.1.0",
     "msw": "^2.7.3",
+    "nanoid": "^5.1.5",
     "openapi-typescript": "^7.5.0",
     "openapi-typescript-helpers": "^0.0.15",
     "prettier": "^3.3.3",

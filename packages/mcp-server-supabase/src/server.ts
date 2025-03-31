@@ -267,7 +267,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
                 name,
                 query,
               },
-            } as any // TODO: remove once API spec updated to include body
+            }
           );
 
           assertSuccess(response, 'Failed to apply migration');
@@ -344,6 +344,211 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
           );
 
           assertSuccess(response, 'Failed to fetch TypeScript types');
+
+          return response.data;
+        },
+      }),
+
+      // Experimental features
+      enable_branching: tool({
+        description:
+          'Enables branching on a Supabase project if the organization has a paid subscription.',
+        parameters: z.object({
+          project_id: z.string(),
+        }),
+        execute: async ({ project_id }) => {
+          const { error, data } = await managementApiClient.GET(
+            '/v1/projects/{ref}/branches',
+            {
+              params: {
+                path: {
+                  ref: project_id,
+                },
+              },
+            }
+          );
+
+          // If at least 1 branch exists, branching is already enabled.
+          if (!error) {
+            return data?.find((b) => b.is_default);
+          }
+
+          const response = await managementApiClient.POST(
+            '/v1/projects/{ref}/branches',
+            {
+              params: {
+                path: {
+                  ref: project_id,
+                },
+              },
+              body: {
+                branch_name: 'main',
+              },
+            }
+          );
+
+          assertSuccess(response, 'Failed to enable branching');
+
+          return response.data;
+        },
+      }),
+      create_branch: tool({
+        description:
+          'Creates a development branch on a Supabase project. This will apply all migrations from the main project to a fresh branch database. Note that production data will not carry over. The branch will get its own project_id via the resulting project_ref. Use this ID to execute queries and migrations on the branch.',
+        parameters: z.object({
+          project_id: z.string(),
+          name: z
+            .string()
+            .default('develop')
+            .describe('Name of the branch to create'),
+        }),
+        execute: async ({ project_id, name }) => {
+          // First ensure branching is enabled by listing branches
+          const listBranchesResponse = await managementApiClient.GET(
+            '/v1/projects/{ref}/branches',
+            {
+              params: {
+                path: {
+                  ref: project_id,
+                },
+              },
+            }
+          );
+
+          assertSuccess(listBranchesResponse, 'Failed to list branches');
+
+          const createBranchResponse = await managementApiClient.POST(
+            '/v1/projects/{ref}/branches',
+            {
+              params: {
+                path: {
+                  ref: project_id,
+                },
+              },
+              body: {
+                branch_name: name,
+              },
+            }
+          );
+
+          assertSuccess(createBranchResponse, 'Failed to create branch');
+
+          return createBranchResponse.data;
+        },
+      }),
+      list_branches: tool({
+        description:
+          'Lists all development branches of a Supabase project. This will return branch details including status which you can use to check when operations like merge/rebase/reset complete.',
+        parameters: z.object({
+          project_id: z.string(),
+        }),
+        execute: async ({ project_id }) => {
+          const response = await managementApiClient.GET(
+            '/v1/projects/{ref}/branches',
+            {
+              params: {
+                path: {
+                  ref: project_id,
+                },
+              },
+            }
+          );
+
+          assertSuccess(response, 'Failed to list branches');
+
+          return response.data;
+        },
+      }),
+      delete_branch: tool({
+        description: 'Deletes a development branch.',
+        parameters: z.object({
+          branch_id: z.string(),
+        }),
+        execute: async ({ branch_id }) => {
+          const response = await managementApiClient.DELETE(
+            '/v1/branches/{branch_id}',
+            {
+              params: {
+                path: {
+                  branch_id,
+                },
+              },
+            }
+          );
+
+          assertSuccess(response, 'Failed to delete branch');
+
+          return response.data;
+        },
+      }),
+      merge_branch: tool({
+        description:
+          'Merges migrations and edge functions from a development branch to production.',
+        parameters: z.object({
+          branch_id: z.string(),
+        }),
+        execute: async ({ branch_id }) => {
+          const response = await managementApiClient.POST(
+            '/v1/branches/{branch_id}/merge',
+            {
+              params: {
+                path: {
+                  branch_id,
+                },
+              },
+              body: {},
+            }
+          );
+
+          assertSuccess(response, 'Failed to merge branch');
+
+          return response.data;
+        },
+      }),
+      reset_branch: tool({
+        description:
+          'Resets migrations of a development branch. Any untracked data or schema changes will be lost.',
+        parameters: z.object({
+          branch_id: z.string(),
+        }),
+        execute: async ({ branch_id }) => {
+          const response = await managementApiClient.POST(
+            '/v1/branches/{branch_id}/reset',
+            {
+              params: {
+                path: {
+                  branch_id,
+                },
+              },
+              body: {},
+            }
+          );
+
+          assertSuccess(response, 'Failed to reset branch');
+
+          return response.data;
+        },
+      }),
+      rebase_branch: tool({
+        description:
+          'Rebases a development branch on production. This will effectively run any newer migrations from production onto this branch to help handle migration drift.',
+        parameters: z.object({
+          branch_id: z.string(),
+        }),
+        execute: async ({ branch_id }) => {
+          const response = await managementApiClient.POST(
+            '/v1/branches/{branch_id}/push',
+            {
+              params: {
+                path: {
+                  branch_id,
+                },
+              },
+              body: {},
+            }
+          );
+
+          assertSuccess(response, 'Failed to rebase branch');
 
           return response.data;
         },

@@ -350,6 +350,48 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       }),
 
       // Experimental features
+      enable_branching: tool({
+        description:
+          'Enables branching on a Supabase project if the organisation has a paid subscription.',
+        parameters: z.object({
+          project_id: z.string(),
+        }),
+        execute: async ({ project_id }) => {
+          const { error, data } = await managementApiClient.GET(
+            '/v1/projects/{ref}/branches',
+            {
+              params: {
+                path: {
+                  ref: project_id,
+                },
+              },
+            }
+          );
+
+          // If at least 1 branch exists, branching is already enabled.
+          if (!error) {
+            return data?.find((b) => b.is_default);
+          }
+
+          const response = await managementApiClient.POST(
+            '/v1/projects/{ref}/branches',
+            {
+              params: {
+                path: {
+                  ref: project_id,
+                },
+              },
+              body: {
+                branch_name: 'main',
+              },
+            }
+          );
+
+          assertSuccess(response, 'Failed to enable branching');
+
+          return response.data;
+        },
+      }),
       create_branch: tool({
         description:
           'Creates a development branch on a Supabase project. This will apply all migrations from the main project to a fresh branch database. Note that production data will not carry over. The branch will get its own project_id via the resulting project_ref. Use this ID to execute queries and migrations on the branch.',

@@ -451,6 +451,31 @@ describe('tools', () => {
     );
   });
 
+  test('get logs for each service type', async () => {
+    const { callTool } = await setup();
+    const project = mockProjects.values().next().value!;
+    const services = [
+      'api',
+      'postgres',
+      'edge-function',
+      'auth',
+      'storage',
+      'realtime',
+    ] as const;
+
+    for (const service of services) {
+      const result = await callTool({
+        name: 'get_logs',
+        arguments: {
+          project_id: project.id,
+          service,
+        },
+      });
+
+      expect(result).toEqual([]);
+    }
+  });
+
   test('enable branching', async () => {
     const { callTool } = await setup();
     const project = mockProjects.values().next().value!;

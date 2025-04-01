@@ -6,6 +6,7 @@ import {
 import { createMcpServer, tool } from '@supabase/mcp-utils';
 import { z } from 'zod';
 import { version } from '../package.json';
+import { getLogQuery } from './logs.js';
 import {
   assertSuccess,
   createManagementApiClient,
@@ -328,6 +329,47 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
           return await executeSql(project_id, query);
         },
       }),
+      get_logs: tool({
+        description:
+          'Gets logs for a Supabase project by service type. Use this to help debug problems with your app. This will only return logs within the last minute. If the logs you are looking for are older than 1 minute, re-run your test to reproduce them.',
+        parameters: z.object({
+          project_id: z.string(),
+          service: z
+            .enum([
+              'api',
+              'postgres',
+              'edge-function',
+              'auth',
+              'storage',
+              'realtime',
+            ])
+            .describe('The service to fetch logs for'),
+        }),
+        execute: async ({ project_id, service }) => {
+          const now = Date.now();
+          const response = await managementApiClient.GET(
+            '/v1/projects/{ref}/analytics/endpoints/logs.all',
+            {
+              params: {
+                path: {
+                  ref: project_id,
+                },
+                query: {
+                  // Limit to the last minute
+                  iso_timestamp_start: new Date(now - 60 * 1000).toISOString(),
+                  iso_timestamp_end: new Date(now).toISOString(),
+                  sql: getLogQuery(service),
+                },
+              },
+            }
+          );
+
+          assertSuccess(response, 'Failed to fetch logs');
+
+          return response.data;
+        },
+      }),
+
       get_project_url: tool({
         description: 'Gets the API URL for a project.',
         parameters: z.object({

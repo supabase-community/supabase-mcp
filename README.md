@@ -166,4 +166,4 @@ The PostgREST MCP server allows you to connect your own users to your app via RE
 
 ## License
 
-This project is licensed under the MIT License. See the [LICENSE](./LICENSE) file for details.
+This project is licensed under Apache 2.0. See the [LICENSE](./LICENSE) file for details.

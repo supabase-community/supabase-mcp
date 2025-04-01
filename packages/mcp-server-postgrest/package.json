@@ -2,7 +2,7 @@
   "name": "@supabase/mcp-server-postgrest",
   "version": "0.1.0",
   "description": "MCP server for PostgREST",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "type": "module",
   "main": "dist/index.cjs",
   "types": "dist/index.d.ts",

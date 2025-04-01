@@ -2,7 +2,7 @@
   "name": "@supabase/mcp-server-supabase",
   "version": "0.1.1",
   "description": "MCP server for interacting with Supabase",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "type": "module",
   "main": "dist/index.cjs",
   "types": "dist/index.d.ts",

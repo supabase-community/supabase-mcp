@@ -2,7 +2,7 @@
   "name": "@supabase/mcp-utils",
   "version": "0.1.1",
   "description": "MCP utilities",
-  "license": "MIT",
+  "license": "Apache-2.0",
   "type": "module",
   "main": "dist/index.cjs",
   "types": "dist/index.d.ts",

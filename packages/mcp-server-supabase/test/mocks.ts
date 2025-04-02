@@ -41,6 +41,9 @@ export const mockManagementApi = [
     );
   }),
 
+  /**
+   * Check authorization
+   */
   http.all('*', ({ request }) => {
     const authHeader = request.headers.get('Authorization');
 
@@ -50,6 +53,9 @@ export const mockManagementApi = [
     }
   }),
 
+  /**
+   * Check user agent
+   */
   http.all('*', ({ request }) => {
     const userAgent = request.headers.get('user-agent');
     expect(userAgent).toBe(
@@ -57,12 +63,18 @@ export const mockManagementApi = [
     );
   }),
 
+  /**
+   * List all projects
+   */
   http.get(`${API_URL}/v1/projects`, () => {
     return HttpResponse.json(
       Array.from(mockProjects.values()).map((project) => project.details)
     );
   }),
 
+  /**
+   * Get details for a project
+   */
   http.get<{ projectId: string }>(
     `${API_URL}/v1/projects/:projectId`,
     ({ params }) => {
@@ -77,6 +89,9 @@ export const mockManagementApi = [
     }
   ),
 
+  /**
+   * Create a new project
+   */
   http.post(`${API_URL}/v1/projects`, async ({ request }) => {
     const bodySchema = z.object({
       name: z.string(),
@@ -98,6 +113,9 @@ export const mockManagementApi = [
     return HttpResponse.json(projectResponse);
   }),
 
+  /**
+   * Pause a project
+   */
   http.post<{ projectId: string }>(
     `${API_URL}/v1/projects/:projectId/pause`,
     ({ params }) => {
@@ -113,6 +131,9 @@ export const mockManagementApi = [
     }
   ),
 
+  /**
+   * Restore a project
+   */
   http.post<{ projectId: string }>(
     `${API_URL}/v1/projects/:projectId/restore`,
     ({ params }) => {
@@ -128,15 +149,24 @@ export const mockManagementApi = [
     }
   ),
 
+  /**
+   * List organizations
+   */
   http.get(`${API_URL}/v1/organizations`, () => {
     return HttpResponse.json(mockOrgs);
   }),
 
+  /**
+   * Get details for an organization
+   */
   http.get(`${API_URL}/v1/organizations/:id`, ({ params }) => {
     const organization = mockOrgs.find((org) => org.id === params.id);
     return HttpResponse.json(organization);
   }),
 
+  /**
+   * Get the API keys for a project
+   */
   http.get(`${API_URL}/v1/projects/:projectId/api-keys`, ({ params }) => {
     return HttpResponse.json([
       {
@@ -146,6 +176,9 @@ export const mockManagementApi = [
     ]);
   }),
 
+  /**
+   * Execute a SQL query on a project's database
+   */
   http.post<{ projectId: string }, { query: string }>(
     `${API_URL}/v1/projects/:projectId/database/query`,
     async ({ params, request }) => {
@@ -171,6 +204,9 @@ export const mockManagementApi = [
     }
   ),
 
+  /**
+   * List migrations for a project
+   */
   http.get<{ projectId: string }>(
     `${API_URL}/v1/projects/:projectId/database/migrations`,
     async ({ params }) => {
@@ -192,6 +228,9 @@ export const mockManagementApi = [
     }
   ),
 
+  /**
+   * Create a new migration for a project
+   */
   http.post<{ projectId: string }, { name: string; query: string }>(
     `${API_URL}/v1/projects/:projectId/database/migrations`,
     async ({ params, request }) => {
@@ -223,6 +262,27 @@ export const mockManagementApi = [
     }
   ),
 
+  /**
+   * Get logs for a project
+   */
+  http.get<{ projectId: string }, { sql: string }>(
+    `${API_URL}/v1/projects/:projectId/analytics/endpoints/logs.all`,
+    async ({ params, request }) => {
+      const project = mockProjects.get(params.projectId);
+      if (!project) {
+        return HttpResponse.json(
+          { message: 'Project not found' },
+          { status: 404 }
+        );
+      }
+
+      return HttpResponse.json([]);
+    }
+  ),
+
+  /**
+   * Create a new branch for a project
+   */
   http.post<{ projectId: string }, { branch_name: string }>(
     `${API_URL}/v1/projects/:projectId/branches`,
     async ({ params, request }) => {
@@ -265,6 +325,9 @@ export const mockManagementApi = [
     }
   ),
 
+  /**
+   * List all branches for a project
+   */
   http.get<{ projectId: string }>(
     `${API_URL}/v1/projects/:projectId/branches`,
     async ({ params }) => {
@@ -283,6 +346,9 @@ export const mockManagementApi = [
     }
   ),
 
+  /**
+   * Get details for a branch
+   */
   http.delete<{ branchId: string }>(
     `${API_URL}/v1/branches/:branchId`,
     async ({ params }) => {
@@ -319,7 +385,9 @@ export const mockManagementApi = [
     }
   ),
 
-  // Merges migrations from a development branch to production
+  /**
+   * Merges migrations from a development branch to production
+   */
   http.post<{ branchId: string }>(
     `${API_URL}/v1/branches/:branchId/merge`,
     async ({ params }) => {
@@ -365,7 +433,9 @@ export const mockManagementApi = [
     }
   ),
 
-  // Resets a branch and re-runs migrations
+  /**
+   * Resets a branch and re-runs migrations
+   */
   http.post<{ branchId: string }, { migration_version?: string }>(
     `${API_URL}/v1/branches/:branchId/reset`,
     async ({ params, request }) => {
@@ -413,7 +483,9 @@ export const mockManagementApi = [
     }
   ),
 
-  // Rebase migrations from production on a development branch
+  /**
+   * Rebase migrations from production on a development branch
+   */
   http.post<{ branchId: string }>(
     `${API_URL}/v1/branches/:branchId/push`,
     async ({ params }) => {
@@ -461,7 +533,9 @@ export const mockManagementApi = [
     }
   ),
 
-  // Catch-all handler for any other requests
+  /**
+   * Catch-all handler that rejects any other requests
+   */
   http.all('*', ({ request }) => {
     throw new Error(
       `No request handler found for ${request.method} ${request.url}`

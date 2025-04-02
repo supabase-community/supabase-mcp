@@ -3,6 +3,7 @@ import { stripIndent } from 'common-tags';
 export function getLogQuery(
   service:
     | 'api'
+    | 'branch-action'
     | 'postgres'
     | 'edge-function'
     | 'auth'
@@ -21,6 +22,12 @@ export function getLogQuery(
         order by timestamp desc
         limit ${limit}
       `;
+    case 'branch-action':
+      return stripIndent`
+          select workflow_run, workflow_run_logs.timestamp, id, event_message from workflow_run_logs
+          order by timestamp desc
+          limit ${limit}
+        `;
     case 'postgres':
       return stripIndent`
         select identifier, postgres_logs.timestamp, id, event_message, parsed.error_severity from postgres_logs

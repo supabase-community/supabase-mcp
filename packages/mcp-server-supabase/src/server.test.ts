@@ -456,6 +456,7 @@ describe('tools', () => {
     const project = mockProjects.values().next().value!;
     const services = [
       'api',
+      'branch-action',
       'postgres',
       'edge-function',
       'auth',

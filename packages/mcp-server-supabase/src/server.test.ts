@@ -476,6 +476,22 @@ describe('tools', () => {
     }
   });
 
+  test('get logs for invalid service type', async () => {
+    const { callTool } = await setup();
+    const project = mockProjects.values().next().value!;
+    const invalidService = 'invalid-service';
+    const getLogsPromise = callTool({
+      name: 'get_logs',
+      arguments: {
+        project_id: project.id,
+        service: invalidService,
+      },
+    });
+    await expect(getLogsPromise).rejects.toThrow(
+      `unsupported log service type: invalid-service`
+    );
+  });
+
   test('enable branching', async () => {
     const { callTool } = await setup();
     const project = mockProjects.values().next().value!;

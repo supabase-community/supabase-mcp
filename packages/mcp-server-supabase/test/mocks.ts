@@ -265,10 +265,7 @@ export const mockManagementApi = [
   /**
    * Get logs for a project
    */
-  http.get<
-    { projectId: string },
-    { iso_timestamp_start: string; iso_timestamp_end: string; sql: string }
-  >(
+  http.get<{ projectId: string }, { sql: string }>(
     `${API_URL}/v1/projects/:projectId/analytics/endpoints/logs.all`,
     async ({ params, request }) => {
       const project = mockProjects.get(params.projectId);
@@ -278,26 +275,6 @@ export const mockManagementApi = [
           { status: 404 }
         );
       }
-
-      const url = new URL(request.url);
-
-      const iso_timestamp_start =
-        url.searchParams.get('iso_timestamp_start') ?? undefined;
-      const iso_timestamp_end =
-        url.searchParams.get('iso_timestamp_end') ?? undefined;
-      const sql = url.searchParams.get('sql') ?? undefined;
-
-      if (!iso_timestamp_start || !iso_timestamp_end || !sql) {
-        return HttpResponse.json(
-          { message: 'Missing required query parameters' },
-          { status: 400 }
-        );
-      }
-
-      const start = new Date(iso_timestamp_start);
-      const end = new Date(iso_timestamp_end);
-
-      expect(end.getTime() - start.getTime()).toBeLessThanOrEqual(60 * 1000);
 
       return HttpResponse.json([]);
     }

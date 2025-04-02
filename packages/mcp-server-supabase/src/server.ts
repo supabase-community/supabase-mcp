@@ -355,9 +355,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
                   ref: project_id,
                 },
                 query: {
-                  // Limit to the last minute
-                  iso_timestamp_start: new Date(now - 60 * 1000).toISOString(),
-                  iso_timestamp_end: new Date(now).toISOString(),
+                  // Omitting start and end time defaults to the last minute
                   sql: getLogQuery(service),
                 },
               },

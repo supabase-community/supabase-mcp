@@ -300,26 +300,22 @@ export const mockManagementApi = [
         (branch) => branch.parent_project_ref === project.id
       );
 
-      let branch: MockBranch;
-
       if (projectBranches.length === 0) {
         // If this is the first branch, set it as the default branch pointing to the same project
-        branch = new MockBranch({
+        const defaultBranch = new MockBranch({
           name: branch_name,
           project_ref: project.id,
           parent_project_ref: project.id,
           is_default: true,
         });
-
-        branch.status = 'MIGRATIONS_PASSED';
-        mockBranches.set(branch.id, branch);
-      } else {
-        // Otherwise, create a new branch
-        branch = await createBranch({
-          name: branch_name,
-          parent_project_ref: project.id,
-        });
+        defaultBranch.status = 'MIGRATIONS_PASSED';
+        mockBranches.set(defaultBranch.id, defaultBranch);
       }
+
+      const branch = await createBranch({
+        name: branch_name,
+        parent_project_ref: project.id,
+      });
 
       return HttpResponse.json(branch.details);
     }
@@ -338,7 +334,7 @@ export const mockManagementApi = [
       if (projectBranches.length === 0) {
         return HttpResponse.json(
           { message: 'Preview branching is not enabled for this project.' },
-          { status: 400 }
+          { status: 422 }
         );
       }
 
@@ -365,7 +361,7 @@ export const mockManagementApi = [
       if (branch.is_default) {
         return HttpResponse.json(
           { message: 'Cannot delete the default branch.' },
-          { status: 400 }
+          { status: 422 }
         );
       }
 

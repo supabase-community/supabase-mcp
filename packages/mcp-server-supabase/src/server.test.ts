@@ -493,73 +493,9 @@ describe('tools', () => {
     );
   });
 
-  test('enable branching', async () => {
-    const { callTool } = await setup();
-    const project = mockProjects.values().next().value!;
-    const result = await callTool({
-      name: 'enable_branching',
-      arguments: {
-        project_id: project.id,
-      },
-    });
-
-    expect(result).toEqual({
-      id: expect.stringMatching(/^.+$/),
-      name: 'main',
-      project_ref: expect.stringMatching(/^.+$/),
-      parent_project_ref: project.id,
-      is_default: true,
-      persistent: false,
-      status: 'MIGRATIONS_PASSED',
-      created_at: expect.stringMatching(
-        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
-      ),
-      updated_at: expect.stringMatching(
-        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
-      ),
-    });
-  });
-
-  test('enabling branching twice returns the same main branch', async () => {
-    const { callTool } = await setup();
-    const project = mockProjects.values().next().value!;
-
-    const firstResult = await callTool({
-      name: 'enable_branching',
-      arguments: {
-        project_id: project.id,
-      },
-    });
-
-    const secondResult = await callTool({
-      name: 'enable_branching',
-      arguments: {
-        project_id: project.id,
-      },
-    });
-
-    const listResult = await callTool({
-      name: 'list_branches',
-      arguments: {
-        project_id: project.id,
-      },
-    });
-
-    expect(listResult).toHaveLength(1);
-    expect(listResult[0]).toEqual(firstResult);
-    expect(firstResult).toEqual(secondResult);
-  });
-
   test('create branch', async () => {
     const { callTool } = await setup();
     const project = mockProjects.values().next().value!;
-
-    await callTool({
-      name: 'enable_branching',
-      arguments: {
-        project_id: project.id,
-      },
-    });
 
     const branchName = 'test-branch';
     const result = await callTool({
@@ -590,13 +526,6 @@ describe('tools', () => {
   test('delete branch', async () => {
     const { callTool } = await setup();
     const project = mockProjects.values().next().value!;
-
-    await callTool({
-      name: 'enable_branching',
-      arguments: {
-        project_id: project.id,
-      },
-    });
 
     const branch = await callTool({
       name: 'create_branch',
@@ -636,29 +565,8 @@ describe('tools', () => {
       expect.objectContaining({ id: branch.id })
     );
     expect(listBranchesResultAfterDelete).toHaveLength(1);
-  });
 
-  test('delete main branch fails', async () => {
-    const { callTool } = await setup();
-    const project = mockProjects.values().next().value!;
-
-    await callTool({
-      name: 'enable_branching',
-      arguments: {
-        project_id: project.id,
-      },
-    });
-
-    const listBranchesResult = await callTool({
-      name: 'list_branches',
-      arguments: {
-        project_id: project.id,
-      },
-    });
-
-    expect(listBranchesResult).toHaveLength(1);
-
-    const mainBranch = listBranchesResult[0]!;
+    const mainBranch = listBranchesResultAfterDelete[0];
 
     const deleteBranchPromise = callTool({
       name: 'delete_branch',
@@ -676,13 +584,6 @@ describe('tools', () => {
     const { callTool } = await setup();
     const project = mockProjects.values().next().value!;
 
-    await callTool({
-      name: 'enable_branching',
-      arguments: {
-        project_id: project.id,
-      },
-    });
-
     const result = await callTool({
       name: 'list_branches',
       arguments: {
@@ -690,35 +591,12 @@ describe('tools', () => {
       },
     });
 
-    expect(result).toEqual([
-      {
-        id: expect.stringMatching(/^.+$/),
-        name: 'main',
-        project_ref: project.id,
-        parent_project_ref: project.id,
-        is_default: true,
-        persistent: false,
-        status: 'MIGRATIONS_PASSED',
-        created_at: expect.stringMatching(
-          /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
-        ),
-        updated_at: expect.stringMatching(
-          /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
-        ),
-      },
-    ]);
+    expect(result).toStrictEqual([]);
   });
 
   test('merge branch', async () => {
     const { callTool } = await setup();
     const project = mockProjects.values().next().value!;
-
-    await callTool({
-      name: 'enable_branching',
-      arguments: {
-        project_id: project.id,
-      },
-    });
 
     const branch = await callTool({
       name: 'create_branch',
@@ -768,13 +646,6 @@ describe('tools', () => {
   test('reset branch', async () => {
     const { callTool } = await setup();
     const project = mockProjects.values().next().value!;
-
-    await callTool({
-      name: 'enable_branching',
-      arguments: {
-        project_id: project.id,
-      },
-    });
 
     const branch = await callTool({
       name: 'create_branch',
@@ -829,13 +700,6 @@ describe('tools', () => {
   test('revert migrations', async () => {
     const { callTool } = await setup();
     const project = mockProjects.values().next().value!;
-
-    await callTool({
-      name: 'enable_branching',
-      arguments: {
-        project_id: project.id,
-      },
-    });
 
     const branch = await callTool({
       name: 'create_branch',
@@ -915,13 +779,6 @@ describe('tools', () => {
     const { callTool } = await setup();
     const project = mockProjects.values().next().value!;
 
-    await callTool({
-      name: 'enable_branching',
-      arguments: {
-        project_id: project.id,
-      },
-    });
-
     const branch = await callTool({
       name: 'create_branch',
       arguments: {
@@ -965,34 +822,6 @@ describe('tools', () => {
       name: migrationName,
       version: expect.stringMatching(/^\d{14}$/),
     });
-  });
-
-  test('list and create branch fails when branching disabled', async () => {
-    const { callTool } = await setup();
-    const project = mockProjects.values().next().value!;
-
-    const listBranchesPromise = callTool({
-      name: 'list_branches',
-      arguments: {
-        project_id: project.id,
-      },
-    });
-
-    await expect(listBranchesPromise).rejects.toThrow(
-      'Preview branching is not enabled for this project.'
-    );
-
-    const createBranchPromise = callTool({
-      name: 'create_branch',
-      arguments: {
-        project_id: project.id,
-        name: 'test-branch',
-      },
-    });
-
-    await expect(createBranchPromise).rejects.toThrow(
-      'Preview branching is not enabled for this project.'
-    );
   });
 
   // We use snake_case because it aligns better with most MCP clients

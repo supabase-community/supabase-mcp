@@ -366,9 +366,9 @@ export const mockManagementApi = [
   ),
 
   // Resets a branch and re-runs migrations
-  http.post<{ branchId: string }>(
+  http.post<{ branchId: string }, { migration_version?: string }>(
     `${API_URL}/v1/branches/:branchId/reset`,
-    async ({ params }) => {
+    async ({ params, request }) => {
       const branch = mockBranches.get(params.branchId);
       if (!branch) {
         return HttpResponse.json(
@@ -382,6 +382,15 @@ export const mockManagementApi = [
         return HttpResponse.json(
           { message: 'Project not found' },
           { status: 404 }
+        );
+      }
+
+      // Clear migrations below the specified version
+      const body = await request.json();
+      if (body.migration_version) {
+        const target = body.migration_version;
+        project.migrations = project.migrations.filter(
+          (m) => m.version <= target
         );
       }
 

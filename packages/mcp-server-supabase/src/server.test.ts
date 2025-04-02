@@ -784,6 +784,91 @@ describe('tools', () => {
     );
   });
 
+  test('revert migrations', async () => {
+    const { callTool } = await setup();
+    const project = mockProjects.values().next().value!;
+
+    await callTool({
+      name: 'enable_branching',
+      arguments: {
+        project_id: project.id,
+      },
+    });
+
+    const branch = await callTool({
+      name: 'create_branch',
+      arguments: {
+        project_id: project.id,
+        name: 'test-branch',
+      },
+    });
+
+    const migrationName = 'sample_migration';
+    const migrationQuery =
+      'create table sample (id integer generated always as identity primary key)';
+    await callTool({
+      name: 'apply_migration',
+      arguments: {
+        project_id: branch.project_ref,
+        name: migrationName,
+        query: migrationQuery,
+      },
+    });
+
+    // Check that migration has been applied to the branch
+    const firstListResult = await callTool({
+      name: 'list_migrations',
+      arguments: {
+        project_id: branch.project_ref,
+      },
+    });
+
+    expect(firstListResult).toContainEqual({
+      name: migrationName,
+      version: expect.stringMatching(/^\d{14}$/),
+    });
+
+    const firstTablesResult = await callTool({
+      name: 'list_tables',
+      arguments: {
+        project_id: branch.project_ref,
+      },
+    });
+
+    expect(firstTablesResult).toContainEqual(
+      expect.objectContaining({ name: 'sample' })
+    );
+
+    await callTool({
+      name: 'reset_branch',
+      arguments: {
+        branch_id: branch.id,
+        migration_version: '0',
+      },
+    });
+
+    // Check that all migrations have been reverted
+    const secondListResult = await callTool({
+      name: 'list_migrations',
+      arguments: {
+        project_id: branch.project_ref,
+      },
+    });
+
+    expect(secondListResult).toStrictEqual([]);
+
+    const secondTablesResult = await callTool({
+      name: 'list_tables',
+      arguments: {
+        project_id: branch.project_ref,
+      },
+    });
+
+    expect(secondTablesResult).not.toContainEqual(
+      expect.objectContaining({ name: 'sample' })
+    );
+  });
+
   test('rebase branch', async () => {
     const { callTool } = await setup();
     const project = mockProjects.values().next().value!;

@@ -347,6 +347,9 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
             .describe('The service to fetch logs for'),
         }),
         execute: async ({ project_id, service }) => {
+          // Omitting start and end time defaults to the last minute.
+          // But since branch actions are async, we need to wait longer
+          // for jobs to be scheduled and run to completion.
           const timestamp =
             service === 'branch-action'
               ? new Date(Date.now() - 5 * 60 * 1000)
@@ -359,7 +362,6 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
                   ref: project_id,
                 },
                 query: {
-                  // Omitting start and end time defaults to the last minute
                   iso_timestamp_start: timestamp?.toISOString(),
                   sql: getLogQuery(service),
                 },

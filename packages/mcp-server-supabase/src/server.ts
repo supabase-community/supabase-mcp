@@ -592,8 +592,14 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
           'Resets migrations of a development branch. Any untracked data or schema changes will be lost.',
         parameters: z.object({
           branch_id: z.string(),
+          migration_version: z
+            .string()
+            .optional()
+            .describe(
+              'Reset your development branch to a specific migration version.'
+            ),
         }),
-        execute: async ({ branch_id }) => {
+        execute: async ({ branch_id, migration_version }) => {
           const response = await managementApiClient.POST(
             '/v1/branches/{branch_id}/reset',
             {
@@ -602,7 +608,9 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
                   branch_id,
                 },
               },
-              body: {},
+              body: {
+                migration_version,
+              },
             }
           );
 

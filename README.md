@@ -134,6 +134,7 @@ The following Supabase tools are available to the LLM:
 - `list_migrations`: Lists all migrations in the database.
 - `apply_migration`: Applies a SQL migration to the database. SQL passed to this tool will be tracked within the database, so LLMs should use this for DDL operations (schema changes).
 - `execute_sql`: Executes raw SQL in the database. LLMs should use this for regular queries that don't change the schema.
+- `get_logs`: Gets logs for a Supabase project by service type (api, postgres, edge functions, auth, storage, realtime). LLMs can use this to help with debugging and monitoring service performance.
 
 #### Project Configuration
 

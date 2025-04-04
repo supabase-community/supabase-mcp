@@ -122,7 +122,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       }),
       create_project: tool({
         description:
-          'Creates a new Supabase project. Always ask the user which organization to create the project in. Each new project can have additional costs: If on a free org, the user gets 2 projects for free. On a paid org, the user should reference https://supabase.com/pricing. Be sure the user understands this before creating new projects. The project can take a few minutes to initialize - use `getProject` to check the status.',
+          'Creates a new Supabase project. Always ask the user which organization to create the project in. Each new project can incur additional costs: If on a free org, the user gets 2 projects for free. On a paid org, the user should reference https://supabase.com/pricing. Confirm that the user understands this before creating new projects. The project can take a few minutes to initialize - use `getProject` to check the status.',
         parameters: z.object({
           name: z.string().describe('The name of the project'),
           region: z.optional(
@@ -441,7 +441,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       // Experimental features
       create_branch: tool({
         description:
-          'Creates a development branch on a Supabase project. This will apply all migrations from the main project to a fresh branch database. Note that production data will not carry over. The branch will get its own project_id via the resulting project_ref. Use this ID to execute queries and migrations on the branch.',
+          'Creates a development branch on a Supabase project. This will apply all migrations from the main project to a fresh branch database. Note that production data will not carry over. The branch will get its own project_id via the resulting project_ref. Use this ID to execute queries and migrations on the branch. Branching is only available on a paid org and each branch will incur additional costs. You must confirm that the user understands these costs before calling this function. Details here: https://supabase.com/docs/guides/deployment/branching#pricing',
         parameters: z.object({
           project_id: z.string(),
           name: z

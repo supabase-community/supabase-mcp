@@ -13,12 +13,14 @@ import {
   type ManagementApiClient,
 } from './management-api/index.js';
 import { generatePassword } from './password.js';
+import { getBranchCost, getNextProjectCost, type Cost } from './pricing.js';
 import {
   AWS_REGION_CODES,
   getClosestAwsRegion,
   getCountryCode,
   getCountryCoordinates,
 } from './regions.js';
+import { hashObject } from './util.js';
 
 export type SupabasePlatformOptions = {
   apiUrl?: string;
@@ -120,9 +122,51 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
           return response.data;
         },
       }),
+      get_cost: tool({
+        description:
+          'Gets the cost of creating a new project or branch. Never assume organization as costs can be different for each.',
+        parameters: z.object({
+          type: z.enum(['project', 'branch']),
+          organization_id: z
+            .string()
+            .describe('The organization ID. Always ask the user.'),
+        }),
+        execute: async ({ type, organization_id }) => {
+          function generateResponse(cost: Cost) {
+            return `The new ${type} will cost $${cost.amount} ${cost.recurrence}. You must repeat this to the user and confirm their understanding.`;
+          }
+          switch (type) {
+            case 'project': {
+              const cost = await getNextProjectCost(
+                managementApiClient,
+                organization_id
+              );
+              return generateResponse(cost);
+            }
+            case 'branch': {
+              const cost = getBranchCost();
+              return generateResponse(cost);
+            }
+            default:
+              throw new Error(`Unknown cost type: ${type}`);
+          }
+        },
+      }),
+      confirm_cost: tool({
+        description:
+          'Ask the user to confirm their understanding of the cost of creating a new project or branch. Call `get_cost` first. Returns a unique ID for this confirmation which should be passed to `create_project` or `create_branch`.',
+        parameters: z.object({
+          type: z.enum(['project', 'branch']),
+          recurrence: z.enum(['hourly', 'monthly']),
+          amount: z.number(),
+        }),
+        execute: async (cost) => {
+          return await hashObject(cost);
+        },
+      }),
       create_project: tool({
         description:
-          'Creates a new Supabase project. Always ask the user which organization to create the project in. Each new project can incur additional costs: If on a free org, the user gets 2 projects for free. On a paid org, the user should reference https://supabase.com/pricing. Confirm that the user understands this before creating new projects. The project can take a few minutes to initialize - use `getProject` to check the status.',
+          'Creates a new Supabase project. Always ask the user which organization to create the project in. The project can take a few minutes to initialize - use `get_project` to check the status.',
         parameters: z.object({
           name: z.string().describe('The name of the project'),
           region: z.optional(
@@ -133,8 +177,28 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
               )
           ),
           organization_id: z.string(),
+          confirm_cost_id: z
+            .string()
+            .describe('The cost confirmation ID. Call `confirm_cost` first.'),
         }),
-        execute: async ({ name, region, organization_id }) => {
+        execute: async ({ name, region, organization_id, confirm_cost_id }) => {
+          if (!confirm_cost_id) {
+            throw new Error(
+              'User must confirm understanding of costs before creating a project.'
+            );
+          }
+
+          const cost = await getNextProjectCost(
+            managementApiClient,
+            organization_id
+          );
+          const costHash = await hashObject(cost);
+          if (costHash !== confirm_cost_id) {
+            throw new Error(
+              'Cost confirmation ID does not match the expected cost of creating a project.'
+            );
+          }
+
           const response = await managementApiClient.POST('/v1/projects', {
             body: {
               name,
@@ -320,7 +384,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       }),
       execute_sql: tool({
         description:
-          'Executes raw SQL in the Postgres database. Use `applyMigration` instead for DDL operations.',
+          'Executes raw SQL in the Postgres database. Use `apply_migration` instead for DDL operations.',
         parameters: z.object({
           project_id: z.string(),
           query: z.string().describe('The SQL query to execute'),
@@ -441,15 +505,29 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       // Experimental features
       create_branch: tool({
         description:
-          'Creates a development branch on a Supabase project. This will apply all migrations from the main project to a fresh branch database. Note that production data will not carry over. The branch will get its own project_id via the resulting project_ref. Use this ID to execute queries and migrations on the branch. Branching is only available on a paid org and each branch will incur additional costs. You must confirm that the user understands these costs before calling this function. Details here: https://supabase.com/docs/guides/deployment/branching#pricing',
+          'Creates a development branch on a Supabase project. This will apply all migrations from the main project to a fresh branch database. Note that production data will not carry over. The branch will get its own project_id via the resulting project_ref. Use this ID to execute queries and migrations on the branch.',
         parameters: z.object({
           project_id: z.string(),
-          name: z
+          name: z.string().describe('Name of the branch to create'),
+          confirm_cost_id: z
             .string()
-            .default('develop')
-            .describe('Name of the branch to create'),
+            .describe('The cost confirmation ID. Call `confirm_cost` first.'),
         }),
-        execute: async ({ project_id, name }) => {
+        execute: async ({ project_id, name, confirm_cost_id }) => {
+          if (!confirm_cost_id) {
+            throw new Error(
+              'User must confirm understanding of costs before creating a branch.'
+            );
+          }
+
+          const cost = getBranchCost();
+          const costHash = await hashObject(cost);
+          if (costHash !== confirm_cost_id) {
+            throw new Error(
+              'Cost confirmation ID does not match the expected cost of creating a branch.'
+            );
+          }
+
           const createBranchResponse = await managementApiClient.POST(
             '/v1/projects/{ref}/branches',
             {
@@ -477,6 +555,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
               },
               body: {
                 branch_name: 'main',
+                git_branch: 'main',
               },
             });
 

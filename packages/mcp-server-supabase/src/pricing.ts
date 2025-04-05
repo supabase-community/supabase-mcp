@@ -3,8 +3,8 @@ import {
   type ManagementApiClient,
 } from './management-api/index.js';
 
-const PROJECT_COST_MONTHLY = 10;
-const BRANCH_COST_HOURLY = 0.01344;
+export const PROJECT_COST_MONTHLY = 10;
+export const BRANCH_COST_HOURLY = 0.01344;
 
 export type ProjectCost = {
   type: 'project';

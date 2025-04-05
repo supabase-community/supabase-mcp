@@ -154,6 +154,11 @@ The following Supabase tools are available to the LLM:
 
 - `generate_typescript_types`: Generates TypeScript types based on the database schema. LLMs can save this to a file and use it in their code.
 
+#### Cost Confirmation
+
+- `get_cost`: Gets the cost of a new project or branch for an organization.
+- `confirm_cost`: Confirms the user's understanding of new project or branch costs. This is required to create a new project or branch.
+
 ## Other MCP servers
 
 ### `@supabase/mcp-server-postgrest`

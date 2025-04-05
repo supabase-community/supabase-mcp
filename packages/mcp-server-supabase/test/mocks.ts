@@ -17,7 +17,7 @@ export const ACCESS_TOKEN = 'dummy-token';
 export const COUNTRY_CODE = 'US';
 export const CLOSEST_REGION = 'us-east-2';
 
-type Organization = components['schemas']['OrganizationResponseV1'];
+type Organization = components['schemas']['V1OrganizationSlugResponse'];
 type Project = components['schemas']['V1ProjectWithDatabaseResponse'];
 type Branch = components['schemas']['BranchResponse'];
 
@@ -28,8 +28,20 @@ export type Migration = {
 };
 
 export const mockOrgs: Organization[] = [
-  { id: 'org-1', name: 'Org 1' },
-  { id: 'org-2', name: 'Org 2' },
+  {
+    id: 'org-1',
+    name: 'Org 1',
+    plan: 'free',
+    allowed_release_channels: ['ga'],
+    opt_in_tags: [],
+  },
+  {
+    id: 'org-2',
+    name: 'Org 2',
+    plan: 'pro',
+    allowed_release_channels: ['ga'],
+    opt_in_tags: [],
+  },
 ];
 export const mockProjects = new Map<string, MockProject>();
 export const mockBranches = new Map<string, MockBranch>();
@@ -153,7 +165,7 @@ export const mockManagementApi = [
    * List organizations
    */
   http.get(`${API_URL}/v1/organizations`, () => {
-    return HttpResponse.json(mockOrgs);
+    return HttpResponse.json(mockOrgs.map(({ id, name }) => ({ id, name })));
   }),
 
   /**

@@ -558,7 +558,6 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
               },
               body: {
                 branch_name: 'main',
-                git_branch: 'main',
               },
             });
 

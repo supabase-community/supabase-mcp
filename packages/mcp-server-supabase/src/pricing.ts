@@ -54,9 +54,7 @@ export async function getNextProjectCost(
 
   if (org.plan !== 'free') {
     // If the organization is on a paid plan, the first project is included
-    if (activeProjects.length === 0) {
-      amount = 0;
-    } else {
+    if (activeProjects.length > 0) {
       amount = PROJECT_COST_MONTHLY;
     }
   }

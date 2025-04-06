@@ -508,7 +508,10 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
           'Creates a development branch on a Supabase project. This will apply all migrations from the main project to a fresh branch database. Note that production data will not carry over. The branch will get its own project_id via the resulting project_ref. Use this ID to execute queries and migrations on the branch.',
         parameters: z.object({
           project_id: z.string(),
-          name: z.string().describe('Name of the branch to create'),
+          name: z
+            .string()
+            .default('develop')
+            .describe('Name of the branch to create'),
           confirm_cost_id: z
             .string()
             .describe('The cost confirmation ID. Call `confirm_cost` first.'),

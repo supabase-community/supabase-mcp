@@ -24,10 +24,10 @@ export function getLogQuery(
       `;
     case 'branch-action':
       return stripIndent`
-          select workflow_run, workflow_run_logs.timestamp, id, event_message from workflow_run_logs
-          order by timestamp desc
-          limit ${limit}
-        `;
+        select workflow_run, workflow_run_logs.timestamp, id, event_message from workflow_run_logs
+        order by timestamp desc
+        limit ${limit}
+      `;
     case 'postgres':
       return stripIndent`
         select identifier, postgres_logs.timestamp, id, event_message, parsed.error_severity from postgres_logs
@@ -38,7 +38,10 @@ export function getLogQuery(
       `;
     case 'edge-function':
       return stripIndent`
-        select * from function_logs
+        select id, function_edge_logs.timestamp, event_message, response.status_code, request.method, m.function_id, m.execution_time_ms, m.deployment_id, m.version from function_edge_logs
+        cross join unnest(metadata) as m
+        cross join unnest(m.response) as response
+        cross join unnest(m.request) as request
         order by timestamp desc
         limit ${limit}
       `;

@@ -572,8 +572,8 @@ The cost of each active branch is $${BRANCH_COST_HOURLY} per hour. Always show t
         },
       }),
       list_branches: tool({
-        description:
-          'Lists all development branches of a Supabase project. This will return branch details including status which you can use to check when operations like merge/rebase/reset complete.',
+        description: `Lists all development branches of a Supabase project. This will return branch details including status which you can use to check when operations like merge/rebase/reset complete.
+The cost of each active branch is $${BRANCH_COST_HOURLY} per hour. Always suggest deleting any unused branches to avoid unnecessary charges.`,
         parameters: z.object({
           project_id: z.string(),
         }),

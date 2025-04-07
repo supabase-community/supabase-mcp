@@ -47,7 +47,8 @@ export async function getNextProjectCost(
   const org = orgResponse.data;
   const activeProjects = projectsResponse.data.filter(
     (project) =>
-      project.organization_id === orgId && !['INACTIVE', 'GOING_DOWN', 'REMOVED'].includes(project.status)
+      project.organization_id === orgId &&
+      !['INACTIVE', 'GOING_DOWN', 'REMOVED'].includes(project.status)
   );
 
   let amount = 0;

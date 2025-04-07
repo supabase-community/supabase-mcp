@@ -159,6 +159,7 @@ describe('tools', () => {
   test('get next project cost for paid org with 0 projects', async () => {
     const { callTool } = await setup();
 
+    mockProjects.clear();
     const paidOrg = mockOrgs.find((org) => org.plan !== 'free')!;
     const result = await callTool({
       name: 'get_cost',
@@ -173,17 +174,10 @@ describe('tools', () => {
     );
   });
 
-  test('get next project cost for paid org with > 0 ACTIVE_HEALTHY projects', async () => {
+  test('get next project cost for paid org with > 0 active projects', async () => {
     const { callTool } = await setup();
 
     const paidOrg = mockOrgs.find((org) => org.plan !== 'free')!;
-
-    const priorProject = await createProject({
-      name: 'Project 1',
-      region: 'us-east-1',
-      organization_id: paidOrg.id,
-    });
-    priorProject.status = 'ACTIVE_HEALTHY';
 
     const result = await callTool({
       name: 'get_cost',
@@ -198,17 +192,13 @@ describe('tools', () => {
     );
   });
 
-  test('get next project cost for paid org with > 0 projects that are not ACTIVE_HEALTHY', async () => {
+  test('get next project cost for paid org with > 0 inactive projects', async () => {
     const { callTool } = await setup();
 
     const paidOrg = mockOrgs.find((org) => org.plan !== 'free')!;
-
-    const priorProject = await createProject({
-      name: 'Project 1',
-      region: 'us-east-1',
-      organization_id: paidOrg.id,
-    });
-    priorProject.status = 'INACTIVE';
+    for (const priorProject of mockProjects.values()) {
+      priorProject.status = 'INACTIVE';
+    }
 
     const result = await callTool({
       name: 'get_cost',

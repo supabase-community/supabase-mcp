@@ -628,9 +628,7 @@ describe('tools', () => {
         service: invalidService,
       },
     });
-    await expect(getLogsPromise).rejects.toThrow(
-      `unsupported log service type: invalid-service`
-    );
+    await expect(getLogsPromise).rejects.toThrow('Invalid enum value');
   });
 
   test('create branch', async () => {

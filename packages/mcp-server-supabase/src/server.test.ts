@@ -18,7 +18,7 @@ import {
   mockOrgs,
   mockProjects,
 } from '../test/mocks.js';
-import { BRANCH_COST_HOURLY, PROJECT_COST_MONTHLY } from './pricing.js';
+import { PROJECT_COST_MONTHLY } from './pricing.js';
 import { createSupabaseMcpServer } from './server.js';
 
 beforeEach(() => {
@@ -210,24 +210,6 @@ describe('tools', () => {
 
     expect(result).toEqual(
       `The new project will cost $0 monthly. You must repeat this to the user and confirm their understanding.`
-    );
-  });
-
-  test('get branch cost', async () => {
-    const { callTool } = await setup();
-
-    const paidOrg = mockOrgs.find((org) => org.plan !== 'free')!;
-
-    const result = await callTool({
-      name: 'get_cost',
-      arguments: {
-        type: 'branch',
-        organization_id: paidOrg.id,
-      },
-    });
-
-    expect(result).toEqual(
-      `The new branch will cost $${BRANCH_COST_HOURLY} hourly. You must repeat this to the user and confirm their understanding.`
     );
   });
 
@@ -637,22 +619,12 @@ describe('tools', () => {
     const { callTool } = await setup();
     const project = mockProjects.values().next().value!;
 
-    const confirm_cost_id = await callTool({
-      name: 'confirm_cost',
-      arguments: {
-        type: 'branch',
-        recurrence: 'hourly',
-        amount: BRANCH_COST_HOURLY,
-      },
-    });
-
     const branchName = 'test-branch';
     const result = await callTool({
       name: 'create_branch',
       arguments: {
         project_id: project.id,
         name: branchName,
-        confirm_cost_id,
       },
     });
 
@@ -673,44 +645,15 @@ describe('tools', () => {
     });
   });
 
-  test('create branch without cost confirmation fails', async () => {
-    const { callTool } = await setup();
-
-    const project = mockProjects.values().next().value!;
-
-    const branchName = 'test-branch';
-    const createBranchPromise = callTool({
-      name: 'create_branch',
-      arguments: {
-        project_id: project.id,
-        name: branchName,
-      },
-    });
-
-    await expect(createBranchPromise).rejects.toThrow(
-      'User must confirm understanding of costs before creating a branch.'
-    );
-  });
-
   test('delete branch', async () => {
     const { callTool } = await setup();
     const project = mockProjects.values().next().value!;
-
-    const confirm_cost_id = await callTool({
-      name: 'confirm_cost',
-      arguments: {
-        type: 'branch',
-        recurrence: 'hourly',
-        amount: BRANCH_COST_HOURLY,
-      },
-    });
 
     const branch = await callTool({
       name: 'create_branch',
       arguments: {
         project_id: project.id,
         name: 'test-branch',
-        confirm_cost_id,
       },
     });
 
@@ -777,21 +720,11 @@ describe('tools', () => {
     const { callTool } = await setup();
     const project = mockProjects.values().next().value!;
 
-    const confirm_cost_id = await callTool({
-      name: 'confirm_cost',
-      arguments: {
-        type: 'branch',
-        recurrence: 'hourly',
-        amount: BRANCH_COST_HOURLY,
-      },
-    });
-
     const branch = await callTool({
       name: 'create_branch',
       arguments: {
         project_id: project.id,
         name: 'test-branch',
-        confirm_cost_id,
       },
     });
 
@@ -836,21 +769,11 @@ describe('tools', () => {
     const { callTool } = await setup();
     const project = mockProjects.values().next().value!;
 
-    const confirm_cost_id = await callTool({
-      name: 'confirm_cost',
-      arguments: {
-        type: 'branch',
-        recurrence: 'hourly',
-        amount: BRANCH_COST_HOURLY,
-      },
-    });
-
     const branch = await callTool({
       name: 'create_branch',
       arguments: {
         project_id: project.id,
         name: 'test-branch',
-        confirm_cost_id,
       },
     });
 
@@ -900,21 +823,11 @@ describe('tools', () => {
     const { callTool } = await setup();
     const project = mockProjects.values().next().value!;
 
-    const confirm_cost_id = await callTool({
-      name: 'confirm_cost',
-      arguments: {
-        type: 'branch',
-        recurrence: 'hourly',
-        amount: BRANCH_COST_HOURLY,
-      },
-    });
-
     const branch = await callTool({
       name: 'create_branch',
       arguments: {
         project_id: project.id,
         name: 'test-branch',
-        confirm_cost_id,
       },
     });
 
@@ -988,21 +901,11 @@ describe('tools', () => {
     const { callTool } = await setup();
     const project = mockProjects.values().next().value!;
 
-    const confirm_cost_id = await callTool({
-      name: 'confirm_cost',
-      arguments: {
-        type: 'branch',
-        recurrence: 'hourly',
-        amount: BRANCH_COST_HOURLY,
-      },
-    });
-
     const branch = await callTool({
       name: 'create_branch',
       arguments: {
         project_id: project.id,
         name: 'test-branch',
-        confirm_cost_id,
       },
     });
 

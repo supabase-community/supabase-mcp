@@ -38,3 +38,35 @@ export function parseKeyValueList(data: string): { [key: string]: string } {
       .map(([key, value]) => [key, value ?? '']) // ensure value is not undefined
   );
 }
+
+/**
+ * Creates a unique hash from a JavaScript object.
+ * @param obj - The object to hash
+ * @param length - Optional length to truncate the hash (default: full length)
+ */
+export async function hashObject(
+  obj: Record<string, any>,
+  length?: number
+): Promise<string> {
+  // Sort object keys to ensure consistent output regardless of original key order
+  const str = JSON.stringify(obj, (_, value) => {
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      return Object.keys(value)
+        .sort()
+        .reduce<Record<string, any>>((result, key) => {
+          result[key] = value[key];
+          return result;
+        }, {});
+    }
+    return value;
+  });
+
+  const buffer = await crypto.subtle.digest(
+    'SHA-256',
+    new TextEncoder().encode(str)
+  );
+
+  // Convert to base64
+  const base64Hash = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+  return base64Hash.slice(0, length);
+}

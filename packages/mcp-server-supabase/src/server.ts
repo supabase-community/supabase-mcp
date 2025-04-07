@@ -178,16 +178,13 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
           ),
           organization_id: z.string(),
           confirm_cost_id: z
-            .string()
+            .string({
+              required_error:
+                'User must confirm understanding of costs before creating a project.',
+            })
             .describe('The cost confirmation ID. Call `confirm_cost` first.'),
         }),
         execute: async ({ name, region, organization_id, confirm_cost_id }) => {
-          if (!confirm_cost_id) {
-            throw new Error(
-              'User must confirm understanding of costs before creating a project.'
-            );
-          }
-
           const cost = await getNextProjectCost(
             managementApiClient,
             organization_id
@@ -513,16 +510,13 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
             .default('develop')
             .describe('Name of the branch to create'),
           confirm_cost_id: z
-            .string()
+            .string({
+              required_error:
+                'User must confirm understanding of costs before creating a branch.',
+            })
             .describe('The cost confirmation ID. Call `confirm_cost` first.'),
         }),
         execute: async ({ project_id, name, confirm_cost_id }) => {
-          if (!confirm_cost_id) {
-            throw new Error(
-              'User must confirm understanding of costs before creating a branch.'
-            );
-          }
-
           const cost = getBranchCost();
           const costHash = await hashObject(cost);
           if (costHash !== confirm_cost_id) {

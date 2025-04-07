@@ -93,8 +93,6 @@ describe('hashObject', () => {
     const hash1 = await hashObject(obj1);
     const hash2 = await hashObject(obj2);
 
-    console.log('obj1', obj1, hash1);
-
     expect(hash1).not.toBe(hash2);
   });
 });

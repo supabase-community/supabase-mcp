@@ -10,6 +10,7 @@ import {
   ACCESS_TOKEN,
   API_URL,
   CLOSEST_REGION,
+  createOrganization,
   createProject,
   MCP_CLIENT_NAME,
   MCP_CLIENT_VERSION,
@@ -21,20 +22,10 @@ import {
 import { BRANCH_COST_HOURLY, PROJECT_COST_MONTHLY } from './pricing.js';
 import { createSupabaseMcpServer } from './server.js';
 
-beforeEach(() => {
+beforeEach(async () => {
+  mockOrgs.clear();
   mockProjects.clear();
   mockBranches.clear();
-
-  createProject({
-    name: 'Project 1',
-    region: 'us-east-1',
-    organization_id: 'org-1',
-  });
-  createProject({
-    name: 'Project 2',
-    region: 'us-west-2',
-    organization_id: 'org-2',
-  });
 
   const server = setupServer(...mockManagementApi);
   server.listen({ onUnhandledRequest: 'error' });
@@ -113,36 +104,56 @@ describe('tools', () => {
   test('list organizations', async () => {
     const { callTool } = await setup();
 
+    const org1 = await createOrganization({
+      name: 'Org 1',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+    const org2 = await createOrganization({
+      name: 'Org 2',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
     const result = await callTool({
       name: 'list_organizations',
       arguments: {},
     });
 
     expect(result).toEqual([
-      { id: 'org-1', name: 'Org 1' },
-      { id: 'org-2', name: 'Org 2' },
+      { id: org1.id, name: org1.name },
+      { id: org2.id, name: org2.name },
     ]);
   });
 
   test('get organization', async () => {
     const { callTool } = await setup();
 
-    const firstOrg = mockOrgs[0]!;
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
 
     const result = await callTool({
       name: 'get_organization',
       arguments: {
-        id: firstOrg.id,
+        id: org.id,
       },
     });
 
-    expect(result).toEqual(firstOrg);
+    expect(result).toEqual(org);
   });
 
   test('get next project cost for free org', async () => {
     const { callTool } = await setup();
 
-    const freeOrg = mockOrgs.find((org) => org.plan === 'free')!;
+    const freeOrg = await createOrganization({
+      name: 'Free Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
     const result = await callTool({
       name: 'get_cost',
       arguments: {
@@ -159,8 +170,12 @@ describe('tools', () => {
   test('get next project cost for paid org with 0 projects', async () => {
     const { callTool } = await setup();
 
-    mockProjects.clear();
-    const paidOrg = mockOrgs.find((org) => org.plan !== 'free')!;
+    const paidOrg = await createOrganization({
+      name: 'Paid Org',
+      plan: 'pro',
+      allowed_release_channels: ['ga'],
+    });
+
     const result = await callTool({
       name: 'get_cost',
       arguments: {
@@ -177,7 +192,18 @@ describe('tools', () => {
   test('get next project cost for paid org with > 0 active projects', async () => {
     const { callTool } = await setup();
 
-    const paidOrg = mockOrgs.find((org) => org.plan !== 'free')!;
+    const paidOrg = await createOrganization({
+      name: 'Paid Org',
+      plan: 'pro',
+      allowed_release_channels: ['ga'],
+    });
+
+    const priorProject = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: paidOrg.id,
+    });
+    priorProject.status = 'ACTIVE_HEALTHY';
 
     const result = await callTool({
       name: 'get_cost',
@@ -195,10 +221,18 @@ describe('tools', () => {
   test('get next project cost for paid org with > 0 inactive projects', async () => {
     const { callTool } = await setup();
 
-    const paidOrg = mockOrgs.find((org) => org.plan !== 'free')!;
-    for (const priorProject of mockProjects.values()) {
-      priorProject.status = 'INACTIVE';
-    }
+    const paidOrg = await createOrganization({
+      name: 'Paid Org',
+      plan: 'pro',
+      allowed_release_channels: ['ga'],
+    });
+
+    const priorProject = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: paidOrg.id,
+    });
+    priorProject.status = 'INACTIVE';
 
     const result = await callTool({
       name: 'get_cost',
@@ -216,7 +250,11 @@ describe('tools', () => {
   test('get branch cost', async () => {
     const { callTool } = await setup();
 
-    const paidOrg = mockOrgs.find((org) => org.plan !== 'free')!;
+    const paidOrg = await createOrganization({
+      name: 'Paid Org',
+      plan: 'pro',
+      allowed_release_channels: ['ga'],
+    });
 
     const result = await callTool({
       name: 'get_cost',
@@ -234,33 +272,65 @@ describe('tools', () => {
   test('list projects', async () => {
     const { callTool } = await setup();
 
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project1 = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+
+    const project2 = await createProject({
+      name: 'Project 2',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+
     const result = await callTool({
       name: 'list_projects',
       arguments: {},
     });
 
-    expect(result).toEqual(
-      Array.from(mockProjects.values()).map((project) => project.details)
-    );
+    expect(result).toEqual([project1.details, project2.details]);
   });
 
   test('get project', async () => {
     const { callTool } = await setup();
-    const firstProject = mockProjects.values().next().value!;
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+
     const result = await callTool({
       name: 'get_project',
       arguments: {
-        id: firstProject.id,
+        id: project.id,
       },
     });
 
-    expect(result).toEqual(firstProject.details);
+    expect(result).toEqual(project.details);
   });
 
   test('create project', async () => {
     const { callTool } = await setup();
 
-    const freeOrg = mockOrgs.find((org) => org.plan === 'free')!;
+    const freeOrg = await createOrganization({
+      name: 'Free Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
 
     const confirm_cost_id = await callTool({
       name: 'confirm_cost',
@@ -299,6 +369,12 @@ describe('tools', () => {
   test('create project chooses closest region when undefined', async () => {
     const { callTool } = await setup();
 
+    const freeOrg = await createOrganization({
+      name: 'Free Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
     const confirm_cost_id = await callTool({
       name: 'confirm_cost',
       arguments: {
@@ -310,7 +386,7 @@ describe('tools', () => {
 
     const newProject = {
       name: 'New Project',
-      organization_id: mockOrgs[0]!.id,
+      organization_id: freeOrg.id,
       db_pass: 'dummy-password',
       confirm_cost_id,
     };
@@ -336,7 +412,11 @@ describe('tools', () => {
   test('create project without cost confirmation fails', async () => {
     const { callTool } = await setup();
 
-    const org = mockOrgs[0]!;
+    const org = await createOrganization({
+      name: 'Paid Org',
+      plan: 'pro',
+      allowed_release_channels: ['ga'],
+    });
 
     const newProject = {
       name: 'New Project',
@@ -357,7 +437,20 @@ describe('tools', () => {
 
   test('pause project', async () => {
     const { callTool } = await setup();
-    const project = mockProjects.values().next().value!;
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
     await callTool({
       name: 'pause_project',
       arguments: {
@@ -370,7 +463,20 @@ describe('tools', () => {
 
   test('restore project', async () => {
     const { callTool } = await setup();
-    const project = mockProjects.values().next().value!;
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'INACTIVE';
+
     await callTool({
       name: 'restore_project',
       arguments: {
@@ -383,7 +489,20 @@ describe('tools', () => {
 
   test('get project url', async () => {
     const { callTool } = await setup();
-    const project = mockProjects.values().next().value!;
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
     const result = await callTool({
       name: 'get_project_url',
       arguments: {
@@ -395,7 +514,18 @@ describe('tools', () => {
 
   test('get anon key', async () => {
     const { callTool } = await setup();
-    const project = mockProjects.values().next().value!;
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
     const result = await callTool({
       name: 'get_anon_key',
       arguments: {
@@ -408,7 +538,19 @@ describe('tools', () => {
   test('execute sql', async () => {
     const { callTool } = await setup();
 
-    const project = mockProjects.values().next().value!;
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
     const query = 'select 1+1 as sum';
 
     const result = await callTool({
@@ -425,7 +567,19 @@ describe('tools', () => {
   test('apply migration, list migrations, check tables', async () => {
     const { callTool } = await setup();
 
-    const project = mockProjects.values().next().value!;
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
     const name = 'test_migration';
     const query =
       'create table test (id integer generated always as identity primary key)';
@@ -516,7 +670,18 @@ describe('tools', () => {
   test('list extensions', async () => {
     const { callTool } = await setup();
 
-    const project = mockProjects.values().next().value!;
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
 
     const result = await callTool({
       name: 'list_extensions',
@@ -554,7 +719,19 @@ describe('tools', () => {
   test('invalid sql for apply_migration', async () => {
     const { callTool } = await setup();
 
-    const project = mockProjects.values().next().value!;
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
     const name = 'test-migration';
     const query = 'invalid sql';
 
@@ -575,7 +752,19 @@ describe('tools', () => {
   test('invalid sql for execute_sql', async () => {
     const { callTool } = await setup();
 
-    const project = mockProjects.values().next().value!;
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
     const query = 'invalid sql';
 
     const executeSqlPromise = callTool({
@@ -593,7 +782,20 @@ describe('tools', () => {
 
   test('get logs for each service type', async () => {
     const { callTool } = await setup();
-    const project = mockProjects.values().next().value!;
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
     const services = [
       'api',
       'branch-action',
@@ -619,7 +821,20 @@ describe('tools', () => {
 
   test('get logs for invalid service type', async () => {
     const { callTool } = await setup();
-    const project = mockProjects.values().next().value!;
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
     const invalidService = 'invalid-service';
     const getLogsPromise = callTool({
       name: 'get_logs',
@@ -635,7 +850,19 @@ describe('tools', () => {
 
   test('create branch', async () => {
     const { callTool } = await setup();
-    const project = mockProjects.values().next().value!;
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
 
     const confirm_cost_id = await callTool({
       name: 'confirm_cost',
@@ -676,7 +903,18 @@ describe('tools', () => {
   test('create branch without cost confirmation fails', async () => {
     const { callTool } = await setup();
 
-    const project = mockProjects.values().next().value!;
+    const org = await createOrganization({
+      name: 'Paid Org',
+      plan: 'pro',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
 
     const branchName = 'test-branch';
     const createBranchPromise = callTool({
@@ -694,7 +932,19 @@ describe('tools', () => {
 
   test('delete branch', async () => {
     const { callTool } = await setup();
-    const project = mockProjects.values().next().value!;
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
 
     const confirm_cost_id = await callTool({
       name: 'confirm_cost',
@@ -761,7 +1011,19 @@ describe('tools', () => {
 
   test('list branches', async () => {
     const { callTool } = await setup();
-    const project = mockProjects.values().next().value!;
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
 
     const result = await callTool({
       name: 'list_branches',
@@ -775,7 +1037,19 @@ describe('tools', () => {
 
   test('merge branch', async () => {
     const { callTool } = await setup();
-    const project = mockProjects.values().next().value!;
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
 
     const confirm_cost_id = await callTool({
       name: 'confirm_cost',
@@ -834,7 +1108,19 @@ describe('tools', () => {
 
   test('reset branch', async () => {
     const { callTool } = await setup();
-    const project = mockProjects.values().next().value!;
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
 
     const confirm_cost_id = await callTool({
       name: 'confirm_cost',
@@ -898,7 +1184,19 @@ describe('tools', () => {
 
   test('revert migrations', async () => {
     const { callTool } = await setup();
-    const project = mockProjects.values().next().value!;
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
 
     const confirm_cost_id = await callTool({
       name: 'confirm_cost',
@@ -986,7 +1284,19 @@ describe('tools', () => {
 
   test('rebase branch', async () => {
     const { callTool } = await setup();
-    const project = mockProjects.values().next().value!;
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
 
     const confirm_cost_id = await callTool({
       name: 'confirm_cost',

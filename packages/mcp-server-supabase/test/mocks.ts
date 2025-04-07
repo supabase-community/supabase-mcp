@@ -1,12 +1,14 @@
 import { PGlite, type PGliteInterface } from '@electric-sql/pglite';
 import { format } from 'date-fns';
 import { http, HttpResponse } from 'msw';
-import { nanoid } from 'nanoid';
+import { customAlphabet } from 'nanoid';
 import { expect } from 'vitest';
 import { z } from 'zod';
 import { version } from '../package.json';
 import type { components } from '../src/management-api/types';
 import { TRACE_URL } from '../src/regions.js';
+
+const nanoid = customAlphabet('abcdefghijklmnopqrstuvwxyz', 20);
 
 export const API_URL = 'https://api.supabase.com';
 export const MCP_SERVER_NAME = 'supabase-mcp';
@@ -27,22 +29,7 @@ export type Migration = {
   query: string;
 };
 
-export const mockOrgs: Organization[] = [
-  {
-    id: 'org-1',
-    name: 'Org 1',
-    plan: 'free',
-    allowed_release_channels: ['ga'],
-    opt_in_tags: [],
-  },
-  {
-    id: 'org-2',
-    name: 'Org 2',
-    plan: 'pro',
-    allowed_release_channels: ['ga'],
-    opt_in_tags: [],
-  },
-];
+export const mockOrgs = new Map<string, Organization>();
 export const mockProjects = new Map<string, MockProject>();
 export const mockBranches = new Map<string, MockBranch>();
 
@@ -165,14 +152,18 @@ export const mockManagementApi = [
    * List organizations
    */
   http.get(`${API_URL}/v1/organizations`, () => {
-    return HttpResponse.json(mockOrgs.map(({ id, name }) => ({ id, name })));
+    return HttpResponse.json(
+      Array.from(mockOrgs.values()).map(({ id, name }) => ({ id, name }))
+    );
   }),
 
   /**
    * Get details for an organization
    */
   http.get(`${API_URL}/v1/organizations/:id`, ({ params }) => {
-    const organization = mockOrgs.find((org) => org.id === params.id);
+    const organization = Array.from(mockOrgs.values()).find(
+      (org) => org.id === params.id
+    );
     return HttpResponse.json(organization);
   }),
 
@@ -551,6 +542,12 @@ export const mockManagementApi = [
   }),
 ];
 
+export async function createOrganization(options: MockOrganizationOptions) {
+  const org = new MockOrganization(options);
+  mockOrgs.set(org.id, org);
+  return org;
+}
+
 export async function createProject(options: MockProjectOptions) {
   const project = new MockProject(options);
 
@@ -603,6 +600,39 @@ export async function createBranch(options: {
   }, 0);
 
   return branch;
+}
+
+export type MockOrganizationOptions = {
+  name: Organization['name'];
+  plan: Organization['plan'];
+  allowed_release_channels: Organization['allowed_release_channels'];
+  opt_in_tags?: Organization['opt_in_tags'];
+};
+
+export class MockOrganization {
+  id: string;
+  name: Organization['name'];
+  plan: Organization['plan'];
+  allowed_release_channels: Organization['allowed_release_channels'];
+  opt_in_tags: Organization['opt_in_tags'];
+
+  get details(): Organization {
+    return {
+      id: this.id,
+      name: this.name,
+      plan: this.plan,
+      allowed_release_channels: this.allowed_release_channels,
+      opt_in_tags: this.opt_in_tags,
+    };
+  }
+
+  constructor(options: MockOrganizationOptions) {
+    this.id = nanoid();
+    this.name = options.name;
+    this.plan = options.plan;
+    this.allowed_release_channels = options.allowed_release_channels;
+    this.opt_in_tags = options.opt_in_tags ?? [];
+  }
 }
 
 export type MockProjectOptions = {

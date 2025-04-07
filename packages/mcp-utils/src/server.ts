@@ -340,7 +340,7 @@ export function createMcpServer(options: McpServerOptions) {
         throw new Error('tool not found');
       }
 
-      const args = request.params.arguments as z.infer<Tool['parameters']>;
+      const args = tool.parameters.parse(request.params.arguments);
 
       if (!args) {
         throw new Error('missing arguments');

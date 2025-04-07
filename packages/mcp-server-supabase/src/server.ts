@@ -510,7 +510,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       // Experimental features
       create_branch: tool({
         description: `Creates a development branch on a Supabase project. This will apply all migrations from the main project to a fresh branch database. Note that production data will not carry over. The branch will get its own project_id via the resulting project_ref. Use this ID to execute queries and migrations on the branch.
-The cost of each active branch is $${BRANCH_COST_HOURLY} per hour. Always show this to the user before creating a branch and suggest deleting any unused branches to avoid unnecessary charges.`,
+The cost of each active branch is $${BRANCH_COST_HOURLY} per hour. Always show this to the user in bold before creating a branch and suggest deleting any unused branches to avoid unnecessary charges.`,
         parameters: z.object({
           project_id: z.string(),
           name: z

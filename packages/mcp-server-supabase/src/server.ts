@@ -13,7 +13,12 @@ import {
   type ManagementApiClient,
 } from './management-api/index.js';
 import { generatePassword } from './password.js';
-import { getBranchCost, getNextProjectCost, type Cost } from './pricing.js';
+import {
+  BRANCH_COST_HOURLY,
+  getBranchCost,
+  getNextProjectCost,
+  type Cost,
+} from './pricing.js';
 import {
   AWS_REGION_CODES,
   getClosestAwsRegion,
@@ -124,7 +129,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       }),
       get_cost: tool({
         description:
-          'Gets the cost of creating a new project or branch. Never assume organization as costs can be different for each.',
+          'Gets the cost of creating a new project. Never assume organization when creating a project as costs can be different for each.',
         parameters: z.object({
           type: z.enum(['project', 'branch']),
           organization_id: z
@@ -154,7 +159,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       }),
       confirm_cost: tool({
         description:
-          'Ask the user to confirm their understanding of the cost of creating a new project or branch. Call `get_cost` first. Returns a unique ID for this confirmation which should be passed to `create_project` or `create_branch`.',
+          'Ask the user to confirm their understanding of the cost of creating a new project. Call `get_cost` first. Returns a unique ID for this confirmation which should be passed to `create_project`.',
         parameters: z.object({
           type: z.enum(['project', 'branch']),
           recurrence: z.enum(['hourly', 'monthly']),
@@ -504,33 +509,16 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
 
       // Experimental features
       create_branch: tool({
-        description:
-          'Creates a development branch on a Supabase project. This will apply all migrations from the main project to a fresh branch database. Note that production data will not carry over. The branch will get its own project_id via the resulting project_ref. Use this ID to execute queries and migrations on the branch.',
+        description: `Creates a development branch on a Supabase project. This will apply all migrations from the main project to a fresh branch database. Note that production data will not carry over. The branch will get its own project_id via the resulting project_ref. Use this ID to execute queries and migrations on the branch.
+The cost of each active branch is $${BRANCH_COST_HOURLY} per hour. Always show this to the user before creating a branch and suggest deleting any unused branches to avoid unnecessary charges.`,
         parameters: z.object({
           project_id: z.string(),
           name: z
             .string()
             .default('develop')
             .describe('Name of the branch to create'),
-          confirm_cost_id: z
-            .string()
-            .describe('The cost confirmation ID. Call `confirm_cost` first.'),
         }),
-        execute: async ({ project_id, name, confirm_cost_id }) => {
-          if (!confirm_cost_id) {
-            throw new Error(
-              'User must confirm understanding of costs before creating a branch.'
-            );
-          }
-
-          const cost = getBranchCost();
-          const costHash = await hashObject(cost);
-          if (costHash !== confirm_cost_id) {
-            throw new Error(
-              'Cost confirmation ID does not match the expected cost of creating a branch.'
-            );
-          }
-
+        execute: async ({ project_id, name }) => {
           const createBranchResponse = await managementApiClient.POST(
             '/v1/projects/{ref}/branches',
             {

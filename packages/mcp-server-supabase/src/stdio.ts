@@ -2,11 +2,16 @@
 
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { parseArgs } from 'node:util';
+import { version } from '../package.json';
 import { createSupabaseMcpServer } from './server.js';
 
 async function main() {
   const {
-    values: { ['access-token']: accessToken, ['api-url']: apiUrl },
+    values: {
+      ['access-token']: accessToken,
+      ['api-url']: apiUrl,
+      ['version']: showVersion,
+    },
   } = parseArgs({
     options: {
       ['access-token']: {
@@ -15,8 +20,16 @@ async function main() {
       ['api-url']: {
         type: 'string',
       },
+      ['version']: {
+        type: 'boolean',
+      },
     },
   });
+
+  if (showVersion) {
+    console.log(version);
+    process.exit(0);
+  }
 
   if (!accessToken) {
     console.error(

@@ -40,7 +40,11 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
 
   let managementApiClient: ManagementApiClient;
 
-  async function executeSql<T>(projectId: string, query: string): Promise<T[]> {
+  async function executeSql<T>(
+    projectId: string,
+    query: string,
+    read_only?: boolean
+  ): Promise<T[]> {
     const response = await managementApiClient.POST(
       '/v1/projects/{ref}/database/query',
       {
@@ -51,6 +55,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
         },
         body: {
           query,
+          read_only,
         },
       }
     );
@@ -385,9 +390,13 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
         parameters: z.object({
           project_id: z.string(),
           query: z.string().describe('The SQL query to execute'),
+          read_only: z
+            .boolean()
+            .optional()
+            .describe('Run query as read-only role instead of postgres role'),
         }),
-        execute: async ({ query, project_id }) => {
-          return await executeSql(project_id, query);
+        execute: async ({ query, project_id, read_only }) => {
+          return await executeSql(project_id, query, read_only);
         },
       }),
       get_logs: tool({

@@ -1,8 +1,3 @@
-import {
-  PostgresMetaBase,
-  wrapError,
-  wrapResult,
-} from '@gregnr/postgres-meta/base';
 import { createMcpServer, tool } from '@supabase/mcp-utils';
 import { z } from 'zod';
 import { version } from '../package.json';
@@ -13,6 +8,8 @@ import {
   type ManagementApiClient,
 } from './management-api/index.js';
 import { generatePassword } from './password.js';
+import { listExtensionsSql, listTablesSql } from './pg-meta/index.js';
+import type { PostgresExtension, PostgresTable } from './pg-meta/types.js';
 import { getBranchCost, getNextProjectCost, type Cost } from './pricing.js';
 import {
   AWS_REGION_CODES,
@@ -58,20 +55,6 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
     assertSuccess(response, 'Failed to execute SQL query');
 
     return response.data as unknown as T[];
-  }
-
-  function createPGMeta(projectId: string) {
-    return new PostgresMetaBase({
-      query: async (sql) => {
-        try {
-          const res = await executeSql(projectId, sql);
-          return wrapResult<any[]>(res);
-        } catch (error) {
-          return wrapError(error, sql);
-        }
-      },
-      end: async () => {},
-    });
   }
 
   async function getClosestRegion() {
@@ -301,15 +284,8 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
             ),
         }),
         execute: async ({ project_id, schemas }) => {
-          const pgMeta = createPGMeta(project_id);
-          const { data, error } = await pgMeta.tables.list({
-            includedSchemas: schemas,
-          });
-
-          if (error) {
-            throw new Error(`Error fetching tables: ${error.message}`);
-          }
-
+          const sql = listTablesSql(schemas);
+          const data = await executeSql<PostgresTable>(project_id, sql);
           return data;
         },
       }),
@@ -319,12 +295,8 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
           project_id: z.string(),
         }),
         execute: async ({ project_id }) => {
-          const pgMeta = createPGMeta(project_id);
-          const { data, error } = await pgMeta.extensions.list();
-
-          if (error) {
-            throw new Error(`Error fetching extensions: ${error.message}`);
-          }
+          const sql = listExtensionsSql();
+          const data = await executeSql<PostgresExtension>(project_id, sql);
           return data;
         },
       }),

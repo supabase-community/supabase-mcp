@@ -8,7 +8,7 @@ import { createSupabaseMcpServer } from './server.js';
 async function main() {
   const {
     values: {
-      ['access-token']: accessToken,
+      ['access-token']: cliAccessToken,
       ['api-url']: apiUrl,
       ['version']: showVersion,
     },
@@ -31,9 +31,12 @@ async function main() {
     process.exit(0);
   }
 
+  // Use access token from CLI argument or environment variable
+  const accessToken = cliAccessToken ?? process.env.SUPABASE_ACCESS_TOKEN;
+
   if (!accessToken) {
     console.error(
-      'Please provide a personal access token (PAT) with the --access-token flag'
+      'Please provide a personal access token (PAT) with the --access-token flag or set the SUPABASE_ACCESS_TOKEN environment variable'
     );
     process.exit(1);
   }

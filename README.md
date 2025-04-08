@@ -44,9 +44,9 @@ Next, configure your MCP client (such as Cursor) to use this server. Most MCP cl
 }
 ```
 
-Replace `<personal-access-token>` with the token you created in step 1. If you are on Windows, you will need to [prefix this command](#windows).
+Replace `<personal-access-token>` with the token you created in step 1. Alternatively you can omit `--access-token` and instead set the `SUPABASE_ACCESS_TOKEN` environment variable to your personal access token (you will need to restart your MCP client after setting this). This allows you to keep your token out of version control if you plan on committing this configuration to a repository.
 
-If your MCP client doesn't accept JSON, the direct CLI command is:
+If you are on Windows, you will need to [prefix the command](#windows). If your MCP client doesn't accept JSON, the direct CLI command is:
 
 ```shell
 npx -y @supabase/mcp-server-supabase@latest --access-token=<personal-access-token>

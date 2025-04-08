@@ -32,7 +32,7 @@ async function main() {
   }
 
   // Use access token from CLI argument or environment variable
-  const accessToken = cliAccessToken || process.env.SUPABASE_ACCESS_TOKEN;
+  const accessToken = cliAccessToken ?? process.env.SUPABASE_ACCESS_TOKEN;
 
   if (!accessToken) {
     console.error(

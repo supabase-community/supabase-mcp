@@ -667,6 +667,44 @@ describe('tools', () => {
     `);
   });
 
+  test('list tables only under a specific schema', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    await project.db.exec('create schema test;');
+    await project.db.exec(
+      'create table public.test_1 (id serial primary key);'
+    );
+    await project.db.exec('create table test.test_2 (id serial primary key);');
+
+    const result = await callTool({
+      name: 'list_tables',
+      arguments: {
+        project_id: project.id,
+        schemas: ['test'],
+      },
+    });
+
+    expect(result).toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: 'test_2' })])
+    );
+    expect(result).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: 'test_1' })])
+    );
+  });
+
   test('list extensions', async () => {
     const { callTool } = await setup();
 

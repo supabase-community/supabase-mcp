@@ -26,6 +26,11 @@ This will be used to authenticate the MCP server with your Supabase account. Mak
 
 ### 2. Configure MCP client
 
+Run `npx mcp-config supabase` to configure your MCP client. You'll need the PAT from step 1. 
+If you prefer setting up the MCP server manually, please follow these instructions:
+
+#### Manual Configuration
+
 Next, configure your MCP client (such as Cursor) to use this server. Most MCP clients store the configuration as JSON in the following format:
 
 ```json
@@ -54,7 +59,7 @@ npx -y @supabase/mcp-server-supabase@latest --access-token=<personal-access-toke
 
 > Note: Do not run this command directly - this is meant to be executed by your MCP client in order to start the server. `npx` automatically downloads the latest version of the MCP server from `npm` and runs it in a single command.
 
-#### Windows
+##### Windows
 
 On Windows, you will need to prefix the command with `cmd /c`:
 

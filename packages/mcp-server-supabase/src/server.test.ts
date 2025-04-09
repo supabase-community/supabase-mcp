@@ -705,6 +705,46 @@ describe('tools', () => {
     );
   });
 
+  test('listing all tables excludes system schemas', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const result = await callTool({
+      name: 'list_tables',
+      arguments: {
+        project_id: project.id,
+      },
+    });
+
+    expect(result).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ schema: 'pg_catalog' }),
+      ])
+    );
+
+    expect(result).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ schema: 'information_schema' }),
+      ])
+    );
+
+    expect(result).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ schema: 'pg_toast' })])
+    );
+  });
+
   test('list extensions', async () => {
     const { callTool } = await setup();
 

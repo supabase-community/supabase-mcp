@@ -111,6 +111,16 @@ Make sure Node.js is available in your system `PATH` environment variable. If yo
 
 3. Restart your MCP client.
 
+### Read-only mode
+
+If you wish to restrict the Supabase MCP server to read-only queries, set the `--read-only` flag on the CLI command:
+
+```shell
+npx -y @supabase/mcp-server-supabase@latest --access-token=<personal-access-token> --read-only
+```
+
+This prevents write operations on any of your databases by executing SQL as a read-only Postgres user. Note that this flag only applies to database tools (`execute_sql` and `apply_migration`) and not to other tools like `create_project` or `create_branch`.
+
 ## Tools
 
 _**Note:** This server is pre-1.0, so expect some breaking changes between versions. Since LLMs will automatically adapt to the tools available, this shouldn't affect most users._

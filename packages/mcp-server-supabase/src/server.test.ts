@@ -33,13 +33,14 @@ beforeEach(async () => {
 
 type SetupOptions = {
   accessToken?: string;
+  readOnly?: boolean;
 };
 
 /**
  * Sets up an MCP client and server for testing.
  */
 async function setup(options: SetupOptions = {}) {
-  const { accessToken = ACCESS_TOKEN } = options;
+  const { accessToken = ACCESS_TOKEN, readOnly } = options;
   const clientTransport = new StreamTransport();
   const serverTransport = new StreamTransport();
 
@@ -61,6 +62,7 @@ async function setup(options: SetupOptions = {}) {
       apiUrl: API_URL,
       accessToken,
     },
+    readOnly,
   });
 
   await server.connect(serverTransport);
@@ -564,6 +566,67 @@ describe('tools', () => {
     expect(result).toEqual([{ sum: 2 }]);
   });
 
+  test('can run read queries in read-only mode', async () => {
+    const { callTool } = await setup({ readOnly: true });
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const query = 'select 1+1 as sum';
+
+    const result = await callTool({
+      name: 'execute_sql',
+      arguments: {
+        project_id: project.id,
+        query,
+      },
+    });
+
+    expect(result).toEqual([{ sum: 2 }]);
+  });
+
+  test('cannot run write queries in read-only mode', async () => {
+    const { callTool } = await setup({ readOnly: true });
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const query =
+      'create table test (id integer generated always as identity primary key)';
+
+    const resultPromise = callTool({
+      name: 'execute_sql',
+      arguments: {
+        project_id: project.id,
+        query,
+      },
+    });
+
+    await expect(resultPromise).rejects.toThrow(
+      'permission denied for schema public'
+    );
+  });
+
   test('apply migration, list migrations, check tables', async () => {
     const { callTool } = await setup();
 
@@ -617,54 +680,86 @@ describe('tools', () => {
       },
     });
 
-    expect(listTablesResult).toMatchInlineSnapshot(`
-      [
-        {
-          "bytes": 8192,
-          "columns": [
-            {
-              "check": null,
-              "comment": null,
-              "data_type": "integer",
-              "default_value": null,
-              "enums": [],
-              "format": "int4",
-              "id": "16385.1",
-              "identity_generation": "ALWAYS",
-              "is_generated": false,
-              "is_identity": true,
-              "is_nullable": false,
-              "is_unique": false,
-              "is_updatable": true,
-              "name": "id",
-              "ordinal_position": 1,
-              "schema": "public",
-              "table": "test",
-              "table_id": 16385,
-            },
-          ],
-          "comment": null,
-          "dead_rows_estimate": 0,
-          "id": 16385,
-          "live_rows_estimate": 0,
-          "name": "test",
-          "primary_keys": [
-            {
-              "name": "id",
-              "schema": "public",
-              "table_id": 16385,
-              "table_name": "test",
-            },
-          ],
-          "relationships": [],
-          "replica_identity": "DEFAULT",
-          "rls_enabled": false,
-          "rls_forced": false,
-          "schema": "public",
-          "size": "8192 bytes",
-        },
-      ]
-    `);
+    expect(listTablesResult).toEqual([
+      {
+        bytes: 8192,
+        columns: [
+          {
+            check: null,
+            comment: null,
+            data_type: 'integer',
+            default_value: null,
+            enums: [],
+            format: 'int4',
+            id: expect.stringMatching(/^\d+\.\d+$/),
+            identity_generation: 'ALWAYS',
+            is_generated: false,
+            is_identity: true,
+            is_nullable: false,
+            is_unique: false,
+            is_updatable: true,
+            name: 'id',
+            ordinal_position: 1,
+            schema: 'public',
+            table: 'test',
+            table_id: expect.any(Number),
+          },
+        ],
+        comment: null,
+        dead_rows_estimate: 0,
+        id: expect.any(Number),
+        live_rows_estimate: 0,
+        name: 'test',
+        primary_keys: [
+          {
+            name: 'id',
+            schema: 'public',
+            table_id: expect.any(Number),
+            table_name: 'test',
+          },
+        ],
+        relationships: [],
+        replica_identity: 'DEFAULT',
+        rls_enabled: false,
+        rls_forced: false,
+        schema: 'public',
+        size: '8192 bytes',
+      },
+    ]);
+  });
+
+  test('cannot apply migration in read-only mode', async () => {
+    const { callTool } = await setup({ readOnly: true });
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const name = 'test-migration';
+    const query =
+      'create table test (id integer generated always as identity primary key)';
+
+    const resultPromise = callTool({
+      name: 'apply_migration',
+      arguments: {
+        project_id: project.id,
+        name,
+        query,
+      },
+    });
+
+    await expect(resultPromise).rejects.toThrow(
+      'Cannot apply migration in read-only mode.'
+    );
   });
 
   test('list tables only under a specific schema', async () => {

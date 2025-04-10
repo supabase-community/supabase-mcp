@@ -20,12 +20,27 @@ import {
 import { hashObject } from './util.js';
 
 export type SupabasePlatformOptions = {
-  apiUrl?: string;
+  /**
+   * The access token for the Supabase Management API.
+   */
   accessToken: string;
+
+  /**
+   * The API URL for the Supabase Management API.
+   */
+  apiUrl?: string;
 };
 
 export type SupabaseMcpServerOptions = {
+  /**
+   * Platform options for Supabase.
+   */
   platform: SupabasePlatformOptions;
+
+  /**
+   * Executes database queries in read-only mode if true.
+   */
+  readOnly?: boolean;
 };
 
 /**
@@ -48,6 +63,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
         },
         body: {
           query,
+          read_only: options.readOnly,
         },
       }
     );
@@ -331,6 +347,10 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
           query: z.string().describe('The SQL query to apply'),
         }),
         execute: async ({ project_id, name, query }) => {
+          if (options.readOnly) {
+            throw new Error('Cannot apply migration in read-only mode.');
+          }
+
           const response = await managementApiClient.POST(
             '/v1/projects/{ref}/database/migrations',
             {

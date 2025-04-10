@@ -182,7 +182,7 @@ export const mockManagementApi = [
   /**
    * Execute a SQL query on a project's database
    */
-  http.post<{ projectId: string }, { query: string }>(
+  http.post<{ projectId: string }, { query: string; read_only?: boolean }>(
     `${API_URL}/v1/projects/:projectId/database/query`,
     async ({ params, request }) => {
       const project = mockProjects.get(params.projectId);
@@ -193,17 +193,30 @@ export const mockManagementApi = [
         );
       }
       const { db } = project;
-      const { query } = await request.json();
-      const [results] = await db.exec(query);
+      const { query, read_only } = await request.json();
 
-      if (!results) {
+      // Not secure, but good enough for testing
+      const wrappedQuery = `
+        SET ROLE ${read_only ? 'supabase_read_only_role' : 'postgres'};
+        ${query};
+        RESET ROLE;
+      `;
+
+      const statementResults = await db.exec(wrappedQuery);
+
+      // Remove last result, which is for the "RESET ROLE" statement
+      statementResults.pop();
+
+      const lastStatementResults = statementResults.at(-1);
+
+      if (!lastStatementResults) {
         return HttpResponse.json(
           { message: 'Failed to execute query' },
           { status: 500 }
         );
       }
 
-      return HttpResponse.json(results.rows);
+      return HttpResponse.json(lastStatementResults.rows);
     }
   ),
 
@@ -657,12 +670,18 @@ export class MockProject {
 
   migrations: Migration[] = [];
 
-  #db: PGliteInterface;
+  #db?: PGliteInterface;
 
   // Lazy load the database connection
   get db() {
     if (!this.#db) {
       this.#db = new PGlite();
+      this.#db.waitReady.then(() => {
+        this.#db!.exec(`
+          CREATE ROLE supabase_read_only_role;
+          GRANT pg_read_all_data TO supabase_read_only_role;
+        `);
+      });
     }
     return this.#db;
   }
@@ -694,8 +713,6 @@ export class MockProject {
       postgres_engine: '15',
       release_channel: 'ga',
     };
-
-    this.#db = new PGlite();
   }
 
   async applyMigrations() {
@@ -711,8 +728,8 @@ export class MockProject {
     if (this.#db) {
       await this.#db.close();
     }
-    this.#db = new PGlite();
-    return this.#db;
+    this.#db = undefined;
+    return this.db;
   }
 
   async destroy() {

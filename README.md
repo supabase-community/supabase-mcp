@@ -234,6 +234,8 @@ import { streamText } from 'ai';
 import { createSupabaseMCPClient } from './supabase-mcp.ts';
 import { getAccessToken } from './supabase-oauth.ts';
 
+const model = anthropic('claude-3-7-sonnet-20250219');
+
 function getUserId(req: Request) {
   // Implement logic to retrieve the user from the request (eg. JWT token)
   return 'user_id';

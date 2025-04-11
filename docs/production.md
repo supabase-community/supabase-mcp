@@ -2,7 +2,7 @@
 
 After releasing your app to the world, we recommend creating a development branch for working on new features and bug fixes.
 
-Using a development branch, you can safely experiment with schema changes while minimising the risk of data loss, downtime, or compatibility issues between your app and production database.
+Using a development branch, you can safely experiment with schema changes while minimizing the risk of data loss, downtime, or compatibility issues between your app and production database.
 
 ### Create a development branch
 
@@ -14,7 +14,7 @@ Depending on the size of your migrations, your development branch may take up to
 
 ### Create a new migration
 
-Once your development is ready, you can start building new features by invoking the `apply_migration` tool. This tool tracks any schema or data changes as a migration so that it can be replayed on your production branch when you are ready to deploy.
+Once your development branch is ready, you can start building new features by invoking the `apply_migration` tool. This tool tracks any schema or data changes as a migration so that it can be replayed on your production branch when you are ready to deploy.
 
 When creating a migration that inserts static data, it is important to ask the LLM to avoid hardcoding foreign key references. Foreign keys are tied specifically to the data in your development branch so any migration relying on that will fail when applied to the production branch.
 
@@ -24,9 +24,9 @@ After successfully applying a migration, you can test your database changes by c
 
 ### Revert a migration
 
-If you have discovered any issues during testing and want to revert a migration, simply ask the LLM to reset the last `n` migrations or by specifying a specific version number, like `20250401000000`. You will be prompted to invoke the `reset_branch` tool to revert the development branch back to the specified migration version.
+If you have discovered any issues during testing and want to revert a migration, simply ask the LLM to reset the last `n` migrations or by specifying a specific version number, like `20250401000000`. You can find the version numbers used for previous migrations by asking the LLM to list migrations (`list_migrations` tool). You will be prompted to invoke the `reset_branch` tool to revert the development branch back to the specified migration version.
 
-The reset process may up to a few minutes to complete depending on the size of your migrations. Once it's ready, the branch status will be updated to `FUNCTIONS_DEPLOYED` so that the LLM is aware. All untracked data and schema changes will be cleared by the reset.
+The reset process may take up to a few minutes to complete depending on the size of your migrations. Once it's ready, the branch status will be updated to `FUNCTIONS_DEPLOYED` so that the LLM is aware. All untracked data and schema changes will be cleared by the reset.
 
 If you want to rollback a migration that has already been applied on the production branch, do not use the `reset_branch` tool. Instead, ask the LLM to create a new migration that reverts changes made in a prior migration. This ensures that your migrations on production branch are always rolling forward without causing compatibility issues with your development branch.
 
@@ -66,4 +66,4 @@ To summarise our workflow using development and production branches, we expose 3
 
 3. `reset_branch`: This tool is an escape hatch to cover all other cases where migrations are different between production and development. By default it resets the development branch to the latest migration, dropping any untracked tables and data. You can also specify a prior migration version to revert a migration that's already applied on development. A version of 0 will reset the development to a fresh database.
 
-Mastering this workflow goes a long way to ensure your production app is always ready when you release new features and bug fixes. Happy vibe coding!
+Mastering this workflow goes a long way to ensure your production app is always ready when you release new features and bug fixes.

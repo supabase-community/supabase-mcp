@@ -159,6 +159,117 @@ The following Supabase tools are available to the LLM:
 - `get_cost`: Gets the cost of a new project or branch for an organization.
 - `confirm_cost`: Confirms the user's understanding of new project or branch costs. This is required to create a new project or branch.
 
+## MCP as a library
+
+You can embed the Supabase MCP server as a TypeScript library in your own AI applications. This allows you to hook into Supabase MCP tools directly without running a separate CLI command or HTTP server.
+
+We'll use Vercel's [AI SDK](https://sdk.vercel.ai/docs/introduction) to orchestrate LLM generations and connect it with the Supabase MCP server. This is a great way to build your own custom AI applications that leverage Supabase.
+
+### 1. Install the libraries
+
+```shell
+npm i ai @ai-sdk/anthropic
+npm i @supabase/mcp-server-supabase @supabase/mcp-utils
+```
+
+### 2. Create a Supabase MCP client
+
+A unique MCP client/server pair needs to be created for every request. To embed the Supabase MCP server directly in your application, we'll instantiate both the client and the server together, and connect them via an in-memory transport.
+
+_./supabase-mcp.ts_
+
+```typescript
+import { StreamTransport } from '@supabase/mcp-utils';
+import { experimental_createMCPClient as createMCPClient } from 'ai';
+import { createSupabaseMcpServer } from '@supabase/mcp-server-supabase';
+
+export async function createSupabaseMCPClient(accessToken: string) {
+  // Create an in-memory transport pair
+  const clientTransport = new StreamTransport();
+  const serverTransport = new StreamTransport();
+  clientTransport.readable.pipeTo(serverTransport.writable);
+  serverTransport.readable.pipeTo(clientTransport.writable);
+
+  // Instantiate the MCP server and connect to its transport
+  const server = createSupabaseMcpServer({
+    platform: {
+      accessToken,
+    },
+  });
+  await server.connect(serverTransport);
+
+  // Create the MCP client and connect to its transport
+  const client = await createMCPClient({
+    name: 'My app',
+    transport: clientTransport,
+  });
+
+  return client;
+}
+```
+
+### 3. Create an OAuth app
+
+In order to authenticate your users with their Supabase accounts, you need to create an [OAuth app](https://supabase.com/docs/guides/integrations/build-a-supabase-integration). This will allow your users to log in with their Supabase accounts and authorize your app to access their projects. To create an OAuth app, follow the instructions in [Build a Supabase Integration](https://supabase.com/docs/guides/integrations/build-a-supabase-integration).
+
+Every OAuth implementation is different, so you will need to adapt these instructions to your specific use case. For the rest of this example, we'll assume you have a `getAccessToken()` function that returns the Supabase access token for the user.
+
+_./supabase-oauth.ts_
+
+```typescript
+export async function getAccessToken(userId: string) {
+  // Implement logic to retrieve your user's
+  // Supabase access token via the OAuth integration
+  return 'user_access_token';
+}
+```
+
+### 4. Use the MCP client with your LLM
+
+We'll use the Supabase MCP client to generate Supabase tools in a format that the AI SDK expects. The following example uses Supabase Edge Functions, but you can replace this with any JavaScript HTTP server.
+
+```typescript
+import { anthropic } from '@ai-sdk/anthropic';
+import { streamText } from 'ai';
+import { createSupabaseMCPClient } from './supabase-mcp.ts';
+import { getAccessToken } from './supabase-oauth.ts';
+
+function getUserId(req: Request) {
+  // Implement logic to retrieve the user from the request (eg. JWT token)
+  return 'user_id';
+}
+
+Deno.serve(async (req) => {
+  const userId = getUserId(req);
+  const accessToken = await getAccessToken(userId);
+  const supabaseMCPClient = await createSupabaseMCPClient(accessToken);
+  const supabaseTools = await supabaseMCPClient.tools();
+
+  const { text } = await streamText({
+    model,
+    tools: {
+      ...supabaseTools,
+      // Add any other tools you want to use
+    },
+    messages: [
+      {
+        role: 'system',
+        content: 'You are a helpful coding assistant.',
+      },
+      {
+        role: 'user',
+        content: 'What Supabase projects do I have?',
+      },
+    ],
+    // Increasing `maxSteps` allows `streamText` to perform
+    // sequential LLM calls when tools are used
+    maxSteps: 10,
+  });
+
+  return result.toDataStreamResponse();
+});
+```
+
 ## Other MCP servers
 
 ### `@supabase/mcp-server-postgrest`

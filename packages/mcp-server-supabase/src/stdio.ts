@@ -9,6 +9,7 @@ async function main() {
   const {
     values: {
       ['access-token']: cliAccessToken,
+      ['read-only']: readOnly,
       ['api-url']: apiUrl,
       ['version']: showVersion,
     },
@@ -16,6 +17,10 @@ async function main() {
     options: {
       ['access-token']: {
         type: 'string',
+      },
+      ['read-only']: {
+        type: 'boolean',
+        default: false,
       },
       ['api-url']: {
         type: 'string',
@@ -46,6 +51,7 @@ async function main() {
       accessToken,
       apiUrl,
     },
+    readOnly,
   });
 
   const transport = new StdioServerTransport();

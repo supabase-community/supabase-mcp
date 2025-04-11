@@ -985,7 +985,15 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Gets project's logs */
+        /**
+         * Gets project's logs
+         * @description Executes a SQL query on the project's logs.
+         *
+         *     Either the 'iso_timestamp_start' and 'iso_timestamp_end' parameters must be provided.
+         *     If both are not provided, only the last 1 minute of logs will be queried.
+         *     The timestamp range must be no more than 24 hours and is rounded to the nearest minute. If the range is more than 24 hours, a validation error will be thrown.
+         *
+         */
         get: operations["getLogs"];
         put?: never;
         post?: never;
@@ -1568,43 +1576,37 @@ export interface components {
                 [key: string]: string;
             };
         };
-        ValidationRecord: {
-            txt_name: string;
-            txt_value: string;
-        };
-        ValidationError: {
-            message: string;
-        };
-        SslValidation: {
-            status: string;
-            validation_records: components["schemas"]["ValidationRecord"][];
-            validation_errors?: components["schemas"]["ValidationError"][];
-        };
-        OwnershipVerification: {
-            type: string;
-            name: string;
-            value: string;
-        };
-        CustomHostnameDetails: {
-            id: string;
-            hostname: string;
-            ssl: components["schemas"]["SslValidation"];
-            ownership_verification: components["schemas"]["OwnershipVerification"];
-            custom_origin_server: string;
-            verification_errors?: string[];
-            status: string;
-        };
-        CfResponse: {
-            success: boolean;
-            errors: Record<string, never>[];
-            messages: Record<string, never>[];
-            result: components["schemas"]["CustomHostnameDetails"];
-        };
         UpdateCustomHostnameResponse: {
             /** @enum {string} */
             status: "1_not_started" | "2_initiated" | "3_challenge_verified" | "4_origin_setup_completed" | "5_services_reconfigured";
             custom_hostname: string;
-            data: components["schemas"]["CfResponse"];
+            data: {
+                success: boolean;
+                errors: unknown[];
+                messages: unknown[];
+                result: {
+                    id: string;
+                    hostname: string;
+                    ssl: {
+                        status: string;
+                        validation_records: {
+                            txt_name: string;
+                            txt_value: string;
+                        }[];
+                        validation_errors?: {
+                            message: string;
+                        }[];
+                    };
+                    ownership_verification: {
+                        type: string;
+                        name: string;
+                        value: string;
+                    };
+                    custom_origin_server: string;
+                    verification_errors?: string[];
+                    status: string;
+                };
+            };
         };
         UpdateCustomHostnameBody: {
             custom_hostname: string;
@@ -1817,25 +1819,27 @@ export interface components {
             /** @enum {string} */
             status: "in_use" | "previously_used" | "revoked" | "standby";
         };
-        StorageFeatureImageTransformation: {
-            enabled: boolean;
-        };
-        StorageFeatureS3Protocol: {
-            enabled: boolean;
-        };
-        StorageFeatures: {
-            imageTransformation: components["schemas"]["StorageFeatureImageTransformation"];
-            s3Protocol: components["schemas"]["StorageFeatureS3Protocol"];
-        };
         StorageConfigResponse: {
-            /** Format: int64 */
             fileSizeLimit: number;
-            features: components["schemas"]["StorageFeatures"];
+            features: {
+                imageTransformation: {
+                    enabled: boolean;
+                };
+                s3Protocol: {
+                    enabled: boolean;
+                };
+            };
         };
         UpdateStorageConfigBody: {
-            /** Format: int64 */
             fileSizeLimit?: number;
-            features?: components["schemas"]["StorageFeatures"];
+            features?: {
+                imageTransformation: {
+                    enabled: boolean;
+                };
+                s3Protocol: {
+                    enabled: boolean;
+                };
+            };
         };
         PostgresConfigResponse: {
             effective_cache_size?: string;
@@ -1899,29 +1903,25 @@ export interface components {
             connection_string?: string;
         };
         SupavisorConfigResponse: {
+            identifier: string;
             /** @enum {string} */
             database_type: "PRIMARY" | "READ_REPLICA";
+            is_using_scram_auth: boolean;
+            db_user: string;
+            db_host: string;
             db_port: number;
-            /**
-             * @deprecated
-             * @description Use connection_string instead
-             */
+            db_name: string;
+            connection_string: string;
+            /** @description Use connection_string instead */
             connectionString: string;
             default_pool_size: number | null;
             max_client_conn: number | null;
             /** @enum {string} */
             pool_mode: "transaction" | "session";
-            identifier: string;
-            is_using_scram_auth: boolean;
-            db_user: string;
-            db_host: string;
-            db_name: string;
-            connection_string: string;
         };
         UpdateSupavisorConfigBody: {
             default_pool_size?: number | null;
             /**
-             * @deprecated
              * @description Dedicated pooler mode for the project
              * @enum {string}
              */
@@ -2278,15 +2278,16 @@ export interface components {
         CreateThirdPartyAuthBody: {
             oidc_issuer_url?: string;
             jwks_url?: string;
-            custom_jwks?: Record<string, never>;
+            custom_jwks?: unknown;
         };
         ThirdPartyAuth: {
+            /** Format: uuid */
             id: string;
             type: string;
             oidc_issuer_url?: string | null;
             jwks_url?: string | null;
-            custom_jwks?: Record<string, never> | null;
-            resolved_jwks?: Record<string, never> | null;
+            custom_jwks?: unknown;
+            resolved_jwks?: unknown;
             inserted_at: string;
             updated_at: string;
             resolved_at?: string | null;
@@ -2317,9 +2318,8 @@ export interface components {
                         interval: "monthly" | "hourly";
                         amount: number;
                     };
-                    meta?: {
-                        [key: string]: number | boolean | string | string[];
-                    };
+                    /** @description Any JSON-serializable value */
+                    meta?: unknown;
                 };
             }[];
             available_addons: {
@@ -2337,9 +2337,8 @@ export interface components {
                         interval: "monthly" | "hourly";
                         amount: number;
                     };
-                    meta?: {
-                        [key: string]: number | boolean | string | string[];
-                    };
+                    /** @description Any JSON-serializable value */
+                    meta?: unknown;
                 }[];
             }[];
         };
@@ -2373,6 +2372,7 @@ export interface components {
         };
         V1RunQueryBody: {
             query: string;
+            read_only?: boolean;
         };
         GetProjectDbMetadataResponseDto: {
             databases: ({
@@ -3290,7 +3290,6 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -3325,7 +3324,6 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -3358,7 +3356,6 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -3397,7 +3394,6 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -3432,7 +3428,6 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -4609,7 +4604,6 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -4644,7 +4638,6 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -4790,7 +4783,6 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -4819,7 +4811,6 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -4932,7 +4923,6 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -4960,7 +4950,6 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -4992,9 +4981,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description Project ref */
-                ref: string;
                 tpa_id: string;
+                ref: string;
             };
             cookie?: never;
         };
@@ -5021,9 +5009,8 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description Project ref */
-                ref: string;
                 tpa_id: string;
+                ref: string;
             };
             cookie?: never;
         };

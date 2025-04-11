@@ -14,7 +14,7 @@ export const API_URL = 'https://api.supabase.com';
 export const MCP_SERVER_NAME = 'supabase-mcp';
 export const MCP_SERVER_VERSION = version;
 export const MCP_CLIENT_NAME = 'test-client';
-export const MCP_CLIENT_VERSION = '0.1.0';
+export const MCP_CLIENT_VERSION = '1.0.0';
 export const ACCESS_TOKEN = 'dummy-token';
 export const COUNTRY_CODE = 'US';
 export const CLOSEST_REGION = 'us-east-2';
@@ -43,7 +43,7 @@ export const mockManagementApi = [
   /**
    * Check authorization
    */
-  http.all('*', ({ request }) => {
+  http.all(`${API_URL}/*`, ({ request }) => {
     const authHeader = request.headers.get('Authorization');
 
     const accessToken = authHeader?.replace('Bearer ', '');
@@ -55,7 +55,7 @@ export const mockManagementApi = [
   /**
    * Check user agent
    */
-  http.all('*', ({ request }) => {
+  http.all(`${API_URL}/*`, ({ request }) => {
     const userAgent = request.headers.get('user-agent');
     expect(userAgent).toBe(
       `${MCP_SERVER_NAME}/${MCP_SERVER_VERSION} (${MCP_CLIENT_NAME}/${MCP_CLIENT_VERSION})`
@@ -531,15 +531,6 @@ export const mockManagementApi = [
       return HttpResponse.json({ migration_version });
     }
   ),
-
-  /**
-   * Catch-all handler that rejects any other requests
-   */
-  http.all('*', ({ request }) => {
-    throw new Error(
-      `No request handler found for ${request.method} ${request.url}`
-    );
-  }),
 ];
 
 export async function createOrganization(options: MockOrganizationOptions) {

@@ -3,3 +3,4 @@ dist/
 .branches/
 .temp/
 .DS_Store
+.env*

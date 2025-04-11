@@ -340,11 +340,7 @@ export function createMcpServer(options: McpServerOptions) {
         throw new Error('tool not found');
       }
 
-      const args = tool.parameters.parse(request.params.arguments);
-
-      if (!args) {
-        throw new Error('missing arguments');
-      }
+      const args = tool.parameters.parse(request.params.arguments ?? {});
 
       try {
         const result = await tool.execute(args);

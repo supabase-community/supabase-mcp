@@ -340,7 +340,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       }),
       apply_migration: tool({
         description:
-          'Applies a migration to the database. Use this when executing DDL operations.',
+          'Applies a migration to the database. Use this when executing DDL operations. Do not hardcode references to generated IDs in data migrations.',
         parameters: z.object({
           project_id: z.string(),
           name: z.string().describe('The name of the migration in snake_case'),

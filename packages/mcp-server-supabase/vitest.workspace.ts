@@ -31,7 +31,7 @@ export default defineWorkspace([
       name: 'e2e',
       include: ['test/**/*.e2e.ts'],
       setupFiles: ['./vitest.setup.ts'],
-      testTimeout: 30_000,
+      testTimeout: 60_000,
     },
   },
 ]);

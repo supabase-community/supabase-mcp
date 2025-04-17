@@ -19,7 +19,6 @@ export function createManagementApiClient(
   return createClient<paths>({
     baseUrl,
     headers: {
-      'Content-Type': 'application/json',
       Authorization: `Bearer ${accessToken}`,
       ...headers,
     },
@@ -53,7 +52,7 @@ export function assertSuccess<
   if ('error' in response) {
     if (response.response.status === 401) {
       throw new Error(
-        'Unauthorized. Please provide a valid access token to the MCP server via the --access-token flag.'
+        'Unauthorized. Please provide a valid access token to the MCP server via the --access-token flag or SUPABASE_ACCESS_TOKEN.'
       );
     }
 

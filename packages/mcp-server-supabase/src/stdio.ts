@@ -2,8 +2,10 @@
 
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { parseArgs } from 'node:util';
-import { version } from '../package.json';
+import packageJson from '../package.json' with { type: 'json' };
 import { createSupabaseMcpServer } from './server.js';
+
+const { version } = packageJson;
 
 async function main() {
   const {

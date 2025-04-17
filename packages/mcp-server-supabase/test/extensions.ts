@@ -17,7 +17,7 @@ expect.extend({
         reason: z
           .string()
           .describe(
-            "The reason why 'Received' does or does not adhere to the test 'Criteria'. Must explain exactly which part of 'Received' did or did not pass the test 'Criteria'."
+            "The reason why 'Received' does or does not adhere to the test 'Criteria'. Keep concise while explaining exactly which part of 'Received' did or did not pass the test 'Criteria'."
           ),
       }),
       messages: [

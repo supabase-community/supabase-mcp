@@ -2,7 +2,11 @@ import { createMcpServer, tool } from '@supabase/mcp-utils';
 import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import packageJson from '../package.json' with { type: 'json' };
-import { getDeploymentId, getPathPrefix } from './edge-function.js';
+import {
+  edgeFunctionExample,
+  getDeploymentId,
+  getPathPrefix,
+} from './edge-function.js';
 import { extractFiles } from './eszip.js';
 import { getLogQuery } from './logs.js';
 import {
@@ -465,8 +469,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
         },
       }),
       deploy_edge_function: tool({
-        description:
-          'Deploys an Edge Function to a Supabase project. If the function already exists, this will create a new version.',
+        description: `Deploys an Edge Function to a Supabase project. If the function already exists, this will create a new version. Example:\n\n${edgeFunctionExample}`,
         parameters: z.object({
           project_id: z.string(),
           name: z.string().describe('The name of the function'),

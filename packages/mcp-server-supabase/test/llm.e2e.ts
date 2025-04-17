@@ -89,10 +89,11 @@ describe('llm tests', () => {
       .sql`create table inventory (id serial, name text)`;
 
     const toolCalls: ToolCallUnion<ToolSet>[] = [];
+    const tools = await client.tools();
 
     const { text } = await generateText({
       model,
-      tools: await client.tools(),
+      tools,
       messages: [
         {
           role: 'system',
@@ -104,7 +105,7 @@ describe('llm tests', () => {
           content: 'What tables do I have?',
         },
       ],
-      maxSteps: 2,
+      maxSteps: 3,
       async onStepFinish({ toolCalls: tools }) {
         toolCalls.push(...tools);
       },
@@ -140,10 +141,11 @@ describe('llm tests', () => {
     });
 
     const toolCalls: ToolCallUnion<ToolSet>[] = [];
+    const tools = await client.tools();
 
     const { text } = await generateText({
       model,
-      tools: await client.tools(),
+      tools,
       messages: [
         {
           role: 'system',
@@ -156,7 +158,7 @@ describe('llm tests', () => {
         },
       ],
       maxSteps: 2,
-      async onStepFinish({ text, toolCalls: tools, toolResults }) {
+      async onStepFinish({ toolCalls: tools }) {
         toolCalls.push(...tools);
       },
     });
@@ -206,10 +208,11 @@ describe('llm tests', () => {
     );
 
     const toolCalls: ToolCallUnion<ToolSet>[] = [];
+    const tools = await client.tools();
 
     const { text } = await generateText({
       model,
-      tools: await client.tools(),
+      tools,
       messages: [
         {
           role: 'system',
@@ -222,11 +225,8 @@ describe('llm tests', () => {
         },
       ],
       maxSteps: 3,
-      async onStepFinish({ text, toolCalls: tools, toolResults }) {
+      async onStepFinish({ toolCalls: tools }) {
         toolCalls.push(...tools);
-        console.dir(text, { depth: null });
-        console.dir(tools, { depth: null });
-        console.dir(toolResults, { depth: null });
       },
     });
 

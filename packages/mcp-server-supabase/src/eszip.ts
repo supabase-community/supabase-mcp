@@ -84,23 +84,59 @@ export async function bundleFiles(files: File[], pathPrefix: string = '/') {
     (file) => `file://${join(pathPrefix, file.name)}`
   );
   const eszip = await build(specifiers, async (specifier: string) => {
-    if (specifier.startsWith('file://')) {
-      const file = files.find(
-        (file) => `file://${join(pathPrefix, file.name)}` === specifier
-      );
+    const url = new URL(specifier);
+    const scheme = url.protocol;
 
-      if (!file) {
-        throw new Error(`File not found: ${specifier}`);
-      }
+    switch (scheme) {
+      case 'file:': {
+        const file = files.find(
+          (file) => `file://${join(pathPrefix, file.name)}` === specifier
+        );
 
-      return {
-        kind: 'module',
-        specifier,
-        headers: {
+        if (!file) {
+          throw new Error(`File not found: ${specifier}`);
+        }
+
+        const headers = {
           'content-type': file.type,
-        },
-        content: await file.text(),
-      };
+        };
+
+        const content = await file.text();
+
+        return {
+          kind: 'module',
+          specifier,
+          headers,
+          content,
+        };
+      }
+      case 'http:':
+      case 'https:': {
+        const response = await fetch(specifier);
+        if (!response.ok) {
+          throw new Error(`Failed to fetch ${specifier}: ${response.status}`);
+        }
+
+        // Header keys must be lower case
+        const headers = Object.fromEntries(
+          Array.from(response.headers.entries()).map(([key, value]) => [
+            key.toLowerCase(),
+            value,
+          ])
+        );
+
+        const content = await response.text();
+
+        return {
+          kind: 'module',
+          specifier,
+          headers,
+          content,
+        };
+      }
+      default: {
+        throw new Error(`Unsupported scheme: ${scheme}`);
+      }
     }
   });
 

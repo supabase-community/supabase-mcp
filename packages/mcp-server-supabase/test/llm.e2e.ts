@@ -238,8 +238,6 @@ describe('llm tests', () => {
       expect.objectContaining({ toolName: 'deploy_edge_function' })
     );
 
-    console.log(text);
-
     await expect(text).toMatchCriteria(
       'Confirms the successful modification of an Edge Function.'
     );

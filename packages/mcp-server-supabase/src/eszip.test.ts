@@ -69,7 +69,6 @@ export class Source implements UnderlyingSource<Uint8Array> {
   }
 
   async pull() {
-    console.log('Pulling data...');
     if (!this.controller || !this.file) {
       throw new Error('ReadableStream has not been started');
     }

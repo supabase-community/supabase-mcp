@@ -20,5 +20,11 @@ jobs:
         run: npm ci --ignore-scripts
       - name: Build libs
         run: npm run build
+      - name: Get playwright version
+        run: echo "PLAYWRIGHT_VERSION=$(npm ls @playwright/test | grep @playwright | sed 's/.*@//')" >> $GITHUB_ENV
+      - name: Setup playwright
+        uses: ./.github/actions/setup-playwright
+        with:
+          version: ${{ env.PLAYWRIGHT_VERSION }}
       - name: Tests
         run: npm run test

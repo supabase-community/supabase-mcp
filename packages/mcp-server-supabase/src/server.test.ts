@@ -5,8 +5,7 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { StreamTransport } from '@supabase/mcp-utils';
 import { codeBlock } from 'common-tags';
-import { setupServer } from 'msw/node';
-import { beforeEach, describe, expect, test } from 'vitest';
+import { describe, expect, test } from 'vitest';
 import {
   ACCESS_TOKEN,
   API_URL,
@@ -15,22 +14,9 @@ import {
   createProject,
   MCP_CLIENT_NAME,
   MCP_CLIENT_VERSION,
-  mockBranches,
-  mockManagementApi,
-  mockOrgs,
-  mockProjects,
 } from '../test/mocks.js';
 import { BRANCH_COST_HOURLY, PROJECT_COST_MONTHLY } from './pricing.js';
 import { createSupabaseMcpServer } from './server.js';
-
-beforeEach(async () => {
-  mockOrgs.clear();
-  mockProjects.clear();
-  mockBranches.clear();
-
-  const server = setupServer(...mockManagementApi);
-  server.listen({ onUnhandledRequest: 'error' });
-});
 
 type SetupOptions = {
   accessToken?: string;
@@ -235,7 +221,10 @@ describe('tools', () => {
       region: 'us-east-1',
       organization_id: paidOrg.id,
     });
-    priorProject.status = 'INACTIVE';
+
+    await priorProject.ready.then(() => {
+      priorProject.status = 'INACTIVE';
+    });
 
     const result = await callTool({
       name: 'get_cost',

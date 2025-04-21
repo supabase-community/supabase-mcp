@@ -1,5 +1,5 @@
 import { createMcpServer, tool } from '@supabase/mcp-utils';
-import { fileURLToPath } from 'node:url';
+import { fromFileUrl } from '@std/path/posix';
 import { z } from 'zod';
 import packageJson from '../package.json' with { type: 'json' };
 import {
@@ -7,7 +7,7 @@ import {
   getDeploymentId,
   getPathPrefix,
 } from './edge-function.js';
-import { extractFiles } from './eszip.js';
+import { extractFiles } from './eszip/index.js';
 import { getLogQuery } from './logs.js';
 import {
   assertSuccess,
@@ -91,11 +91,13 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
     name: 'supabase',
     version,
     onInitialize(clientInfo) {
+      const userAgent = `supabase-mcp/${version} (${clientInfo.name}/${clientInfo.version})`;
       managementApiClient = createManagementApiClient(
         managementApiUrl,
         options.platform.accessToken,
         {
-          'User-Agent': `supabase-mcp/${version} (${clientInfo.name}/${clientInfo.version})`,
+          'User-Agent': userAgent,
+          'X-User-Agent': userAgent,
         }
       );
     },
@@ -446,7 +448,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
               // Strip away path prefix so that we don't confuse the LLM
               // TODO: do we need to do this for import_map_path too?
               const entrypoint_path = edgeFunction.entrypoint_path
-                ? fileURLToPath(edgeFunction.entrypoint_path).replace(
+                ? fromFileUrl(edgeFunction.entrypoint_path).replace(
                     pathPrefix,
                     ''
                   )

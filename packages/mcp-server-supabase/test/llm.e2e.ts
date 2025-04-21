@@ -1,4 +1,4 @@
-/// <reference types="./extensions.d.ts" />
+/// <reference types="./setup/extensions.d.ts" />
 
 import { anthropic } from '@ai-sdk/anthropic';
 import { StreamTransport } from '@supabase/mcp-utils';
@@ -11,7 +11,7 @@ import {
 import { codeBlock } from 'common-tags';
 import { setupServer } from 'msw/node';
 import { beforeEach, describe, expect, test } from 'vitest';
-import { extractFiles } from '../src/eszip.js';
+import { extractFiles } from '../src/eszip/index.js';
 import { createSupabaseMcpServer } from '../src/index.js';
 import {
   ACCESS_TOKEN,

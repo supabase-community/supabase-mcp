@@ -6,8 +6,25 @@ export default defineWorkspace([
     plugins: [textLoaderPlugin('.sql')],
     test: {
       name: 'unit:node',
+      environment: 'node',
       include: ['src/**/*.{test,spec}.ts'],
       setupFiles: ['./test/setup/node.ts'],
+      testTimeout: 30_000, // PGlite can take a while to initialize
+      provide: {
+        'msw-on-unhandled-request': 'error',
+      },
+    },
+    optimizeDeps: {
+      exclude: ['@deno/eszip', '@electric-sql/pglite'],
+    },
+  },
+  {
+    plugins: [textLoaderPlugin('.sql')],
+    test: {
+      name: 'unit:vercel-edge',
+      environment: 'edge-runtime',
+      include: ['src/**/*.{test,spec}.ts'],
+      setupFiles: ['./test/setup/node.ts', './test/setup/vercel-edge.ts'],
       testTimeout: 30_000, // PGlite can take a while to initialize
       provide: {
         'msw-on-unhandled-request': 'error',
@@ -47,6 +64,7 @@ export default defineWorkspace([
     plugins: [textLoaderPlugin('.sql')],
     test: {
       name: 'e2e',
+      environment: 'node',
       include: ['test/**/*.e2e.ts'],
       setupFiles: [
         './test/setup/node.ts',

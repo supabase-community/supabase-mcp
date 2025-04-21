@@ -12,6 +12,7 @@
     "prepublishOnly": "npm run build",
     "test": "vitest",
     "test:unit:node": "vitest --project unit:node",
+    "test:unit:vercel-edge": "vitest --project unit:vercel-edge",
     "test:unit:browser": "vitest --project unit:browser",
     "test:e2e": "vitest --project e2e",
     "generate:management-api-types": "openapi-typescript https://api.supabase.com/api/v1-json -o ./src/management-api/types.ts"
@@ -39,6 +40,7 @@
   },
   "devDependencies": {
     "@ai-sdk/anthropic": "^1.2.9",
+    "@edge-runtime/vm": "^5.0.0",
     "@electric-sql/pglite": "^0.2.17",
     "@playwright/test": "^1.52.0",
     "@std/path": "npm:@jsr/std__path@^1.0.8",

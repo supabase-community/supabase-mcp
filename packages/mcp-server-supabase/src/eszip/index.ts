@@ -1,6 +1,5 @@
 import { build, Parser } from '@deno/eszip';
-import { join, relative } from 'node:path';
-import { fileURLToPath } from 'node:url';
+import { fromFileUrl, join, relative } from '@std/path/posix';
 import { z } from 'zod';
 
 const parser = await Parser.createInstance();
@@ -45,7 +44,7 @@ export async function extractFiles(
       const sourceMapString: string =
         await parser.getModuleSourceMap(specifier);
 
-      const filePath = relative(pathPrefix, fileURLToPath(specifier));
+      const filePath = relative(pathPrefix, fromFileUrl(specifier));
 
       const file = new File([source], filePath, {
         type: 'text/plain',
@@ -75,7 +74,7 @@ export async function extractFiles(
 }
 
 /**
- * Bundles files into an eszip archive.
+ * Bundles files into an eszip archive. Currently only used for testing.
  *
  * Optionally prefixes the file names with a given path.
  */

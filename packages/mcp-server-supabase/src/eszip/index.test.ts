@@ -1,7 +1,6 @@
 import { codeBlock } from 'common-tags';
-import { open, type FileHandle } from 'node:fs/promises';
 import { describe, expect, test } from 'vitest';
-import { bundleFiles, extractFiles } from './eszip.js';
+import { bundleFiles, extractFiles } from './index.js';
 
 describe('eszip', () => {
   test('extract files', async () => {
@@ -46,54 +45,3 @@ describe('eszip', () => {
     await expect(extractedHelloFile!.text()).resolves.toBe(helloContent);
   });
 });
-
-export class Source implements UnderlyingSource<Uint8Array> {
-  type = 'bytes' as const;
-  autoAllocateChunkSize = 1024;
-
-  path: string | URL;
-  controller?: ReadableByteStreamController;
-  file?: FileHandle;
-
-  constructor(path: string | URL) {
-    this.path = path;
-  }
-
-  async start(controller: ReadableStreamController<Uint8Array>) {
-    if (!('byobRequest' in controller)) {
-      throw new Error('ReadableStreamController does not support byobRequest');
-    }
-
-    this.file = await open(this.path);
-    this.controller = controller;
-  }
-
-  async pull() {
-    if (!this.controller || !this.file) {
-      throw new Error('ReadableStream has not been started');
-    }
-
-    if (!this.controller.byobRequest) {
-      throw new Error('ReadableStreamController does not support byobRequest');
-    }
-
-    const view = this.controller.byobRequest.view as NodeJS.ArrayBufferView;
-
-    if (!view) {
-      throw new Error('ReadableStreamController does not have a view');
-    }
-
-    const { bytesRead } = await this.file.read({
-      buffer: view,
-      offset: view.byteOffset,
-      length: view.byteLength,
-    });
-
-    if (bytesRead === 0) {
-      await this.file.close();
-      this.controller.close();
-    }
-
-    this.controller.byobRequest.respond(view.byteLength);
-  }
-}

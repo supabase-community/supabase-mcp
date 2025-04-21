@@ -1,0 +1,32 @@
+name: 'Setup and Cache Playwright'
+description: 'Installs playwright browsers and caches them.'
+
+inputs:
+  version:
+    description: 'The version of playwright'
+    required: true
+
+outputs:
+  cache-hit:
+    description: 'Whether the cache was hit or not'
+    value: ${{ steps.playwright-cache.outputs.cache-hit }}
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Cache playwright browsers
+      id: playwright-cache
+      uses: actions/cache@v4
+      with:
+        key: playwright-browsers-${{ runner.os }}-${{ inputs.version }}
+        path: ~/.cache/ms-playwright
+
+    - name: Install playwright browsers if they don't exist
+      shell: bash
+      run: npx playwright install --with-deps
+      if: steps.playwright-cache.outputs.cache-hit != 'true'
+
+    - name: Install playwright dependencies if binaries exist
+      shell: bash
+      run: npx playwright install-deps
+      if: steps.playwright-cache.outputs.cache-hit == 'true'

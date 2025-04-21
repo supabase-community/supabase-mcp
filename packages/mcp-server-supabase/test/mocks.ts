@@ -2,12 +2,12 @@ import { PGlite, type PGliteInterface } from '@electric-sql/pglite';
 import { format } from 'date-fns';
 import { http, HttpResponse } from 'msw';
 import { customAlphabet } from 'nanoid';
-import { join } from 'node:path';
+import { join } from '@std/path/posix';
 import { expect } from 'vitest';
 import { z } from 'zod';
 import packageJson from '../package.json' with { type: 'json' };
 import { getDeploymentId, getPathPrefix } from '../src/edge-function.js';
-import { bundleFiles } from '../src/eszip.js';
+import { bundleFiles } from '../src/eszip/index.js';
 import type { components } from '../src/management-api/types.js';
 import { TRACE_URL } from '../src/regions.js';
 
@@ -61,7 +61,8 @@ export const mockManagementApi = [
    * Check user agent
    */
   http.all(`${API_URL}/*`, ({ request }) => {
-    const userAgent = request.headers.get('user-agent');
+    const userAgent =
+      request.headers.get('user-agent') ?? request.headers.get('x-user-agent');
     expect(userAgent).toBe(
       `${MCP_SERVER_NAME}/${MCP_SERVER_VERSION} (${MCP_CLIENT_NAME}/${MCP_CLIENT_VERSION})`
     );
@@ -207,21 +208,28 @@ export const mockManagementApi = [
         RESET ROLE;
       `;
 
-      const statementResults = await db.exec(wrappedQuery);
+      try {
+        const statementResults = await db.exec(wrappedQuery);
 
-      // Remove last result, which is for the "RESET ROLE" statement
-      statementResults.pop();
+        // Remove last result, which is for the "RESET ROLE" statement
+        statementResults.pop();
 
-      const lastStatementResults = statementResults.at(-1);
+        const lastStatementResults = statementResults.at(-1);
 
-      if (!lastStatementResults) {
-        return HttpResponse.json(
-          { message: 'Failed to execute query' },
-          { status: 500 }
-        );
+        if (!lastStatementResults) {
+          return HttpResponse.json(
+            { message: 'Failed to execute query' },
+            { status: 500 }
+          );
+        }
+
+        return HttpResponse.json(lastStatementResults.rows);
+      } catch (error) {
+        if (!(error instanceof Error)) {
+          throw error;
+        }
+        return HttpResponse.json({ message: error.message }, { status: 400 });
       }
-
-      return HttpResponse.json(lastStatementResults.rows);
     }
   ),
 
@@ -365,22 +373,31 @@ export const mockManagementApi = [
       }
       const { db, migrations } = project;
       const { name, query } = await request.json();
-      const [results] = await db.exec(query);
 
-      if (!results) {
-        return HttpResponse.json(
-          { message: 'Failed to execute query' },
-          { status: 500 }
-        );
+      try {
+        const [results] = await db.exec(query);
+
+        if (!results) {
+          return HttpResponse.json(
+            { message: 'Failed to execute query' },
+            { status: 500 }
+          );
+        }
+
+        migrations.push({
+          version: format(new Date(), 'yyyyMMddHHmmss'),
+          name,
+          query,
+        });
+
+        return HttpResponse.json(results.rows);
+      } catch (error) {
+        if (!(error instanceof Error)) {
+          throw error;
+        }
+
+        return HttpResponse.json({ message: error.message }, { status: 400 });
       }
-
-      migrations.push({
-        version: format(new Date(), 'yyyyMMddHHmmss'),
-        name,
-        query,
-      });
-
-      return HttpResponse.json(results.rows);
     }
   ),
 
@@ -660,14 +677,7 @@ export async function createOrganization(options: MockOrganizationOptions) {
 
 export async function createProject(options: MockProjectOptions) {
   const project = new MockProject(options);
-
   mockProjects.set(project.id, project);
-
-  // Change the project status to ACTIVE_HEALTHY after a delay
-  setTimeout(async () => {
-    project.status = 'ACTIVE_HEALTHY';
-  }, 0);
-
   return project;
 }
 
@@ -686,6 +696,8 @@ export async function createBranch(options: {
     organization_id: parentProject.organization_id,
   });
 
+  mockProjects.set(project.id, project);
+
   const branch = new MockBranch({
     name: options.name,
     project_ref: project.id,
@@ -693,19 +705,30 @@ export async function createBranch(options: {
     is_default: false,
   });
 
-  mockProjects.set(project.id, project);
   mockBranches.set(branch.id, branch);
-
   project.migrations = [...parentProject.migrations];
 
-  // Run migrations on the new branch in the background
   setTimeout(async () => {
     try {
+      branch.status = 'RUNNING_MIGRATIONS';
       await project.applyMigrations();
       branch.status = 'MIGRATIONS_PASSED';
     } catch (error) {
       branch.status = 'MIGRATIONS_FAILED';
       console.error('Migration error:', error);
+    }
+
+    try {
+      for (const edgeFunction of project.edge_functions.values()) {
+        await project.deployEdgeFunction({
+          name: edgeFunction.name,
+          entrypoint_path: edgeFunction.entrypoint_path,
+        });
+      }
+      branch.status = 'FUNCTIONS_DEPLOYED';
+    } catch (error) {
+      branch.status = 'FUNCTIONS_FAILED';
+      console.error('Edge function deployment error:', error);
     }
   }, 0);
 
@@ -843,6 +866,8 @@ export class MockProject {
   migrations: Migration[] = [];
   edge_functions = new Map<string, MockEdgeFunction>();
 
+  ready: Promise<void>;
+
   #db?: PGliteInterface;
 
   // Lazy load the database connection
@@ -886,6 +911,14 @@ export class MockProject {
       postgres_engine: '15',
       release_channel: 'ga',
     };
+
+    this.ready = new Promise((resolve) => {
+      // Change the project status to ACTIVE_HEALTHY after a delay
+      setTimeout(async () => {
+        this.status = 'ACTIVE_HEALTHY';
+        resolve();
+      }, 0);
+    });
   }
 
   async applyMigrations() {

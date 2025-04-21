@@ -5,10 +5,7 @@ import {
   getCountryCode,
   getCountryCoordinates,
   getDistance,
-  TRACE_URL,
 } from './regions.js';
-import { http, HttpResponse } from 'msw';
-import { setupServer } from 'msw/node';
 
 const COUNTRY_CODE = 'US';
 
@@ -98,18 +95,7 @@ describe('getClosestRegion', () => {
   });
 });
 
-describe('getCountryCode', () => {
-  const handlers = [
-    http.get(TRACE_URL, () => {
-      return HttpResponse.text(
-        `fl=123abc\nvisit_scheme=https\nloc=${COUNTRY_CODE}\ntls=TLSv1.3\nhttp=http/2`
-      );
-    }),
-  ];
-
-  const server = setupServer(...handlers);
-  server.listen({ onUnhandledRequest: 'error' });
-
+describe('getCountryCode', async () => {
   it('should return the correct country code for a given location', async () => {
     const code = await getCountryCode();
     expect(code).toEqual(COUNTRY_CODE);

@@ -1067,7 +1067,7 @@ describe('tools', () => {
         name: edgeFunction.name,
         status: edgeFunction.status,
         entrypoint_path: 'index.ts',
-        import_map_path: null,
+        import_map_path: undefined,
         import_map: false,
         verify_jwt: true,
         created_at: expect.stringMatching(
@@ -1126,7 +1126,7 @@ describe('tools', () => {
       name: functionName,
       status: 'ACTIVE',
       entrypoint_path: expect.stringMatching(/index\.ts$/),
-      import_map_path: null,
+      import_map_path: undefined,
       import_map: false,
       verify_jwt: true,
       created_at: expect.stringMatching(
@@ -1193,7 +1193,7 @@ describe('tools', () => {
       name: functionName,
       status: 'ACTIVE',
       entrypoint_path: expect.stringMatching(/index\.ts$/),
-      import_map_path: null,
+      import_map_path: undefined,
       import_map: false,
       verify_jwt: true,
       created_at: expect.stringMatching(
@@ -1208,6 +1208,182 @@ describe('tools', () => {
     expect(new Date(result.updated_at).getTime()).toBeGreaterThan(
       originalUpdatedAt
     );
+  });
+
+  test('custom edge function import map', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+
+    const functionName = 'hello-world';
+    const functionCode = 'console.log("Hello, world!");';
+
+    const result = await callTool({
+      name: 'deploy_edge_function',
+      arguments: {
+        project_id: project.id,
+        name: functionName,
+        import_map_path: 'custom-map.json',
+        files: [
+          {
+            name: 'index.ts',
+            content: functionCode,
+          },
+          {
+            name: 'custom-map.json',
+            content: '{}',
+          },
+        ],
+      },
+    });
+
+    expect(result.import_map).toBe(true);
+    expect(result.import_map_path).toMatch(/custom-map\.json$/);
+  });
+
+  test('default edge function import map to deno.json', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+
+    const functionName = 'hello-world';
+    const functionCode = 'console.log("Hello, world!");';
+
+    const result = await callTool({
+      name: 'deploy_edge_function',
+      arguments: {
+        project_id: project.id,
+        name: functionName,
+        files: [
+          {
+            name: 'index.ts',
+            content: functionCode,
+          },
+          {
+            name: 'deno.json',
+            content: '{}',
+          },
+        ],
+      },
+    });
+
+    expect(result.import_map).toBe(true);
+    expect(result.import_map_path).toMatch(/deno\.json$/);
+  });
+
+  test('default edge function import map to import_map.json', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+
+    const functionName = 'hello-world';
+    const functionCode = 'console.log("Hello, world!");';
+
+    const result = await callTool({
+      name: 'deploy_edge_function',
+      arguments: {
+        project_id: project.id,
+        name: functionName,
+        files: [
+          {
+            name: 'index.ts',
+            content: functionCode,
+          },
+          {
+            name: 'import_map.json',
+            content: '{}',
+          },
+        ],
+      },
+    });
+
+    expect(result.import_map).toBe(true);
+    expect(result.import_map_path).toMatch(/import_map\.json$/);
+  });
+
+  test('updating edge function with missing import_map_path defaults to previous value', async () => {
+    const { callTool } = await setup();
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const functionName = 'hello-world';
+
+    const edgeFunction = await project.deployEdgeFunction(
+      {
+        name: functionName,
+        entrypoint_path: 'index.ts',
+        import_map_path: 'custom-map.json',
+      },
+      [
+        new File(['console.log("Hello, world!");'], 'index.ts', {
+          type: 'application/typescript',
+        }),
+        new File(['{}'], 'custom-map.json', {
+          type: 'application/json',
+        }),
+      ]
+    );
+
+    const result = await callTool({
+      name: 'deploy_edge_function',
+      arguments: {
+        project_id: project.id,
+        name: functionName,
+        files: [
+          {
+            name: 'index.ts',
+            content: 'console.log("Hello, world! v2");',
+          },
+          {
+            name: 'custom-map.json',
+            content: '{}',
+          },
+        ],
+      },
+    });
+
+    expect(result.import_map).toBe(true);
+    expect(result.import_map_path).toMatch(/custom-map\.json$/);
   });
 
   test('create branch', async () => {

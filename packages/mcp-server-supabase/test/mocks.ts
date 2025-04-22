@@ -248,6 +248,33 @@ export const mockManagementApi = [
   ),
 
   /**
+   * Get details for an Edge Function
+   */
+  http.get<{ projectId: string; functionSlug: string }>(
+    `${API_URL}/v1/projects/:projectId/functions/:functionSlug`,
+    ({ params }) => {
+      const project = mockProjects.get(params.projectId);
+      if (!project) {
+        return HttpResponse.json(
+          { message: 'Project not found' },
+          { status: 404 }
+        );
+      }
+
+      const edgeFunction = project.edge_functions.get(params.functionSlug);
+
+      if (!edgeFunction) {
+        return HttpResponse.json(
+          { message: 'Edge Function not found' },
+          { status: 404 }
+        );
+      }
+
+      return HttpResponse.json(edgeFunction.details);
+    }
+  ),
+
+  /**
    * Gets the eszip bundle for an Edge Function
    */
   http.get<{ projectId: string; functionSlug: string }>(
@@ -297,6 +324,7 @@ export const mockManagementApi = [
       const metadataSchema = z.object({
         name: z.string(),
         entrypoint_path: z.string(),
+        import_map_path: z.string().optional(),
       });
 
       const metadataFormValue = formData.get('metadata');
@@ -748,6 +776,7 @@ export class MockOrganization {
 export type MockEdgeFunctionOptions = {
   name: string;
   entrypoint_path: string;
+  import_map_path?: string;
 };
 
 export class MockEdgeFunction {
@@ -758,7 +787,7 @@ export class MockEdgeFunction {
   name: string;
   status: 'ACTIVE' | 'REMOVED' | 'THROTTLED';
   entrypoint_path: string;
-  import_map_path: string | null;
+  import_map_path?: string;
   import_map: boolean;
   verify_jwt: boolean;
   created_at: Date;
@@ -796,7 +825,7 @@ export class MockEdgeFunction {
 
   constructor(
     projectId: string,
-    { name, entrypoint_path }: MockEdgeFunctionOptions
+    { name, entrypoint_path, import_map_path }: MockEdgeFunctionOptions
   ) {
     this.projectId = projectId;
     this.id = crypto.randomUUID();
@@ -805,17 +834,23 @@ export class MockEdgeFunction {
     this.name = name;
     this.status = 'ACTIVE';
     this.entrypoint_path = `file://${join(this.pathPrefix, entrypoint_path)}`;
-    this.import_map_path = null;
-    this.import_map = false;
+    this.import_map_path = import_map_path
+      ? `file://${join(this.pathPrefix, import_map_path)}`
+      : undefined;
+    this.import_map = !!import_map_path;
     this.verify_jwt = true;
     this.created_at = new Date();
     this.updated_at = new Date();
   }
 
-  update({ name, entrypoint_path }: MockEdgeFunctionOptions) {
+  update({ name, entrypoint_path, import_map_path }: MockEdgeFunctionOptions) {
     this.name = name;
     this.version += 1;
     this.entrypoint_path = `file://${join(this.pathPrefix, entrypoint_path)}`;
+    this.import_map_path = import_map_path
+      ? `file://${join(this.pathPrefix, import_map_path)}`
+      : undefined;
+    this.import_map = !!import_map_path;
     this.updated_at = new Date();
   }
 }

@@ -1,13 +1,7 @@
 import { createMcpServer, tool } from '@supabase/mcp-utils';
-import { fileURLToPath } from 'node:url';
 import { z } from 'zod';
 import packageJson from '../package.json' with { type: 'json' };
-import {
-  edgeFunctionExample,
-  getDeploymentId,
-  getPathPrefix,
-} from './edge-function.js';
-import { extractFiles } from './eszip.js';
+import { edgeFunctionExample, getFullEdgeFunction } from './edge-function.js';
 import { getLogQuery } from './logs.js';
 import {
   assertSuccess,
@@ -412,56 +406,18 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
 
           // Fetch files for each Edge Function
           const edgeFunctions = await Promise.all(
-            response.data.map(async (edgeFunction) => {
-              const response = await managementApiClient.GET(
-                '/v1/projects/{ref}/functions/{function_slug}/body',
-                {
-                  params: {
-                    path: {
-                      ref: project_id,
-                      function_slug: edgeFunction.slug,
-                    },
-                  },
-                  parseAs: 'arrayBuffer',
-                }
-              );
-
-              assertSuccess(
-                response,
-                'Failed to fetch Edge Function eszip bundle'
-              );
-
-              const deploymentId = getDeploymentId(
+            response.data.map(async (listedFunction) => {
+              const { data: edgeFunction, error } = await getFullEdgeFunction(
+                managementApiClient,
                 project_id,
-                edgeFunction.id,
-                edgeFunction.version
-              );
-              const pathPrefix = getPathPrefix(deploymentId);
-
-              const files = await extractFiles(
-                new Uint8Array(response.data),
-                pathPrefix
+                listedFunction.slug
               );
 
-              // Strip away path prefix so that we don't confuse the LLM
-              // TODO: do we need to do this for import_map_path too?
-              const entrypoint_path = edgeFunction.entrypoint_path
-                ? fileURLToPath(edgeFunction.entrypoint_path).replace(
-                    pathPrefix,
-                    ''
-                  )
-                : undefined;
+              if (error) {
+                throw error;
+              }
 
-              return {
-                ...edgeFunction,
-                entrypoint_path,
-                files: await Promise.all(
-                  files.map(async (file) => ({
-                    name: file.name,
-                    content: await file.text(),
-                  }))
-                ),
-              };
+              return edgeFunction;
             })
           );
 
@@ -477,6 +433,10 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
             .string()
             .default('index.ts')
             .describe('The entrypoint of the function'),
+          import_map_path: z
+            .string()
+            .describe('The import map for the function.')
+            .optional(),
           files: z
             .array(
               z.object({
@@ -488,7 +448,27 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
               'The files to upload. This should include the entrypoint and any relative dependencies.'
             ),
         }),
-        execute: async ({ project_id, name, entrypoint_path, files }) => {
+        execute: async ({
+          project_id,
+          name,
+          entrypoint_path,
+          import_map_path,
+          files,
+        }) => {
+          const { data: existingEdgeFunction } = await getFullEdgeFunction(
+            managementApiClient,
+            project_id,
+            name
+          );
+
+          const import_map_file = files.find((file) =>
+            ['deno.json', 'import_map.json'].includes(file.name)
+          );
+
+          // Use existing import map path or file name heuristic if not provided
+          import_map_path ??=
+            existingEdgeFunction?.import_map_path ?? import_map_file?.name;
+
           const response = await managementApiClient.POST(
             '/v1/projects/{ref}/functions/deploy',
             {
@@ -502,8 +482,9 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
                 metadata: {
                   name,
                   entrypoint_path,
+                  import_map_path,
                 },
-                file: files as any, // TODO: remove once type fixed in OpenAPI spec
+                file: files as any, // We need to pass file name and content to our serializer
               },
               bodySerializer(body) {
                 const formData = new FormData();

@@ -146,6 +146,11 @@ The following Supabase tools are available to the LLM:
 - `execute_sql`: Executes raw SQL in the database. LLMs should use this for regular queries that don't change the schema.
 - `get_logs`: Gets logs for a Supabase project by service type (api, postgres, edge functions, auth, storage, realtime). LLMs can use this to help with debugging and monitoring service performance.
 
+#### Edge Function Management
+
+- `list_edge_functions`: Lists all Edge Functions in a Supabase project.
+- `deploy_edge_function`: Deploys a new Edge Function to a Supabase project. LLMs can use this to deploy new functions or update existing ones.
+
 #### Project Configuration
 
 - `get_project_url`: Gets the API URL for a project.

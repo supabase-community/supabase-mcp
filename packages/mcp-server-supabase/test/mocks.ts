@@ -2,11 +2,16 @@ import { PGlite, type PGliteInterface } from '@electric-sql/pglite';
 import { format } from 'date-fns';
 import { http, HttpResponse } from 'msw';
 import { customAlphabet } from 'nanoid';
+import { join } from 'node:path';
 import { expect } from 'vitest';
 import { z } from 'zod';
-import { version } from '../package.json';
-import type { components } from '../src/management-api/types';
+import packageJson from '../package.json' with { type: 'json' };
+import { getDeploymentId, getPathPrefix } from '../src/edge-function.js';
+import { bundleFiles } from '../src/eszip.js';
+import type { components } from '../src/management-api/types.js';
 import { TRACE_URL } from '../src/regions.js';
+
+const { version } = packageJson;
 
 const nanoid = customAlphabet('abcdefghijklmnopqrstuvwxyz', 20);
 
@@ -217,6 +222,135 @@ export const mockManagementApi = [
       }
 
       return HttpResponse.json(lastStatementResults.rows);
+    }
+  ),
+
+  /**
+   * Lists all Edge Functions for a project
+   */
+  http.get<{ projectId: string }>(
+    `${API_URL}/v1/projects/:projectId/functions`,
+    ({ params }) => {
+      const project = mockProjects.get(params.projectId);
+      if (!project) {
+        return HttpResponse.json(
+          { message: 'Project not found' },
+          { status: 404 }
+        );
+      }
+
+      return HttpResponse.json(
+        Array.from(project.edge_functions.values()).map(
+          (edgeFunction) => edgeFunction.details
+        )
+      );
+    }
+  ),
+
+  /**
+   * Get details for an Edge Function
+   */
+  http.get<{ projectId: string; functionSlug: string }>(
+    `${API_URL}/v1/projects/:projectId/functions/:functionSlug`,
+    ({ params }) => {
+      const project = mockProjects.get(params.projectId);
+      if (!project) {
+        return HttpResponse.json(
+          { message: 'Project not found' },
+          { status: 404 }
+        );
+      }
+
+      const edgeFunction = project.edge_functions.get(params.functionSlug);
+
+      if (!edgeFunction) {
+        return HttpResponse.json(
+          { message: 'Edge Function not found' },
+          { status: 404 }
+        );
+      }
+
+      return HttpResponse.json(edgeFunction.details);
+    }
+  ),
+
+  /**
+   * Gets the eszip bundle for an Edge Function
+   */
+  http.get<{ projectId: string; functionSlug: string }>(
+    `${API_URL}/v1/projects/:projectId/functions/:functionSlug/body`,
+    ({ params }) => {
+      const project = mockProjects.get(params.projectId);
+      if (!project) {
+        return HttpResponse.json(
+          { message: 'Project not found' },
+          { status: 404 }
+        );
+      }
+
+      const edgeFunction = project.edge_functions.get(params.functionSlug);
+      if (!edgeFunction) {
+        return HttpResponse.json(
+          { message: 'Edge Function not found' },
+          { status: 404 }
+        );
+      }
+
+      if (!edgeFunction.eszip) {
+        return HttpResponse.json(
+          { message: 'Edge Function files not found' },
+          { status: 404 }
+        );
+      }
+
+      return HttpResponse.arrayBuffer(edgeFunction.eszip);
+    }
+  ),
+  /**
+   * Deploys an Edge Function
+   */
+  http.post<{ projectId: string }>(
+    `${API_URL}/v1/projects/:projectId/functions/deploy`,
+    async ({ params, request }) => {
+      const project = mockProjects.get(params.projectId);
+      if (!project) {
+        return HttpResponse.json(
+          { message: 'Project not found' },
+          { status: 404 }
+        );
+      }
+      const formData = await request.formData();
+
+      const metadataSchema = z.object({
+        name: z.string(),
+        entrypoint_path: z.string(),
+        import_map_path: z.string().optional(),
+      });
+
+      const metadataFormValue = formData.get('metadata');
+      const metadataString =
+        metadataFormValue instanceof File
+          ? await metadataFormValue.text()
+          : (metadataFormValue ?? undefined);
+
+      if (!metadataString) {
+        throw new Error('Metadata is required');
+      }
+
+      const metadata = metadataSchema.parse(JSON.parse(metadataString));
+
+      const fileFormValues = formData.getAll('file');
+
+      const files = fileFormValues.map((file) => {
+        if (typeof file === 'string') {
+          throw new Error('Multipart file is a string instead of a File');
+        }
+        return file;
+      });
+
+      const edgeFunction = await project.deployEdgeFunction(metadata, files);
+
+      return HttpResponse.json(edgeFunction.details);
     }
   ),
 
@@ -639,6 +773,88 @@ export class MockOrganization {
   }
 }
 
+export type MockEdgeFunctionOptions = {
+  name: string;
+  entrypoint_path: string;
+  import_map_path?: string;
+};
+
+export class MockEdgeFunction {
+  projectId: string;
+  id: string;
+  slug: string;
+  version: number;
+  name: string;
+  status: 'ACTIVE' | 'REMOVED' | 'THROTTLED';
+  entrypoint_path: string;
+  import_map_path?: string;
+  import_map: boolean;
+  verify_jwt: boolean;
+  created_at: Date;
+  updated_at: Date;
+
+  eszip?: Uint8Array;
+
+  async setFiles(files: File[]) {
+    this.eszip = await bundleFiles(files, this.pathPrefix);
+  }
+
+  get deploymentId() {
+    return getDeploymentId(this.projectId, this.id, this.version);
+  }
+
+  get pathPrefix() {
+    return getPathPrefix(this.deploymentId);
+  }
+
+  get details() {
+    return {
+      id: this.id,
+      slug: this.slug,
+      version: this.version,
+      name: this.name,
+      status: this.status,
+      entrypoint_path: this.entrypoint_path,
+      import_map_path: this.import_map_path,
+      import_map: this.import_map,
+      verify_jwt: this.verify_jwt,
+      created_at: this.created_at.toISOString(),
+      updated_at: this.updated_at.toISOString(),
+    };
+  }
+
+  constructor(
+    projectId: string,
+    { name, entrypoint_path, import_map_path }: MockEdgeFunctionOptions
+  ) {
+    this.projectId = projectId;
+    this.id = crypto.randomUUID();
+    this.slug = name;
+    this.version = 1;
+    this.name = name;
+    this.status = 'ACTIVE';
+    this.entrypoint_path = `file://${join(this.pathPrefix, entrypoint_path)}`;
+    this.import_map_path = import_map_path
+      ? `file://${join(this.pathPrefix, import_map_path)}`
+      : undefined;
+    this.import_map = !!import_map_path;
+    this.verify_jwt = true;
+    this.created_at = new Date();
+    this.updated_at = new Date();
+  }
+
+  update({ name, entrypoint_path, import_map_path }: MockEdgeFunctionOptions) {
+    this.name = name;
+    this.version += 1;
+    this.entrypoint_path = `file://${join(this.pathPrefix, entrypoint_path)}`;
+    this.import_map_path = import_map_path
+      ? `file://${join(this.pathPrefix, import_map_path)}`
+      : undefined;
+    this.import_map = !!import_map_path;
+    this.updated_at = new Date();
+  }
+}
+
 export type MockProjectOptions = {
   name: string;
   region: string;
@@ -660,6 +876,7 @@ export class MockProject {
   };
 
   migrations: Migration[] = [];
+  edge_functions = new Map<string, MockEdgeFunction>();
 
   #db?: PGliteInterface;
 
@@ -721,6 +938,25 @@ export class MockProject {
     }
     this.#db = undefined;
     return this.db;
+  }
+
+  async deployEdgeFunction(
+    options: MockEdgeFunctionOptions,
+    files: File[] = []
+  ) {
+    const edgeFunction = new MockEdgeFunction(this.id, options);
+    const existingFunction = this.edge_functions.get(edgeFunction.slug);
+
+    if (existingFunction) {
+      existingFunction.update(options);
+      await existingFunction.setFiles(files);
+      return existingFunction;
+    }
+
+    await edgeFunction.setFiles(files);
+    this.edge_functions.set(edgeFunction.slug, edgeFunction);
+
+    return edgeFunction;
   }
 
   async destroy() {

@@ -43,14 +43,13 @@ export function getDatabaseOperationTools({
 
   const databaseOperationTools = {
     list_tables: injectableTool({
-      description: 'Lists all tables in a schema.',
+      description: 'Lists all tables in one or more schemas.',
       parameters: z.object({
         project_id: z.string(),
         schemas: z
-          .optional(z.array(z.string()))
-          .describe(
-            'Optional list of schemas to include. Defaults to all schemas.'
-          ),
+          .array(z.string())
+          .describe('List of schemas to include. Defaults to all schemas.')
+          .default(['public']),
       }),
       inject: { project_id },
       execute: async ({ project_id, schemas }) => {

@@ -25,10 +25,14 @@ import {
   mockProjects,
 } from './mocks.js';
 
+type SetupOptions = {
+  projectId?: string;
+};
+
 /**
  * Sets up an MCP client and server for testing.
  */
-async function setup() {
+async function setup({ projectId }: SetupOptions = {}) {
   const clientTransport = new StreamTransport();
   const serverTransport = new StreamTransport();
 
@@ -40,6 +44,7 @@ async function setup() {
       apiUrl: API_URL,
       accessToken: ACCESS_TOKEN,
     },
+    projectId,
   });
 
   await server.connect(serverTransport);
@@ -254,5 +259,56 @@ describe('llm tests', () => {
         return new Response('Hello Earth!', { headers: { 'Content-Type': 'text/plain' } })
       })
     `);
+  });
+
+  test('project scoped server uses less tool calls', async () => {
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'todos-app',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+
+    await project.db.sql`create table todos (id serial, name text)`;
+
+    const { client } = await setup({ projectId: project.id });
+    const model = anthropic('claude-3-7-sonnet-20250219');
+
+    const toolCalls: ToolCallUnion<ToolSet>[] = [];
+    const tools = await client.tools();
+
+    const { text } = await generateText({
+      model,
+      tools,
+      messages: [
+        {
+          role: 'system',
+          content:
+            'You are a coding assistant. The current working directory is /home/user/projects/todos-app.',
+        },
+        {
+          role: 'user',
+          content: `What tables do I have?`,
+        },
+      ],
+      maxSteps: 2,
+      async onStepFinish({ toolCalls: tools }) {
+        toolCalls.push(...tools);
+      },
+    });
+
+    expect(toolCalls).toHaveLength(1);
+    expect(toolCalls[0]).toEqual(
+      expect.objectContaining({ toolName: 'list_tables' })
+    );
+
+    await expect(text).toMatchCriteria(
+      `Describes the a single todos table available in the project.`
+    );
   });
 });

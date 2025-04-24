@@ -1912,6 +1912,45 @@ describe('tools', () => {
 });
 
 describe('project scoped tools', () => {
+  test('no account level tools should exist', async () => {
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+
+    const { client } = await setup({ projectId: project.id });
+
+    const result = await client.listTools();
+
+    const accountLevelToolNames = [
+      'list_organizations',
+      'get_organization',
+      'list_projects',
+      'get_project',
+      'get_cost',
+      'confirm_cost',
+      'create_project',
+      'pause_project',
+      'restore_project',
+    ];
+
+    const toolNames = result.tools.map((tool) => tool.name);
+
+    for (const accountLevelToolName of accountLevelToolNames) {
+      expect(
+        toolNames,
+        `tool ${accountLevelToolName} should not be available in project scope`
+      ).not.toContain(accountLevelToolName);
+    }
+  });
+
   test('no tool should accept a project_id', async () => {
     const org = await createOrganization({
       name: 'My Org',

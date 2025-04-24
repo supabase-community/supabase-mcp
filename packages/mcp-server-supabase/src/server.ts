@@ -1,4 +1,4 @@
-import { createMcpServer } from '@supabase/mcp-utils';
+import { createMcpServer, type Tool } from '@supabase/mcp-utils';
 import packageJson from '../package.json' with { type: 'json' };
 import {
   createManagementApiClient,
@@ -69,38 +69,41 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       );
     },
     tools: () => {
-      // Note: tools are intentionally snake_case to align better with most MCP clients
-      const tools = {
-        ...getDatabaseOperationTools({
-          managementApiClient,
-          projectId,
-          readOnly,
-        }),
-        ...getEdgeFunctionTools({
-          managementApiClient,
-          projectId,
-        }),
-        ...getDebuggingTools({
-          managementApiClient,
-          projectId,
-        }),
-        ...getDevelopmentTools({
-          managementApiClient,
-          projectId,
-        }),
-        ...getBranchingTools({
-          managementApiClient,
-          projectId,
-        }),
-      };
+      const tools: Record<string, Tool> = {};
 
-      // Add account-level management tools only if projectId is not provided
+      // Add account-level tools only if projectId is not provided
       if (!projectId) {
         Object.assign(
           tools,
           getProjectManagementTools({ managementApiClient })
         );
       }
+
+      // Add project-level tools
+      Object.assign(
+        tools,
+        getDatabaseOperationTools({
+          managementApiClient,
+          projectId,
+          readOnly,
+        }),
+        getEdgeFunctionTools({
+          managementApiClient,
+          projectId,
+        }),
+        getDebuggingTools({
+          managementApiClient,
+          projectId,
+        }),
+        getDevelopmentTools({
+          managementApiClient,
+          projectId,
+        }),
+        getBranchingTools({
+          managementApiClient,
+          projectId,
+        })
+      );
 
       return tools;
     },

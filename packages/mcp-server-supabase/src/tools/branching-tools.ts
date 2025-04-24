@@ -6,7 +6,7 @@ import {
 } from '../management-api/index.js';
 import { getBranchCost } from '../pricing.js';
 import { hashObject } from '../util.js';
-import { injectProjectId } from './util.js';
+import { injectableTool } from './util.js';
 
 export type BranchingToolsOptions = {
   managementApiClient: ManagementApiClient;
@@ -17,35 +17,66 @@ export function getBranchingTools({
   managementApiClient,
   projectId,
 }: BranchingToolsOptions) {
-  return {
-    create_branch: injectProjectId(
-      projectId,
-      tool({
-        description:
-          'Creates a development branch on a Supabase project. This will apply all migrations from the main project to a fresh branch database. Note that production data will not carry over. The branch will get its own project_id via the resulting project_ref. Use this ID to execute queries and migrations on the branch.',
-        parameters: z.object({
-          project_id: z.string(),
-          name: z
-            .string()
-            .default('develop')
-            .describe('Name of the branch to create'),
-          confirm_cost_id: z
-            .string({
-              required_error:
-                'User must confirm understanding of costs before creating a branch.',
-            })
-            .describe('The cost confirmation ID. Call `confirm_cost` first.'),
-        }),
-        execute: async ({ project_id, name, confirm_cost_id }) => {
-          const cost = getBranchCost();
-          const costHash = await hashObject(cost);
-          if (costHash !== confirm_cost_id) {
-            throw new Error(
-              'Cost confirmation ID does not match the expected cost of creating a branch.'
-            );
-          }
+  const project_id = projectId;
 
-          const createBranchResponse = await managementApiClient.POST(
+  return {
+    create_branch: injectableTool({
+      description:
+        'Creates a development branch on a Supabase project. This will apply all migrations from the main project to a fresh branch database. Note that production data will not carry over. The branch will get its own project_id via the resulting project_ref. Use this ID to execute queries and migrations on the branch.',
+      parameters: z.object({
+        project_id: z.string(),
+        name: z
+          .string()
+          .default('develop')
+          .describe('Name of the branch to create'),
+        confirm_cost_id: z
+          .string({
+            required_error:
+              'User must confirm understanding of costs before creating a branch.',
+          })
+          .describe('The cost confirmation ID. Call `confirm_cost` first.'),
+      }),
+      inject: { project_id },
+      execute: async ({ project_id, name, confirm_cost_id }) => {
+        const cost = getBranchCost();
+        const costHash = await hashObject(cost);
+        if (costHash !== confirm_cost_id) {
+          throw new Error(
+            'Cost confirmation ID does not match the expected cost of creating a branch.'
+          );
+        }
+
+        const createBranchResponse = await managementApiClient.POST(
+          '/v1/projects/{ref}/branches',
+          {
+            params: {
+              path: {
+                ref: project_id,
+              },
+            },
+            body: {
+              branch_name: name,
+            },
+          }
+        );
+
+        assertSuccess(createBranchResponse, 'Failed to create branch');
+
+        // Creating a default branch means we just enabled branching
+        // TODO: move this logic to API eventually.
+        if (createBranchResponse.data.is_default) {
+          await managementApiClient.PATCH('/v1/branches/{branch_id}', {
+            params: {
+              path: {
+                branch_id: createBranchResponse.data.id,
+              },
+            },
+            body: {
+              branch_name: 'main',
+            },
+          });
+
+          const response = await managementApiClient.POST(
             '/v1/projects/{ref}/branches',
             {
               params: {
@@ -59,73 +90,40 @@ export function getBranchingTools({
             }
           );
 
-          assertSuccess(createBranchResponse, 'Failed to create branch');
-
-          // Creating a default branch means we just enabled branching
-          // TODO: move this logic to API eventually.
-          if (createBranchResponse.data.is_default) {
-            await managementApiClient.PATCH('/v1/branches/{branch_id}', {
-              params: {
-                path: {
-                  branch_id: createBranchResponse.data.id,
-                },
-              },
-              body: {
-                branch_name: 'main',
-              },
-            });
-
-            const response = await managementApiClient.POST(
-              '/v1/projects/{ref}/branches',
-              {
-                params: {
-                  path: {
-                    ref: project_id,
-                  },
-                },
-                body: {
-                  branch_name: name,
-                },
-              }
-            );
-
-            assertSuccess(response, 'Failed to create branch');
-
-            return response.data;
-          }
-
-          return createBranchResponse.data;
-        },
-      })
-    ),
-    list_branches: injectProjectId(
-      projectId,
-      tool({
-        description:
-          'Lists all development branches of a Supabase project. This will return branch details including status which you can use to check when operations like merge/rebase/reset complete.',
-        parameters: z.object({
-          project_id: z.string(),
-        }),
-        execute: async ({ project_id }) => {
-          const response = await managementApiClient.GET(
-            '/v1/projects/{ref}/branches',
-            {
-              params: {
-                path: {
-                  ref: project_id,
-                },
-              },
-            }
-          );
-
-          // There are no branches if branching is disabled
-          if (response.response.status === 422) return [];
-          assertSuccess(response, 'Failed to list branches');
+          assertSuccess(response, 'Failed to create branch');
 
           return response.data;
-        },
-      })
-    ),
+        }
+
+        return createBranchResponse.data;
+      },
+    }),
+    list_branches: injectableTool({
+      description:
+        'Lists all development branches of a Supabase project. This will return branch details including status which you can use to check when operations like merge/rebase/reset complete.',
+      parameters: z.object({
+        project_id: z.string(),
+      }),
+      inject: { project_id },
+      execute: async ({ project_id }) => {
+        const response = await managementApiClient.GET(
+          '/v1/projects/{ref}/branches',
+          {
+            params: {
+              path: {
+                ref: project_id,
+              },
+            },
+          }
+        );
+
+        // There are no branches if branching is disabled
+        if (response.response.status === 422) return [];
+        assertSuccess(response, 'Failed to list branches');
+
+        return response.data;
+      },
+    }),
     delete_branch: tool({
       description: 'Deletes a development branch.',
       parameters: z.object({

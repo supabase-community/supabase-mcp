@@ -52,6 +52,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
   const managementApiUrl =
     options.platform.apiUrl ?? 'https://api.supabase.com';
   const projectId = options.projectId;
+  const readOnly = options.readOnly;
 
   let managementApiClient: ManagementApiClient;
 
@@ -70,11 +71,27 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
     tools: () => {
       // Note: tools are intentionally snake_case to align better with most MCP clients
       const tools = {
-        ...getDatabaseOperationTools({ managementApiClient, projectId }),
-        ...getEdgeFunctionTools({ managementApiClient, projectId }),
-        ...getDebuggingTools({ managementApiClient, projectId }),
-        ...getDevelopmentTools({ managementApiClient, projectId }),
-        ...getBranchingTools({ managementApiClient, projectId }),
+        ...getDatabaseOperationTools({
+          managementApiClient,
+          projectId,
+          readOnly,
+        }),
+        ...getEdgeFunctionTools({
+          managementApiClient,
+          projectId,
+        }),
+        ...getDebuggingTools({
+          managementApiClient,
+          projectId,
+        }),
+        ...getDevelopmentTools({
+          managementApiClient,
+          projectId,
+        }),
+        ...getBranchingTools({
+          managementApiClient,
+          projectId,
+        }),
       };
 
       // Add account-level management tools only if projectId is not provided

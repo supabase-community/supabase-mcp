@@ -350,7 +350,6 @@ describe('tools', () => {
       name: 'New Project',
       region: 'us-east-1',
       organization_id: freeOrg.id,
-      db_pass: 'dummy-password',
       confirm_cost_id,
     };
 
@@ -359,7 +358,7 @@ describe('tools', () => {
       arguments: newProject,
     });
 
-    const { db_pass, confirm_cost_id: _, ...projectInfo } = newProject;
+    const { confirm_cost_id: _, ...projectInfo } = newProject;
 
     expect(result).toEqual({
       ...projectInfo,
@@ -392,7 +391,6 @@ describe('tools', () => {
     const newProject = {
       name: 'New Project',
       organization_id: freeOrg.id,
-      db_pass: 'dummy-password',
       confirm_cost_id,
     };
 
@@ -401,7 +399,7 @@ describe('tools', () => {
       arguments: newProject,
     });
 
-    const { db_pass, confirm_cost_id: _, ...projectInfo } = newProject;
+    const { confirm_cost_id: _, ...projectInfo } = newProject;
 
     expect(result).toEqual({
       ...projectInfo,
@@ -427,7 +425,6 @@ describe('tools', () => {
       name: 'New Project',
       region: 'us-east-1',
       organization_id: org.id,
-      db_pass: 'dummy-password',
     };
 
     const createProjectPromise = callTool({

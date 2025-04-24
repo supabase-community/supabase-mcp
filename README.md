@@ -46,6 +46,11 @@ Next, configure your MCP client (such as Cursor) to use this server. Most MCP cl
 
 Replace `<personal-access-token>` with the token you created in step 1. Alternatively you can omit `--access-token` and instead set the `SUPABASE_ACCESS_TOKEN` environment variable to your personal access token (you will need to restart your MCP client after setting this). This allows you to keep your token out of version control if you plan on committing this configuration to a repository.
 
+The following additional options are available:
+
+- `--project-ref`: Used to scope the server to a specific project. See [project scoped mode](#project-scoped-mode).
+- `--read-only`: Used to restrict the server to read-only queries. See [read-only mode](#read-only-mode).
+
 If you are on Windows, you will need to [prefix the command](#windows). If your MCP client doesn't accept JSON, the direct CLI command is:
 
 ```shell
@@ -111,6 +116,18 @@ Make sure Node.js is available in your system `PATH` environment variable. If yo
 
 3. Restart your MCP client.
 
+### Project scoped mode
+
+By default, the MCP server will have access to all organizations and projects in your Supabase account. If you want to restrict the server to a specific project, you can set the `--project-ref` flag on the CLI command:
+
+```shell
+npx -y @supabase/mcp-server-supabase@latest --access-token=<personal-access-token> --project-ref=<project-ref>
+```
+
+Replace `<project-ref>` with the ID of your project. You can find this under **Project ID** in your Supabase [project settings](https://supabase.com/dashboard/project/_/settings/general).
+
+After scoping the server to a project, [account-level](#project-management) tools like `list_projects` and `list_organizations` will no longer be available. The server will only have access to the specified project and its resources.
+
 ### Read-only mode
 
 If you wish to restrict the Supabase MCP server to read-only queries, set the `--read-only` flag on the CLI command:
@@ -128,6 +145,8 @@ _**Note:** This server is pre-1.0, so expect some breaking changes between versi
 The following Supabase tools are available to the LLM:
 
 #### Project Management
+
+_**Note:** these tools will be unavailable if the server is [scoped to a project](#project-scoped-mode)._
 
 - `list_projects`: Lists all Supabase projects for the user.
 - `get_project`: Gets details for a project.

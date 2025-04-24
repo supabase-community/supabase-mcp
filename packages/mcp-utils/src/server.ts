@@ -340,49 +340,61 @@ export function createMcpServer(options: McpServerOptions) {
     );
 
     server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
-      const allResources = await getResources();
-      const { uri } = request.params;
+      try {
+        const allResources = await getResources();
+        const { uri } = request.params;
 
-      const resources = allResources.filter((resource) => 'uri' in resource);
-      const resource = resources.find((resource) =>
-        compareUris(resource.uri, uri)
-      );
+        const resources = allResources.filter((resource) => 'uri' in resource);
+        const resource = resources.find((resource) =>
+          compareUris(resource.uri, uri)
+        );
 
-      if (resource) {
-        return await resource.read(uri as `${string}://${string}`);
+        if (resource) {
+          return await resource.read(uri as `${string}://${string}`);
+        }
+
+        const resourceTemplates = allResources.filter(
+          (resource) => 'uriTemplate' in resource
+        );
+        const resourceTemplateUris = resourceTemplates.map(({ uriTemplate }) =>
+          assertValidUri(uriTemplate)
+        );
+
+        const templateMatch = matchUriTemplate(uri, resourceTemplateUris);
+
+        if (!templateMatch) {
+          throw new Error('resource not found');
+        }
+
+        const resourceTemplate = resourceTemplates.find(
+          (r) => r.uriTemplate === templateMatch.uri
+        );
+
+        if (!resourceTemplate) {
+          throw new Error('resource not found');
+        }
+
+        const result = await resourceTemplate.read(
+          uri as `${string}://${string}`,
+          templateMatch.params
+        );
+
+        const contents = Array.isArray(result) ? result : [result];
+
+        return {
+          contents,
+        } as any;
+      } catch (error) {
+        return {
+          isError: true,
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({ error: enumerateError(error) }),
+            },
+          ],
+        };
       }
-
-      const resourceTemplates = allResources.filter(
-        (resource) => 'uriTemplate' in resource
-      );
-      const resourceTemplateUris = resourceTemplates.map(({ uriTemplate }) =>
-        assertValidUri(uriTemplate)
-      );
-
-      const templateMatch = matchUriTemplate(uri, resourceTemplateUris);
-
-      if (!templateMatch) {
-        throw new Error('resource not found');
-      }
-
-      const resourceTemplate = resourceTemplates.find(
-        (r) => r.uriTemplate === templateMatch.uri
-      );
-
-      if (!resourceTemplate) {
-        throw new Error('resource not found');
-      }
-
-      const result = await resourceTemplate.read(
-        uri as `${string}://${string}`,
-        templateMatch.params
-      );
-
-      const contents = Array.isArray(result) ? result : [result];
-
-      return {
-        contents,
-      } as any;
     });
   }
 
@@ -403,24 +415,24 @@ export function createMcpServer(options: McpServerOptions) {
     });
 
     server.setRequestHandler(CallToolRequestSchema, async (request) => {
-      const tools = await getTools();
-      const toolName = request.params.name;
-
-      if (!(toolName in tools)) {
-        throw new Error('tool not found');
-      }
-
-      const tool = tools[toolName];
-
-      if (!tool) {
-        throw new Error('tool not found');
-      }
-
-      const args = tool.parameters
-        .strict()
-        .parse(request.params.arguments ?? {});
-
       try {
+        const tools = await getTools();
+        const toolName = request.params.name;
+
+        if (!(toolName in tools)) {
+          throw new Error('tool not found');
+        }
+
+        const tool = tools[toolName];
+
+        if (!tool) {
+          throw new Error('tool not found');
+        }
+
+        const args = tool.parameters
+          .strict()
+          .parse(request.params.arguments ?? {});
+
         const result = await tool.execute(args);
         const content = result
           ? [{ type: 'text', text: JSON.stringify(result) }]

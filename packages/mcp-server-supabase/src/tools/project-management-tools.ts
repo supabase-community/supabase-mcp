@@ -62,7 +62,8 @@ export function getProjectManagementTools({
       },
     }),
     list_projects: tool({
-      description: 'Lists all Supabase projects for the user.',
+      description:
+        'Lists all Supabase projects for the user. Use this to help discover the project ID of the project that the user is working on.',
       parameters: z.object({}),
       execute: async () => {
         const response = await managementApiClient.GET('/v1/projects');

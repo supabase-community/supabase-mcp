@@ -3,10 +3,11 @@ import columnsSql from './columns.sql';
 import extensionsSql from './extensions.sql';
 import tablesSql from './tables.sql';
 
-export const DEFAULT_SYSTEM_SCHEMAS = [
+export const SYSTEM_SCHEMAS = [
   'information_schema',
   'pg_catalog',
   'pg_toast',
+  '_timescaledb_internal',
 ];
 
 /**
@@ -23,10 +24,12 @@ export function listTablesSql(schemas: string[] = []) {
     from tables
   `;
 
+  sql += '\n';
+
   if (schemas.length > 0) {
-    sql += `  where schema in (${schemas.map((s) => `'${s}'`).join(',')})`;
+    sql += `where schema in (${schemas.map((s) => `'${s}'`).join(',')})`;
   } else {
-    sql += `  where schema not in (${DEFAULT_SYSTEM_SCHEMAS.map((s) => `'${s}'`).join(',')})`;
+    sql += `where schema not in (${SYSTEM_SCHEMAS.map((s) => `'${s}'`).join(',')})`;
   }
 
   return sql;

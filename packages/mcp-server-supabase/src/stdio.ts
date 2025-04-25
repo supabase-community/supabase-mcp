@@ -11,6 +11,7 @@ async function main() {
   const {
     values: {
       ['access-token']: cliAccessToken,
+      ['project-ref']: projectId,
       ['read-only']: readOnly,
       ['api-url']: apiUrl,
       ['version']: showVersion,
@@ -18,6 +19,9 @@ async function main() {
   } = parseArgs({
     options: {
       ['access-token']: {
+        type: 'string',
+      },
+      ['project-ref']: {
         type: 'string',
       },
       ['read-only']: {
@@ -53,6 +57,7 @@ async function main() {
       accessToken,
       apiUrl,
     },
+    projectId,
     readOnly,
   });
 

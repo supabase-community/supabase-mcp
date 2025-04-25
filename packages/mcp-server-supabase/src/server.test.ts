@@ -34,6 +34,7 @@ beforeEach(async () => {
 
 type SetupOptions = {
   accessToken?: string;
+  projectId?: string;
   readOnly?: boolean;
 };
 
@@ -41,7 +42,7 @@ type SetupOptions = {
  * Sets up an MCP client and server for testing.
  */
 async function setup(options: SetupOptions = {}) {
-  const { accessToken = ACCESS_TOKEN, readOnly } = options;
+  const { accessToken = ACCESS_TOKEN, projectId, readOnly } = options;
   const clientTransport = new StreamTransport();
   const serverTransport = new StreamTransport();
 
@@ -63,6 +64,7 @@ async function setup(options: SetupOptions = {}) {
       apiUrl: API_URL,
       accessToken,
     },
+    projectId,
     readOnly,
   });
 
@@ -348,7 +350,6 @@ describe('tools', () => {
       name: 'New Project',
       region: 'us-east-1',
       organization_id: freeOrg.id,
-      db_pass: 'dummy-password',
       confirm_cost_id,
     };
 
@@ -357,7 +358,7 @@ describe('tools', () => {
       arguments: newProject,
     });
 
-    const { db_pass, confirm_cost_id: _, ...projectInfo } = newProject;
+    const { confirm_cost_id: _, ...projectInfo } = newProject;
 
     expect(result).toEqual({
       ...projectInfo,
@@ -390,7 +391,6 @@ describe('tools', () => {
     const newProject = {
       name: 'New Project',
       organization_id: freeOrg.id,
-      db_pass: 'dummy-password',
       confirm_cost_id,
     };
 
@@ -399,7 +399,7 @@ describe('tools', () => {
       arguments: newProject,
     });
 
-    const { db_pass, confirm_cost_id: _, ...projectInfo } = newProject;
+    const { confirm_cost_id: _, ...projectInfo } = newProject;
 
     expect(result).toEqual({
       ...projectInfo,
@@ -425,7 +425,6 @@ describe('tools', () => {
       name: 'New Project',
       region: 'us-east-1',
       organization_id: org.id,
-      db_pass: 'dummy-password',
     };
 
     const createProjectPromise = callTool({
@@ -1909,5 +1908,156 @@ describe('tools', () => {
         );
       }
     }
+  });
+});
+
+describe('project scoped tools', () => {
+  test('no account level tools should exist', async () => {
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+
+    const { client } = await setup({ projectId: project.id });
+
+    const result = await client.listTools();
+
+    const accountLevelToolNames = [
+      'list_organizations',
+      'get_organization',
+      'list_projects',
+      'get_project',
+      'get_cost',
+      'confirm_cost',
+      'create_project',
+      'pause_project',
+      'restore_project',
+    ];
+
+    const toolNames = result.tools.map((tool) => tool.name);
+
+    for (const accountLevelToolName of accountLevelToolNames) {
+      expect(
+        toolNames,
+        `tool ${accountLevelToolName} should not be available in project scope`
+      ).not.toContain(accountLevelToolName);
+    }
+  });
+
+  test('no tool should accept a project_id', async () => {
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+
+    const { client } = await setup({ projectId: project.id });
+
+    const result = await client.listTools();
+
+    expect(result.tools).toBeDefined();
+    expect(Array.isArray(result.tools)).toBe(true);
+
+    for (const tool of result.tools) {
+      const schemaProperties = tool.inputSchema.properties ?? {};
+      expect(
+        'project_id' in schemaProperties,
+        `tool ${tool.name} should not accept a project_id`
+      ).toBe(false);
+    }
+  });
+
+  test('invalid project ID should throw an error', async () => {
+    const { callTool } = await setup({ projectId: 'invalid-project-id' });
+
+    const listTablesPromise = callTool({
+      name: 'list_tables',
+      arguments: {
+        schemas: ['public'],
+      },
+    });
+
+    await expect(listTablesPromise).rejects.toThrow('Project not found');
+  });
+
+  test('passing project_id to a tool should throw an error', async () => {
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const { callTool } = await setup({ projectId: project.id });
+
+    const listTablesPromise = callTool({
+      name: 'list_tables',
+      arguments: {
+        project_id: 'my-project-id',
+        schemas: ['public'],
+      },
+    });
+
+    await expect(listTablesPromise).rejects.toThrow('Unrecognized key');
+  });
+
+  test('listing tables implicitly uses the scoped project_id', async () => {
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    project.db
+      .sql`create table test (id integer generated always as identity primary key)`;
+
+    const { callTool } = await setup({ projectId: project.id });
+
+    const result = await callTool({
+      name: 'list_tables',
+      arguments: {
+        schemas: ['public'],
+      },
+    });
+
+    expect(result).toEqual([
+      expect.objectContaining({
+        name: 'test',
+        schema: 'public',
+        columns: [
+          expect.objectContaining({
+            name: 'id',
+            is_identity: true,
+            is_generated: false,
+          }),
+        ],
+      }),
+    ]);
   });
 });

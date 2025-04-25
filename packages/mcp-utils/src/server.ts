@@ -11,7 +11,7 @@ import {
   type ListResourceTemplatesResult,
   type ServerCapabilities,
 } from '@modelcontextprotocol/sdk/types.js';
-import type { z } from 'zod';
+import { z } from 'zod';
 import zodToJsonSchema from 'zod-to-json-schema';
 import type {
   ExpandRecursively,
@@ -46,7 +46,7 @@ export type ResourceTemplate<Uri extends string = string, Result = unknown> = {
 };
 
 export type Tool<
-  Params extends z.ZodTypeAny = z.ZodTypeAny,
+  Params extends z.ZodObject<any> = z.ZodObject<any>,
   Result = unknown,
 > = {
   description: string;
@@ -158,21 +158,69 @@ export function jsonResourceResponse<Uri extends string, Response>(
 /**
  * Helper function to define an MCP tool while preserving type information.
  */
-export function tool<Params extends z.ZodTypeAny, Result>(
+export function tool<Params extends z.ZodObject<any>, Result>(
   tool: Tool<Params, Result>
 ) {
   return tool;
 }
 
+export type InitData = {
+  clientInfo: Implementation;
+  clientCapabilities: ClientCapabilities;
+};
+
+export type PropCallback<T> = (initData: InitData) => T | Promise<T>;
+export type Prop<T> = T | PropCallback<T>;
+
 export type McpServerOptions = {
+  /**
+   * The name of the MCP server. This will be sent to the client as part of
+   * the initialization process.
+   */
   name: string;
+
+  /**
+   * The version of the MCP server. This will be sent to the client as part of
+   * the initialization process.
+   */
   version: string;
-  resources?: (Resource<string, unknown> | ResourceTemplate<string, unknown>)[];
-  tools?: Record<string, Tool>;
-  onInitialize?: (
-    clientInfo: Implementation,
-    clientCapabilities: ClientCapabilities
-  ) => void;
+
+  /**
+   * Callback for when initialization has fully completed with the client.
+   *
+   * This is guaranteed to run before any primitives like resources or tools
+   * are served. If a promise is returned from this callback, the server will
+   * wait for it to resolve before serving other primitives. This is useful for
+   * initializing things like API connections or other async tasks that might
+   * depend on client information before serving other primitives.
+   */
+  onInitialize?: PropCallback<void>;
+
+  /**
+   * Resources to be served by the server. These can be defined as a static
+   * object or as a function that dynamically returns the object synchronously
+   * or asynchronously.
+   *
+   * If defined as a function, the function will be called whenever the client
+   * asks for the list of resources or reads a resource. This allows for dynamic
+   * resources that can change after the server has started. The function will
+   * also pass the client information and capabilities as context.
+   */
+  resources?: Prop<
+    (Resource<string, unknown> | ResourceTemplate<string, unknown>)[]
+  >;
+
+  /**
+   * Tools to be served by the server. These can be defined as a static object
+   * or as a function that dynamically returns the object synchronously or
+   * asynchronously.
+   *
+   * If defined as a function, the function will be called whenever the client
+   * asks for the list of tools or invokes a tool. This allows for dynamic tools
+   * that can change after the server has started. The function will also pass
+   * the client information and capabilities as context.
+   */
+  tools?: Prop<Record<string, Tool>>;
 };
 
 /**
@@ -202,7 +250,36 @@ export function createMcpServer(options: McpServerOptions) {
     }
   );
 
-  server.oninitialized = () => {
+  let resolveInitialized: (initData: InitData) => void;
+  const initialized = new Promise<InitData>((resolve) => {
+    resolveInitialized = resolve;
+  });
+
+  async function getResources() {
+    const initData = await initialized;
+
+    if (!options.resources) {
+      throw new Error('resources not available');
+    }
+
+    return typeof options.resources === 'function'
+      ? await options.resources(initData)
+      : options.resources;
+  }
+
+  async function getTools() {
+    const initData = await initialized;
+
+    if (!options.tools) {
+      throw new Error('tools not available');
+    }
+
+    return typeof options.tools === 'function'
+      ? await options.tools(initData)
+      : options.tools;
+  }
+
+  server.oninitialized = async () => {
     const clientInfo = server.getClientVersion();
     const clientCapabilities = server.getClientCapabilities();
 
@@ -214,135 +291,148 @@ export function createMcpServer(options: McpServerOptions) {
       throw new Error('client capabilities not available after initialization');
     }
 
-    options.onInitialize?.(clientInfo, clientCapabilities);
+    const initData: InitData = {
+      clientInfo,
+      clientCapabilities,
+    };
+
+    await options.onInitialize?.(initData);
+    resolveInitialized(initData);
   };
 
   if (options.resources) {
-    const allResources = options.resources;
-    const resources = allResources.filter((resource) => 'uri' in resource);
-    const resourceTemplates = allResources.filter(
-      (resource) => 'uriTemplate' in resource
-    );
-    const resourceList = resources.map(
-      ({ uri, name, description, mimeType }) => {
-        return {
-          uri,
-          name,
-          description,
-          mimeType,
-        };
-      }
-    );
-    const resourceTemplateList = resourceTemplates.map(
-      ({ uriTemplate, name, description, mimeType }) => {
-        return {
-          uriTemplate,
-          name,
-          description,
-          mimeType,
-        };
-      }
-    );
-
-    const resourceTemplateUris = resourceTemplateList.map(({ uriTemplate }) =>
-      assertValidUri(uriTemplate)
-    );
-
-    async function readResource(uri: string) {
-      const resource = resources.find((resource) =>
-        compareUris(resource.uri, uri)
-      );
-
-      if (resource) {
-        return await resource.read(uri as `${string}://${string}`);
-      }
-
-      const templateMatch = matchUriTemplate(uri, resourceTemplateUris);
-
-      if (!templateMatch) {
-        throw new Error('resource not found');
-      }
-
-      const resourceTemplate = resourceTemplates.find(
-        (r) => r.uriTemplate === templateMatch.uri
-      );
-
-      if (!resourceTemplate) {
-        throw new Error('resource not found');
-      }
-
-      return await resourceTemplate.read(
-        uri as `${string}://${string}`,
-        templateMatch.params
-      );
-    }
-
     server.setRequestHandler(
       ListResourcesRequestSchema,
-      (): ListResourcesResult => {
+      async (): Promise<ListResourcesResult> => {
+        const allResources = await getResources();
         return {
-          resources: resourceList,
+          resources: allResources
+            .filter((resource) => 'uri' in resource)
+            .map(({ uri, name, description, mimeType }) => {
+              return {
+                uri,
+                name,
+                description,
+                mimeType,
+              };
+            }),
         };
       }
     );
 
     server.setRequestHandler(
       ListResourceTemplatesRequestSchema,
-      (): ListResourceTemplatesResult => {
+      async (): Promise<ListResourceTemplatesResult> => {
+        const allResources = await getResources();
         return {
-          resourceTemplates: resourceTemplateList,
+          resourceTemplates: allResources
+            .filter((resource) => 'uriTemplate' in resource)
+            .map(({ uriTemplate, name, description, mimeType }) => {
+              return {
+                uriTemplate,
+                name,
+                description,
+                mimeType,
+              };
+            }),
         };
       }
     );
 
     server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
-      const result = await readResource(request.params.uri);
-      const contents = Array.isArray(result) ? result : [result];
+      try {
+        const allResources = await getResources();
+        const { uri } = request.params;
 
-      return {
-        contents,
-      };
+        const resources = allResources.filter((resource) => 'uri' in resource);
+        const resource = resources.find((resource) =>
+          compareUris(resource.uri, uri)
+        );
+
+        if (resource) {
+          return await resource.read(uri as `${string}://${string}`);
+        }
+
+        const resourceTemplates = allResources.filter(
+          (resource) => 'uriTemplate' in resource
+        );
+        const resourceTemplateUris = resourceTemplates.map(({ uriTemplate }) =>
+          assertValidUri(uriTemplate)
+        );
+
+        const templateMatch = matchUriTemplate(uri, resourceTemplateUris);
+
+        if (!templateMatch) {
+          throw new Error('resource not found');
+        }
+
+        const resourceTemplate = resourceTemplates.find(
+          (r) => r.uriTemplate === templateMatch.uri
+        );
+
+        if (!resourceTemplate) {
+          throw new Error('resource not found');
+        }
+
+        const result = await resourceTemplate.read(
+          uri as `${string}://${string}`,
+          templateMatch.params
+        );
+
+        const contents = Array.isArray(result) ? result : [result];
+
+        return {
+          contents,
+        } as any;
+      } catch (error) {
+        return {
+          isError: true,
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({ error: enumerateError(error) }),
+            },
+          ],
+        };
+      }
     });
   }
 
   if (options.tools) {
-    const tools = options.tools;
-    const toolList = Object.entries(tools).map(
-      ([name, { description, parameters }]) => {
-        return {
-          name,
-          description,
-          inputSchema: zodToJsonSchema(parameters),
-        };
-      }
-    );
-
-    type Tools = typeof tools;
-    type ToolName = keyof Tools;
-    type Tool = Tools[ToolName];
-
     server.setRequestHandler(ListToolsRequestSchema, async () => {
+      const tools = await getTools();
       return {
-        tools: toolList,
+        tools: Object.entries(tools).map(
+          ([name, { description, parameters }]) => {
+            return {
+              name,
+              description,
+              inputSchema: zodToJsonSchema(parameters),
+            };
+          }
+        ),
       };
     });
 
     server.setRequestHandler(CallToolRequestSchema, async (request) => {
-      const toolName = request.params.name as ToolName;
-
-      if (!(toolName in tools)) {
-        throw new Error('tool not found');
-      }
-
-      const tool = tools[toolName];
-
-      if (!tool) {
-        throw new Error('tool not found');
-      }
-
-      const args = tool.parameters.parse(request.params.arguments ?? {});
-
       try {
+        const tools = await getTools();
+        const toolName = request.params.name;
+
+        if (!(toolName in tools)) {
+          throw new Error('tool not found');
+        }
+
+        const tool = tools[toolName];
+
+        if (!tool) {
+          throw new Error('tool not found');
+        }
+
+        const args = tool.parameters
+          .strict()
+          .parse(request.params.arguments ?? {});
+
         const result = await tool.execute(args);
         const content = result
           ? [{ type: 'text', text: JSON.stringify(result) }]

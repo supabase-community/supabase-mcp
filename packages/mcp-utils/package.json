@@ -10,6 +10,7 @@
   "scripts": {
     "build": "tsup --clean",
     "test": "vitest",
+    "test:coverage": "vitest --coverage",
     "prepublishOnly": "npm run build"
   },
   "files": [

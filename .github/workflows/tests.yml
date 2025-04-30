@@ -21,4 +21,8 @@ jobs:
       - name: Build libs
         run: npm run build
       - name: Tests
-        run: npm run test
+        run: npm run test:coverage
+      - name: Upload coverage results to Coveralls
+        uses: coverallsapp/github-action@v2
+        with:
+          base-path: ./packages/mcp-server-supabase

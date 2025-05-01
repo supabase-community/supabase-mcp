@@ -34,4 +34,11 @@ export default defineWorkspace([
       testTimeout: 60_000,
     },
   },
+  {
+    test: {
+      name: 'integration',
+      include: ['test/**/*.integration.ts'],
+      setupFiles: ['./vitest.setup.ts'],
+    },
+  },
 ]);

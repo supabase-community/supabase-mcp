@@ -11,8 +11,9 @@
     "build": "tsup --clean",
     "prepublishOnly": "npm run build",
     "test": "vitest",
-    "test:e2e": "vitest --project e2e",
     "test:unit": "vitest --project unit",
+    "test:e2e": "vitest --project e2e",
+    "test:integration": "vitest --project integration",
     "test:coverage": "vitest --coverage",
     "generate:management-api-types": "openapi-typescript https://api.supabase.com/api/v1-json -o ./src/management-api/types.ts"
   },

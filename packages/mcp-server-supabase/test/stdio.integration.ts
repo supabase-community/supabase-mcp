@@ -1,11 +1,7 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { describe, expect, test } from 'vitest';
-import {
-  ACCESS_TOKEN,
-  MCP_CLIENT_NAME,
-  MCP_CLIENT_VERSION,
-} from '../test/mocks.js';
+import { ACCESS_TOKEN, MCP_CLIENT_NAME, MCP_CLIENT_VERSION } from './mocks.js';
 import { LoggingMessageNotificationSchema } from '@modelcontextprotocol/sdk/types.js';
 
 type SetupOptions = {
@@ -36,7 +32,8 @@ async function setup(options: SetupOptions = {}) {
     }
   });
 
-  const args = ['-y', '@supabase/mcp-server-supabase'];
+  const command = 'npx';
+  const args = ['@supabase/mcp-server-supabase'];
 
   if (accessToken) {
     args.push('--access-token', accessToken);
@@ -51,7 +48,7 @@ async function setup(options: SetupOptions = {}) {
   }
 
   const clientTransport = new StdioClientTransport({
-    command: 'npx',
+    command,
     args,
   });
 

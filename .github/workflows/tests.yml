@@ -19,6 +19,12 @@ jobs:
       - name: Install dependencies
         run: npm ci --ignore-scripts
       - name: Build libs
-        run: npm run build
+        run: |
+          npm run build
+          npm rebuild # To create bin links
       - name: Tests
-        run: npm run test
+        run: npm run test:coverage
+      - name: Upload coverage results to Coveralls
+        uses: coverallsapp/github-action@v2
+        with:
+          base-path: ./packages/mcp-server-supabase

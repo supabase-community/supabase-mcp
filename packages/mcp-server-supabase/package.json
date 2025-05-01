@@ -11,8 +11,10 @@
     "build": "tsup --clean",
     "prepublishOnly": "npm run build",
     "test": "vitest",
-    "test:e2e": "vitest --project e2e",
     "test:unit": "vitest --project unit",
+    "test:e2e": "vitest --project e2e",
+    "test:integration": "vitest --project integration",
+    "test:coverage": "vitest --coverage",
     "generate:management-api-types": "openapi-typescript https://api.supabase.com/api/v1-json -o ./src/management-api/types.ts"
   },
   "files": [
@@ -42,6 +44,7 @@
     "@total-typescript/tsconfig": "^1.0.4",
     "@types/common-tags": "^1.8.4",
     "@types/node": "^22.8.6",
+    "@vitest/coverage-v8": "^2.1.9",
     "ai": "^4.3.4",
     "date-fns": "^4.1.0",
     "dotenv": "^16.5.0",

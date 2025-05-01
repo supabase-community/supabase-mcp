@@ -4,7 +4,10 @@ import {
   type ManagementApiClient,
 } from '../management-api/index.js';
 import { listExtensionsSql, listTablesSql } from '../pg-meta/index.js';
-import type { PostgresExtension, PostgresTable } from '../pg-meta/types.js';
+import {
+  postgresExtensionSchema,
+  postgresTableSchema,
+} from '../pg-meta/types.js';
 import { injectableTool } from './util.js';
 
 export type DatabaseOperationToolsOptions = {
@@ -54,8 +57,9 @@ export function getDatabaseOperationTools({
       inject: { project_id },
       execute: async ({ project_id, schemas }) => {
         const sql = listTablesSql(schemas);
-        const data = await executeSql<PostgresTable>(project_id, sql);
-        return data;
+        const data = await executeSql(project_id, sql);
+        const tables = data.map((table) => postgresTableSchema.parse(table));
+        return tables;
       },
     }),
     list_extensions: injectableTool({
@@ -66,8 +70,11 @@ export function getDatabaseOperationTools({
       inject: { project_id },
       execute: async ({ project_id }) => {
         const sql = listExtensionsSql();
-        const data = await executeSql<PostgresExtension>(project_id, sql);
-        return data;
+        const data = await executeSql(project_id, sql);
+        const extensions = data.map((extension) =>
+          postgresExtensionSchema.parse(extension)
+        );
+        return extensions;
       },
     }),
     list_migrations: injectableTool({

@@ -1,6 +1,10 @@
 import { createMcpServer, type Tool } from '@supabase/mcp-utils';
 import packageJson from '../package.json' with { type: 'json' };
 import {
+  createContentApiClient,
+  type ContentApiClient,
+} from './content-api/index.js';
+import {
   createManagementApiClient,
   type ManagementApiClient,
 } from './management-api/index.js';
@@ -8,6 +12,7 @@ import { getBranchingTools } from './tools/branching-tools.js';
 import { getDatabaseOperationTools } from './tools/database-operation-tools.js';
 import { getDebuggingTools } from './tools/debugging-tools.js';
 import { getDevelopmentTools } from './tools/development-tools.js';
+import { getDocsTools } from './tools/docs-tools.js';
 import { getEdgeFunctionTools } from './tools/edge-function-tools.js';
 import { getProjectManagementTools } from './tools/project-management-tools.js';
 
@@ -23,6 +28,11 @@ export type SupabasePlatformOptions = {
    * The API URL for the Supabase Management API.
    */
   apiUrl?: string;
+
+  /**
+   * The API URL for the Supabase Content API.
+   */
+  contentApiUrl?: string;
 };
 
 export type SupabaseMcpServerOptions = {
@@ -49,17 +59,21 @@ export type SupabaseMcpServerOptions = {
  * Creates an MCP server for interacting with Supabase.
  */
 export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
+  const contentApiUrl =
+    options.platform.contentApiUrl ?? 'https://supabase.com/docs/api/graphql';
   const managementApiUrl =
     options.platform.apiUrl ?? 'https://api.supabase.com';
   const projectId = options.projectId;
   const readOnly = options.readOnly;
 
+  let contentApiClient: ContentApiClient;
   let managementApiClient: ManagementApiClient;
 
   const server = createMcpServer({
     name: 'supabase',
     version,
     onInitialize({ clientInfo }) {
+      contentApiClient = createContentApiClient(contentApiUrl);
       managementApiClient = createManagementApiClient(
         managementApiUrl,
         options.platform.accessToken,
@@ -102,6 +116,9 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
         getBranchingTools({
           managementApiClient,
           projectId,
+        }),
+        getDocsTools({
+          contentApiClient,
         })
       );
 

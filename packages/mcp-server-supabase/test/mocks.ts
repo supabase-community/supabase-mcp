@@ -1,11 +1,13 @@
 import { PGlite, type PGliteInterface } from '@electric-sql/pglite';
 import { format } from 'date-fns';
+import { buildSchema, parse, validate } from 'graphql';
 import { http, HttpResponse } from 'msw';
 import { customAlphabet } from 'nanoid';
 import { join } from 'node:path';
 import { expect } from 'vitest';
 import { z } from 'zod';
 import packageJson from '../package.json' with { type: 'json' };
+import contentApiSchema from '../src/__generated__/content-api-schema.text';
 import { getDeploymentId, getPathPrefix } from '../src/edge-function.js';
 import { bundleFiles } from '../src/eszip.js';
 import type { components } from '../src/management-api/types.js';
@@ -16,6 +18,7 @@ const { version } = packageJson;
 const nanoid = customAlphabet('abcdefghijklmnopqrstuvwxyz', 20);
 
 export const API_URL = 'https://api.supabase.com';
+export const CONTENT_API_URL = 'https://supabase.com/docs/api/graphql';
 export const MCP_SERVER_NAME = 'supabase-mcp';
 export const MCP_SERVER_VERSION = version;
 export const MCP_CLIENT_NAME = 'test-client';
@@ -37,6 +40,29 @@ export type Migration = {
 export const mockOrgs = new Map<string, Organization>();
 export const mockProjects = new Map<string, MockProject>();
 export const mockBranches = new Map<string, MockBranch>();
+
+export const mockContentApi = [
+  http.post(CONTENT_API_URL, async ({ request }) => {
+    const json = await request.json();
+    if (!json || typeof json !== 'object') {
+      throw Error('Incorrect type of request body');
+    }
+    const query: string = json.query;
+
+    if (query.includes('SchemaQuery')) {
+      return HttpResponse.json({ data: { schema: 'dummy schema' } });
+    } else {
+      const schema = buildSchema(contentApiSchema);
+      const queryDocument = parse(query);
+      const validationErrors = validate(schema, queryDocument);
+
+      if (validationErrors.length > 0) {
+        throw Error('Invalid query made to Content API');
+      }
+      return HttpResponse.json({ data: { 'dummy response': true } });
+    }
+  }),
+];
 
 export const mockManagementApi = [
   http.get(TRACE_URL, () => {

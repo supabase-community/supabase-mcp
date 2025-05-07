@@ -1,13 +1,13 @@
 {
-  "workspaces": [
-    "packages/*"
-  ],
+  "name": "mcp-server-supabase",
+  "workspaces": ["packages/*"],
   "scripts": {
     "build": "npm run build --workspace @supabase/mcp-utils --workspace @supabase/mcp-server-supabase",
     "test": "npm run test --workspace @supabase/mcp-utils --workspace @supabase/mcp-server-supabase",
     "test:coverage": "npm run test:coverage --workspace @supabase/mcp-server-supabase"
   },
   "devDependencies": {
+    "@biomejs/biome": "1.9.4",
     "supabase": "^2.1.1"
   }
 }

@@ -16,6 +16,7 @@ import {
   MCP_CLIENT_NAME,
   MCP_CLIENT_VERSION,
   mockBranches,
+  mockContentApi,
   mockManagementApi,
   mockOrgs,
   mockProjects,
@@ -28,7 +29,7 @@ beforeEach(async () => {
   mockProjects.clear();
   mockBranches.clear();
 
-  const server = setupServer(...mockManagementApi);
+  const server = setupServer(...mockContentApi, ...mockManagementApi);
   server.listen({ onUnhandledRequest: 'error' });
 });
 
@@ -2059,5 +2060,38 @@ describe('project scoped tools', () => {
         ],
       }),
     ]);
+  });
+});
+
+describe('docs tools', () => {
+  test('gets content api schema', async () => {
+    const { callTool } = await setup();
+
+    const result = await callTool({
+      name: 'get_latest_content_api_schema',
+    });
+    expect(result).toEqual({ schema: 'dummy schema' });
+  });
+
+  test('gets content', async () => {
+    const { callTool } = await setup();
+    const query = `
+      query ContentQuery {
+        searchDocs(query: "typescript") {
+          nodes {
+            title
+            href
+          }
+        }
+      }
+      `;
+
+    const result = await callTool({
+      name: 'get_docs',
+      arguments: {
+        query,
+      },
+    });
+    expect(result).toEqual({ 'dummy response': true });
   });
 });

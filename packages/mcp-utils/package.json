@@ -13,9 +13,7 @@
     "test:coverage": "vitest --coverage",
     "prepublishOnly": "npm run build"
   },
-  "files": [
-    "dist/**/*"
-  ],
+  "files": ["dist/**/*"],
   "exports": {
     ".": {
       "import": "./dist/index.js",

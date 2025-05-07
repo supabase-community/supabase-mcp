@@ -56,10 +56,17 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
 
   let managementApiClient: ManagementApiClient;
 
+  console.log('creating supabase mcp server');
+
   const server = createMcpServer({
     name: 'supabase',
     version,
-    onInitialize({ clientInfo }) {
+    onInitialize(info) {
+      const { clientInfo } = info ?? {};
+      if (!clientInfo) {
+        throw new Error('Client info is required');
+      }
+      console.log('on initialize', clientInfo);
       managementApiClient = createManagementApiClient(
         managementApiUrl,
         options.platform.accessToken,
@@ -69,6 +76,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       );
     },
     tools: () => {
+      console.log('getting tools');
       const tools: Record<string, Tool> = {};
 
       // Add account-level tools only if projectId is not provided

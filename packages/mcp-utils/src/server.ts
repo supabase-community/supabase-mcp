@@ -169,7 +169,7 @@ export type InitData = {
   clientCapabilities: ClientCapabilities;
 };
 
-export type PropCallback<T> = (initData: InitData) => T | Promise<T>;
+export type PropCallback<T> = (initData?: InitData) => T | Promise<T>;
 export type Prop<T> = T | PropCallback<T>;
 
 export type McpServerOptions = {
@@ -230,7 +230,9 @@ export type McpServerOptions = {
  * API for defining resources and tools.
  */
 export function createMcpServer(options: McpServerOptions) {
-  const capabilities: ServerCapabilities = {};
+  const capabilities: ServerCapabilities = {
+    logging: {},
+  };
 
   if (options.resources) {
     capabilities.resources = {};
@@ -256,26 +258,26 @@ export function createMcpServer(options: McpServerOptions) {
   });
 
   async function getResources() {
-    const initData = await initialized;
+    // const initData = await initialized;
 
     if (!options.resources) {
       throw new Error('resources not available');
     }
 
     return typeof options.resources === 'function'
-      ? await options.resources(initData)
+      ? await options.resources()
       : options.resources;
   }
 
   async function getTools() {
-    const initData = await initialized;
+    // const initData = await initialized;
 
     if (!options.tools) {
       throw new Error('tools not available');
     }
 
     return typeof options.tools === 'function'
-      ? await options.tools(initData)
+      ? await options.tools()
       : options.tools;
   }
 

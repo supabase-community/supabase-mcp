@@ -204,6 +204,19 @@ The PostgREST MCP server allows you to connect your own users to your app via RE
 - [**Model Context Protocol**](https://modelcontextprotocol.io/introduction): Learn more about MCP and its capabilities.
 - [**From development to production**](/docs/production.md): Learn how to safely promote changes to production environments.
 
+## For developers
+
+This repo uses npm for package management, and the latest LTS version of Node.js.
+
+Clone the repo and run:
+
+```
+npm install --ignore-scripts
+```
+
+> [!NOTE]
+> On recent versions of MacOS, you may have trouble installing the `libpg-query` transient dependency without the `--ignore-scripts` flag.
+
 ## License
 
 This project is licensed under Apache 2.0. See the [LICENSE](./LICENSE) file for details.

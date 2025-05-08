@@ -1,5 +1,5 @@
 import { codeBlock } from 'common-tags';
-import { fileURLToPath } from 'url';
+import { fileURLToPath } from 'node:url';
 import { extractFiles } from './eszip.js';
 import {
   assertSuccess,
@@ -84,11 +84,17 @@ export async function getFullEdgeFunction(
   const pathPrefix = getPathPrefix(deploymentId);
 
   const entrypoint_path = edgeFunction.entrypoint_path
-    ? fileURLToPath(edgeFunction.entrypoint_path).replace(pathPrefix, '')
+    ? fileURLToPath(edgeFunction.entrypoint_path, { windows: false }).replace(
+        pathPrefix,
+        ''
+      )
     : undefined;
 
   const import_map_path = edgeFunction.import_map_path
-    ? fileURLToPath(edgeFunction.import_map_path).replace(pathPrefix, '')
+    ? fileURLToPath(edgeFunction.import_map_path, { windows: false }).replace(
+        pathPrefix,
+        ''
+      )
     : undefined;
 
   const eszipResponse = await managementApiClient.GET(

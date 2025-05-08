@@ -2,7 +2,7 @@ import { PGlite, type PGliteInterface } from '@electric-sql/pglite';
 import { format } from 'date-fns';
 import { http, HttpResponse } from 'msw';
 import { customAlphabet } from 'nanoid';
-import { join } from 'node:path';
+import { join } from 'node:path/posix';
 import { expect } from 'vitest';
 import { z } from 'zod';
 import packageJson from '../package.json' with { type: 'json' };

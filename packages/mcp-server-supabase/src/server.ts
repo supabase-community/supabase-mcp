@@ -68,45 +68,33 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
         }
       );
     },
-    tools: () => {
-      const tools: Record<string, Tool> = {};
-
-      // Add account-level tools only if projectId is not provided
-      if (!projectId) {
-        Object.assign(
-          tools,
-          getProjectManagementTools({ managementApiClient })
-        );
-      }
-
-      // Add project-level tools
-      Object.assign(
-        tools,
-        getDatabaseOperationTools({
-          managementApiClient,
-          projectId,
-          readOnly,
-        }),
-        getEdgeFunctionTools({
-          managementApiClient,
-          projectId,
-        }),
-        getDebuggingTools({
-          managementApiClient,
-          projectId,
-        }),
-        getDevelopmentTools({
-          managementApiClient,
-          projectId,
-        }),
-        getBranchingTools({
-          managementApiClient,
-          projectId,
-        })
-      );
-
-      return tools;
-    },
+    tools: () => ({
+      ...getProjectManagementTools({
+        managementApiClient,
+        projectId,
+      }),
+      ...getDatabaseOperationTools({
+        managementApiClient,
+        projectId,
+        readOnly,
+      }),
+      ...getEdgeFunctionTools({
+        managementApiClient,
+        projectId,
+      }),
+      ...getDebuggingTools({
+        managementApiClient,
+        projectId,
+      }),
+      ...getDevelopmentTools({
+        managementApiClient,
+        projectId,
+      }),
+      ...getBranchingTools({
+        managementApiClient,
+        projectId,
+      }),
+    }),
   });
 
   return server;

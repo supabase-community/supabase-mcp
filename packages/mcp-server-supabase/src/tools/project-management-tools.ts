@@ -1,4 +1,4 @@
-import { tool } from '@supabase/mcp-utils';
+import { tool, type Tool } from '@supabase/mcp-utils';
 import { z } from 'zod';
 import {
   assertSuccess,
@@ -13,71 +13,31 @@ import {
   getCountryCoordinates,
 } from '../regions.js';
 import { hashObject } from '../util.js';
+import { injectableTool } from './util.js';
 
 export type ProjectManagementToolsOptions = {
   managementApiClient: ManagementApiClient;
+  projectId?: string;
 };
 
 export function getProjectManagementTools({
   managementApiClient,
+  projectId,
 }: ProjectManagementToolsOptions) {
   async function getClosestRegion() {
     return getClosestAwsRegion(getCountryCoordinates(await getCountryCode()))
       .code;
   }
 
-  return {
-    list_organizations: tool({
-      description: 'Lists all organizations that the user is a member of.',
-      parameters: z.object({}),
-      execute: async () => {
-        const response = await managementApiClient.GET('/v1/organizations');
+  const tools: Record<string, Tool> = {};
 
-        assertSuccess(response, 'Failed to fetch organizations');
-
-        return response.data;
-      },
-    }),
-    get_organization: tool({
-      description:
-        'Gets details for an organization. Includes subscription plan.',
-      parameters: z.object({
-        id: z.string().describe('The organization ID'),
-      }),
-      execute: async ({ id: organizationId }) => {
-        const response = await managementApiClient.GET(
-          '/v1/organizations/{slug}',
-          {
-            params: {
-              path: {
-                slug: organizationId,
-              },
-            },
-          }
-        );
-
-        assertSuccess(response, 'Failed to fetch organization');
-
-        return response.data;
-      },
-    }),
-    list_projects: tool({
-      description:
-        'Lists all Supabase projects for the user. Use this to help discover the project ID of the project that the user is working on.',
-      parameters: z.object({}),
-      execute: async () => {
-        const response = await managementApiClient.GET('/v1/projects');
-
-        assertSuccess(response, 'Failed to fetch projects');
-
-        return response.data;
-      },
-    }),
-    get_project: tool({
+  Object.assign(tools, {
+    get_project: injectableTool({
       description: 'Gets details for a Supabase project.',
       parameters: z.object({
         id: z.string().describe('The project ID'),
       }),
+      inject: { id: projectId },
       execute: async ({ id }) => {
         const response = await managementApiClient.GET('/v1/projects/{ref}', {
           params: {
@@ -132,97 +92,150 @@ export function getProjectManagementTools({
         return await hashObject(cost);
       },
     }),
-    create_project: tool({
-      description:
-        'Creates a new Supabase project. Always ask the user which organization to create the project in. The project can take a few minutes to initialize - use `get_project` to check the status.',
-      parameters: z.object({
-        name: z.string().describe('The name of the project'),
-        region: z.optional(
-          z
-            .enum(AWS_REGION_CODES)
-            .describe(
-              'The region to create the project in. Defaults to the closest region.'
-            )
-        ),
-        organization_id: z.string(),
-        confirm_cost_id: z
-          .string({
-            required_error:
-              'User must confirm understanding of costs before creating a project.',
-          })
-          .describe('The cost confirmation ID. Call `confirm_cost` first.'),
+  });
+
+  if (!projectId) {
+    Object.assign(tools, {
+      list_organizations: tool({
+        description: 'Lists all organizations that the user is a member of.',
+        parameters: z.object({}),
+        execute: async () => {
+          const response = await managementApiClient.GET('/v1/organizations');
+
+          assertSuccess(response, 'Failed to fetch organizations');
+
+          return response.data;
+        },
       }),
-      execute: async ({ name, region, organization_id, confirm_cost_id }) => {
-        const cost = await getNextProjectCost(
-          managementApiClient,
-          organization_id
-        );
-        const costHash = await hashObject(cost);
-        if (costHash !== confirm_cost_id) {
-          throw new Error(
-            'Cost confirmation ID does not match the expected cost of creating a project.'
+      get_organization: tool({
+        description:
+          'Gets details for an organization. Includes subscription plan.',
+        parameters: z.object({
+          id: z.string().describe('The organization ID'),
+        }),
+        execute: async ({ id: organizationId }) => {
+          const response = await managementApiClient.GET(
+            '/v1/organizations/{slug}',
+            {
+              params: {
+                path: {
+                  slug: organizationId,
+                },
+              },
+            }
           );
-        }
 
-        const response = await managementApiClient.POST('/v1/projects', {
-          body: {
-            name,
-            region: region ?? (await getClosestRegion()),
-            organization_id,
-            db_pass: generatePassword({
-              length: 16,
-              numbers: true,
-              uppercase: true,
-              lowercase: true,
-            }),
-          },
-        });
+          assertSuccess(response, 'Failed to fetch organization');
 
-        assertSuccess(response, 'Failed to create project');
-
-        return response.data;
-      },
-    }),
-    pause_project: tool({
-      description: 'Pauses a Supabase project.',
-      parameters: z.object({
-        project_id: z.string(),
+          return response.data;
+        },
       }),
-      execute: async ({ project_id }) => {
-        const response = await managementApiClient.POST(
-          '/v1/projects/{ref}/pause',
-          {
-            params: {
-              path: {
-                ref: project_id,
-              },
-            },
-          }
-        );
+      list_projects: tool({
+        description:
+          'Lists all Supabase projects for the user. Use this to help discover the project ID of the project that the user is working on.',
+        parameters: z.object({}),
+        execute: async () => {
+          const response = await managementApiClient.GET('/v1/projects');
 
-        assertSuccess(response, 'Failed to pause project');
-      },
-    }),
-    restore_project: tool({
-      description: 'Restores a Supabase project.',
-      parameters: z.object({
-        project_id: z.string(),
+          assertSuccess(response, 'Failed to fetch projects');
+
+          return response.data;
+        },
       }),
-      execute: async ({ project_id }) => {
-        const response = await managementApiClient.POST(
-          '/v1/projects/{ref}/restore',
-          {
-            params: {
-              path: {
-                ref: project_id,
-              },
-            },
-            body: {},
+      create_project: tool({
+        description:
+          'Creates a new Supabase project. Always ask the user which organization to create the project in. The project can take a few minutes to initialize - use `get_project` to check the status.',
+        parameters: z.object({
+          name: z.string().describe('The name of the project'),
+          region: z.optional(
+            z
+              .enum(AWS_REGION_CODES)
+              .describe(
+                'The region to create the project in. Defaults to the closest region.'
+              )
+          ),
+          organization_id: z.string(),
+          confirm_cost_id: z
+            .string({
+              required_error:
+                'User must confirm understanding of costs before creating a project.',
+            })
+            .describe('The cost confirmation ID. Call `confirm_cost` first.'),
+        }),
+        execute: async ({ name, region, organization_id, confirm_cost_id }) => {
+          const cost = await getNextProjectCost(
+            managementApiClient,
+            organization_id
+          );
+          const costHash = await hashObject(cost);
+          if (costHash !== confirm_cost_id) {
+            throw new Error(
+              'Cost confirmation ID does not match the expected cost of creating a project.'
+            );
           }
-        );
 
-        assertSuccess(response, 'Failed to restore project');
-      },
-    }),
-  };
+          const response = await managementApiClient.POST('/v1/projects', {
+            body: {
+              name,
+              region: region ?? (await getClosestRegion()),
+              organization_id,
+              db_pass: generatePassword({
+                length: 16,
+                numbers: true,
+                uppercase: true,
+                lowercase: true,
+              }),
+            },
+          });
+
+          assertSuccess(response, 'Failed to create project');
+
+          return response.data;
+        },
+      }),
+      pause_project: tool({
+        description: 'Pauses a Supabase project.',
+        parameters: z.object({
+          project_id: z.string(),
+        }),
+        execute: async ({ project_id }) => {
+          const response = await managementApiClient.POST(
+            '/v1/projects/{ref}/pause',
+            {
+              params: {
+                path: {
+                  ref: project_id,
+                },
+              },
+            }
+          );
+
+          assertSuccess(response, 'Failed to pause project');
+        },
+      }),
+      restore_project: tool({
+        description: 'Restores a Supabase project.',
+        parameters: z.object({
+          project_id: z.string(),
+        }),
+        execute: async ({ project_id }) => {
+          const response = await managementApiClient.POST(
+            '/v1/projects/{ref}/restore',
+            {
+              params: {
+                path: {
+                  ref: project_id,
+                },
+              },
+              body: {},
+            }
+          );
+
+          assertSuccess(response, 'Failed to restore project');
+        },
+      }),
+    });
+  }
+
+  return tools;
 }

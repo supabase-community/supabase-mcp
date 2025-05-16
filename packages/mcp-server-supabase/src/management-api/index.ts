@@ -1,6 +1,7 @@
 import createClient, {
   type Client,
   type FetchResponse,
+  type HeadersOptions,
   type ParseAsResponse,
 } from 'openapi-fetch';
 import type {
@@ -13,15 +14,22 @@ import type { paths } from './types.js';
 
 export function createManagementApiClient(
   baseUrl: string,
-  accessToken: string,
+  accessToken?: string,
   headers: Record<string, string> = {}
 ) {
+  const clientHeaders: HeadersOptions = {};
+
+  if (accessToken) {
+    clientHeaders.Authorization = `Bearer ${accessToken}`;
+  }
+
+  if (headers) {
+    Object.assign(clientHeaders, headers);
+  }
+
   return createClient<paths>({
     baseUrl,
-    headers: {
-      Authorization: `Bearer ${accessToken}`,
-      ...headers,
-    },
+    headers: clientHeaders,
   });
 }
 

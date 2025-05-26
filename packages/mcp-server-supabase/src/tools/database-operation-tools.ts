@@ -1,47 +1,23 @@
 import { z } from 'zod';
-import {
-  assertSuccess,
-  type ManagementApiClient,
-} from '../management-api/index.js';
 import { listExtensionsSql, listTablesSql } from '../pg-meta/index.js';
 import {
   postgresExtensionSchema,
   postgresTableSchema,
 } from '../pg-meta/types.js';
+import type { SupabasePlatform } from '../platform/types.js';
 import { injectableTool } from './util.js';
 
 export type DatabaseOperationToolsOptions = {
-  managementApiClient: ManagementApiClient;
+  platform: SupabasePlatform;
   projectId?: string;
   readOnly?: boolean;
 };
 
 export function getDatabaseOperationTools({
-  managementApiClient,
+  platform,
   projectId,
   readOnly,
 }: DatabaseOperationToolsOptions) {
-  async function executeSql<T>(projectId: string, query: string): Promise<T[]> {
-    const response = await managementApiClient.POST(
-      '/v1/projects/{ref}/database/query',
-      {
-        params: {
-          path: {
-            ref: projectId,
-          },
-        },
-        body: {
-          query,
-          read_only: readOnly,
-        },
-      }
-    );
-
-    assertSuccess(response, 'Failed to execute SQL query');
-
-    return response.data as unknown as T[];
-  }
-
   const project_id = projectId;
 
   const databaseOperationTools = {
@@ -56,8 +32,11 @@ export function getDatabaseOperationTools({
       }),
       inject: { project_id },
       execute: async ({ project_id, schemas }) => {
-        const sql = listTablesSql(schemas);
-        const data = await executeSql(project_id, sql);
+        const query = listTablesSql(schemas);
+        const data = await platform.executeSql(project_id, {
+          query,
+          read_only: readOnly,
+        });
         const tables = data.map((table) => postgresTableSchema.parse(table));
         return tables;
       },
@@ -69,8 +48,11 @@ export function getDatabaseOperationTools({
       }),
       inject: { project_id },
       execute: async ({ project_id }) => {
-        const sql = listExtensionsSql();
-        const data = await executeSql(project_id, sql);
+        const query = listExtensionsSql();
+        const data = await platform.executeSql(project_id, {
+          query,
+          read_only: readOnly,
+        });
         const extensions = data.map((extension) =>
           postgresExtensionSchema.parse(extension)
         );
@@ -84,20 +66,7 @@ export function getDatabaseOperationTools({
       }),
       inject: { project_id },
       execute: async ({ project_id }) => {
-        const response = await managementApiClient.GET(
-          '/v1/projects/{ref}/database/migrations',
-          {
-            params: {
-              path: {
-                ref: project_id,
-              },
-            },
-          }
-        );
-
-        assertSuccess(response, 'Failed to fetch migrations');
-
-        return response.data;
+        return await platform.listMigrations(project_id);
       },
     }),
     apply_migration: injectableTool({
@@ -114,24 +83,10 @@ export function getDatabaseOperationTools({
           throw new Error('Cannot apply migration in read-only mode.');
         }
 
-        const response = await managementApiClient.POST(
-          '/v1/projects/{ref}/database/migrations',
-          {
-            params: {
-              path: {
-                ref: project_id,
-              },
-            },
-            body: {
-              name,
-              query,
-            },
-          }
-        );
-
-        assertSuccess(response, 'Failed to apply migration');
-
-        return response.data;
+        return await platform.applyMigration(project_id, {
+          name,
+          query,
+        });
       },
     }),
     execute_sql: injectableTool({
@@ -143,14 +98,13 @@ export function getDatabaseOperationTools({
       }),
       inject: { project_id },
       execute: async ({ query, project_id }) => {
-        return await executeSql(project_id, query);
+        return await platform.executeSql(project_id, {
+          query,
+          read_only: readOnly,
+        });
       },
     }),
   };
-
-  type test = z.infer<
-    (typeof databaseOperationTools)['list_tables']['parameters']
-  >;
 
   return databaseOperationTools;
 }

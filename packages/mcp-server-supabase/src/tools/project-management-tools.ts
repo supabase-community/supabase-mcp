@@ -1,41 +1,23 @@
 import { tool } from '@supabase/mcp-utils';
 import { z } from 'zod';
-import {
-  assertSuccess,
-  type ManagementApiClient,
-} from '../management-api/index.js';
-import { generatePassword } from '../password.js';
+import type { SupabasePlatform } from '../platform/types.js';
 import { type Cost, getBranchCost, getNextProjectCost } from '../pricing.js';
-import {
-  AWS_REGION_CODES,
-  getClosestAwsRegion,
-  getCountryCode,
-  getCountryCoordinates,
-} from '../regions.js';
+import { AWS_REGION_CODES } from '../regions.js';
 import { hashObject } from '../util.js';
 
 export type ProjectManagementToolsOptions = {
-  managementApiClient: ManagementApiClient;
+  platform: SupabasePlatform;
 };
 
 export function getProjectManagementTools({
-  managementApiClient,
+  platform,
 }: ProjectManagementToolsOptions) {
-  async function getClosestRegion() {
-    return getClosestAwsRegion(getCountryCoordinates(await getCountryCode()))
-      .code;
-  }
-
   return {
     list_organizations: tool({
       description: 'Lists all organizations that the user is a member of.',
       parameters: z.object({}),
       execute: async () => {
-        const response = await managementApiClient.GET('/v1/organizations');
-
-        assertSuccess(response, 'Failed to fetch organizations');
-
-        return response.data;
+        return await platform.listOrganizations();
       },
     }),
     get_organization: tool({
@@ -45,20 +27,7 @@ export function getProjectManagementTools({
         id: z.string().describe('The organization ID'),
       }),
       execute: async ({ id: organizationId }) => {
-        const response = await managementApiClient.GET(
-          '/v1/organizations/{slug}',
-          {
-            params: {
-              path: {
-                slug: organizationId,
-              },
-            },
-          }
-        );
-
-        assertSuccess(response, 'Failed to fetch organization');
-
-        return response.data;
+        return await platform.getOrganization(organizationId);
       },
     }),
     list_projects: tool({
@@ -66,11 +35,7 @@ export function getProjectManagementTools({
         'Lists all Supabase projects for the user. Use this to help discover the project ID of the project that the user is working on.',
       parameters: z.object({}),
       execute: async () => {
-        const response = await managementApiClient.GET('/v1/projects');
-
-        assertSuccess(response, 'Failed to fetch projects');
-
-        return response.data;
+        return await platform.listProjects();
       },
     }),
     get_project: tool({
@@ -79,15 +44,7 @@ export function getProjectManagementTools({
         id: z.string().describe('The project ID'),
       }),
       execute: async ({ id }) => {
-        const response = await managementApiClient.GET('/v1/projects/{ref}', {
-          params: {
-            path: {
-              ref: id,
-            },
-          },
-        });
-        assertSuccess(response, 'Failed to fetch project');
-        return response.data;
+        return await platform.getProject(id);
       },
     }),
     get_cost: tool({
@@ -105,10 +62,7 @@ export function getProjectManagementTools({
         }
         switch (type) {
           case 'project': {
-            const cost = await getNextProjectCost(
-              managementApiClient,
-              organization_id
-            );
+            const cost = await getNextProjectCost(platform, organization_id);
             return generateResponse(cost);
           }
           case 'branch': {
@@ -153,10 +107,7 @@ export function getProjectManagementTools({
           .describe('The cost confirmation ID. Call `confirm_cost` first.'),
       }),
       execute: async ({ name, region, organization_id, confirm_cost_id }) => {
-        const cost = await getNextProjectCost(
-          managementApiClient,
-          organization_id
-        );
+        const cost = await getNextProjectCost(platform, organization_id);
         const costHash = await hashObject(cost);
         if (costHash !== confirm_cost_id) {
           throw new Error(
@@ -164,23 +115,11 @@ export function getProjectManagementTools({
           );
         }
 
-        const response = await managementApiClient.POST('/v1/projects', {
-          body: {
-            name,
-            region: region ?? (await getClosestRegion()),
-            organization_id,
-            db_pass: generatePassword({
-              length: 16,
-              numbers: true,
-              uppercase: true,
-              lowercase: true,
-            }),
-          },
+        return await platform.createProject({
+          name,
+          region,
+          organization_id,
         });
-
-        assertSuccess(response, 'Failed to create project');
-
-        return response.data;
       },
     }),
     pause_project: tool({
@@ -189,18 +128,7 @@ export function getProjectManagementTools({
         project_id: z.string(),
       }),
       execute: async ({ project_id }) => {
-        const response = await managementApiClient.POST(
-          '/v1/projects/{ref}/pause',
-          {
-            params: {
-              path: {
-                ref: project_id,
-              },
-            },
-          }
-        );
-
-        assertSuccess(response, 'Failed to pause project');
+        return await platform.pauseProject(project_id);
       },
     }),
     restore_project: tool({
@@ -209,19 +137,7 @@ export function getProjectManagementTools({
         project_id: z.string(),
       }),
       execute: async ({ project_id }) => {
-        const response = await managementApiClient.POST(
-          '/v1/projects/{ref}/restore',
-          {
-            params: {
-              path: {
-                ref: project_id,
-              },
-            },
-            body: {},
-          }
-        );
-
-        assertSuccess(response, 'Failed to restore project');
+        return await platform.restoreProject(project_id);
       },
     }),
   };

@@ -1,20 +1,17 @@
 import { tool } from '@supabase/mcp-utils';
 import { z } from 'zod';
-import {
-  assertSuccess,
-  type ManagementApiClient,
-} from '../management-api/index.js';
+import type { SupabasePlatform } from '../platform/types.js';
 import { getBranchCost } from '../pricing.js';
 import { hashObject } from '../util.js';
 import { injectableTool } from './util.js';
 
 export type BranchingToolsOptions = {
-  managementApiClient: ManagementApiClient;
+  platform: SupabasePlatform;
   projectId?: string;
 };
 
 export function getBranchingTools({
-  managementApiClient,
+  platform,
   projectId,
 }: BranchingToolsOptions) {
   const project_id = projectId;
@@ -45,57 +42,7 @@ export function getBranchingTools({
             'Cost confirmation ID does not match the expected cost of creating a branch.'
           );
         }
-
-        const createBranchResponse = await managementApiClient.POST(
-          '/v1/projects/{ref}/branches',
-          {
-            params: {
-              path: {
-                ref: project_id,
-              },
-            },
-            body: {
-              branch_name: name,
-            },
-          }
-        );
-
-        assertSuccess(createBranchResponse, 'Failed to create branch');
-
-        // Creating a default branch means we just enabled branching
-        // TODO: move this logic to API eventually.
-        if (createBranchResponse.data.is_default) {
-          await managementApiClient.PATCH('/v1/branches/{branch_id}', {
-            params: {
-              path: {
-                branch_id: createBranchResponse.data.id,
-              },
-            },
-            body: {
-              branch_name: 'main',
-            },
-          });
-
-          const response = await managementApiClient.POST(
-            '/v1/projects/{ref}/branches',
-            {
-              params: {
-                path: {
-                  ref: project_id,
-                },
-              },
-              body: {
-                branch_name: name,
-              },
-            }
-          );
-
-          assertSuccess(response, 'Failed to create branch');
-
-          return response.data;
-        }
-
-        return createBranchResponse.data;
+        return await platform.createBranch(project_id, { name });
       },
     }),
     list_branches: injectableTool({
@@ -106,22 +53,7 @@ export function getBranchingTools({
       }),
       inject: { project_id },
       execute: async ({ project_id }) => {
-        const response = await managementApiClient.GET(
-          '/v1/projects/{ref}/branches',
-          {
-            params: {
-              path: {
-                ref: project_id,
-              },
-            },
-          }
-        );
-
-        // There are no branches if branching is disabled
-        if (response.response.status === 422) return [];
-        assertSuccess(response, 'Failed to list branches');
-
-        return response.data;
+        return await platform.listBranches(project_id);
       },
     }),
     delete_branch: tool({
@@ -130,20 +62,7 @@ export function getBranchingTools({
         branch_id: z.string(),
       }),
       execute: async ({ branch_id }) => {
-        const response = await managementApiClient.DELETE(
-          '/v1/branches/{branch_id}',
-          {
-            params: {
-              path: {
-                branch_id,
-              },
-            },
-          }
-        );
-
-        assertSuccess(response, 'Failed to delete branch');
-
-        return response.data;
+        return await platform.deleteBranch(branch_id);
       },
     }),
     merge_branch: tool({
@@ -153,21 +72,7 @@ export function getBranchingTools({
         branch_id: z.string(),
       }),
       execute: async ({ branch_id }) => {
-        const response = await managementApiClient.POST(
-          '/v1/branches/{branch_id}/merge',
-          {
-            params: {
-              path: {
-                branch_id,
-              },
-            },
-            body: {},
-          }
-        );
-
-        assertSuccess(response, 'Failed to merge branch');
-
-        return response.data;
+        return await platform.mergeBranch(branch_id);
       },
     }),
     reset_branch: tool({
@@ -183,23 +88,9 @@ export function getBranchingTools({
           ),
       }),
       execute: async ({ branch_id, migration_version }) => {
-        const response = await managementApiClient.POST(
-          '/v1/branches/{branch_id}/reset',
-          {
-            params: {
-              path: {
-                branch_id,
-              },
-            },
-            body: {
-              migration_version,
-            },
-          }
-        );
-
-        assertSuccess(response, 'Failed to reset branch');
-
-        return response.data;
+        return await platform.resetBranch(branch_id, {
+          migration_version,
+        });
       },
     }),
     rebase_branch: tool({
@@ -209,21 +100,7 @@ export function getBranchingTools({
         branch_id: z.string(),
       }),
       execute: async ({ branch_id }) => {
-        const response = await managementApiClient.POST(
-          '/v1/branches/{branch_id}/push',
-          {
-            params: {
-              path: {
-                branch_id,
-              },
-            },
-            body: {},
-          }
-        );
-
-        assertSuccess(response, 'Failed to rebase branch');
-
-        return response.data;
+        return await platform.rebaseBranch(branch_id);
       },
     }),
   };

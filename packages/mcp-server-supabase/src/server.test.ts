@@ -20,6 +20,7 @@ import {
   mockOrgs,
   mockProjects,
 } from '../test/mocks.js';
+import { createSupabaseCloudPlatform } from './platform/cloud-platform.js';
 import { BRANCH_COST_HOURLY, PROJECT_COST_MONTHLY } from './pricing.js';
 import { createSupabaseMcpServer } from './server.js';
 
@@ -59,11 +60,13 @@ async function setup(options: SetupOptions = {}) {
     }
   );
 
+  const platform = createSupabaseCloudPlatform({
+    accessToken,
+    apiUrl: API_URL,
+  });
+
   const server = createSupabaseMcpServer({
-    platform: {
-      apiUrl: API_URL,
-      accessToken,
-    },
+    platform,
     projectId,
     readOnly,
   });
@@ -1618,15 +1621,11 @@ describe('tools', () => {
       },
     });
 
-    const mergeResult = await callTool({
+    await callTool({
       name: 'merge_branch',
       arguments: {
         branch_id: branch.id,
       },
-    });
-
-    expect(mergeResult).toEqual({
-      migration_version: expect.stringMatching(/^\d{14}$/),
     });
 
     // Check that the migration was applied to the parent project
@@ -1865,15 +1864,11 @@ describe('tools', () => {
       },
     });
 
-    const rebaseResult = await callTool({
+    await callTool({
       name: 'rebase_branch',
       arguments: {
         branch_id: branch.id,
       },
-    });
-
-    expect(rebaseResult).toEqual({
-      migration_version: expect.stringMatching(/^\d{14}$/),
     });
 
     // Check that the production migration was applied to the branch

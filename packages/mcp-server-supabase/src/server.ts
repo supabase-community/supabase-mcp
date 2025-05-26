@@ -1,9 +1,6 @@
 import { createMcpServer, type Tool } from '@supabase/mcp-utils';
 import packageJson from '../package.json' with { type: 'json' };
-import {
-  createManagementApiClient,
-  type ManagementApiClient,
-} from './management-api/index.js';
+import type { SupabasePlatform } from './platform/types.js';
 import { getBranchingTools } from './tools/branching-tools.js';
 import { getDatabaseOperationTools } from './tools/database-operation-tools.js';
 import { getDebuggingTools } from './tools/debugging-tools.js';
@@ -27,9 +24,9 @@ export type SupabasePlatformOptions = {
 
 export type SupabaseMcpServerOptions = {
   /**
-   * Platform options for Supabase.
+   * Platform implementation for Supabase.
    */
-  platform: SupabasePlatformOptions;
+  platform: SupabasePlatform;
 
   /**
    * The project ID to scope the server to.
@@ -49,60 +46,30 @@ export type SupabaseMcpServerOptions = {
  * Creates an MCP server for interacting with Supabase.
  */
 export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
-  const managementApiUrl =
-    options.platform.apiUrl ?? 'https://api.supabase.com';
-  const projectId = options.projectId;
-  const readOnly = options.readOnly;
-
-  let managementApiClient: ManagementApiClient;
+  const { platform, projectId, readOnly } = options;
 
   const server = createMcpServer({
     name: 'supabase',
     version,
-    onInitialize({ clientInfo }) {
-      managementApiClient = createManagementApiClient(
-        managementApiUrl,
-        options.platform.accessToken,
-        {
-          'User-Agent': `supabase-mcp/${version} (${clientInfo.name}/${clientInfo.version})`,
-        }
-      );
+    async onInitialize(info) {
+      await platform.init?.(info);
     },
     tools: () => {
       const tools: Record<string, Tool> = {};
 
       // Add account-level tools only if projectId is not provided
       if (!projectId) {
-        Object.assign(
-          tools,
-          getProjectManagementTools({ managementApiClient })
-        );
+        Object.assign(tools, getProjectManagementTools({ platform }));
       }
 
       // Add project-level tools
       Object.assign(
         tools,
-        getDatabaseOperationTools({
-          managementApiClient,
-          projectId,
-          readOnly,
-        }),
-        getEdgeFunctionTools({
-          managementApiClient,
-          projectId,
-        }),
-        getDebuggingTools({
-          managementApiClient,
-          projectId,
-        }),
-        getDevelopmentTools({
-          managementApiClient,
-          projectId,
-        }),
-        getBranchingTools({
-          managementApiClient,
-          projectId,
-        })
+        getDatabaseOperationTools({ platform, projectId, readOnly }),
+        getEdgeFunctionTools({ platform, projectId }),
+        getDebuggingTools({ platform, projectId }),
+        getDevelopmentTools({ platform, projectId }),
+        getBranchingTools({ platform, projectId })
       );
 
       return tools;

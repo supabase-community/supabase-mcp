@@ -28,6 +28,11 @@
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.cjs"
+    },
+    "./platform": {
+      "import": "./dist/platform/index.js",
+      "types": "./dist/platform/index.d.ts",
+      "default": "./dist/platform/index.cjs"
     }
   },
   "dependencies": {

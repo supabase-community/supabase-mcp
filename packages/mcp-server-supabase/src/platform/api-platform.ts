@@ -30,7 +30,7 @@ import {
   type GetLogsOptions,
   type ResetBranchOptions,
   type SupabasePlatform,
-} from './types.js';
+} from './index.js';
 
 const { version } = packageJson;
 

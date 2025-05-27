@@ -13,15 +13,23 @@ import {
   getCountryCode,
   getCountryCoordinates,
 } from '../regions.js';
-import type {
-  ApplyMigrationOptions,
-  CreateBranchOptions,
-  CreateProjectOptions,
-  DeployEdgeFunctionOptions,
-  EdgeFunction,
-  ExecuteSqlOptions,
-  ResetBranchOptions,
-  SupabasePlatform,
+import {
+  applyMigrationOptionsSchema,
+  createBranchOptionsSchema,
+  createProjectOptionsSchema,
+  deployEdgeFunctionOptionsSchema,
+  executeSqlOptionsSchema,
+  getLogsOptionsSchema,
+  resetBranchOptionsSchema,
+  type ApplyMigrationOptions,
+  type CreateBranchOptions,
+  type CreateProjectOptions,
+  type DeployEdgeFunctionOptions,
+  type EdgeFunction,
+  type ExecuteSqlOptions,
+  type GetLogsOptions,
+  type ResetBranchOptions,
+  type SupabasePlatform,
 } from './types.js';
 
 const { version } = packageJson;
@@ -70,6 +78,8 @@ export function createSupabaseCloudPlatform(
       );
     },
     async executeSql<T>(projectId: string, options: ExecuteSqlOptions) {
+      const { query, read_only } = executeSqlOptionsSchema.parse(options);
+
       const response = await managementApiClient.POST(
         '/v1/projects/{ref}/database/query',
         {
@@ -78,7 +88,10 @@ export function createSupabaseCloudPlatform(
               ref: projectId,
             },
           },
-          body: options,
+          body: {
+            query,
+            read_only,
+          },
         }
       );
 
@@ -103,6 +116,8 @@ export function createSupabaseCloudPlatform(
       return response.data;
     },
     async applyMigration<T>(projectId: string, options: ApplyMigrationOptions) {
+      const { name, query } = applyMigrationOptionsSchema.parse(options);
+
       const response = await managementApiClient.POST(
         '/v1/projects/{ref}/database/migrations',
         {
@@ -111,7 +126,10 @@ export function createSupabaseCloudPlatform(
               ref: projectId,
             },
           },
-          body: options,
+          body: {
+            name,
+            query,
+          },
         }
       );
 
@@ -161,13 +179,16 @@ export function createSupabaseCloudPlatform(
       return response.data;
     },
     async createProject(options: CreateProjectOptions) {
+      const { name, organization_id, region, db_pass } =
+        createProjectOptionsSchema.parse(options);
+
       const response = await managementApiClient.POST('/v1/projects', {
         body: {
-          name: options.name,
-          region: options.region ?? (await getClosestRegion()),
-          organization_id: options.organization_id,
+          name,
+          region: region ?? (await getClosestRegion()),
+          organization_id,
           db_pass:
-            options.db_pass ??
+            db_pass ??
             generatePassword({
               length: 16,
               numbers: true,
@@ -313,20 +334,24 @@ export function createSupabaseCloudPlatform(
       projectId: string,
       options: DeployEdgeFunctionOptions
     ) {
+      let {
+        name,
+        entrypoint_path,
+        import_map_path,
+        files: inputFiles,
+      } = deployEdgeFunctionOptionsSchema.parse(options);
+
       let existingEdgeFunction: EdgeFunction | undefined;
       try {
-        existingEdgeFunction = await platform.getEdgeFunction(
-          projectId,
-          options.name
-        );
+        existingEdgeFunction = await platform.getEdgeFunction(projectId, name);
       } catch (error) {}
 
-      const import_map_file = options.files.find((file) =>
+      const import_map_file = inputFiles.find((file) =>
         ['deno.json', 'import_map.json'].includes(file.name)
       );
 
       // Use existing import map path or file name heuristic if not provided
-      options.import_map_path ??=
+      import_map_path ??=
         existingEdgeFunction?.import_map_path ?? import_map_file?.name;
 
       const response = await managementApiClient.POST(
@@ -336,15 +361,15 @@ export function createSupabaseCloudPlatform(
             path: {
               ref: projectId,
             },
-            query: { slug: options.name },
+            query: { slug: name },
           },
           body: {
             metadata: {
-              name: options.name,
-              entrypoint_path: options.entrypoint_path,
-              import_map_path: options.import_map_path,
+              name,
+              entrypoint_path,
+              import_map_path,
             },
-            file: options.files as any, // We need to pass file name and content to our serializer
+            file: inputFiles as any, // We need to pass file name and content to our serializer
           },
           bodySerializer(body) {
             const formData = new FormData();
@@ -371,14 +396,10 @@ export function createSupabaseCloudPlatform(
 
       return response.data;
     },
-    async getLogs(
-      projectId: string,
-      options: {
-        isoTimestampStart: string;
-        isoTimestampEnd: string;
-        sql: string;
-      }
-    ) {
+    async getLogs(projectId: string, options: GetLogsOptions) {
+      const { sql, iso_timestamp_start, iso_timestamp_end } =
+        getLogsOptionsSchema.parse(options);
+
       const response = await managementApiClient.GET(
         '/v1/projects/{ref}/analytics/endpoints/logs.all',
         {
@@ -387,9 +408,9 @@ export function createSupabaseCloudPlatform(
               ref: projectId,
             },
             query: {
-              sql: options.sql,
-              iso_timestamp_start: options.isoTimestampStart,
-              iso_timestamp_end: options.isoTimestampEnd,
+              sql,
+              iso_timestamp_start,
+              iso_timestamp_end,
             },
           },
         }
@@ -463,6 +484,8 @@ export function createSupabaseCloudPlatform(
       return response.data;
     },
     async createBranch(projectId: string, options: CreateBranchOptions) {
+      const { name } = createBranchOptionsSchema.parse(options);
+
       const createBranchResponse = await managementApiClient.POST(
         '/v1/projects/{ref}/branches',
         {
@@ -472,7 +495,7 @@ export function createSupabaseCloudPlatform(
             },
           },
           body: {
-            branch_name: options.name,
+            branch_name: name,
           },
         }
       );
@@ -502,7 +525,7 @@ export function createSupabaseCloudPlatform(
               },
             },
             body: {
-              branch_name: options.name,
+              branch_name: name,
             },
           }
         );
@@ -544,6 +567,8 @@ export function createSupabaseCloudPlatform(
       assertSuccess(response, 'Failed to merge branch');
     },
     async resetBranch(branchId: string, options: ResetBranchOptions) {
+      const { migration_version } = resetBranchOptionsSchema.parse(options);
+
       const response = await managementApiClient.POST(
         '/v1/branches/{branch_id}/reset',
         {
@@ -552,7 +577,9 @@ export function createSupabaseCloudPlatform(
               branch_id: branchId,
             },
           },
-          body: options,
+          body: {
+            migration_version,
+          },
         }
       );
 

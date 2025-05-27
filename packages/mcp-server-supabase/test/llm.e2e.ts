@@ -13,6 +13,7 @@ import { setupServer } from 'msw/node';
 import { beforeEach, describe, expect, test } from 'vitest';
 import { extractFiles } from '../src/eszip.js';
 import { createSupabaseMcpServer } from '../src/index.js';
+import { createSupabaseCloudPlatform } from '../src/platform/cloud-platform.js';
 import {
   ACCESS_TOKEN,
   API_URL,
@@ -39,11 +40,13 @@ async function setup({ projectId }: SetupOptions = {}) {
   clientTransport.readable.pipeTo(serverTransport.writable);
   serverTransport.readable.pipeTo(clientTransport.writable);
 
+  const platform = createSupabaseCloudPlatform({
+    apiUrl: API_URL,
+    accessToken: ACCESS_TOKEN,
+  });
+
   const server = createSupabaseMcpServer({
-    platform: {
-      apiUrl: API_URL,
-      accessToken: ACCESS_TOKEN,
-    },
+    platform,
     projectId,
   });
 

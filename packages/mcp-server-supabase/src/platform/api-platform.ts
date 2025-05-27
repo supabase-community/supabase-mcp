@@ -34,7 +34,7 @@ import {
 
 const { version } = packageJson;
 
-export type SupabaseCloudPlatformOptions = {
+export type SupabaseApiPlatformOptions = {
   /**
    * The access token for the Supabase Management API.
    */
@@ -49,8 +49,8 @@ export type SupabaseCloudPlatformOptions = {
 /**
  * Creates a Supabase platform implementation using the Supabase Management API.
  */
-export function createSupabaseCloudPlatform(
-  options: SupabaseCloudPlatformOptions
+export function createSupabaseApiPlatform(
+  options: SupabaseApiPlatformOptions
 ): SupabasePlatform {
   const { accessToken, apiUrl } = options;
 

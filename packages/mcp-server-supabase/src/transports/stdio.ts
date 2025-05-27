@@ -3,7 +3,7 @@
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { parseArgs } from 'node:util';
 import packageJson from '../../package.json' with { type: 'json' };
-import { createSupabaseCloudPlatform } from '../platform/cloud-platform.js';
+import { createSupabaseApiPlatform } from '../platform/api-platform.js';
 import { createSupabaseMcpServer } from '../server.js';
 
 const { version } = packageJson;
@@ -53,7 +53,7 @@ async function main() {
     process.exit(1);
   }
 
-  const platform = createSupabaseCloudPlatform({
+  const platform = createSupabaseApiPlatform({
     accessToken,
     apiUrl,
   });

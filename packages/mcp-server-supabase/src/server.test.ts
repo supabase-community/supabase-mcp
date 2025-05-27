@@ -20,7 +20,7 @@ import {
   mockOrgs,
   mockProjects,
 } from '../test/mocks.js';
-import { createSupabaseCloudPlatform } from './platform/cloud-platform.js';
+import { createSupabaseApiPlatform } from './platform/api-platform.js';
 import { BRANCH_COST_HOURLY, PROJECT_COST_MONTHLY } from './pricing.js';
 import { createSupabaseMcpServer } from './server.js';
 
@@ -60,7 +60,7 @@ async function setup(options: SetupOptions = {}) {
     }
   );
 
-  const platform = createSupabaseCloudPlatform({
+  const platform = createSupabaseApiPlatform({
     accessToken,
     apiUrl: API_URL,
   });

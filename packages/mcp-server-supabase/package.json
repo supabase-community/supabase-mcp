@@ -21,18 +21,23 @@
     "dist/**/*"
   ],
   "bin": {
-    "mcp-server-supabase": "./dist/stdio.js"
+    "mcp-server-supabase": "./dist/transports/stdio.js"
   },
   "exports": {
     ".": {
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.cjs"
+    },
+    "./platform": {
+      "import": "./dist/platform/index.js",
+      "types": "./dist/platform/index.d.ts",
+      "default": "./dist/platform/index.cjs"
     }
   },
   "dependencies": {
     "@deno/eszip": "^0.84.0",
-    "@modelcontextprotocol/sdk": "^1.4.1",
+    "@modelcontextprotocol/sdk": "^1.11.0",
     "@supabase/mcp-utils": "0.2.0",
     "common-tags": "^1.8.2",
     "openapi-fetch": "^0.13.5",

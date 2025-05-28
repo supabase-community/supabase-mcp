@@ -573,9 +573,7 @@ export const mockManagementApi = [
         );
       }
 
-      const migration_version = parentProject.migrations.at(-1)?.version;
-
-      return HttpResponse.json({ migration_version });
+      return HttpResponse.json({ message: 'ok' });
     }
   ),
 
@@ -623,9 +621,7 @@ export const mockManagementApi = [
         );
       }
 
-      const migration_version = project.migrations.at(-1)?.version;
-
-      return HttpResponse.json({ migration_version });
+      return HttpResponse.json({ message: 'ok' });
     }
   ),
 
@@ -673,9 +669,7 @@ export const mockManagementApi = [
         );
       }
 
-      const migration_version = project.migrations.at(-1)?.version;
-
-      return HttpResponse.json({ migration_version });
+      return HttpResponse.json({ message: 'ok' });
     }
   ),
 ];

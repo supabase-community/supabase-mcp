@@ -169,7 +169,8 @@ export type InitData = {
   clientCapabilities: ClientCapabilities;
 };
 
-export type PropCallback<T> = (initData: InitData) => T | Promise<T>;
+export type InitCallback = (initData: InitData) => void | Promise<void>;
+export type PropCallback<T> = () => T | Promise<T>;
 export type Prop<T> = T | PropCallback<T>;
 
 export type McpServerOptions = {
@@ -187,14 +188,8 @@ export type McpServerOptions = {
 
   /**
    * Callback for when initialization has fully completed with the client.
-   *
-   * This is guaranteed to run before any primitives like resources or tools
-   * are served. If a promise is returned from this callback, the server will
-   * wait for it to resolve before serving other primitives. This is useful for
-   * initializing things like API connections or other async tasks that might
-   * depend on client information before serving other primitives.
    */
-  onInitialize?: PropCallback<void>;
+  onInitialize?: InitCallback;
 
   /**
    * Resources to be served by the server. These can be defined as a static
@@ -203,8 +198,7 @@ export type McpServerOptions = {
    *
    * If defined as a function, the function will be called whenever the client
    * asks for the list of resources or reads a resource. This allows for dynamic
-   * resources that can change after the server has started. The function will
-   * also pass the client information and capabilities as context.
+   * resources that can change after the server has started.
    */
   resources?: Prop<
     (Resource<string, unknown> | ResourceTemplate<string, unknown>)[]
@@ -217,8 +211,7 @@ export type McpServerOptions = {
    *
    * If defined as a function, the function will be called whenever the client
    * asks for the list of tools or invokes a tool. This allows for dynamic tools
-   * that can change after the server has started. The function will also pass
-   * the client information and capabilities as context.
+   * that can change after the server has started.
    */
   tools?: Prop<Record<string, Tool>>;
 };
@@ -250,32 +243,23 @@ export function createMcpServer(options: McpServerOptions) {
     }
   );
 
-  let resolveInitialized: (initData: InitData) => void;
-  const initialized = new Promise<InitData>((resolve) => {
-    resolveInitialized = resolve;
-  });
-
   async function getResources() {
-    const initData = await initialized;
-
     if (!options.resources) {
       throw new Error('resources not available');
     }
 
     return typeof options.resources === 'function'
-      ? await options.resources(initData)
+      ? await options.resources()
       : options.resources;
   }
 
   async function getTools() {
-    const initData = await initialized;
-
     if (!options.tools) {
       throw new Error('tools not available');
     }
 
     return typeof options.tools === 'function'
-      ? await options.tools(initData)
+      ? await options.tools()
       : options.tools;
   }
 
@@ -297,7 +281,6 @@ export function createMcpServer(options: McpServerOptions) {
     };
 
     await options.onInitialize?.(initData);
-    resolveInitialized(initData);
   };
 
   if (options.resources) {

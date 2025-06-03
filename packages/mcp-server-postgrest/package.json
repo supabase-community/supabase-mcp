@@ -26,9 +26,9 @@
     }
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.4.1",
+    "@modelcontextprotocol/sdk": "^1.11.0",
     "@supabase/mcp-utils": "*",
-    "@supabase/sql-to-rest": "^0.1.6",
+    "@supabase/sql-to-rest": "^0.1.8",
     "zod": "^3.24.1",
     "zod-to-json-schema": "^3.24.1"
   },

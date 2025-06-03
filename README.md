@@ -1,5 +1,6 @@
 # Supabase MCP Server
 
+[![smithery badge](https://smithery.ai/badge/@supabase-community/supabase-mcp)](https://smithery.ai/server/@supabase-community/supabase-mcp)
 > Connect your Supabase projects to Cursor, Claude, Windsurf, and other AI assistants.
 
 ![supabase-mcp-demo](https://github.com/user-attachments/assets/3fce101a-b7d4-482f-9182-0be70ed1ad56)
@@ -17,6 +18,14 @@ node -v
 If you don't have Node.js installed, you can download it from [nodejs.org](https://nodejs.org/).
 
 ## Setup
+
+### Installing via Smithery
+
+To install Supabase MCP Server for Claude Desktop automatically via [Smithery](https://smithery.ai/server/@supabase-community/supabase-mcp):
+
+```bash
+npx -y @smithery/cli install @supabase-community/supabase-mcp --client claude
+```
 
 ### 1. Personal access token (PAT)
 

@@ -9,9 +9,10 @@ import {
   type Implementation,
   type ListResourcesResult,
   type ListResourceTemplatesResult,
+  type ReadResourceResult,
   type ServerCapabilities,
 } from '@modelcontextprotocol/sdk/types.js';
-import { z } from 'zod';
+import type { z } from 'zod';
 import zodToJsonSchema from 'zod-to-json-schema';
 import type {
   ExpandRecursively,
@@ -322,63 +323,74 @@ export function createMcpServer(options: McpServerOptions) {
       }
     );
 
-    server.setRequestHandler(ReadResourceRequestSchema, async (request) => {
-      try {
-        const allResources = await getResources();
-        const { uri } = request.params;
+    server.setRequestHandler(
+      ReadResourceRequestSchema,
+      async (request): Promise<ReadResourceResult> => {
+        try {
+          const allResources = await getResources();
+          const { uri } = request.params;
 
-        const resources = allResources.filter((resource) => 'uri' in resource);
-        const resource = resources.find((resource) =>
-          compareUris(resource.uri, uri)
-        );
+          const resources = allResources.filter(
+            (resource) => 'uri' in resource
+          );
+          const resource = resources.find((resource) =>
+            compareUris(resource.uri, uri)
+          );
 
-        if (resource) {
-          return await resource.read(uri as `${string}://${string}`);
+          if (resource) {
+            const result = await resource.read(uri as `${string}://${string}`);
+
+            const contents = Array.isArray(result) ? result : [result];
+
+            return {
+              contents,
+            };
+          }
+
+          const resourceTemplates = allResources.filter(
+            (resource) => 'uriTemplate' in resource
+          );
+          const resourceTemplateUris = resourceTemplates.map(
+            ({ uriTemplate }) => assertValidUri(uriTemplate)
+          );
+
+          const templateMatch = matchUriTemplate(uri, resourceTemplateUris);
+
+          if (!templateMatch) {
+            throw new Error('resource not found');
+          }
+
+          const resourceTemplate = resourceTemplates.find(
+            (r) => r.uriTemplate === templateMatch.uri
+          );
+
+          if (!resourceTemplate) {
+            throw new Error('resource not found');
+          }
+
+          const result = await resourceTemplate.read(
+            uri as `${string}://${string}`,
+            templateMatch.params
+          );
+
+          const contents = Array.isArray(result) ? result : [result];
+
+          return {
+            contents,
+          };
+        } catch (error) {
+          return {
+            isError: true,
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify({ error: enumerateError(error) }),
+              },
+            ],
+          } as any;
         }
-
-        const resourceTemplates = allResources.filter(
-          (resource) => 'uriTemplate' in resource
-        );
-        const resourceTemplateUris = resourceTemplates.map(({ uriTemplate }) =>
-          assertValidUri(uriTemplate)
-        );
-
-        const templateMatch = matchUriTemplate(uri, resourceTemplateUris);
-
-        if (!templateMatch) {
-          throw new Error('resource not found');
-        }
-
-        const resourceTemplate = resourceTemplates.find(
-          (r) => r.uriTemplate === templateMatch.uri
-        );
-
-        if (!resourceTemplate) {
-          throw new Error('resource not found');
-        }
-
-        const result = await resourceTemplate.read(
-          uri as `${string}://${string}`,
-          templateMatch.params
-        );
-
-        const contents = Array.isArray(result) ? result : [result];
-
-        return {
-          contents,
-        } as any;
-      } catch (error) {
-        return {
-          isError: true,
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify({ error: enumerateError(error) }),
-            },
-          ],
-        };
       }
-    });
+    );
   }
 
   if (options.tools) {

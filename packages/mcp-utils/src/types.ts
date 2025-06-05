@@ -41,9 +41,8 @@ export type ExtractRequest<S> = S extends Server<infer R, any, any> ? R : never;
 /**
  * Extracts the notification type from an MCP server.
  */
-export type ExtractNotification<S> = S extends Server<any, infer N, any>
-  ? N
-  : never;
+export type ExtractNotification<S> =
+  S extends Server<any, infer N, any> ? N : never;
 
 /**
  * Extracts the result type from an MCP server.

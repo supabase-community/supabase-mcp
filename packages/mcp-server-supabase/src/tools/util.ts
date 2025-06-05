@@ -50,13 +50,14 @@ export function injectableTool<
     [K in keyof Injected]: Injected[K] extends undefined ? never : K;
   }[keyof Injected];
 
-  type CleanParams = z.infer<Params> extends any
-    ? {
-        [K in keyof z.infer<Params> as K extends NonNullableKeys
-          ? never
-          : K]: z.infer<Params>[K];
-      }
-    : never;
+  type CleanParams =
+    z.infer<Params> extends any
+      ? {
+          [K in keyof z.infer<Params> as K extends NonNullableKeys
+            ? never
+            : K]: z.infer<Params>[K];
+        }
+      : never;
 
   return tool({
     description,

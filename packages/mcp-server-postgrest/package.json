@@ -12,7 +12,9 @@
     "prepublishOnly": "npm run build",
     "test": "vitest"
   },
-  "files": ["dist/**/*"],
+  "files": [
+    "dist/**/*"
+  ],
   "bin": {
     "mcp-server-postgrest": "./dist/stdio.js"
   },

@@ -1,4 +1,4 @@
-import { type UnionToTuple, type ValueOf, parseKeyValueList } from './util.js';
+import { parseKeyValueList, type UnionToTuple, type ValueOf } from './util.js';
 
 export type AwsRegion = {
   code: string;

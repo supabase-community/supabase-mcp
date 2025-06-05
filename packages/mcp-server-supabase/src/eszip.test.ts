@@ -1,5 +1,5 @@
-import { type FileHandle, open } from 'node:fs/promises';
 import { codeBlock } from 'common-tags';
+import { open, type FileHandle } from 'node:fs/promises';
 import { describe, expect, test } from 'vitest';
 import { bundleFiles, extractFiles } from './eszip.js';
 

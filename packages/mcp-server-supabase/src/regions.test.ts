@@ -1,14 +1,14 @@
-import { http, HttpResponse } from 'msw';
-import { setupServer } from 'msw/node';
 import { describe, expect, it } from 'vitest';
 import {
   EARTH_RADIUS,
-  TRACE_URL,
   getClosestAwsRegion,
   getCountryCode,
   getCountryCoordinates,
   getDistance,
+  TRACE_URL,
 } from './regions.js';
+import { http, HttpResponse } from 'msw';
+import { setupServer } from 'msw/node';
 
 const COUNTRY_CODE = 'US';
 

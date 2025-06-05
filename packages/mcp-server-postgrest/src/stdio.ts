@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-import { parseArgs } from 'node:util';
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
+import { parseArgs } from 'node:util';
 import { createPostgrestMcpServer } from './server.js';
 
 async function main() {

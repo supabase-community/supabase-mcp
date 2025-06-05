@@ -1,5 +1,5 @@
-import { fileURLToPath } from 'node:url';
 import type { InitData } from '@supabase/mcp-utils';
+import { fileURLToPath } from 'node:url';
 import packageJson from '../../package.json' with { type: 'json' };
 import { getDeploymentId, getPathPrefix } from '../edge-function.js';
 import { extractFiles } from '../eszip.js';
@@ -14,6 +14,13 @@ import {
   getCountryCoordinates,
 } from '../regions.js';
 import {
+  applyMigrationOptionsSchema,
+  createBranchOptionsSchema,
+  createProjectOptionsSchema,
+  deployEdgeFunctionOptionsSchema,
+  executeSqlOptionsSchema,
+  getLogsOptionsSchema,
+  resetBranchOptionsSchema,
   type ApplyMigrationOptions,
   type CreateBranchOptions,
   type CreateProjectOptions,
@@ -23,13 +30,6 @@ import {
   type GetLogsOptions,
   type ResetBranchOptions,
   type SupabasePlatform,
-  applyMigrationOptionsSchema,
-  createBranchOptionsSchema,
-  createProjectOptionsSchema,
-  deployEdgeFunctionOptionsSchema,
-  executeSqlOptionsSchema,
-  getLogsOptionsSchema,
-  resetBranchOptionsSchema,
 } from './index.js';
 
 const { version } = packageJson;

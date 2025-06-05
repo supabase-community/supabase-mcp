@@ -417,7 +417,7 @@ export const mockManagementApi = [
    */
   http.get<{ projectId: string }, { sql: string }>(
     `${API_URL}/v1/projects/:projectId/analytics/endpoints/logs.all`,
-    async ({ params, request }) => {
+    async ({ params }) => {
       const project = mockProjects.get(params.projectId);
       if (!project) {
         return HttpResponse.json(
@@ -427,6 +427,46 @@ export const mockManagementApi = [
       }
 
       return HttpResponse.json([]);
+    }
+  ),
+
+  /**
+   * Get security advisors for a project
+   */
+  http.get<{ projectId: string }, { sql: string }>(
+    `${API_URL}/v1/projects/:projectId/advisors/security`,
+    async ({ params }) => {
+      const project = mockProjects.get(params.projectId);
+      if (!project) {
+        return HttpResponse.json(
+          { message: 'Project not found' },
+          { status: 404 }
+        );
+      }
+
+      return HttpResponse.json({
+        lints: [],
+      });
+    }
+  ),
+
+  /**
+   * Get performance advisors for a project
+   */
+  http.get<{ projectId: string }, { sql: string }>(
+    `${API_URL}/v1/projects/:projectId/advisors/performance`,
+    async ({ params }) => {
+      const project = mockProjects.get(params.projectId);
+      if (!project) {
+        return HttpResponse.json(
+          { message: 'Project not found' },
+          { status: 404 }
+        );
+      }
+
+      return HttpResponse.json({
+        lints: [],
+      });
     }
   ),
 

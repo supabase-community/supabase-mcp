@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
-import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import { parseArgs } from 'node:util';
+import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
 import packageJson from '../../package.json' with { type: 'json' };
 import { createSupabaseApiPlatform } from '../platform/api-platform.js';
 import { createSupabaseMcpServer } from '../server.js';

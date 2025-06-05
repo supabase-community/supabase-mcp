@@ -1,4 +1,4 @@
-import { createMcpServer, type Tool } from '@supabase/mcp-utils';
+import { type Tool, createMcpServer } from '@supabase/mcp-utils';
 import packageJson from '../package.json' with { type: 'json' };
 import type { SupabasePlatform } from './platform/types.js';
 import { getBranchingTools } from './tools/branching-tools.js';

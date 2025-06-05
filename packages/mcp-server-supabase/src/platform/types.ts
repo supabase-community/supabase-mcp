@@ -1,6 +1,6 @@
+import type { InitData } from '@supabase/mcp-utils';
 import { z } from 'zod';
 import { AWS_REGION_CODES } from '../regions.js';
-import type { InitData } from '@supabase/mcp-utils';
 
 export const organizationSchema = z.object({
   id: z.string(),

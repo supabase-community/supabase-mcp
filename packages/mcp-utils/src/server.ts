@@ -1,14 +1,14 @@
 import { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import {
   CallToolRequestSchema,
-  ListResourcesRequestSchema,
-  ListResourceTemplatesRequestSchema,
-  ListToolsRequestSchema,
-  ReadResourceRequestSchema,
   type ClientCapabilities,
   type Implementation,
-  type ListResourcesResult,
+  ListResourceTemplatesRequestSchema,
   type ListResourceTemplatesResult,
+  ListResourcesRequestSchema,
+  type ListResourcesResult,
+  ListToolsRequestSchema,
+  ReadResourceRequestSchema,
   type ReadResourceResult,
   type ServerCapabilities,
 } from '@modelcontextprotocol/sdk/types.js';

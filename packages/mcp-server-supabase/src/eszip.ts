@@ -1,6 +1,6 @@
-import { build, Parser } from '@deno/eszip';
 import { join, relative } from 'node:path/posix';
 import { fileURLToPath } from 'node:url';
+import { Parser, build } from '@deno/eszip';
 import { z } from 'zod';
 
 const parser = await Parser.createInstance();

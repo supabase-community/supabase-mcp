@@ -3,10 +3,10 @@
 import { anthropic } from '@ai-sdk/anthropic';
 import { StreamTransport } from '@supabase/mcp-utils';
 import {
-  experimental_createMCPClient as createMCPClient,
-  generateText,
   type ToolCallUnion,
   type ToolSet,
+  experimental_createMCPClient as createMCPClient,
+  generateText,
 } from 'ai';
 import { codeBlock } from 'common-tags';
 import { setupServer } from 'msw/node';
@@ -17,9 +17,9 @@ import { createSupabaseApiPlatform } from '../src/platform/api-platform.js';
 import {
   ACCESS_TOKEN,
   API_URL,
+  MCP_CLIENT_NAME,
   createOrganization,
   createProject,
-  MCP_CLIENT_NAME,
   mockBranches,
   mockManagementApi,
   mockOrgs,

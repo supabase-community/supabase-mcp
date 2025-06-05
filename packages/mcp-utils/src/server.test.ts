@@ -1,16 +1,16 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import {
-  CallToolResultSchema,
   type CallToolRequest,
+  CallToolResultSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import { describe, expect, test } from 'vitest';
 import { z } from 'zod';
 import {
   createMcpServer,
   resource,
-  resources,
   resourceTemplate,
+  resources,
   tool,
 } from './server.js';
 import { StreamTransport } from './stream-transport.js';

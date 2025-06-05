@@ -1,7 +1,7 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import {
-  CallToolResultSchema,
   type CallToolRequest,
+  CallToolResultSchema,
 } from '@modelcontextprotocol/sdk/types.js';
 import { StreamTransport } from '@supabase/mcp-utils';
 import { codeBlock } from 'common-tags';
@@ -11,10 +11,10 @@ import {
   ACCESS_TOKEN,
   API_URL,
   CLOSEST_REGION,
-  createOrganization,
-  createProject,
   MCP_CLIENT_NAME,
   MCP_CLIENT_VERSION,
+  createOrganization,
+  createProject,
   mockBranches,
   mockManagementApi,
   mockOrgs,

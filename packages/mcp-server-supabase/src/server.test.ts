@@ -540,6 +540,116 @@ describe('tools', () => {
     expect(result).toEqual('dummy-anon-key');
   });
 
+  test('list storage buckets', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    project.createStorageBucket('bucket1', true);
+    project.createStorageBucket('bucket2', false);
+
+    const result = await callTool({
+      name: 'list_storage_buckets',
+      arguments: {
+        project_id: project.id,
+      },
+    });
+
+    expect(Array.isArray(result)).toBe(true);
+    expect(result.length).toBe(2);
+    expect(result[0]).toEqual(expect.objectContaining({
+      name: 'bucket1',
+      public: true,
+      created_at: expect.any(String),
+      updated_at: expect.any(String),
+    }));
+    expect(result[1]).toEqual(expect.objectContaining({
+      name: 'bucket2',
+      public: false,
+      created_at: expect.any(String),
+      updated_at: expect.any(String),
+    }));
+  });
+
+  test('get storage config', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const result = await callTool({
+      name: 'get_storage_config',
+      arguments: {
+        project_id: project.id,
+      },
+    });
+
+    expect(result).toEqual({
+      fileSizeLimit: expect.any(Number),
+      features: {
+        imageTransformation: { enabled: expect.any(Boolean) },
+        s3Protocol: { enabled: expect.any(Boolean) },
+      },
+    });
+  });
+
+  test('update storage config', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const config = {
+      fileSizeLimit: 50,
+      features: {
+        imageTransformation: { enabled: true },
+        s3Protocol: { enabled: false },
+      },
+    };
+
+    const result = await callTool({
+      name: 'update_storage_config',
+      arguments: {
+        project_id: project.id,
+        config,
+      },
+    });
+
+    // Update should succeed without error
+    expect(result).toBeUndefined();
+  });
+
   test('execute sql', async () => {
     const { callTool } = await setup();
 

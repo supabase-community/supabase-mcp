@@ -8,16 +8,13 @@
   "types": "dist/index.d.ts",
   "sideEffects": false,
   "scripts": {
-    "prebuild": "npm run generate:content-api-schema",
     "build": "tsup --clean",
     "prepublishOnly": "npm run build",
-    "pretest": "npm run generate:content-api-schema",
     "test": "vitest",
     "test:unit": "vitest --project unit",
     "test:e2e": "vitest --project e2e",
     "test:integration": "vitest --project integration",
     "test:coverage": "vitest --coverage",
-    "generate:content-api-schema": "tsx scripts/fetch-content-api-schema.ts",
     "generate:management-api-types": "openapi-typescript https://api.supabase.com/api/v1-json -o ./src/management-api/types.ts"
   },
   "files": ["dist/**/*"],
@@ -41,6 +38,7 @@
     "@modelcontextprotocol/sdk": "^1.11.0",
     "@supabase/mcp-utils": "0.2.1",
     "common-tags": "^1.8.2",
+    "graphql": "^16.11.0",
     "openapi-fetch": "^0.13.5",
     "zod": "^3.24.1"
   },
@@ -54,7 +52,6 @@
     "ai": "^4.3.4",
     "date-fns": "^4.1.0",
     "dotenv": "^16.5.0",
-    "graphql": "^16.11.0",
     "msw": "^2.7.3",
     "nanoid": "^5.1.5",
     "openapi-typescript": "^7.5.0",

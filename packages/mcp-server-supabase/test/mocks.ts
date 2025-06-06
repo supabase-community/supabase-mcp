@@ -1,4 +1,5 @@
 import { PGlite, type PGliteInterface } from '@electric-sql/pglite';
+import { source } from 'common-tags';
 import { format } from 'date-fns';
 import { buildSchema, parse, validate } from 'graphql';
 import { http, HttpResponse } from 'msw';
@@ -7,7 +8,10 @@ import { join } from 'node:path/posix';
 import { expect } from 'vitest';
 import { z } from 'zod';
 import packageJson from '../package.json' with { type: 'json' };
-import contentApiSchema from '../src/__generated__/content-api-schema.text';
+import {
+  getQueryFields,
+  graphqlRequestSchema,
+} from '../src/content-api/graphql.js';
 import { getDeploymentId, getPathPrefix } from '../src/edge-function.js';
 import { bundleFiles } from '../src/eszip.js';
 import type { components } from '../src/management-api/types.js';
@@ -27,6 +31,47 @@ export const ACCESS_TOKEN = 'dummy-token';
 export const COUNTRY_CODE = 'US';
 export const CLOSEST_REGION = 'us-east-2';
 
+export const contentApiMockSchema = source`
+  schema {
+    query: RootQueryType
+  }
+    
+  type RootQueryType {
+    """Get the GraphQL schema for this endpoint"""
+    schema: String!
+
+    """Search the Supabase docs for content matching a query string"""
+    searchDocs(query: String!, limit: Int): SearchResultCollection
+  }
+
+  """Document that matches a search query"""
+  interface SearchResult {
+    """The title of the matching result"""
+    title: String
+
+    """The URL of the matching result"""
+    href: String
+
+    """The full content of the matching result"""
+    content: String
+  }
+
+  """A collection of search results containing content from Supabase docs"""
+  type SearchResultCollection {
+    """A list of edges containing nodes in this collection"""
+    edges: [SearchResultEdge!]!
+
+    """The nodes in this collection, directly accessible"""
+    nodes: [SearchResult!]!
+  }
+
+  """An edge in a collection of SearchResults"""
+  type SearchResultEdge {
+    """The SearchResult at the end of the edge"""
+    node: SearchResult!
+  }
+`;
+
 type Organization = components['schemas']['V1OrganizationSlugResponse'];
 type Project = components['schemas']['V1ProjectWithDatabaseResponse'];
 type Branch = components['schemas']['BranchResponse'];
@@ -44,23 +89,31 @@ export const mockBranches = new Map<string, MockBranch>();
 export const mockContentApi = [
   http.post(CONTENT_API_URL, async ({ request }) => {
     const json = await request.json();
-    if (!json || typeof json !== 'object') {
-      throw Error('Incorrect type of request body');
-    }
-    const query: string = json.query;
+    const { query } = graphqlRequestSchema.parse(json);
 
-    if (query.includes('SchemaQuery')) {
-      return HttpResponse.json({ data: { schema: 'dummy schema' } });
-    } else {
-      const schema = buildSchema(contentApiSchema);
-      const queryDocument = parse(query);
-      const validationErrors = validate(schema, queryDocument);
+    const schema = buildSchema(contentApiMockSchema);
+    const document = parse(query);
+    const validationErrors = validate(schema, document);
 
-      if (validationErrors.length > 0) {
-        throw Error('Invalid query made to Content API');
-      }
-      return HttpResponse.json({ data: { 'dummy response': true } });
+    const [queryName] = getQueryFields(document);
+
+    if (queryName === 'schema') {
+      return HttpResponse.json({
+        data: {
+          schema: contentApiMockSchema,
+        },
+      });
     }
+
+    if (validationErrors.length > 0) {
+      throw Error('Invalid query made to Content API');
+    }
+
+    return HttpResponse.json({
+      data: {
+        dummy: true,
+      },
+    });
   }),
 ];
 

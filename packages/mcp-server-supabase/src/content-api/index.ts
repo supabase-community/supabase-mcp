@@ -1,86 +1,36 @@
 import { z } from 'zod';
+import { GraphQLClient, type GraphQLRequest, type QueryFn } from './graphql.js';
 
-export interface ContentApiClient {
-  fetch: (args: IContentApiFetchArgs) => Promise<unknown>;
-}
-
-export const contentApiFetchSchema = z.object({
-  query: z.string(),
-  variables: z.record(z.string(), z.unknown()).optional(),
+const contentApiSchemaResponseSchema = z.object({
+  schema: z.string(),
 });
-export type IContentApiFetchArgs = z.infer<typeof contentApiFetchSchema>;
 
-export function createContentApiClient(
+export type ContentApiClient = {
+  schema: string;
+  query: QueryFn;
+};
+
+export async function createContentApiClient(
   url: string,
-  headers: Record<string, string> = {}
-): ContentApiClient {
-  async function fetchImpl(args: IContentApiFetchArgs) {
-    const response = await fetch(url, {
-      method: 'POST',
-      headers: {
-        ...headers,
-        'Content-Type': 'application/json',
-        Accept: 'applicaton/json',
-      },
-      body: JSON.stringify(args),
-    });
-    await assertSuccess(response);
+  headers?: Record<string, string>
+): Promise<ContentApiClient> {
+  const graphqlClient = new GraphQLClient({
+    url,
+    headers,
+    // Content API provides schema string via `schema` query
+    loadSchema: async ({ query }) => {
+      const response = await query({ query: '{ schema }' });
+      const { schema } = contentApiSchemaResponseSchema.parse(response);
+      return schema;
+    },
+  });
 
-    try {
-      const json = await response.json();
-      const data = extractGraphQLData(json);
-      return data;
-    } catch (error) {
-      const message =
-        isPlainObjectOrClass(error) && 'message' in error
-          ? error.message
-          : null;
-      throw Error(
-        `Content API response was not valid JSON${message ? `: ${message}` : ''}`
-      );
-    }
-  }
+  const { source } = await graphqlClient.schemaLoaded;
 
   return {
-    async fetch(args: unknown) {
-      const result = contentApiFetchSchema.safeParse(args);
-      if (result.success) {
-        const res = await fetchImpl(result.data);
-        return res;
-      } else {
-        const error = result.error;
-        throw Error(
-          `Content API fetch called with incorrect arguments: ${error.message}`,
-          { cause: error }
-        );
-      }
+    schema: source,
+    async query(request: GraphQLRequest) {
+      return graphqlClient.query(request);
     },
   };
-}
-
-async function assertSuccess(response: Response) {
-  if (!response.ok) {
-    const message = await response.text();
-    throw Error(`Content API responded with non-2xx HTTP status: ${message}`);
-  }
-}
-
-function isPlainObjectOrClass(value: unknown): value is object {
-  return !!value && typeof value === 'object' && !Array.isArray(value);
-}
-
-function extractGraphQLData(json: { data?: any; errors?: Array<any> }) {
-  if ('errors' in json) {
-    const concatenatedMessage = json
-      .errors!.map((error) =>
-        isPlainObjectOrClass(error) && 'message' in error ? error.message : null
-      )
-      .filter(Boolean)
-      .join('; ');
-    throw Error(`Content API responded with error: ${concatenatedMessage}`, {
-      cause: json.errors,
-    });
-  } else {
-    return json.data;
-  }
 }

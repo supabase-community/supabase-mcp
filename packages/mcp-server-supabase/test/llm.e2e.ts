@@ -165,14 +165,13 @@ describe('llm tests', () => {
           content: `Deploy an edge function to project with ref ${project.id} that returns the current time in UTC.`,
         },
       ],
-      maxSteps: 2,
+      maxSteps: 3,
       async onStepFinish({ toolCalls: tools }) {
         toolCalls.push(...tools);
       },
     });
 
-    expect(toolCalls).toHaveLength(1);
-    expect(toolCalls[0]).toEqual(
+    expect(toolCalls).toContainEqual(
       expect.objectContaining({ toolName: 'deploy_edge_function' })
     );
 

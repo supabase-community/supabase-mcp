@@ -1,11 +1,17 @@
 import { PGlite, type PGliteInterface } from '@electric-sql/pglite';
+import { source } from 'common-tags';
 import { format } from 'date-fns';
+import { buildSchema, parse, validate } from 'graphql';
 import { http, HttpResponse } from 'msw';
 import { customAlphabet } from 'nanoid';
 import { join } from 'node:path/posix';
 import { expect } from 'vitest';
 import { z } from 'zod';
 import packageJson from '../package.json' with { type: 'json' };
+import {
+  getQueryFields,
+  graphqlRequestSchema,
+} from '../src/content-api/graphql.js';
 import { getDeploymentId, getPathPrefix } from '../src/edge-function.js';
 import { bundleFiles } from '../src/eszip.js';
 import type { components } from '../src/management-api/types.js';
@@ -16,6 +22,7 @@ const { version } = packageJson;
 const nanoid = customAlphabet('abcdefghijklmnopqrstuvwxyz', 20);
 
 export const API_URL = 'https://api.supabase.com';
+export const CONTENT_API_URL = 'https://supabase.com/docs/api/graphql';
 export const MCP_SERVER_NAME = 'supabase-mcp';
 export const MCP_SERVER_VERSION = version;
 export const MCP_CLIENT_NAME = 'test-client';
@@ -23,6 +30,47 @@ export const MCP_CLIENT_VERSION = '1.0.0';
 export const ACCESS_TOKEN = 'dummy-token';
 export const COUNTRY_CODE = 'US';
 export const CLOSEST_REGION = 'us-east-2';
+
+export const contentApiMockSchema = source`
+  schema {
+    query: RootQueryType
+  }
+    
+  type RootQueryType {
+    """Get the GraphQL schema for this endpoint"""
+    schema: String!
+
+    """Search the Supabase docs for content matching a query string"""
+    searchDocs(query: String!, limit: Int): SearchResultCollection
+  }
+
+  """Document that matches a search query"""
+  interface SearchResult {
+    """The title of the matching result"""
+    title: String
+
+    """The URL of the matching result"""
+    href: String
+
+    """The full content of the matching result"""
+    content: String
+  }
+
+  """A collection of search results containing content from Supabase docs"""
+  type SearchResultCollection {
+    """A list of edges containing nodes in this collection"""
+    edges: [SearchResultEdge!]!
+
+    """The nodes in this collection, directly accessible"""
+    nodes: [SearchResult!]!
+  }
+
+  """An edge in a collection of SearchResults"""
+  type SearchResultEdge {
+    """The SearchResult at the end of the edge"""
+    node: SearchResult!
+  }
+`;
 
 type Organization = components['schemas']['V1OrganizationSlugResponse'];
 type Project = components['schemas']['V1ProjectWithDatabaseResponse'];
@@ -37,6 +85,37 @@ export type Migration = {
 export const mockOrgs = new Map<string, Organization>();
 export const mockProjects = new Map<string, MockProject>();
 export const mockBranches = new Map<string, MockBranch>();
+
+export const mockContentApi = [
+  http.post(CONTENT_API_URL, async ({ request }) => {
+    const json = await request.json();
+    const { query } = graphqlRequestSchema.parse(json);
+
+    const schema = buildSchema(contentApiMockSchema);
+    const document = parse(query);
+    const validationErrors = validate(schema, document);
+
+    const [queryName] = getQueryFields(document);
+
+    if (queryName === 'schema') {
+      return HttpResponse.json({
+        data: {
+          schema: contentApiMockSchema,
+        },
+      });
+    }
+
+    if (validationErrors.length > 0) {
+      throw Error('Invalid query made to Content API');
+    }
+
+    return HttpResponse.json({
+      data: {
+        dummy: true,
+      },
+    });
+  }),
+];
 
 export const mockManagementApi = [
   http.get(TRACE_URL, () => {

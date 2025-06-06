@@ -502,39 +502,6 @@ export function createSupabaseApiPlatform(
 
       assertSuccess(createBranchResponse, 'Failed to create branch');
 
-      // Creating a default branch means we just enabled branching
-      // TODO: move this logic to API eventually.
-      if (createBranchResponse.data.is_default) {
-        await managementApiClient.PATCH('/v1/branches/{branch_id}', {
-          params: {
-            path: {
-              branch_id: createBranchResponse.data.id,
-            },
-          },
-          body: {
-            branch_name: 'main',
-          },
-        });
-
-        const response = await managementApiClient.POST(
-          '/v1/projects/{ref}/branches',
-          {
-            params: {
-              path: {
-                ref: projectId,
-              },
-            },
-            body: {
-              branch_name: name,
-            },
-          }
-        );
-
-        assertSuccess(response, 'Failed to create branch');
-
-        return response.data;
-      }
-
       return createBranchResponse.data;
     },
     async deleteBranch(branchId: string) {

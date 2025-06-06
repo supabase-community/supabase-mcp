@@ -1,18 +1,15 @@
 import { z } from 'zod';
 import { getLogQuery } from '../logs.js';
-import {
-  assertSuccess,
-  type ManagementApiClient,
-} from '../management-api/index.js';
+import type { SupabasePlatform } from '../platform/types.js';
 import { injectableTool } from './util.js';
 
 export type DebuggingToolsOptions = {
-  managementApiClient: ManagementApiClient;
+  platform: SupabasePlatform;
   projectId?: string;
 };
 
 export function getDebuggingTools({
-  managementApiClient,
+  platform,
   projectId,
 }: DebuggingToolsOptions) {
   const project_id = projectId;
@@ -40,28 +37,15 @@ export function getDebuggingTools({
         // Omitting start and end time defaults to the last minute.
         // But since branch actions are async, we need to wait longer
         // for jobs to be scheduled and run to completion.
-        const timestamp =
+        const startTimestamp =
           service === 'branch-action'
             ? new Date(Date.now() - 5 * 60 * 1000)
             : undefined;
-        const response = await managementApiClient.GET(
-          '/v1/projects/{ref}/analytics/endpoints/logs.all',
-          {
-            params: {
-              path: {
-                ref: project_id,
-              },
-              query: {
-                iso_timestamp_start: timestamp?.toISOString(),
-                sql: getLogQuery(service),
-              },
-            },
-          }
-        );
 
-        assertSuccess(response, 'Failed to fetch logs');
-
-        return response.data;
+        return platform.getLogs(project_id, {
+          sql: getLogQuery(service),
+          iso_timestamp_start: startTimestamp?.toISOString(),
+        });
       },
     }),
   };

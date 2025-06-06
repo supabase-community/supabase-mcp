@@ -1,6 +1,6 @@
 import { tool } from '@supabase/mcp-utils';
 import { z } from 'zod';
-import builtinSchema from '../__generated__/content-api-schema.text';
+import builtinSchema from '../../__generated__/content-api-schema.text';
 import {
   contentApiFetchSchema,
   type ContentApiClient,

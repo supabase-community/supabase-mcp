@@ -3,7 +3,7 @@ import { format } from 'date-fns';
 import { buildSchema, parse, validate } from 'graphql';
 import { http, HttpResponse } from 'msw';
 import { customAlphabet } from 'nanoid';
-import { join } from 'node:path';
+import { join } from 'node:path/posix';
 import { expect } from 'vitest';
 import { z } from 'zod';
 import packageJson from '../package.json' with { type: 'json' };
@@ -599,9 +599,7 @@ export const mockManagementApi = [
         );
       }
 
-      const migration_version = parentProject.migrations.at(-1)?.version;
-
-      return HttpResponse.json({ migration_version });
+      return HttpResponse.json({ message: 'ok' });
     }
   ),
 
@@ -649,9 +647,7 @@ export const mockManagementApi = [
         );
       }
 
-      const migration_version = project.migrations.at(-1)?.version;
-
-      return HttpResponse.json({ migration_version });
+      return HttpResponse.json({ message: 'ok' });
     }
   ),
 
@@ -699,9 +695,7 @@ export const mockManagementApi = [
         );
       }
 
-      const migration_version = project.migrations.at(-1)?.version;
-
-      return HttpResponse.json({ migration_version });
+      return HttpResponse.json({ message: 'ok' });
     }
   ),
 ];

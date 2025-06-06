@@ -1,17 +1,14 @@
 import { z } from 'zod';
-import {
-  assertSuccess,
-  type ManagementApiClient,
-} from '../management-api/index.js';
+import type { SupabasePlatform } from '../platform/types.js';
 import { injectableTool } from './util.js';
 
 export type DevelopmentToolsOptions = {
-  managementApiClient: ManagementApiClient;
+  platform: SupabasePlatform;
   projectId?: string;
 };
 
 export function getDevelopmentTools({
-  managementApiClient,
+  platform,
   projectId,
 }: DevelopmentToolsOptions) {
   const project_id = projectId;
@@ -24,7 +21,7 @@ export function getDevelopmentTools({
       }),
       inject: { project_id },
       execute: async ({ project_id }) => {
-        return `https://${project_id}.supabase.co`;
+        return platform.getProjectUrl(project_id);
       },
     }),
     get_anon_key: injectableTool({
@@ -34,29 +31,7 @@ export function getDevelopmentTools({
       }),
       inject: { project_id },
       execute: async ({ project_id }) => {
-        const response = await managementApiClient.GET(
-          '/v1/projects/{ref}/api-keys',
-          {
-            params: {
-              path: {
-                ref: project_id,
-              },
-              query: {
-                reveal: false,
-              },
-            },
-          }
-        );
-
-        assertSuccess(response, 'Failed to fetch API keys');
-
-        const anonKey = response.data?.find((key) => key.name === 'anon');
-
-        if (!anonKey) {
-          throw new Error('Anonymous key not found');
-        }
-
-        return anonKey.api_key;
+        return platform.getAnonKey(project_id);
       },
     }),
     generate_typescript_types: injectableTool({
@@ -66,20 +41,7 @@ export function getDevelopmentTools({
       }),
       inject: { project_id },
       execute: async ({ project_id }) => {
-        const response = await managementApiClient.GET(
-          '/v1/projects/{ref}/types/typescript',
-          {
-            params: {
-              path: {
-                ref: project_id,
-              },
-            },
-          }
-        );
-
-        assertSuccess(response, 'Failed to fetch TypeScript types');
-
-        return response.data;
+        return platform.generateTypescriptTypes(project_id);
       },
     }),
   };

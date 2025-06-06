@@ -1,18 +1,15 @@
 import { z } from 'zod';
-import { edgeFunctionExample, getFullEdgeFunction } from '../edge-function.js';
-import {
-  assertSuccess,
-  type ManagementApiClient,
-} from '../management-api/index.js';
+import { edgeFunctionExample } from '../edge-function.js';
+import type { SupabasePlatform } from '../platform/types.js';
 import { injectableTool } from './util.js';
 
 export type EdgeFunctionToolsOptions = {
-  managementApiClient: ManagementApiClient;
+  platform: SupabasePlatform;
   projectId?: string;
 };
 
 export function getEdgeFunctionTools({
-  managementApiClient,
+  platform,
   projectId,
 }: EdgeFunctionToolsOptions) {
   const project_id = projectId;
@@ -25,37 +22,7 @@ export function getEdgeFunctionTools({
       }),
       inject: { project_id },
       execute: async ({ project_id }) => {
-        const response = await managementApiClient.GET(
-          '/v1/projects/{ref}/functions',
-          {
-            params: {
-              path: {
-                ref: project_id,
-              },
-            },
-          }
-        );
-
-        assertSuccess(response, 'Failed to fetch Edge Functions');
-
-        // Fetch files for each Edge Function
-        const edgeFunctions = await Promise.all(
-          response.data.map(async (listedFunction) => {
-            const { data: edgeFunction, error } = await getFullEdgeFunction(
-              managementApiClient,
-              project_id,
-              listedFunction.slug
-            );
-
-            if (error) {
-              throw error;
-            }
-
-            return edgeFunction;
-          })
-        );
-
-        return edgeFunctions;
+        return await platform.listEdgeFunctions(project_id);
       },
     }),
     deploy_edge_function: injectableTool({
@@ -90,61 +57,12 @@ export function getEdgeFunctionTools({
         import_map_path,
         files,
       }) => {
-        const { data: existingEdgeFunction } = await getFullEdgeFunction(
-          managementApiClient,
-          project_id,
-          name
-        );
-
-        const import_map_file = files.find((file) =>
-          ['deno.json', 'import_map.json'].includes(file.name)
-        );
-
-        // Use existing import map path or file name heuristic if not provided
-        import_map_path ??=
-          existingEdgeFunction?.import_map_path ?? import_map_file?.name;
-
-        const response = await managementApiClient.POST(
-          '/v1/projects/{ref}/functions/deploy',
-          {
-            params: {
-              path: {
-                ref: project_id,
-              },
-              query: { slug: name },
-            },
-            body: {
-              metadata: {
-                name,
-                entrypoint_path,
-                import_map_path,
-              },
-              file: files as any, // We need to pass file name and content to our serializer
-            },
-            bodySerializer(body) {
-              const formData = new FormData();
-
-              const blob = new Blob([JSON.stringify(body.metadata)], {
-                type: 'application/json',
-              });
-              formData.append('metadata', blob);
-
-              body.file?.forEach((f: any) => {
-                const file: { name: string; content: string } = f;
-                const blob = new Blob([file.content], {
-                  type: 'application/typescript',
-                });
-                formData.append('file', blob, file.name);
-              });
-
-              return formData;
-            },
-          }
-        );
-
-        assertSuccess(response, 'Failed to deploy Edge Function');
-
-        return response.data;
+        return await platform.deployEdgeFunction(project_id, {
+          name,
+          entrypoint_path,
+          import_map_path,
+          files,
+        });
       },
     }),
   };

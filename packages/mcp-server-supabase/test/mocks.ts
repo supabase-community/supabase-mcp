@@ -672,6 +672,83 @@ export const mockManagementApi = [
       return HttpResponse.json({ message: 'ok' });
     }
   ),
+
+  /**
+   * List storage buckets
+   */
+  http.get<{ ref: string }>(
+    `${API_URL}/v1/projects/:ref/storage/buckets`,
+    ({ params }) => {
+      const project = mockProjects.get(params.ref);
+      if (!project) {
+        return HttpResponse.json(
+          { message: 'Project not found' },
+          { status: 404 }
+        );
+      }
+
+      const buckets = Array.from(project.storage_buckets.values()).map(bucket => ({
+        id: bucket.id,
+        name: bucket.name,
+        public: bucket.public,
+        created_at: bucket.created_at.toISOString(),
+        updated_at: bucket.updated_at.toISOString(),
+      }));
+
+      return HttpResponse.json(buckets);
+    }
+  ),
+  
+  /**
+   * Get storage config
+   */
+  http.get<{ ref: string }>(
+    `${API_URL}/v1/projects/:ref/config/storage`,
+    ({ params }) => {
+      const project = mockProjects.get(params.ref);
+      if (!project) {
+        return HttpResponse.json(
+          { message: 'Project not found' },
+          { status: 404 }
+        );
+      }
+
+      return HttpResponse.json({
+        fileSizeLimit: 50,
+        features: {
+          imageTransformation: { enabled: true },
+          s3Protocol: { enabled: false },
+        }
+      });
+    }
+  ),
+  
+  /**
+   * Update storage config
+   */
+  http.patch<{ ref: string }>(
+    `${API_URL}/v1/projects/:ref/config/storage`,
+    async ({ params, request }) => {
+      const project = mockProjects.get(params.ref);
+      if (!project) {
+        return HttpResponse.json(
+          { message: 'Project not found' },
+          { status: 404 }
+        );
+      }
+
+      // Accept any valid config
+      try {
+        await request.json();
+        return new HttpResponse(null, { status: 204 });
+      } catch (e) {
+        return HttpResponse.json(
+          { message: 'Invalid request body' },
+          { status: 400 }
+        );
+      }
+    }
+  )
 ];
 
 export async function createOrganization(options: MockOrganizationOptions) {
@@ -849,6 +926,27 @@ export class MockEdgeFunction {
   }
 }
 
+export type MockStorageBucketOptions = {
+  name: string;
+  isPublic: boolean;
+};
+
+export class MockStorageBucket {
+  id: string;
+  name: string;
+  public: boolean;
+  created_at: Date;
+  updated_at: Date;
+
+  constructor({ name, isPublic }: MockStorageBucketOptions) {
+    this.id = crypto.randomUUID();
+    this.name = name;
+    this.public = isPublic;
+    this.created_at = new Date();
+    this.updated_at = new Date();
+  }
+}
+
 export type MockProjectOptions = {
   name: string;
   region: string;
@@ -871,6 +969,7 @@ export class MockProject {
 
   migrations: Migration[] = [];
   edge_functions = new Map<string, MockEdgeFunction>();
+  storage_buckets = new Map<string, MockStorageBucket>();
 
   #db?: PGliteInterface;
 
@@ -957,6 +1056,20 @@ export class MockProject {
     if (this.#db) {
       await this.#db.close();
     }
+  }
+
+  createStorageBucket(name: string, isPublic: boolean = false): MockStorageBucket {
+    const id = nanoid();
+    const bucket: MockStorageBucket = {
+      id,
+      name,
+      public: isPublic,
+      created_at: new Date(),
+      updated_at: new Date(),
+    };
+
+    this.storage_buckets.set(id, bucket);
+    return bucket;
   }
 }
 

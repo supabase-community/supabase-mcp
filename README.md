@@ -165,6 +165,12 @@ _**Note:** these tools will be unavailable if the server is [scoped to a project
 - `execute_sql`: Executes raw SQL in the database. LLMs should use this for regular queries that don't change the schema.
 - `get_logs`: Gets logs for a Supabase project by service type (api, postgres, edge functions, auth, storage, realtime). LLMs can use this to help with debugging and monitoring service performance.
 
+#### Storage Operations
+
+- `list_storage_buckets`: Lists all storage buckets in a Supabase project.
+- `get_storage_config`: Gets the storage config for a Supabase project.
+- `update_storage_config`: Updates the storage config for a Supabase project (requires a paid plan).
+
 #### Edge Function Management
 
 - `list_edge_functions`: Lists all Edge Functions in a Supabase project.

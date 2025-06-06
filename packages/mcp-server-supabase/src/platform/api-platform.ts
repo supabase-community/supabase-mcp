@@ -225,7 +225,6 @@ export function createSupabaseApiPlatform(
               ref: projectId,
             },
           },
-          body: {},
         }
       );
 
@@ -417,6 +416,38 @@ export function createSupabaseApiPlatform(
       );
 
       assertSuccess(response, 'Failed to fetch logs');
+
+      return response.data;
+    },
+    async getSecurityAdvisors(projectId: string) {
+      const response = await managementApiClient.GET(
+        '/v1/projects/{ref}/advisors/security',
+        {
+          params: {
+            path: {
+              ref: projectId,
+            },
+          },
+        }
+      );
+
+      assertSuccess(response, 'Failed to fetch security advisors');
+
+      return response.data;
+    },
+    async getPerformanceAdvisors(projectId: string) {
+      const response = await managementApiClient.GET(
+        '/v1/projects/{ref}/advisors/performance',
+        {
+          params: {
+            path: {
+              ref: projectId,
+            },
+          },
+        }
+      );
+
+      assertSuccess(response, 'Failed to fetch performance advisors');
 
       return response.data;
     },

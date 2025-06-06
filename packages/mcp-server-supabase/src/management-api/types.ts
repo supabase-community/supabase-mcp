@@ -92,6 +92,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/branches/{branch_id}/diff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * [Beta] Diffs a database branch
+         * @description Diffs the specified database branch
+         */
+        get: operations["v1-diff-a-branch"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/projects": {
         parameters: {
             query?: never;
@@ -364,6 +384,23 @@ export interface paths {
         put?: never;
         /** [Beta] Gets project's network bans */
         post: operations["v1-list-all-network-bans"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/projects/{ref}/network-bans/retrieve/enriched": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** [Beta] Gets project's network bans with additional information about which databases they affect */
+        post: operations["v1-list-all-network-bans-enriched"];
         delete?: never;
         options?: never;
         head?: never;
@@ -827,14 +864,14 @@ export interface paths {
             cookie?: never;
         };
         /** Gets project's supavisor config */
-        get: operations["getSupavisorConfig"];
+        get: operations["v1-get-pooler-config"];
         put?: never;
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
         /** Updates project's supavisor config */
-        patch: operations["updateSupavisorConfig"];
+        patch: operations["v1-update-pooler-config"];
         trace?: never;
     };
     "/v1/projects/{ref}/config/auth": {
@@ -978,6 +1015,67 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/projects/{ref}/claim-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Gets project claim token */
+        get: operations["v1-get-project-claim-token"];
+        put?: never;
+        /** Creates project claim token */
+        post: operations["v1-create-project-claim-token"];
+        /** Revokes project claim token */
+        delete: operations["v1-delete-project-claim-token"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/projects/{ref}/advisors/performance": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Gets project performance advisors.
+         * @deprecated
+         * @description This is an **experimental** endpoint. It is subject to change or removal in future versions. Use it with caution, as it may not remain supported or stable.
+         */
+        get: operations["getPerformanceAdvisors"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/projects/{ref}/advisors/security": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Gets project security advisors.
+         * @deprecated
+         * @description This is an **experimental** endpoint. It is subject to change or removal in future versions. Use it with caution, as it may not remain supported or stable.
+         */
+        get: operations["getSecurityAdvisors"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/projects/{ref}/analytics/endpoints/logs.all": {
         parameters: {
             query?: never;
@@ -1003,6 +1101,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/projects/{ref}/analytics/endpoints/usage.api-counts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Gets project's usage api counts */
+        get: operations["getApiCounts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/projects/{ref}/analytics/endpoints/usage.api-requests-count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Gets project's usage api requests count */
+        get: operations["getApiRequestsCount"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/projects/{ref}/database/migrations": {
         parameters: {
             query?: never;
@@ -1014,7 +1146,7 @@ export interface paths {
          * [Beta] List applied migration versions
          * @description Only available to selected partner OAuth apps
          */
-        get: operations["v1-list-migrations"];
+        get: operations["v1-list-migration-history"];
         put?: never;
         /**
          * [Beta] Apply a database migration
@@ -1301,6 +1433,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{slug}/project-claim/{token}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Gets project details for the specified organization and claim token */
+        get: operations["v1-get-organization-project-claim"];
+        put?: never;
+        /** Claims project for the specified organization */
+        post: operations["v1-claim-project-for-organization"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1362,16 +1512,6 @@ export interface components {
             /** @enum {string} */
             message: "ok";
         };
-        V1DatabaseResponse: {
-            /** @description Database host */
-            host: string;
-            /** @description Database version */
-            version: string;
-            /** @description Database engine */
-            postgres_engine: string;
-            /** @description Release channel */
-            release_channel: string;
-        };
         V1ProjectWithDatabaseResponse: {
             /** @description Id of your project */
             id: string;
@@ -1391,9 +1531,18 @@ export interface components {
             created_at: string;
             /** @enum {string} */
             status: "INACTIVE" | "ACTIVE_HEALTHY" | "ACTIVE_UNHEALTHY" | "COMING_UP" | "UNKNOWN" | "GOING_DOWN" | "INIT_FAILED" | "REMOVED" | "RESTORING" | "UPGRADING" | "PAUSING" | "RESTORE_FAILED" | "RESTARTING" | "PAUSE_FAILED" | "RESIZING";
-            database: components["schemas"]["V1DatabaseResponse"];
+            database: {
+                /** @description Database host */
+                host: string;
+                /** @description Database version */
+                version: string;
+                /** @description Database engine */
+                postgres_engine: string;
+                /** @description Release channel */
+                release_channel: string;
+            };
         };
-        V1CreateProjectBodyDto: {
+        V1CreateProjectBody: {
             /** @description Database password */
             db_pass: string;
             /** @description Name of your project */
@@ -1417,7 +1566,7 @@ export interface components {
              */
             kps_enabled?: boolean;
             /** @enum {string} */
-            desired_instance_size?: "micro" | "small" | "medium" | "large" | "xlarge" | "2xlarge" | "4xlarge" | "8xlarge" | "12xlarge" | "16xlarge";
+            desired_instance_size?: "pico" | "micro" | "small" | "medium" | "large" | "xlarge" | "2xlarge" | "4xlarge" | "8xlarge" | "12xlarge" | "16xlarge" | "24xlarge" | "24xlarge_optimized_memory" | "24xlarge_optimized_cpu" | "24xlarge_high_memory" | "48xlarge" | "48xlarge_optimized_memory" | "48xlarge_optimized_cpu" | "48xlarge_high_memory";
             /**
              * Format: uri
              * @description Template URL used to create the project from the CLI.
@@ -1449,7 +1598,7 @@ export interface components {
             id: string;
             name: string;
         };
-        CreateOrganizationV1Dto: {
+        CreateOrganizationV1: {
             name: string;
         };
         OAuthTokenBody: {
@@ -1470,44 +1619,37 @@ export interface components {
             /** @enum {string} */
             token_type: "Bearer";
         };
-        OAuthRevokeTokenBodyDto: {
+        OAuthRevokeTokenBody: {
             /** Format: uuid */
             client_id: string;
             client_secret: string;
             refresh_token: string;
         };
-        SnippetProject: {
-            /** Format: int64 */
-            id: number;
-            name: string;
-        };
-        SnippetUser: {
-            /** Format: int64 */
-            id: number;
-            username: string;
-        };
-        SnippetMeta: {
-            id: string;
-            inserted_at: string;
-            updated_at: string;
-            /** @enum {string} */
-            type: "sql";
-            /** @enum {string} */
-            visibility: "user" | "project" | "org" | "public";
-            name: string;
-            description: string | null;
-            project: components["schemas"]["SnippetProject"];
-            owner: components["schemas"]["SnippetUser"];
-            updated_by: components["schemas"]["SnippetUser"];
-        };
         SnippetList: {
-            data: components["schemas"]["SnippetMeta"][];
+            data: {
+                id: string;
+                inserted_at: string;
+                updated_at: string;
+                /** @enum {string} */
+                type: "sql";
+                /** @enum {string} */
+                visibility: "user" | "project" | "org" | "public";
+                name: string;
+                description: string | null;
+                project: {
+                    id: number;
+                    name: string;
+                };
+                owner: {
+                    id: number;
+                    username: string;
+                };
+                updated_by: {
+                    id: number;
+                    username: string;
+                };
+            }[];
             cursor?: string;
-        };
-        SnippetContent: {
-            favorite: boolean;
-            schema_version: string;
-            sql: string;
         };
         SnippetResponse: {
             id: string;
@@ -1519,18 +1661,31 @@ export interface components {
             visibility: "user" | "project" | "org" | "public";
             name: string;
             description: string | null;
-            project: components["schemas"]["SnippetProject"];
-            owner: components["schemas"]["SnippetUser"];
-            updated_by: components["schemas"]["SnippetUser"];
-            content: components["schemas"]["SnippetContent"];
+            project: {
+                id: number;
+                name: string;
+            };
+            owner: {
+                id: number;
+                username: string;
+            };
+            updated_by: {
+                id: number;
+                username: string;
+            };
+            content: {
+                favorite: boolean;
+                schema_version: string;
+                sql: string;
+            };
         };
         ApiKeyResponse: {
-            name: string;
             api_key: string;
             id?: string | null;
             /** @enum {string|null} */
             type?: "publishable" | "secret" | "legacy" | null;
             prefix?: string | null;
+            name: string;
             description?: string | null;
             hash?: string | null;
             secret_jwt_template?: {
@@ -1544,12 +1699,14 @@ export interface components {
         CreateApiKeyBody: {
             /** @enum {string} */
             type: "publishable" | "secret";
+            name: string;
             description?: string | null;
             secret_jwt_template?: {
                 role: string;
             } | null;
         };
         UpdateApiKeyBody: {
+            name?: string;
             description?: string | null;
             secret_jwt_template?: {
                 role: string;
@@ -1561,7 +1718,7 @@ export interface components {
             persistent?: boolean;
             region?: string;
             /** @enum {string} */
-            desired_instance_size?: "pico" | "nano" | "micro" | "small" | "medium" | "large" | "xlarge" | "2xlarge" | "4xlarge" | "8xlarge" | "12xlarge" | "16xlarge";
+            desired_instance_size?: "pico" | "nano" | "micro" | "small" | "medium" | "large" | "xlarge" | "2xlarge" | "4xlarge" | "8xlarge" | "12xlarge" | "16xlarge" | "24xlarge" | "24xlarge_optimized_memory" | "24xlarge_optimized_cpu" | "24xlarge_high_memory" | "48xlarge" | "48xlarge_optimized_memory" | "48xlarge_optimized_cpu" | "48xlarge_high_memory";
             /**
              * @description Release channel. If not provided, GA will be used.
              * @enum {string}
@@ -1571,7 +1728,7 @@ export interface components {
              * @description Postgres engine version. If not provided, the latest version will be used.
              * @enum {string}
              */
-            postgres_engine?: "15" | "17-oriole";
+            postgres_engine?: "15" | "17" | "17-oriole";
             secrets?: {
                 [key: string]: string;
             };
@@ -1614,8 +1771,16 @@ export interface components {
         NetworkBanResponse: {
             banned_ipv4_addresses: string[];
         };
+        NetworkBanResponseEnriched: {
+            banned_ipv4_addresses: {
+                banned_address: string;
+                identifier: string;
+                type: string;
+            }[];
+        };
         RemoveNetworkBanRequest: {
             ipv4_addresses: string[];
+            identifier?: string;
         };
         NetworkRestrictionsResponse: {
             /** @enum {string} */
@@ -1665,7 +1830,6 @@ export interface components {
             db_pool: number | null;
         };
         V1ProjectRefResponse: {
-            /** Format: int64 */
             id: number;
             ref: string;
             name: string;
@@ -1682,7 +1846,7 @@ export interface components {
              */
             name: string;
             value: string;
-        };
+        }[];
         SslEnforcementResponse: {
             currentConfig: {
                 database: boolean;
@@ -1727,7 +1891,7 @@ export interface components {
             latest_app_version: string;
             target_upgrade_versions: {
                 /** @enum {string} */
-                postgres_version: "15" | "17-oriole";
+                postgres_version: "15" | "17" | "17-oriole";
                 /** @enum {string} */
                 release_channel: "internal" | "alpha" | "beta" | "ga" | "withdrawn" | "preview";
                 app_version: string;
@@ -1765,20 +1929,22 @@ export interface components {
         RemoveReadReplicaBody: {
             database_identifier: string;
         };
-        AuthHealthResponse: {
-            /** @enum {string} */
-            name: "GoTrue";
-        };
-        RealtimeHealthResponse: {
-            connected_cluster: number;
-        };
         V1ServiceHealthResponse: {
-            info?: components["schemas"]["AuthHealthResponse"] | components["schemas"]["RealtimeHealthResponse"];
             /** @enum {string} */
             name: "auth" | "db" | "pooler" | "realtime" | "rest" | "storage";
             healthy: boolean;
             /** @enum {string} */
             status: "COMING_UP" | "ACTIVE_HEALTHY" | "UNHEALTHY";
+            info?: {
+                /** @enum {string} */
+                name: "GoTrue";
+                version: string;
+                description: string;
+            } | {
+                healthy: boolean;
+                db_connected: boolean;
+                connected_cluster: number;
+            };
             error?: string;
         };
         CreateSigningKeyBody: {
@@ -1786,6 +1952,19 @@ export interface components {
             algorithm: "EdDSA" | "ES256" | "RS256" | "HS256";
             /** @enum {string} */
             status?: "in_use" | "standby";
+        };
+        SigningKeyResponse: {
+            /** Format: uuid */
+            id: string;
+            /** @enum {string} */
+            algorithm: "EdDSA" | "ES256" | "RS256" | "HS256";
+            /** @enum {string} */
+            status: "in_use" | "previously_used" | "revoked" | "standby";
+            public_jwk?: unknown;
+            /** Format: date-time */
+            created_at: string;
+            /** Format: date-time */
+            updated_at: string;
         };
         SigningKeysResponse: {
             keys: {
@@ -1802,24 +1981,12 @@ export interface components {
                 updated_at: string;
             }[];
         };
-        SigningKeyResponse: {
-            /** Format: uuid */
-            id: string;
-            /** @enum {string} */
-            algorithm: "EdDSA" | "ES256" | "RS256" | "HS256";
-            /** @enum {string} */
-            status: "in_use" | "previously_used" | "revoked" | "standby";
-            public_jwk?: unknown;
-            /** Format: date-time */
-            created_at: string;
-            /** Format: date-time */
-            updated_at: string;
-        };
         UpdateSigningKeyBody: {
             /** @enum {string} */
             status: "in_use" | "previously_used" | "revoked" | "standby";
         };
         StorageConfigResponse: {
+            /** Format: int64 */
             fileSizeLimit: number;
             features: {
                 imageTransformation: {
@@ -1831,6 +1998,7 @@ export interface components {
             };
         };
         UpdateStorageConfigBody: {
+            /** Format: int64 */
             fileSizeLimit?: number;
             features?: {
                 imageTransformation: {
@@ -1858,14 +2026,14 @@ export interface components {
             max_wal_size?: string;
             max_wal_senders?: number;
             max_worker_processes?: number;
+            /** @enum {string} */
+            session_replication_role?: "origin" | "replica" | "local";
             shared_buffers?: string;
             statement_timeout?: string;
             track_commit_timestamp?: boolean;
             wal_keep_size?: string;
             wal_sender_timeout?: string;
             work_mem?: string;
-            /** @enum {string} */
-            session_replication_role?: "origin" | "replica" | "local";
         };
         UpdatePostgresConfigBody: {
             effective_cache_size?: string;
@@ -1884,6 +2052,8 @@ export interface components {
             max_wal_size?: string;
             max_wal_senders?: number;
             max_worker_processes?: number;
+            /** @enum {string} */
+            session_replication_role?: "origin" | "replica" | "local";
             shared_buffers?: string;
             statement_timeout?: string;
             track_commit_timestamp?: boolean;
@@ -1891,15 +2061,13 @@ export interface components {
             wal_sender_timeout?: string;
             work_mem?: string;
             restart_database?: boolean;
-            /** @enum {string} */
-            session_replication_role?: "origin" | "replica" | "local";
         };
         V1PgbouncerConfigResponse: {
-            /** @enum {string} */
-            pool_mode?: "transaction" | "session" | "statement";
             default_pool_size?: number;
             ignore_startup_parameters?: string;
             max_client_conn?: number;
+            /** @enum {string} */
+            pool_mode?: "transaction" | "session" | "statement";
             connection_string?: string;
         };
         SupavisorConfigResponse: {
@@ -1934,26 +2102,6 @@ export interface components {
         AuthConfigResponse: {
             api_max_request_duration: number | null;
             db_max_pool_size: number | null;
-            jwt_exp: number | null;
-            mailer_otp_exp: number;
-            mailer_otp_length: number | null;
-            mfa_max_enrolled_factors: number | null;
-            mfa_phone_otp_length: number;
-            mfa_phone_max_frequency: number | null;
-            password_min_length: number | null;
-            rate_limit_anonymous_users: number | null;
-            rate_limit_email_sent: number | null;
-            rate_limit_sms_sent: number | null;
-            rate_limit_token_refresh: number | null;
-            rate_limit_verify: number | null;
-            rate_limit_otp: number | null;
-            security_refresh_token_reuse_interval: number | null;
-            sessions_inactivity_timeout: number | null;
-            sessions_timebox: number | null;
-            sms_max_frequency: number | null;
-            sms_otp_exp: number | null;
-            sms_otp_length: number;
-            smtp_max_frequency: number | null;
             disable_signup: boolean | null;
             external_anonymous_users_enabled: boolean | null;
             external_apple_additional_client_ids: string | null;
@@ -2022,6 +2170,7 @@ export interface components {
             external_workos_enabled: boolean | null;
             external_workos_secret: string | null;
             external_workos_url: string | null;
+            external_web3_solana_enabled: boolean | null;
             external_zoom_client_id: string | null;
             external_zoom_enabled: boolean | null;
             external_zoom_secret: string | null;
@@ -2040,8 +2189,11 @@ export interface components {
             hook_send_email_enabled: boolean | null;
             hook_send_email_uri: string | null;
             hook_send_email_secrets: string | null;
+            jwt_exp: number | null;
             mailer_allow_unverified_email_sign_ins: boolean | null;
             mailer_autoconfirm: boolean | null;
+            mailer_otp_exp: number;
+            mailer_otp_length: number | null;
             mailer_secure_email_change_enabled: boolean | null;
             mailer_subjects_confirmation: string | null;
             mailer_subjects_email_change: string | null;
@@ -2055,33 +2207,54 @@ export interface components {
             mailer_templates_magic_link_content: string | null;
             mailer_templates_reauthentication_content: string | null;
             mailer_templates_recovery_content: string | null;
+            mfa_max_enrolled_factors: number | null;
             mfa_totp_enroll_enabled: boolean | null;
             mfa_totp_verify_enabled: boolean | null;
             mfa_phone_enroll_enabled: boolean | null;
             mfa_phone_verify_enabled: boolean | null;
             mfa_web_authn_enroll_enabled: boolean | null;
             mfa_web_authn_verify_enabled: boolean | null;
+            mfa_phone_otp_length: number;
             mfa_phone_template: string | null;
+            mfa_phone_max_frequency: number | null;
             password_hibp_enabled: boolean | null;
-            password_required_characters: string | null;
+            password_min_length: number | null;
+            /** @enum {string|null} */
+            password_required_characters: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ:0123456789" | "abcdefghijklmnopqrstuvwxyz:ABCDEFGHIJKLMNOPQRSTUVWXYZ:0123456789" | "abcdefghijklmnopqrstuvwxyz:ABCDEFGHIJKLMNOPQRSTUVWXYZ:0123456789:!@#$%^&*()_+-=[]{};'\\\\:\"|<>?,./`~" | "" | null;
+            rate_limit_anonymous_users: number | null;
+            rate_limit_email_sent: number | null;
+            rate_limit_sms_sent: number | null;
+            rate_limit_token_refresh: number | null;
+            rate_limit_verify: number | null;
+            rate_limit_otp: number | null;
+            rate_limit_web3: number | null;
             refresh_token_rotation_enabled: boolean | null;
             saml_enabled: boolean | null;
             saml_external_url: string | null;
             saml_allow_encrypted_assertions: boolean | null;
             security_captcha_enabled: boolean | null;
-            security_captcha_provider: string | null;
+            /** @enum {string|null} */
+            security_captcha_provider: "turnstile" | "hcaptcha" | null;
             security_captcha_secret: string | null;
             security_manual_linking_enabled: boolean | null;
+            security_refresh_token_reuse_interval: number | null;
             security_update_password_require_reauthentication: boolean | null;
+            sessions_inactivity_timeout: number | null;
             sessions_single_per_user: boolean | null;
             sessions_tags: string | null;
+            sessions_timebox: number | null;
             site_url: string | null;
             sms_autoconfirm: boolean | null;
+            sms_max_frequency: number | null;
             sms_messagebird_access_key: string | null;
             sms_messagebird_originator: string | null;
-            sms_provider: string | null;
+            sms_otp_exp: number | null;
+            sms_otp_length: number;
+            /** @enum {string|null} */
+            sms_provider: "messagebird" | "textlocal" | "twilio" | "twilio_verify" | "vonage" | null;
             sms_template: string | null;
             sms_test_otp: string | null;
+            /** Format: date-time */
             sms_test_otp_valid_until: string | null;
             sms_textlocal_api_key: string | null;
             sms_textlocal_sender: string | null;
@@ -2097,6 +2270,7 @@ export interface components {
             sms_vonage_from: string | null;
             smtp_admin_email: string | null;
             smtp_host: string | null;
+            smtp_max_frequency: number | null;
             smtp_pass: string | null;
             smtp_port: string | null;
             smtp_sender_name: string | null;
@@ -2104,176 +2278,181 @@ export interface components {
             uri_allow_list: string | null;
         };
         UpdateAuthConfigBody: {
-            jwt_exp?: number;
-            smtp_max_frequency?: number;
-            mfa_max_enrolled_factors?: number;
-            sessions_timebox?: number;
-            sessions_inactivity_timeout?: number;
-            rate_limit_anonymous_users?: number;
-            rate_limit_email_sent?: number;
-            rate_limit_sms_sent?: number;
-            rate_limit_verify?: number;
-            rate_limit_token_refresh?: number;
-            rate_limit_otp?: number;
-            password_min_length?: number;
-            security_refresh_token_reuse_interval?: number;
+            site_url?: string | null;
+            disable_signup?: boolean | null;
+            jwt_exp?: number | null;
+            smtp_admin_email?: string | null;
+            smtp_host?: string | null;
+            smtp_port?: string | null;
+            smtp_user?: string | null;
+            smtp_pass?: string | null;
+            smtp_max_frequency?: number | null;
+            smtp_sender_name?: string | null;
+            mailer_allow_unverified_email_sign_ins?: boolean | null;
+            mailer_autoconfirm?: boolean | null;
+            mailer_subjects_invite?: string | null;
+            mailer_subjects_confirmation?: string | null;
+            mailer_subjects_recovery?: string | null;
+            mailer_subjects_email_change?: string | null;
+            mailer_subjects_magic_link?: string | null;
+            mailer_subjects_reauthentication?: string | null;
+            mailer_templates_invite_content?: string | null;
+            mailer_templates_confirmation_content?: string | null;
+            mailer_templates_recovery_content?: string | null;
+            mailer_templates_email_change_content?: string | null;
+            mailer_templates_magic_link_content?: string | null;
+            mailer_templates_reauthentication_content?: string | null;
+            mfa_max_enrolled_factors?: number | null;
+            uri_allow_list?: string | null;
+            external_anonymous_users_enabled?: boolean | null;
+            external_email_enabled?: boolean | null;
+            external_phone_enabled?: boolean | null;
+            saml_enabled?: boolean | null;
+            saml_external_url?: string | null;
+            security_captcha_enabled?: boolean | null;
+            /** @enum {string|null} */
+            security_captcha_provider?: "turnstile" | "hcaptcha" | null;
+            security_captcha_secret?: string | null;
+            sessions_timebox?: number | null;
+            sessions_inactivity_timeout?: number | null;
+            sessions_single_per_user?: boolean | null;
+            sessions_tags?: string | null;
+            rate_limit_anonymous_users?: number | null;
+            rate_limit_email_sent?: number | null;
+            rate_limit_sms_sent?: number | null;
+            rate_limit_verify?: number | null;
+            rate_limit_token_refresh?: number | null;
+            rate_limit_otp?: number | null;
+            rate_limit_web3?: number | null;
+            mailer_secure_email_change_enabled?: boolean | null;
+            refresh_token_rotation_enabled?: boolean | null;
+            password_hibp_enabled?: boolean | null;
+            password_min_length?: number | null;
+            /** @enum {string|null} */
+            password_required_characters?: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ:0123456789" | "abcdefghijklmnopqrstuvwxyz:ABCDEFGHIJKLMNOPQRSTUVWXYZ:0123456789" | "abcdefghijklmnopqrstuvwxyz:ABCDEFGHIJKLMNOPQRSTUVWXYZ:0123456789:!@#$%^&*()_+-=[]{};'\\\\:\"|<>?,./`~" | "" | null;
+            security_manual_linking_enabled?: boolean | null;
+            security_update_password_require_reauthentication?: boolean | null;
+            security_refresh_token_reuse_interval?: number | null;
             mailer_otp_exp?: number;
-            mailer_otp_length?: number;
-            sms_max_frequency?: number;
-            sms_otp_exp?: number;
+            mailer_otp_length?: number | null;
+            sms_autoconfirm?: boolean | null;
+            sms_max_frequency?: number | null;
+            sms_otp_exp?: number | null;
             sms_otp_length?: number;
-            db_max_pool_size?: number;
-            api_max_request_duration?: number;
-            mfa_phone_max_frequency?: number;
-            mfa_phone_otp_length?: number;
-            site_url?: string;
-            disable_signup?: boolean;
-            smtp_admin_email?: string;
-            smtp_host?: string;
-            smtp_port?: string;
-            smtp_user?: string;
-            smtp_pass?: string;
-            smtp_sender_name?: string;
-            mailer_allow_unverified_email_sign_ins?: boolean;
-            mailer_autoconfirm?: boolean;
-            mailer_subjects_invite?: string;
-            mailer_subjects_confirmation?: string;
-            mailer_subjects_recovery?: string;
-            mailer_subjects_email_change?: string;
-            mailer_subjects_magic_link?: string;
-            mailer_subjects_reauthentication?: string;
-            mailer_templates_invite_content?: string;
-            mailer_templates_confirmation_content?: string;
-            mailer_templates_recovery_content?: string;
-            mailer_templates_email_change_content?: string;
-            mailer_templates_magic_link_content?: string;
-            mailer_templates_reauthentication_content?: string;
-            uri_allow_list?: string;
-            external_anonymous_users_enabled?: boolean;
-            external_email_enabled?: boolean;
-            external_phone_enabled?: boolean;
-            saml_enabled?: boolean;
-            saml_external_url?: string;
-            security_captcha_enabled?: boolean;
-            security_captcha_provider?: string;
-            security_captcha_secret?: string;
-            sessions_single_per_user?: boolean;
-            sessions_tags?: string;
-            mailer_secure_email_change_enabled?: boolean;
-            refresh_token_rotation_enabled?: boolean;
-            password_hibp_enabled?: boolean;
-            /** @enum {string} */
-            password_required_characters?: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ:0123456789" | "abcdefghijklmnopqrstuvwxyz:ABCDEFGHIJKLMNOPQRSTUVWXYZ:0123456789" | "abcdefghijklmnopqrstuvwxyz:ABCDEFGHIJKLMNOPQRSTUVWXYZ:0123456789:!@#$%^&*()_+-=[]{};'\\\\:\"|<>?,./`~" | "";
-            security_manual_linking_enabled?: boolean;
-            security_update_password_require_reauthentication?: boolean;
-            sms_autoconfirm?: boolean;
-            sms_provider?: string;
-            sms_messagebird_access_key?: string;
-            sms_messagebird_originator?: string;
-            sms_test_otp?: string;
-            sms_test_otp_valid_until?: string;
-            sms_textlocal_api_key?: string;
-            sms_textlocal_sender?: string;
-            sms_twilio_account_sid?: string;
-            sms_twilio_auth_token?: string;
-            sms_twilio_content_sid?: string;
-            sms_twilio_message_service_sid?: string;
-            sms_twilio_verify_account_sid?: string;
-            sms_twilio_verify_auth_token?: string;
-            sms_twilio_verify_message_service_sid?: string;
-            sms_vonage_api_key?: string;
-            sms_vonage_api_secret?: string;
-            sms_vonage_from?: string;
-            sms_template?: string;
-            hook_mfa_verification_attempt_enabled?: boolean;
-            hook_mfa_verification_attempt_uri?: string;
-            hook_mfa_verification_attempt_secrets?: string;
-            hook_password_verification_attempt_enabled?: boolean;
-            hook_password_verification_attempt_uri?: string;
-            hook_password_verification_attempt_secrets?: string;
-            hook_custom_access_token_enabled?: boolean;
-            hook_custom_access_token_uri?: string;
-            hook_custom_access_token_secrets?: string;
-            hook_send_sms_enabled?: boolean;
-            hook_send_sms_uri?: string;
-            hook_send_sms_secrets?: string;
-            hook_send_email_enabled?: boolean;
-            hook_send_email_uri?: string;
-            hook_send_email_secrets?: string;
-            external_apple_enabled?: boolean;
-            external_apple_client_id?: string;
-            external_apple_secret?: string;
-            external_apple_additional_client_ids?: string;
-            external_azure_enabled?: boolean;
-            external_azure_client_id?: string;
-            external_azure_secret?: string;
-            external_azure_url?: string;
-            external_bitbucket_enabled?: boolean;
-            external_bitbucket_client_id?: string;
-            external_bitbucket_secret?: string;
-            external_discord_enabled?: boolean;
-            external_discord_client_id?: string;
-            external_discord_secret?: string;
-            external_facebook_enabled?: boolean;
-            external_facebook_client_id?: string;
-            external_facebook_secret?: string;
-            external_figma_enabled?: boolean;
-            external_figma_client_id?: string;
-            external_figma_secret?: string;
-            external_github_enabled?: boolean;
-            external_github_client_id?: string;
-            external_github_secret?: string;
-            external_gitlab_enabled?: boolean;
-            external_gitlab_client_id?: string;
-            external_gitlab_secret?: string;
-            external_gitlab_url?: string;
-            external_google_enabled?: boolean;
-            external_google_client_id?: string;
-            external_google_secret?: string;
-            external_google_additional_client_ids?: string;
-            external_google_skip_nonce_check?: boolean;
-            external_kakao_enabled?: boolean;
-            external_kakao_client_id?: string;
-            external_kakao_secret?: string;
-            external_keycloak_enabled?: boolean;
-            external_keycloak_client_id?: string;
-            external_keycloak_secret?: string;
-            external_keycloak_url?: string;
-            external_linkedin_oidc_enabled?: boolean;
-            external_linkedin_oidc_client_id?: string;
-            external_linkedin_oidc_secret?: string;
-            external_slack_oidc_enabled?: boolean;
-            external_slack_oidc_client_id?: string;
-            external_slack_oidc_secret?: string;
-            external_notion_enabled?: boolean;
-            external_notion_client_id?: string;
-            external_notion_secret?: string;
-            external_slack_enabled?: boolean;
-            external_slack_client_id?: string;
-            external_slack_secret?: string;
-            external_spotify_enabled?: boolean;
-            external_spotify_client_id?: string;
-            external_spotify_secret?: string;
-            external_twitch_enabled?: boolean;
-            external_twitch_client_id?: string;
-            external_twitch_secret?: string;
-            external_twitter_enabled?: boolean;
-            external_twitter_client_id?: string;
-            external_twitter_secret?: string;
-            external_workos_enabled?: boolean;
-            external_workos_client_id?: string;
-            external_workos_secret?: string;
-            external_workos_url?: string;
-            external_zoom_enabled?: boolean;
-            external_zoom_client_id?: string;
-            external_zoom_secret?: string;
-            mfa_totp_enroll_enabled?: boolean;
-            mfa_totp_verify_enabled?: boolean;
-            mfa_web_authn_enroll_enabled?: boolean;
-            mfa_web_authn_verify_enabled?: boolean;
-            mfa_phone_enroll_enabled?: boolean;
-            mfa_phone_verify_enabled?: boolean;
-            mfa_phone_template?: string;
+            /** @enum {string|null} */
+            sms_provider?: "messagebird" | "textlocal" | "twilio" | "twilio_verify" | "vonage" | null;
+            sms_messagebird_access_key?: string | null;
+            sms_messagebird_originator?: string | null;
+            sms_test_otp?: string | null;
+            /** Format: date-time */
+            sms_test_otp_valid_until?: string | null;
+            sms_textlocal_api_key?: string | null;
+            sms_textlocal_sender?: string | null;
+            sms_twilio_account_sid?: string | null;
+            sms_twilio_auth_token?: string | null;
+            sms_twilio_content_sid?: string | null;
+            sms_twilio_message_service_sid?: string | null;
+            sms_twilio_verify_account_sid?: string | null;
+            sms_twilio_verify_auth_token?: string | null;
+            sms_twilio_verify_message_service_sid?: string | null;
+            sms_vonage_api_key?: string | null;
+            sms_vonage_api_secret?: string | null;
+            sms_vonage_from?: string | null;
+            sms_template?: string | null;
+            hook_mfa_verification_attempt_enabled?: boolean | null;
+            hook_mfa_verification_attempt_uri?: string | null;
+            hook_mfa_verification_attempt_secrets?: string | null;
+            hook_password_verification_attempt_enabled?: boolean | null;
+            hook_password_verification_attempt_uri?: string | null;
+            hook_password_verification_attempt_secrets?: string | null;
+            hook_custom_access_token_enabled?: boolean | null;
+            hook_custom_access_token_uri?: string | null;
+            hook_custom_access_token_secrets?: string | null;
+            hook_send_sms_enabled?: boolean | null;
+            hook_send_sms_uri?: string | null;
+            hook_send_sms_secrets?: string | null;
+            hook_send_email_enabled?: boolean | null;
+            hook_send_email_uri?: string | null;
+            hook_send_email_secrets?: string | null;
+            external_apple_enabled?: boolean | null;
+            external_apple_client_id?: string | null;
+            external_apple_secret?: string | null;
+            external_apple_additional_client_ids?: string | null;
+            external_azure_enabled?: boolean | null;
+            external_azure_client_id?: string | null;
+            external_azure_secret?: string | null;
+            external_azure_url?: string | null;
+            external_bitbucket_enabled?: boolean | null;
+            external_bitbucket_client_id?: string | null;
+            external_bitbucket_secret?: string | null;
+            external_discord_enabled?: boolean | null;
+            external_discord_client_id?: string | null;
+            external_discord_secret?: string | null;
+            external_facebook_enabled?: boolean | null;
+            external_facebook_client_id?: string | null;
+            external_facebook_secret?: string | null;
+            external_figma_enabled?: boolean | null;
+            external_figma_client_id?: string | null;
+            external_figma_secret?: string | null;
+            external_github_enabled?: boolean | null;
+            external_github_client_id?: string | null;
+            external_github_secret?: string | null;
+            external_gitlab_enabled?: boolean | null;
+            external_gitlab_client_id?: string | null;
+            external_gitlab_secret?: string | null;
+            external_gitlab_url?: string | null;
+            external_google_enabled?: boolean | null;
+            external_google_client_id?: string | null;
+            external_google_secret?: string | null;
+            external_google_additional_client_ids?: string | null;
+            external_google_skip_nonce_check?: boolean | null;
+            external_kakao_enabled?: boolean | null;
+            external_kakao_client_id?: string | null;
+            external_kakao_secret?: string | null;
+            external_keycloak_enabled?: boolean | null;
+            external_keycloak_client_id?: string | null;
+            external_keycloak_secret?: string | null;
+            external_keycloak_url?: string | null;
+            external_linkedin_oidc_enabled?: boolean | null;
+            external_linkedin_oidc_client_id?: string | null;
+            external_linkedin_oidc_secret?: string | null;
+            external_slack_oidc_enabled?: boolean | null;
+            external_slack_oidc_client_id?: string | null;
+            external_slack_oidc_secret?: string | null;
+            external_notion_enabled?: boolean | null;
+            external_notion_client_id?: string | null;
+            external_notion_secret?: string | null;
+            external_slack_enabled?: boolean | null;
+            external_slack_client_id?: string | null;
+            external_slack_secret?: string | null;
+            external_spotify_enabled?: boolean | null;
+            external_spotify_client_id?: string | null;
+            external_spotify_secret?: string | null;
+            external_twitch_enabled?: boolean | null;
+            external_twitch_client_id?: string | null;
+            external_twitch_secret?: string | null;
+            external_twitter_enabled?: boolean | null;
+            external_twitter_client_id?: string | null;
+            external_twitter_secret?: string | null;
+            external_workos_enabled?: boolean | null;
+            external_workos_client_id?: string | null;
+            external_workos_secret?: string | null;
+            external_workos_url?: string | null;
+            external_web3_solana_enabled?: boolean | null;
+            external_zoom_enabled?: boolean | null;
+            external_zoom_client_id?: string | null;
+            external_zoom_secret?: string | null;
+            db_max_pool_size?: number | null;
+            api_max_request_duration?: number | null;
+            mfa_totp_enroll_enabled?: boolean | null;
+            mfa_totp_verify_enabled?: boolean | null;
+            mfa_web_authn_enroll_enabled?: boolean | null;
+            mfa_web_authn_verify_enabled?: boolean | null;
+            mfa_phone_enroll_enabled?: boolean | null;
+            mfa_phone_verify_enabled?: boolean | null;
+            mfa_phone_max_frequency?: number | null;
+            mfa_phone_otp_length?: number | null;
+            mfa_phone_template?: string | null;
         };
         CreateThirdPartyAuthBody: {
             oidc_issuer_url?: string;
@@ -2292,23 +2471,21 @@ export interface components {
             updated_at: string;
             resolved_at?: string | null;
         };
-        ProjectAvailableRestoreVersion: {
-            version: string;
-            /** @enum {string} */
-            release_channel: "internal" | "alpha" | "beta" | "ga" | "withdrawn" | "preview";
-            /** @enum {string} */
-            postgres_engine: "13" | "14" | "15" | "17" | "17-oriole";
-        };
         GetProjectAvailableRestoreVersionsResponse: {
-            available_versions: components["schemas"]["ProjectAvailableRestoreVersion"][];
+            available_versions: {
+                version: string;
+                /** @enum {string} */
+                release_channel: "internal" | "alpha" | "beta" | "ga" | "withdrawn" | "preview";
+                /** @enum {string} */
+                postgres_engine: "13" | "14" | "15" | "17" | "17-oriole";
+            }[];
         };
-        RestoreProjectBodyDto: Record<string, never>;
-        ListProjectAddonsResponseDto: {
+        ListProjectAddonsResponse: {
             selected_addons: {
                 /** @enum {string} */
                 type: "custom_domain" | "compute_instance" | "pitr" | "ipv4" | "auth_mfa_phone" | "auth_mfa_web_authn" | "log_drain";
                 variant: {
-                    id: ("ci_micro" | "ci_small" | "ci_medium" | "ci_large" | "ci_xlarge" | "ci_2xlarge" | "ci_4xlarge" | "ci_8xlarge" | "ci_12xlarge" | "ci_16xlarge") | "cd_default" | ("pitr_7" | "pitr_14" | "pitr_28") | "ipv4_default" | "auth_mfa_phone_default" | "auth_mfa_web_authn_default" | "log_drain_default";
+                    id: ("ci_micro" | "ci_small" | "ci_medium" | "ci_large" | "ci_xlarge" | "ci_2xlarge" | "ci_4xlarge" | "ci_8xlarge" | "ci_12xlarge" | "ci_16xlarge" | "ci_24xlarge" | "ci_24xlarge_optimized_cpu" | "ci_24xlarge_optimized_memory" | "ci_24xlarge_high_memory" | "ci_48xlarge" | "ci_48xlarge_optimized_cpu" | "ci_48xlarge_optimized_memory" | "ci_48xlarge_high_memory") | "cd_default" | ("pitr_7" | "pitr_14" | "pitr_28") | "ipv4_default" | "auth_mfa_phone_default" | "auth_mfa_web_authn_default" | "log_drain_default";
                     name: string;
                     price: {
                         description: string;
@@ -2327,7 +2504,7 @@ export interface components {
                 type: "custom_domain" | "compute_instance" | "pitr" | "ipv4" | "auth_mfa_phone" | "auth_mfa_web_authn" | "log_drain";
                 name: string;
                 variants: {
-                    id: ("ci_micro" | "ci_small" | "ci_medium" | "ci_large" | "ci_xlarge" | "ci_2xlarge" | "ci_4xlarge" | "ci_8xlarge" | "ci_12xlarge" | "ci_16xlarge") | "cd_default" | ("pitr_7" | "pitr_14" | "pitr_28") | "ipv4_default" | "auth_mfa_phone_default" | "auth_mfa_web_authn_default" | "log_drain_default";
+                    id: ("ci_micro" | "ci_small" | "ci_medium" | "ci_large" | "ci_xlarge" | "ci_2xlarge" | "ci_4xlarge" | "ci_8xlarge" | "ci_12xlarge" | "ci_16xlarge" | "ci_24xlarge" | "ci_24xlarge_optimized_cpu" | "ci_24xlarge_optimized_memory" | "ci_24xlarge_high_memory" | "ci_48xlarge" | "ci_48xlarge_optimized_cpu" | "ci_48xlarge_optimized_memory" | "ci_48xlarge_high_memory") | "cd_default" | ("pitr_7" | "pitr_14" | "pitr_28") | "ipv4_default" | "auth_mfa_phone_default" | "auth_mfa_web_authn_default" | "log_drain_default";
                     name: string;
                     price: {
                         description: string;
@@ -2342,25 +2519,65 @@ export interface components {
                 }[];
             }[];
         };
-        ApplyProjectAddonBodyDto: {
-            addon_variant: ("ci_micro" | "ci_small" | "ci_medium" | "ci_large" | "ci_xlarge" | "ci_2xlarge" | "ci_4xlarge" | "ci_8xlarge" | "ci_12xlarge" | "ci_16xlarge") | "cd_default" | ("pitr_7" | "pitr_14" | "pitr_28") | "ipv4_default";
+        ApplyProjectAddonBody: {
+            addon_variant: ("ci_micro" | "ci_small" | "ci_medium" | "ci_large" | "ci_xlarge" | "ci_2xlarge" | "ci_4xlarge" | "ci_8xlarge" | "ci_12xlarge" | "ci_16xlarge" | "ci_24xlarge" | "ci_24xlarge_optimized_cpu" | "ci_24xlarge_optimized_memory" | "ci_24xlarge_high_memory" | "ci_48xlarge" | "ci_48xlarge_optimized_cpu" | "ci_48xlarge_optimized_memory" | "ci_48xlarge_high_memory") | "cd_default" | ("pitr_7" | "pitr_14" | "pitr_28") | "ipv4_default";
             /** @enum {string} */
             addon_type: "custom_domain" | "compute_instance" | "pitr" | "ipv4" | "auth_mfa_phone" | "auth_mfa_web_authn" | "log_drain";
         };
-        V1AnalyticsResponse: {
-            error?: {
-                code?: number;
-                errors?: {
-                    domain?: string;
-                    location?: string;
-                    locationType?: string;
-                    message?: string;
-                    reason?: string;
+        ProjectClaimTokenResponse: {
+            token_alias: string;
+            expires_at: string;
+            created_at: string;
+            /** Format: uuid */
+            created_by: string;
+        };
+        CreateProjectClaimTokenResponse: {
+            token: string;
+            token_alias: string;
+            expires_at: string;
+            created_at: string;
+            /** Format: uuid */
+            created_by: string;
+        };
+        V1ProjectAdvisorsResponse: {
+            lints: {
+                /** @enum {string} */
+                name: "unindexed_foreign_keys" | "auth_users_exposed" | "auth_rls_initplan" | "no_primary_key" | "unused_index" | "multiple_permissive_policies" | "policy_exists_rls_disabled" | "rls_enabled_no_policy" | "duplicate_index" | "security_definer_view" | "function_search_path_mutable" | "rls_disabled_in_public" | "extension_in_public" | "rls_references_user_metadata" | "materialized_view_in_api" | "foreign_table_in_api" | "unsupported_reg_types" | "auth_otp_long_expiry" | "auth_otp_short_length" | "ssl_not_enforced" | "network_restrictions_not_set" | "password_requirements_min_length" | "pitr_not_enabled" | "auth_leaked_password_protection" | "auth_insufficient_mfa_options" | "auth_password_policy_missing" | "leaked_service_key" | "no_backup_admin";
+                title: string;
+                /** @enum {string} */
+                level: "ERROR" | "WARN" | "INFO";
+                /** @enum {string} */
+                facing: "EXTERNAL";
+                categories: ("PERFORMANCE" | "SECURITY")[];
+                description: string;
+                detail: string;
+                remediation: string;
+                metadata?: {
+                    schema?: string;
+                    name?: string;
+                    entity?: string;
+                    /** @enum {string} */
+                    type?: "table" | "view" | "auth" | "function" | "extension" | "compliance";
+                    fkey_name?: string;
+                    fkey_columns?: number[];
+                };
+                cache_key: string;
+            }[];
+        };
+        AnalyticsResponse: {
+            result?: unknown[];
+            error?: string | {
+                code: number;
+                errors: {
+                    domain: string;
+                    location: string;
+                    locationType: string;
+                    message: string;
+                    reason: string;
                 }[];
-                message?: string;
-                status?: string;
-            } | string;
-            result?: Record<string, never>[];
+                message: string;
+                status: string;
+            };
         };
         V1ListMigrationsResponse: {
             version: string;
@@ -2374,7 +2591,7 @@ export interface components {
             query: string;
             read_only?: boolean;
         };
-        GetProjectDbMetadataResponseDto: {
+        GetProjectDbMetadataResponse: {
             databases: ({
                 name: string;
                 schemas: ({
@@ -2393,7 +2610,9 @@ export interface components {
             /** @enum {string} */
             status: "ACTIVE" | "REMOVED" | "THROTTLED";
             version: number;
+            /** Format: int64 */
             created_at: number;
+            /** Format: int64 */
             updated_at: number;
             verify_jwt?: boolean;
             import_map?: boolean;
@@ -2413,12 +2632,13 @@ export interface components {
             /** @enum {string} */
             status: "ACTIVE" | "REMOVED" | "THROTTLED";
             version: number;
+            /** Format: int64 */
             created_at?: number;
             verify_jwt?: boolean;
             import_map?: boolean;
             entrypoint_path?: string;
             import_map_path?: string;
-        };
+        }[];
         BulkUpdateFunctionResponse: {
             functions: {
                 id: string;
@@ -2427,7 +2647,9 @@ export interface components {
                 /** @enum {string} */
                 status: "ACTIVE" | "REMOVED" | "THROTTLED";
                 version: number;
+                /** Format: int64 */
                 created_at: number;
+                /** Format: int64 */
                 updated_at: number;
                 verify_jwt?: boolean;
                 import_map?: boolean;
@@ -2452,7 +2674,9 @@ export interface components {
             /** @enum {string} */
             status: "ACTIVE" | "REMOVED" | "THROTTLED";
             version: number;
+            /** Format: int64 */
             created_at?: number;
+            /** Format: int64 */
             updated_at?: number;
             verify_jwt?: boolean;
             import_map?: boolean;
@@ -2466,13 +2690,16 @@ export interface components {
             /** @enum {string} */
             status: "ACTIVE" | "REMOVED" | "THROTTLED";
             version: number;
+            /** Format: int64 */
             created_at: number;
+            /** Format: int64 */
             updated_at: number;
             verify_jwt?: boolean;
             import_map?: boolean;
             entrypoint_path?: string;
             import_map_path?: string;
         };
+        StreamableFile: Record<string, never>;
         V1UpdateFunctionBody: {
             name?: string;
             body?: string;
@@ -2486,17 +2713,6 @@ export interface components {
             updated_at: string;
             public: boolean;
         };
-        AttributeValue: {
-            default?: Record<string, never> | number | string | boolean;
-            name?: string;
-            names?: string[];
-            array?: boolean;
-        };
-        AttributeMapping: {
-            keys: {
-                [key: string]: components["schemas"]["AttributeValue"];
-            };
-        };
         CreateProviderBody: {
             /**
              * @description What type of provider will be created
@@ -2506,42 +2722,97 @@ export interface components {
             metadata_xml?: string;
             metadata_url?: string;
             domains?: string[];
-            attribute_mapping?: components["schemas"]["AttributeMapping"];
-        };
-        SamlDescriptor: {
-            id: string;
-            entity_id: string;
-            metadata_url?: string;
-            metadata_xml?: string;
-            attribute_mapping?: components["schemas"]["AttributeMapping"];
-        };
-        Domain: {
-            id: string;
-            domain?: string;
-            created_at?: string;
-            updated_at?: string;
+            attribute_mapping?: {
+                keys: {
+                    [key: string]: {
+                        name?: string;
+                        names?: string[];
+                        default?: Record<string, never> | number | string | boolean;
+                        array?: boolean;
+                    };
+                };
+            };
         };
         CreateProviderResponse: {
             id: string;
-            saml?: components["schemas"]["SamlDescriptor"];
-            domains?: components["schemas"]["Domain"][];
-            created_at?: string;
-            updated_at?: string;
-        };
-        Provider: {
-            id: string;
-            saml?: components["schemas"]["SamlDescriptor"];
-            domains?: components["schemas"]["Domain"][];
+            saml?: {
+                id: string;
+                entity_id: string;
+                metadata_url?: string;
+                metadata_xml?: string;
+                attribute_mapping?: {
+                    keys: {
+                        [key: string]: {
+                            name?: string;
+                            names?: string[];
+                            default?: Record<string, never> | number | string | boolean;
+                            array?: boolean;
+                        };
+                    };
+                };
+            };
+            domains?: {
+                id: string;
+                domain?: string;
+                created_at?: string;
+                updated_at?: string;
+            }[];
             created_at?: string;
             updated_at?: string;
         };
         ListProvidersResponse: {
-            items: components["schemas"]["Provider"][];
+            items: {
+                id: string;
+                saml?: {
+                    id: string;
+                    entity_id: string;
+                    metadata_url?: string;
+                    metadata_xml?: string;
+                    attribute_mapping?: {
+                        keys: {
+                            [key: string]: {
+                                name?: string;
+                                names?: string[];
+                                default?: Record<string, never> | number | string | boolean;
+                                array?: boolean;
+                            };
+                        };
+                    };
+                };
+                domains?: {
+                    id: string;
+                    domain?: string;
+                    created_at?: string;
+                    updated_at?: string;
+                }[];
+                created_at?: string;
+                updated_at?: string;
+            }[];
         };
         GetProviderResponse: {
             id: string;
-            saml?: components["schemas"]["SamlDescriptor"];
-            domains?: components["schemas"]["Domain"][];
+            saml?: {
+                id: string;
+                entity_id: string;
+                metadata_url?: string;
+                metadata_xml?: string;
+                attribute_mapping?: {
+                    keys: {
+                        [key: string]: {
+                            name?: string;
+                            names?: string[];
+                            default?: Record<string, never> | number | string | boolean;
+                            array?: boolean;
+                        };
+                    };
+                };
+            };
+            domains?: {
+                id: string;
+                domain?: string;
+                created_at?: string;
+                updated_at?: string;
+            }[];
             created_at?: string;
             updated_at?: string;
         };
@@ -2549,40 +2820,85 @@ export interface components {
             metadata_xml?: string;
             metadata_url?: string;
             domains?: string[];
-            attribute_mapping?: components["schemas"]["AttributeMapping"];
+            attribute_mapping?: {
+                keys: {
+                    [key: string]: {
+                        name?: string;
+                        names?: string[];
+                        default?: Record<string, never> | number | string | boolean;
+                        array?: boolean;
+                    };
+                };
+            };
         };
         UpdateProviderResponse: {
             id: string;
-            saml?: components["schemas"]["SamlDescriptor"];
-            domains?: components["schemas"]["Domain"][];
+            saml?: {
+                id: string;
+                entity_id: string;
+                metadata_url?: string;
+                metadata_xml?: string;
+                attribute_mapping?: {
+                    keys: {
+                        [key: string]: {
+                            name?: string;
+                            names?: string[];
+                            default?: Record<string, never> | number | string | boolean;
+                            array?: boolean;
+                        };
+                    };
+                };
+            };
+            domains?: {
+                id: string;
+                domain?: string;
+                created_at?: string;
+                updated_at?: string;
+            }[];
             created_at?: string;
             updated_at?: string;
         };
         DeleteProviderResponse: {
             id: string;
-            saml?: components["schemas"]["SamlDescriptor"];
-            domains?: components["schemas"]["Domain"][];
+            saml?: {
+                id: string;
+                entity_id: string;
+                metadata_url?: string;
+                metadata_xml?: string;
+                attribute_mapping?: {
+                    keys: {
+                        [key: string]: {
+                            name?: string;
+                            names?: string[];
+                            default?: Record<string, never> | number | string | boolean;
+                            array?: boolean;
+                        };
+                    };
+                };
+            };
+            domains?: {
+                id: string;
+                domain?: string;
+                created_at?: string;
+                updated_at?: string;
+            }[];
             created_at?: string;
             updated_at?: string;
-        };
-        V1Backup: {
-            /** @enum {string} */
-            status: "COMPLETED" | "FAILED" | "PENDING" | "REMOVED" | "ARCHIVED" | "CANCELLED";
-            is_physical_backup: boolean;
-            inserted_at: string;
-        };
-        V1PhysicalBackup: {
-            /** Format: int64 */
-            earliest_physical_backup_date_unix?: number;
-            /** Format: int64 */
-            latest_physical_backup_date_unix?: number;
         };
         V1BackupsResponse: {
             region: string;
             walg_enabled: boolean;
             pitr_enabled: boolean;
-            backups: components["schemas"]["V1Backup"][];
-            physical_backup_data: components["schemas"]["V1PhysicalBackup"];
+            backups: {
+                is_physical_backup: boolean;
+                /** @enum {string} */
+                status: "COMPLETED" | "FAILED" | "PENDING" | "REMOVED" | "ARCHIVED" | "CANCELLED";
+                inserted_at: string;
+            }[];
+            physical_backup_data: {
+                earliest_physical_backup_date_unix?: number;
+                latest_physical_backup_date_unix?: number;
+            };
         };
         V1RestorePitrBody: {
             /** Format: int64 */
@@ -2595,16 +2911,48 @@ export interface components {
             role_name: string;
             mfa_enabled: boolean;
         };
-        /** @enum {string} */
-        BillingPlanId: "free" | "pro" | "team" | "enterprise";
-        /** @enum {string} */
-        ReleaseChannel: "internal" | "alpha" | "beta" | "ga" | "withdrawn" | "preview";
         V1OrganizationSlugResponse: {
-            plan?: components["schemas"]["BillingPlanId"];
-            opt_in_tags: "AI_SQL_GENERATOR_OPT_IN"[];
-            allowed_release_channels: components["schemas"]["ReleaseChannel"][];
             id: string;
             name: string;
+            /** @enum {string} */
+            plan?: "free" | "pro" | "team" | "enterprise";
+            opt_in_tags: "AI_SQL_GENERATOR_OPT_IN"[];
+            allowed_release_channels: ("internal" | "alpha" | "beta" | "ga" | "withdrawn" | "preview")[];
+        };
+        OrganizationProjectClaimResponse: {
+            project: {
+                ref: string;
+                name: string;
+            };
+            preview: {
+                valid: boolean;
+                warnings: {
+                    key: string;
+                    message: string;
+                }[];
+                errors: {
+                    key: string;
+                    message: string;
+                }[];
+                info: {
+                    key: string;
+                    message: string;
+                }[];
+                members_exceeding_free_project_limit: {
+                    name: string;
+                    limit: number;
+                }[];
+                target_organization_eligible: boolean | null;
+                target_organization_has_free_project_slots: boolean | null;
+                /** @enum {string} */
+                source_subscription_plan: "free" | "pro" | "team" | "enterprise";
+                /** @enum {string|null} */
+                target_subscription_plan: "free" | "pro" | "team" | "enterprise" | null;
+            };
+            expires_at: string;
+            created_at: string;
+            /** Format: uuid */
+            created_by: string;
         };
     };
     responses: never;
@@ -2620,6 +2968,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Branch ID */
                 branch_id: string;
             };
             cookie?: never;
@@ -2648,6 +2997,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Branch ID */
                 branch_id: string;
             };
             cookie?: never;
@@ -2676,6 +3026,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Branch ID */
                 branch_id: string;
             };
             cookie?: never;
@@ -2708,6 +3059,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Branch ID */
                 branch_id: string;
             };
             cookie?: never;
@@ -2740,6 +3092,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Branch ID */
                 branch_id: string;
             };
             cookie?: never;
@@ -2772,6 +3125,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Branch ID */
                 branch_id: string;
             };
             cookie?: never;
@@ -2791,6 +3145,37 @@ export interface operations {
                 };
             };
             /** @description Failed to reset database branch */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "v1-diff-a-branch": {
+        parameters: {
+            query?: {
+                included_schemas?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Branch ID */
+                branch_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Failed to diff database branch */
             500: {
                 headers: {
                     [name: string]: unknown;
@@ -2827,7 +3212,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["V1CreateProjectBodyDto"];
+                "application/json": components["schemas"]["V1CreateProjectBody"];
             };
         };
         responses: {
@@ -2876,7 +3261,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["CreateOrganizationV1Dto"];
+                "application/json": components["schemas"]["CreateOrganizationV1"];
             };
         };
         responses: {
@@ -2900,12 +3285,14 @@ export interface operations {
     "v1-authorize-user": {
         parameters: {
             query: {
-                code_challenge_method?: "plain" | "sha256" | "S256";
-                code_challenge?: string;
-                state?: string;
-                response_type: string;
-                redirect_uri: string;
                 client_id: string;
+                response_type: "code" | "token" | "id_token token";
+                redirect_uri: string;
+                scope?: string;
+                state?: string;
+                response_mode?: string;
+                code_challenge?: string;
+                code_challenge_method?: "plain" | "sha256" | "S256";
             };
             header?: never;
             path?: never;
@@ -2913,7 +3300,7 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            303: {
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -2953,7 +3340,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["OAuthRevokeTokenBodyDto"];
+                "application/json": components["schemas"]["OAuthRevokeTokenBody"];
             };
         };
         responses: {
@@ -2968,11 +3355,12 @@ export interface operations {
     "v1-list-all-snippets": {
         parameters: {
             query?: {
+                /** @description Project ref */
+                project_ref?: string;
                 cursor?: string;
                 limit?: string;
                 sort_by?: "name" | "inserted_at";
                 sort_order?: "asc" | "desc";
-                project_ref?: string;
             };
             header?: never;
             path?: never;
@@ -3028,10 +3416,12 @@ export interface operations {
     "v1-get-project-api-keys": {
         parameters: {
             query?: {
+                /** @description Boolean string, true or false */
                 reveal?: boolean;
             };
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -3057,10 +3447,12 @@ export interface operations {
     createApiKey: {
         parameters: {
             query?: {
+                /** @description Boolean string, true or false */
                 reveal?: boolean;
             };
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -3090,12 +3482,14 @@ export interface operations {
     getApiKey: {
         parameters: {
             query?: {
+                /** @description Boolean string, true or false */
                 reveal?: boolean;
             };
             header?: never;
             path: {
-                id: string;
+                /** @description Project ref */
                 ref: string;
+                id: string;
             };
             cookie?: never;
         };
@@ -3120,12 +3514,14 @@ export interface operations {
     deleteApiKey: {
         parameters: {
             query?: {
+                /** @description Boolean string, true or false */
                 reveal?: boolean;
             };
             header?: never;
             path: {
-                id: string;
+                /** @description Project ref */
                 ref: string;
+                id: string;
             };
             cookie?: never;
         };
@@ -3150,12 +3546,14 @@ export interface operations {
     updateApiKey: {
         parameters: {
             query?: {
+                /** @description Boolean string, true or false */
                 reveal?: boolean;
             };
             header?: never;
             path: {
-                id: string;
+                /** @description Project ref */
                 ref: string;
+                id: string;
             };
             cookie?: never;
         };
@@ -3186,6 +3584,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -3220,6 +3619,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -3258,6 +3658,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -3290,6 +3691,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -3324,6 +3726,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -3356,6 +3759,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -3394,6 +3798,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -3428,6 +3833,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -3462,6 +3868,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -3491,11 +3898,47 @@ export interface operations {
             };
         };
     };
+    "v1-list-all-network-bans-enriched": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Project ref */
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NetworkBanResponseEnriched"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Failed to retrieve project's enriched network bans */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     "v1-delete-network-bans": {
         parameters: {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -3532,6 +3975,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -3566,6 +4010,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -3604,6 +4049,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -3638,6 +4084,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -3813,6 +4260,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -3847,13 +4295,14 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["CreateSecretBody"][];
+                "application/json": components["schemas"]["CreateSecretBody"];
             };
         };
         responses: {
@@ -3883,6 +4332,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -3897,9 +4347,7 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": Record<string, never>;
-                };
+                content?: never;
             };
             403: {
                 headers: {
@@ -3921,6 +4369,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -3955,6 +4404,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -3995,6 +4445,7 @@ export interface operations {
             };
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -4029,6 +4480,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -4063,6 +4515,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -4095,6 +4548,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -4133,6 +4587,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -4171,6 +4626,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -4209,6 +4665,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -4245,6 +4702,7 @@ export interface operations {
             };
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -4347,6 +4805,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -4383,6 +4842,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -4417,8 +4877,8 @@ export interface operations {
     "v1-get-services-health": {
         parameters: {
             query: {
-                timeout_ms?: number;
                 services: ("auth" | "db" | "pooler" | "realtime" | "rest" | "storage")[];
+                timeout_ms?: number;
             };
             header?: never;
             path: {
@@ -4457,6 +4917,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -4484,6 +4945,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -4494,13 +4956,12 @@ export interface operations {
             };
         };
         responses: {
-            /** @description [Alpha] Create a new signing key for the project in standby status */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["CreateSigningKeyBody"];
+                    "application/json": components["schemas"]["SigningKeyResponse"];
                 };
             };
             403: {
@@ -4517,6 +4978,7 @@ export interface operations {
             header?: never;
             path: {
                 id: string;
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -4545,6 +5007,7 @@ export interface operations {
             header?: never;
             path: {
                 id: string;
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -4573,6 +5036,7 @@ export interface operations {
             header?: never;
             path: {
                 id: string;
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -4604,6 +5068,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -4638,6 +5103,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -4778,11 +5244,12 @@ export interface operations {
             };
         };
     };
-    getSupavisorConfig: {
+    "v1-get-pooler-config": {
         parameters: {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -4806,11 +5273,12 @@ export interface operations {
             };
         };
     };
-    updateSupavisorConfig: {
+    "v1-update-pooler-config": {
         parameters: {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -4923,6 +5391,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -4950,6 +5419,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -4981,8 +5451,9 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                tpa_id: string;
+                /** @description Project ref */
                 ref: string;
+                tpa_id: string;
             };
             cookie?: never;
         };
@@ -5009,8 +5480,9 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                tpa_id: string;
+                /** @description Project ref */
                 ref: string;
+                tpa_id: string;
             };
             cookie?: never;
         };
@@ -5063,6 +5535,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -5090,15 +5563,12 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["RestoreProjectBodyDto"];
-            };
-        };
+        requestBody?: never;
         responses: {
             200: {
                 headers: {
@@ -5119,6 +5589,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -5144,6 +5615,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -5155,7 +5627,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ListProjectAddonsResponseDto"];
+                    "application/json": components["schemas"]["ListProjectAddonsResponse"];
                 };
             };
             403: {
@@ -5178,13 +5650,14 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ApplyProjectAddonBodyDto"];
+                "application/json": components["schemas"]["ApplyProjectAddonBody"];
             };
         };
         responses: {
@@ -5214,8 +5687,9 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                addon_variant: "ci_micro" | "ci_small" | "ci_medium" | "ci_large" | "ci_xlarge" | "ci_2xlarge" | "ci_4xlarge" | "ci_8xlarge" | "ci_12xlarge" | "ci_16xlarge" | "cd_default" | "pitr_7" | "pitr_14" | "pitr_28" | "ipv4_default";
+                /** @description Project ref */
                 ref: string;
+                addon_variant: unknown;
             };
             cookie?: never;
         };
@@ -5242,15 +5716,12 @@ export interface operations {
             };
         };
     };
-    getLogs: {
+    "v1-get-project-claim-token": {
         parameters: {
-            query?: {
-                iso_timestamp_end?: string;
-                iso_timestamp_start?: string;
-                sql?: string;
-            };
+            query?: never;
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -5262,7 +5733,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["V1AnalyticsResponse"];
+                    "application/json": components["schemas"]["ProjectClaimTokenResponse"];
                 };
             };
             403: {
@@ -5273,11 +5744,220 @@ export interface operations {
             };
         };
     };
-    "v1-list-migrations": {
+    "v1-create-project-claim-token": {
         parameters: {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ref */
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["CreateProjectClaimTokenResponse"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "v1-delete-project-claim-token": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Project ref */
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getPerformanceAdvisors: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Project ref */
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["V1ProjectAdvisorsResponse"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getSecurityAdvisors: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Project ref */
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["V1ProjectAdvisorsResponse"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getLogs: {
+        parameters: {
+            query?: {
+                sql?: string;
+                iso_timestamp_start?: string;
+                iso_timestamp_end?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Project ref */
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsResponse"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getApiCounts: {
+        parameters: {
+            query?: {
+                interval?: "15min" | "30min" | "1hr" | "3hr" | "1day" | "3day" | "7day";
+            };
+            header?: never;
+            path: {
+                /** @description Project ref */
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsResponse"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Failed to get project's usage api counts */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    getApiRequestsCount: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Project ref */
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsResponse"];
+                };
+            };
+            /** @description Failed to get project's usage api requests count */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "v1-list-migration-history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -5310,8 +5990,12 @@ export interface operations {
     "v1-apply-a-migration": {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description A unique key to ensure the same migration is tracked only once. */
+                "Idempotency-Key"?: string;
+            };
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -5326,9 +6010,7 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": Record<string, never>;
-                };
+                content?: never;
             };
             403: {
                 headers: {
@@ -5350,6 +6032,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -5364,9 +6047,7 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content: {
-                    "application/json": Record<string, never>;
-                };
+                content?: never;
             };
             403: {
                 headers: {
@@ -5421,6 +6102,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -5432,7 +6114,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["GetProjectDbMetadataResponseDto"];
+                    "application/json": components["schemas"]["GetProjectDbMetadataResponse"];
                 };
             };
             403: {
@@ -5448,6 +6130,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -5482,13 +6165,14 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["BulkUpdateFunctionBody"][];
+                "application/json": components["schemas"]["BulkUpdateFunctionBody"];
             };
         };
         responses: {
@@ -5518,23 +6202,26 @@ export interface operations {
     "v1-create-a-function": {
         parameters: {
             query?: {
-                import_map_path?: string;
-                entrypoint_path?: string;
-                import_map?: boolean;
-                verify_jwt?: boolean;
-                name?: string;
                 slug?: string;
+                name?: string;
+                /** @description Boolean string, true or false */
+                verify_jwt?: boolean;
+                /** @description Boolean string, true or false */
+                import_map?: boolean;
+                entrypoint_path?: string;
+                import_map_path?: string;
             };
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
         };
         requestBody: {
             content: {
+                "application/vnd.denoland.eszip": string;
                 "application/json": components["schemas"]["V1CreateFunctionBody"];
-                "application/vnd.denoland.eszip": components["schemas"]["V1CreateFunctionBody"];
             };
         };
         responses: {
@@ -5564,11 +6251,13 @@ export interface operations {
     "v1-deploy-a-function": {
         parameters: {
             query?: {
-                bundleOnly?: boolean;
                 slug?: string;
+                /** @description Boolean string, true or false */
+                bundleOnly?: boolean;
             };
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -5607,8 +6296,10 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                function_slug: string;
+                /** @description Project ref */
                 ref: string;
+                /** @description Function slug */
+                function_slug: string;
             };
             cookie?: never;
         };
@@ -5642,8 +6333,10 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                function_slug: string;
+                /** @description Project ref */
                 ref: string;
+                /** @description Function slug */
+                function_slug: string;
             };
             cookie?: never;
         };
@@ -5673,23 +6366,28 @@ export interface operations {
     "v1-update-a-function": {
         parameters: {
             query?: {
-                import_map_path?: string;
-                entrypoint_path?: string;
-                import_map?: boolean;
-                verify_jwt?: boolean;
+                slug?: string;
                 name?: string;
+                /** @description Boolean string, true or false */
+                verify_jwt?: boolean;
+                /** @description Boolean string, true or false */
+                import_map?: boolean;
+                entrypoint_path?: string;
+                import_map_path?: string;
             };
             header?: never;
             path: {
-                function_slug: string;
+                /** @description Project ref */
                 ref: string;
+                /** @description Function slug */
+                function_slug: string;
             };
             cookie?: never;
         };
         requestBody: {
             content: {
+                "application/vnd.denoland.eszip": string;
                 "application/json": components["schemas"]["V1UpdateFunctionBody"];
-                "application/vnd.denoland.eszip": components["schemas"]["V1UpdateFunctionBody"];
             };
         };
         responses: {
@@ -5721,8 +6419,10 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                function_slug: string;
+                /** @description Project ref */
                 ref: string;
+                /** @description Function slug */
+                function_slug: string;
             };
             cookie?: never;
         };
@@ -5732,7 +6432,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["StreamableFile"];
+                };
             };
             403: {
                 headers: {
@@ -6010,6 +6712,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Project ref */
                 ref: string;
             };
             cookie?: never;
@@ -6039,6 +6742,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Organization slug */
                 slug: string;
             };
             cookie?: never;
@@ -6066,6 +6770,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
+                /** @description Organization slug */
                 slug: string;
             };
             cookie?: never;
@@ -6079,6 +6784,62 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["V1OrganizationSlugResponse"];
                 };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "v1-get-organization-project-claim": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Organization slug */
+                slug: string;
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["OrganizationProjectClaimResponse"];
+                };
+            };
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "v1-claim-project-for-organization": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Organization slug */
+                slug: string;
+                token: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             403: {
                 headers: {

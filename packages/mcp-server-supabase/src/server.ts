@@ -7,6 +7,7 @@ import { getDebuggingTools } from './tools/debugging-tools.js';
 import { getDevelopmentTools } from './tools/development-tools.js';
 import { getEdgeFunctionTools } from './tools/edge-function-tools.js';
 import { getProjectManagementTools } from './tools/project-management-tools.js';
+import { getStorageTools } from './tools/storage-tools.js';
 
 const { version } = packageJson;
 
@@ -57,7 +58,8 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
         getEdgeFunctionTools({ platform, projectId }),
         getDebuggingTools({ platform, projectId }),
         getDevelopmentTools({ platform, projectId }),
-        getBranchingTools({ platform, projectId })
+        getBranchingTools({ platform, projectId }),
+        getStorageTools({ platform, projectId })
       );
 
       return tools;

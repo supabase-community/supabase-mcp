@@ -30,6 +30,7 @@ import {
   type GetLogsOptions,
   type ResetBranchOptions,
   type SupabasePlatform,
+  type StorageConfigUpdate,
 } from './index.js';
 
 const { version } = packageJson;
@@ -599,6 +600,69 @@ export function createSupabaseApiPlatform(
       );
 
       assertSuccess(response, 'Failed to rebase branch');
+    },
+
+    // Storage methods
+    async listAllBuckets(project_id: string) {
+      const response = await managementApiClient.GET(
+        '/v1/projects/{ref}/storage/buckets',
+        {
+          params: {
+            path: {
+              ref: project_id,
+            },
+          },
+        }
+      );
+
+      assertSuccess(response, 'Failed to list storage buckets');
+
+      return response.data;
+    },
+
+    async getStorageConfig(project_id: string) {
+      const response = await managementApiClient.GET(
+        '/v1/projects/{ref}/config/storage',
+        {
+          params: {
+            path: {
+              ref: project_id,
+            },
+          },
+        }
+      );
+
+      assertSuccess(response, 'Failed to get storage config');
+
+      return response.data;
+    },
+
+    async updateStorageConfig(projectId: string, config: StorageConfigUpdate) {
+      const response = await managementApiClient.PATCH(
+        '/v1/projects/{ref}/config/storage',
+        {
+          params: {
+            path: {
+              ref: projectId,
+            },
+          },
+          body: {
+            fileSizeLimit: config.fileSizeLimit,
+            features: {
+              imageTransformation: {
+                enabled: config.features.imageTransformation.enabled,
+              },
+              s3Protocol: {
+                enabled: config.features.s3Protocol.enabled,
+              },
+            },
+          },
+        }
+      );
+
+      assertSuccess(response, 'Failed to update storage config');
+
+      return response.data;
     },
   };
 

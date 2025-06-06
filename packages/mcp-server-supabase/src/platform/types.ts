@@ -2,6 +2,23 @@ import { z } from 'zod';
 import { AWS_REGION_CODES } from '../regions.js';
 import type { InitData } from '@supabase/mcp-utils';
 
+export const v1StorageBucketResponseSchema = z.object({
+  id: z.string(),
+  name: z.string(),
+  owner: z.string(),
+  created_at: z.string(),
+  updated_at: z.string(),
+  public: z.boolean(),
+});
+
+export const storageConfigResponseSchema = z.object({
+  fileSizeLimit: z.number(),
+  features: z.object({
+    imageTransformation: z.object({ enabled: z.boolean() }),
+    s3Protocol: z.object({ enabled: z.boolean() }),
+  }),
+});
+
 export const organizationSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -135,6 +152,10 @@ export type GenerateTypescriptTypesResult = z.infer<
   typeof generateTypescriptTypesResultSchema
 >;
 
+export type StorageConfigResponse = z.infer<typeof storageConfigResponseSchema>;
+export type StorageConfigUpdate = z.infer<typeof storageConfigResponseSchema>;
+export type StorageBucketResponse = z.infer<typeof v1StorageBucketResponseSchema>;
+
 export type SupabasePlatform = {
   init?(info: InitData): Promise<void>;
 
@@ -186,4 +207,9 @@ export type SupabasePlatform = {
   mergeBranch(branchId: string): Promise<void>;
   resetBranch(branchId: string, options: ResetBranchOptions): Promise<void>;
   rebaseBranch(branchId: string): Promise<void>;
+
+  // Storage
+  getStorageConfig(projectId: string): Promise<StorageConfigResponse>;
+  updateStorageConfig(projectId: string, config: StorageConfigUpdate): Promise<void>;
+  listAllBuckets(projectId: string): Promise<StorageBucketResponse[]>;
 };

@@ -186,6 +186,7 @@ _**Note:** these tools will be unavailable if the server is [scoped to a project
 
 #### Development Tools
 
+- `search_docs`: Searches the Supabase documentation for up-to-date information. LLMs can use this to find answers to questions or learn how to use specific features.
 - `generate_typescript_types`: Generates TypeScript types based on the database schema. LLMs can save this to a file and use it in their code.
 
 #### Cost Confirmation

@@ -4,6 +4,7 @@ import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { parseArgs } from 'node:util';
 import packageJson from '../../package.json' with { type: 'json' };
 import { createSupabaseApiPlatform } from '../platform/api-platform.js';
+import { createSupabaseLocalPlatform } from '../platform/local-platform.js';
 import { createSupabaseMcpServer } from '../server.js';
 import { parseList } from './util.js';
 
@@ -14,6 +15,7 @@ async function main() {
     values: {
       ['access-token']: cliAccessToken,
       ['project-ref']: projectId,
+      ['local']: local,
       ['read-only']: readOnly,
       ['api-url']: apiUrl,
       ['version']: showVersion,
@@ -26,6 +28,10 @@ async function main() {
       },
       ['project-ref']: {
         type: 'string',
+      },
+      ['local']: {
+        type: 'boolean',
+        default: false,
       },
       ['read-only']: {
         type: 'boolean',
@@ -48,25 +54,32 @@ async function main() {
     process.exit(0);
   }
 
-  const accessToken = cliAccessToken ?? process.env.SUPABASE_ACCESS_TOKEN;
+  function createPlatform() {
+    if (local) {
+      return createSupabaseLocalPlatform({ projectId });
+    }
 
-  if (!accessToken) {
-    console.error(
-      'Please provide a personal access token (PAT) with the --access-token flag or set the SUPABASE_ACCESS_TOKEN environment variable'
-    );
-    process.exit(1);
+    const accessToken = cliAccessToken ?? process.env.SUPABASE_ACCESS_TOKEN;
+
+    if (!accessToken) {
+      console.error(
+        'Please provide a personal access token (PAT) with the --access-token flag or set the SUPABASE_ACCESS_TOKEN environment variable'
+      );
+      process.exit(1);
+    }
+
+    return createSupabaseApiPlatform({
+      accessToken,
+      apiUrl: apiUrl ?? 'https://api.supabase.io',
+    });
   }
 
+  const platform = createPlatform();
   const features = cliFeatures ? parseList(cliFeatures) : undefined;
-
-  const platform = createSupabaseApiPlatform({
-    accessToken,
-    apiUrl,
-  });
 
   const server = createSupabaseMcpServer({
     platform,
-    projectId,
+    projectId: local ? 'default' : projectId,
     readOnly,
     features,
   });

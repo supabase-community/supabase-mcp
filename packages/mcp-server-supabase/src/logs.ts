@@ -14,7 +14,7 @@ export function getLogQuery(
   switch (service) {
     case 'api':
       return stripIndent`
-        select id, identifier, timestamp, event_message, request.method, request.path, response.status_code
+        select id, timestamp, event_message, request.method, request.path, response.status_code
         from edge_logs
         cross join unnest(metadata) as m
         cross join unnest(m.request) as request
@@ -30,7 +30,7 @@ export function getLogQuery(
       `;
     case 'postgres':
       return stripIndent`
-        select identifier, postgres_logs.timestamp, id, event_message, parsed.error_severity from postgres_logs
+        select postgres_logs.timestamp, id, event_message, parsed.error_severity from postgres_logs
         cross join unnest(metadata) as m
         cross join unnest(m.parsed) as parsed
         order by timestamp desc

@@ -48,5 +48,26 @@ export function getDebuggingTools({
         });
       },
     }),
+    get_advisors: injectableTool({
+      description:
+        "Gets a list of advisory notices for the Supabase project. Use this to check for security vulnerabilities or performance improvements. Include the remediation URL as a clickable link so that the user can reference the issue themselves. It's recommended to run this tool regularly, especially after making DDL changes to the database since it will catch things like missing RLS policies.",
+      parameters: z.object({
+        project_id: z.string(),
+        type: z
+          .enum(['security', 'performance'])
+          .describe('The type of advisors to fetch'),
+      }),
+      inject: { project_id },
+      execute: async ({ project_id, type }) => {
+        switch (type) {
+          case 'security':
+            return platform.getSecurityAdvisors(project_id);
+          case 'performance':
+            return platform.getPerformanceAdvisors(project_id);
+          default:
+            throw new Error(`Unknown advisor type: ${type}`);
+        }
+      },
+    }),
   };
 }

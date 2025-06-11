@@ -38,7 +38,9 @@
     "@modelcontextprotocol/sdk": "^1.11.0",
     "@supabase/mcp-utils": "0.2.1",
     "common-tags": "^1.8.2",
+    "dockerode": "^4.0.7",
     "graphql": "^16.11.0",
+    "js-toml": "^1.0.1",
     "openapi-fetch": "^0.13.5",
     "zod": "^3.24.1"
   },
@@ -47,6 +49,7 @@
     "@electric-sql/pglite": "^0.2.17",
     "@total-typescript/tsconfig": "^1.0.4",
     "@types/common-tags": "^1.8.4",
+    "@types/dockerode": "^3.3.40",
     "@types/node": "^22.8.6",
     "@vitest/coverage-v8": "^2.1.9",
     "ai": "^4.3.4",

@@ -14,7 +14,7 @@ You will need Node.js installed on your machine. You can check this by running:
 node -v
 ```
 
-If you don't have Node.js installed, you can download it from [nodejs.org](https://nodejs.org/).
+If you don't have Node.js installed, you can download it from [nodejs.org](https://nodejs.org/)!
 
 ## Setup
 

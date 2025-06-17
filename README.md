@@ -36,25 +36,28 @@ Next, configure your MCP client (such as Cursor) to use this server. Most MCP cl
       "args": [
         "-y",
         "@supabase/mcp-server-supabase@latest",
-        "--access-token",
-        "<personal-access-token>"
-      ]
+        "--read-only",
+        "--project-ref=<project-ref>"
+      ],
+      "env": {
+        "SUPABASE_ACCESS_TOKEN": "<personal-access-token>"
+      }
     }
   }
 }
 ```
 
-Replace `<personal-access-token>` with the token you created in step 1. Alternatively you can omit `--access-token` and instead set the `SUPABASE_ACCESS_TOKEN` environment variable to your personal access token (you will need to restart your MCP client after setting this). This allows you to keep your token out of version control if you plan on committing this configuration to a repository.
+Replace `<personal-access-token>` with the token you created in step 1. Alternatively you can omit `SUPABASE_ACCESS_TOKEN` in this config and instead set it globally on your machine. This allows you to keep your token out of version control if you plan on committing this configuration to a repository.
 
-The following additional options are available:
+The following options are available:
 
-- `--project-ref`: Used to scope the server to a specific project. See [project scoped mode](#project-scoped-mode).
-- `--read-only`: Used to restrict the server to read-only queries. See [read-only mode](#read-only-mode).
+- `--read-only`: Used to restrict the server to read-only queries. Recommended by default. See [read-only mode](#read-only-mode).
+- `--project-ref`: Used to scope the server to a specific project. Recommended by default. If you omit this, the server will have access to all projects in your Supabase account. See [project scoped mode](#project-scoped-mode).
 
 If you are on Windows, you will need to [prefix the command](#windows). If your MCP client doesn't accept JSON, the direct CLI command is:
 
 ```shell
-npx -y @supabase/mcp-server-supabase@latest --access-token=<personal-access-token>
+npx -y @supabase/mcp-server-supabase@latest --read-only --project-ref=<project-ref>
 ```
 
 > Note: Do not run this command directly - this is meant to be executed by your MCP client in order to start the server. `npx` automatically downloads the latest version of the MCP server from `npm` and runs it in a single command.
@@ -73,9 +76,12 @@ On Windows, you will need to prefix the command with `cmd /c`:
         "npx",
         "-y",
         "@supabase/mcp-server-supabase@latest",
-        "--access-token",
-        "<personal-access-token>"
-      ]
+        "--read-only",
+        "--project-ref=<project-ref>"
+      ],
+      "env": {
+        "SUPABASE_ACCESS_TOKEN": "<personal-access-token>"
+      }
     }
   }
 }
@@ -92,9 +98,12 @@ or with `wsl` if you are running Node.js inside WSL:
         "npx",
         "-y",
         "@supabase/mcp-server-supabase@latest",
-        "--access-token",
-        "<personal-access-token>"
-      ]
+        "--read-only",
+        "--project-ref=<project-ref>"
+      ],
+      "env": {
+        "SUPABASE_ACCESS_TOKEN": "<personal-access-token>"
+      }
     }
   }
 }
@@ -118,10 +127,10 @@ Make sure Node.js is available in your system `PATH` environment variable. If yo
 
 ### Project scoped mode
 
-By default, the MCP server will have access to all organizations and projects in your Supabase account. If you want to restrict the server to a specific project, you can set the `--project-ref` flag on the CLI command:
+Without project scoping, the MCP server will have access to all organizations and projects in your Supabase account. We recommend you restrict the server to a specific project by setting the `--project-ref` flag on the CLI command:
 
 ```shell
-npx -y @supabase/mcp-server-supabase@latest --access-token=<personal-access-token> --project-ref=<project-ref>
+npx -y @supabase/mcp-server-supabase@latest --read-only --project-ref=<project-ref>
 ```
 
 Replace `<project-ref>` with the ID of your project. You can find this under **Project ID** in your Supabase [project settings](https://supabase.com/dashboard/project/_/settings/general).
@@ -130,13 +139,13 @@ After scoping the server to a project, [account-level](#project-management) tool
 
 ### Read-only mode
 
-If you wish to restrict the Supabase MCP server to read-only queries, set the `--read-only` flag on the CLI command:
+To restrict the Supabase MCP server to read-only queries, set the `--read-only` flag on the CLI command:
 
 ```shell
-npx -y @supabase/mcp-server-supabase@latest --access-token=<personal-access-token> --read-only
+npx -y @supabase/mcp-server-supabase@latest --read-only
 ```
 
-This prevents write operations on any of your databases by executing SQL as a read-only Postgres user. Note that this flag only applies to database tools (`execute_sql` and `apply_migration`) and not to other tools like `create_project` or `create_branch`.
+We recommend you enable this by default. This prevents write operations on any of your databases by executing SQL as a read-only Postgres user. Note that this flag only applies to database tools (`execute_sql` and `apply_migration`) and not to other tools like `create_project` or `create_branch`.
 
 ## Tools
 

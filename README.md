@@ -130,7 +130,7 @@ Make sure Node.js is available in your system `PATH` environment variable. If yo
 Without project scoping, the MCP server will have access to all organizations and projects in your Supabase account. We recommend you restrict the server to a specific project by setting the `--project-ref` flag on the CLI command:
 
 ```shell
-npx -y @supabase/mcp-server-supabase@latest --read-only --project-ref=<project-ref>
+npx -y @supabase/mcp-server-supabase@latest --project-ref=<project-ref>
 ```
 
 Replace `<project-ref>` with the ID of your project. You can find this under **Project ID** in your Supabase [project settings](https://supabase.com/dashboard/project/_/settings/general).

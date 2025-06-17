@@ -48,7 +48,30 @@ export type SupabaseMcpServerOptions = {
    * Executes database queries in read-only mode if true.
    */
   readOnly?: boolean;
+
+  /**
+   * Features to enable.
+   * Options: 'account', 'branching', 'database', 'debug', 'development', 'docs', 'functions', 'storage'
+   */
+  features?: string[];
 };
+
+export type FeatureGroup = 'account' | 'branching' | 'database' | 'debug' | 'development' | 'docs' | 'functions' | 'storage';
+
+// Single source of truth for valid feature values
+export const VALID_FEATURES: readonly FeatureGroup[] = [
+  'account',
+  'branching',
+  'database',
+  'debug',
+  'development',
+  'docs',
+  'functions',
+  'storage'
+] as const;
+
+const DEFAULT_ACCOUNT_FEATURES: FeatureGroup[] = ['account', 'database', 'debug', 'docs', 'functions'];
+const DEFAULT_PROJECT_FEATURES: FeatureGroup[] = ['database', 'debug', 'docs', 'functions'];
 
 /**
  * Creates an MCP server for interacting with Supabase.
@@ -58,10 +81,26 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
     platform,
     projectId,
     readOnly,
+    features,
     contentApiUrl = 'https://supabase.com/docs/api/graphql',
   } = options;
 
   const contentApiClientPromise = createContentApiClient(contentApiUrl);
+
+  const enabledFeatures = new Set<FeatureGroup>();
+
+  if (features && features.length > 0) {
+    // Use explicitly provided features
+    features.forEach(feature => {
+      if (VALID_FEATURES.includes(feature as FeatureGroup)) {
+        enabledFeatures.add(feature as FeatureGroup);
+      }
+    });
+  } else {
+    // Use defaults based on mode
+    const defaultFeatures = projectId ? DEFAULT_PROJECT_FEATURES : DEFAULT_ACCOUNT_FEATURES;
+    defaultFeatures.forEach(feature => enabledFeatures.add(feature));
+  }
 
   const server = createMcpServer({
     name: 'supabase',
@@ -75,21 +114,38 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       const contentApiClient = await contentApiClientPromise;
       const tools: Record<string, Tool> = {};
 
-      // Add account-level tools only if projectId is not provided
-      if (!projectId) {
-        Object.assign(tools, getProjectManagementTools({ platform }));
+      // Add feature-based tools
+      if (enabledFeatures.has('account') && !projectId) {
+        Object.assign(tools, getAccountTools({ platform }));
       }
 
-      // Add project-level tools
-      Object.assign(
-        tools,
-        getDatabaseOperationTools({ platform, projectId, readOnly }),
-        getEdgeFunctionTools({ platform, projectId }),
-        getDebuggingTools({ platform, projectId }),
-        getDevelopmentTools({ platform, projectId }),
-        getBranchingTools({ platform, projectId }),
-        getDocsTools({ contentApiClient })
-      );
+      if (enabledFeatures.has('branching')) {
+        Object.assign(tools, getBranchingTools({ platform, projectId }));
+      }
+
+      if (enabledFeatures.has('database')) {
+        Object.assign(tools, getDatabaseOperationTools({ platform, projectId, readOnly }));
+      }
+
+      if (enabledFeatures.has('debug')) {
+        Object.assign(tools, getDebuggingTools({ platform, projectId }));
+      }
+
+      if (enabledFeatures.has('development')) {
+        Object.assign(tools, getDevelopmentTools({ platform, projectId }));
+      }
+
+      if (enabledFeatures.has('docs')) {
+        Object.assign(tools, getDocsTools({ contentApiClient }));
+      }
+
+      if (enabledFeatures.has('functions')) {
+        Object.assign(tools, getEdgeFunctionTools({ platform, projectId }));
+      }
+
+      if (enabledFeatures.has('storage')) {
+        Object.assign(tools, getStorageTools({ platform, projectId }));
+      }
 
       return tools;
     },

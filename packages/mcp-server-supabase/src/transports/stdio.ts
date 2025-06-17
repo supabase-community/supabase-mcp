@@ -16,6 +16,7 @@ async function main() {
       ['read-only']: readOnly,
       ['api-url']: apiUrl,
       ['version']: showVersion,
+      ['features']: features,
     },
   } = parseArgs({
     options: {
@@ -35,6 +36,9 @@ async function main() {
       ['version']: {
         type: 'boolean',
       },
+      ['features']: {
+        type: 'string',
+      },
     },
   });
 
@@ -45,6 +49,8 @@ async function main() {
 
   // Use access token from CLI argument or environment variable
   const accessToken = cliAccessToken ?? process.env.SUPABASE_ACCESS_TOKEN;
+
+  const featureList = features?.split(',') ?? [];
 
   if (!accessToken) {
     console.error(
@@ -62,6 +68,7 @@ async function main() {
     platform,
     projectId,
     readOnly,
+    features: featureList,
   });
 
   const transport = new StdioServerTransport();

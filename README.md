@@ -164,6 +164,7 @@ _**Note:** these tools will be unavailable if the server is [scoped to a project
 - `apply_migration`: Applies a SQL migration to the database. SQL passed to this tool will be tracked within the database, so LLMs should use this for DDL operations (schema changes).
 - `execute_sql`: Executes raw SQL in the database. LLMs should use this for regular queries that don't change the schema.
 - `get_logs`: Gets logs for a Supabase project by service type (api, postgres, edge functions, auth, storage, realtime). LLMs can use this to help with debugging and monitoring service performance.
+- `get_advisors`: Gets a list of advisory notices for a Supabase project. LLMs can use this to check for security vulnerabilities or performance issues.
 
 #### Storage Operations
 
@@ -192,6 +193,7 @@ _**Note:** these tools will be unavailable if the server is [scoped to a project
 
 #### Development Tools
 
+- `search_docs`: Searches the Supabase documentation for up-to-date information. LLMs can use this to find answers to questions or learn how to use specific features.
 - `generate_typescript_types`: Generates TypeScript types based on the database schema. LLMs can save this to a file and use it in their code.
 
 #### Cost Confirmation

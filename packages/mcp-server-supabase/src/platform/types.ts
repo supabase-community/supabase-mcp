@@ -189,6 +189,8 @@ export type SupabasePlatform = {
 
   // Debugging
   getLogs(projectId: string, options: GetLogsOptions): Promise<unknown>;
+  getSecurityAdvisors(projectId: string): Promise<unknown>;
+  getPerformanceAdvisors(projectId: string): Promise<unknown>;
 
   // Development
   getProjectUrl(projectId: string): Promise<string>;

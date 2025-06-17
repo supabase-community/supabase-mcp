@@ -226,7 +226,6 @@ export function createSupabaseApiPlatform(
               ref: projectId,
             },
           },
-          body: {},
         }
       );
 
@@ -421,6 +420,38 @@ export function createSupabaseApiPlatform(
 
       return response.data;
     },
+    async getSecurityAdvisors(projectId: string) {
+      const response = await managementApiClient.GET(
+        '/v1/projects/{ref}/advisors/security',
+        {
+          params: {
+            path: {
+              ref: projectId,
+            },
+          },
+        }
+      );
+
+      assertSuccess(response, 'Failed to fetch security advisors');
+
+      return response.data;
+    },
+    async getPerformanceAdvisors(projectId: string) {
+      const response = await managementApiClient.GET(
+        '/v1/projects/{ref}/advisors/performance',
+        {
+          params: {
+            path: {
+              ref: projectId,
+            },
+          },
+        }
+      );
+
+      assertSuccess(response, 'Failed to fetch performance advisors');
+
+      return response.data;
+    },
     async getProjectUrl(projectId: string): Promise<string> {
       const apiUrl = new URL(managementApiUrl);
       return `https://${projectId}.${getProjectDomain(apiUrl.hostname)}`;
@@ -502,39 +533,6 @@ export function createSupabaseApiPlatform(
       );
 
       assertSuccess(createBranchResponse, 'Failed to create branch');
-
-      // Creating a default branch means we just enabled branching
-      // TODO: move this logic to API eventually.
-      if (createBranchResponse.data.is_default) {
-        await managementApiClient.PATCH('/v1/branches/{branch_id}', {
-          params: {
-            path: {
-              branch_id: createBranchResponse.data.id,
-            },
-          },
-          body: {
-            branch_name: 'main',
-          },
-        });
-
-        const response = await managementApiClient.POST(
-          '/v1/projects/{ref}/branches',
-          {
-            params: {
-              path: {
-                ref: projectId,
-              },
-            },
-            body: {
-              branch_name: name,
-            },
-          }
-        );
-
-        assertSuccess(response, 'Failed to create branch');
-
-        return response.data;
-      }
 
       return createBranchResponse.data;
     },

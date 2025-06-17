@@ -4,18 +4,20 @@ import {
   type CallToolRequest,
 } from '@modelcontextprotocol/sdk/types.js';
 import { StreamTransport } from '@supabase/mcp-utils';
-import { codeBlock } from 'common-tags';
+import { codeBlock, stripIndent } from 'common-tags';
 import { setupServer } from 'msw/node';
 import { beforeEach, describe, expect, test } from 'vitest';
 import {
   ACCESS_TOKEN,
   API_URL,
   CLOSEST_REGION,
+  contentApiMockSchema,
   createOrganization,
   createProject,
   MCP_CLIENT_NAME,
   MCP_CLIENT_VERSION,
   mockBranches,
+  mockContentApi,
   mockManagementApi,
   mockOrgs,
   mockProjects,
@@ -29,7 +31,7 @@ beforeEach(async () => {
   mockProjects.clear();
   mockBranches.clear();
 
-  const server = setupServer(...mockManagementApi);
+  const server = setupServer(...mockContentApi, ...mockManagementApi);
   server.listen({ onUnhandledRequest: 'error' });
 });
 
@@ -1103,6 +1105,60 @@ describe('tools', () => {
     }
   });
 
+  test('get security advisors', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const result = await callTool({
+      name: 'get_advisors',
+      arguments: {
+        project_id: project.id,
+        type: 'security',
+      },
+    });
+
+    expect(result).toEqual({ lints: [] });
+  });
+
+  test('get performance advisors', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const result = await callTool({
+      name: 'get_advisors',
+      arguments: {
+        project_id: project.id,
+        type: 'performance',
+      },
+    });
+
+    expect(result).toEqual({ lints: [] });
+  });
+
   test('get logs for invalid service type', async () => {
     const { callTool } = await setup();
 
@@ -2164,5 +2220,48 @@ describe('project scoped tools', () => {
         ],
       }),
     ]);
+  });
+});
+
+describe('docs tools', () => {
+  test('gets content', async () => {
+    const { callTool } = await setup();
+    const query = stripIndent`
+      query ContentQuery {
+        searchDocs(query: "typescript") {
+          nodes {
+            title
+            href
+          }
+        }
+      }
+    `;
+
+    const result = await callTool({
+      name: 'search_docs',
+      arguments: {
+        graphql_query: query,
+      },
+    });
+
+    expect(result).toEqual({ dummy: true });
+  });
+
+  test('tool description contains schema', async () => {
+    const { client } = await setup();
+
+    const { tools } = await client.listTools();
+
+    const tool = tools.find((tool) => tool.name === 'search_docs');
+
+    if (!tool) {
+      throw new Error('tool not found');
+    }
+
+    if (!tool.description) {
+      throw new Error('tool description not found');
+    }
+
+    expect(tool.description.includes(contentApiMockSchema)).toBe(true);
   });
 });

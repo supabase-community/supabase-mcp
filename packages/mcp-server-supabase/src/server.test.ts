@@ -667,7 +667,7 @@ describe('tools', () => {
       },
     });
 
-    expect(result).toEqual(undefined);
+    expect(result).toEqual({ success: true });
 
     const listMigrationsResult = await callTool({
       name: 'list_migrations',

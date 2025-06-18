@@ -88,6 +88,8 @@ export function getDatabaseOperationTools({
           name,
           query,
         });
+
+        return { success: true };
       },
     }),
     execute_sql: injectableTool({

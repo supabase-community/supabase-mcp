@@ -39,13 +39,14 @@ type SetupOptions = {
   accessToken?: string;
   projectId?: string;
   readOnly?: boolean;
+  features?: string[];
 };
 
 /**
  * Sets up an MCP client and server for testing.
  */
 async function setup(options: SetupOptions = {}) {
-  const { accessToken = ACCESS_TOKEN, projectId, readOnly } = options;
+  const { accessToken = ACCESS_TOKEN, projectId, readOnly, features } = options;
   const clientTransport = new StreamTransport();
   const serverTransport = new StreamTransport();
 
@@ -71,6 +72,7 @@ async function setup(options: SetupOptions = {}) {
     platform,
     projectId,
     readOnly,
+    features,
   });
 
   await server.connect(serverTransport);
@@ -495,7 +497,7 @@ describe('tools', () => {
   });
 
   test('get project url', async () => {
-    const { callTool } = await setup();
+    const { callTool } = await setup({ features: ['development'] });
 
     const org = await createOrganization({
       name: 'My Org',
@@ -520,7 +522,7 @@ describe('tools', () => {
   });
 
   test('get anon key', async () => {
-    const { callTool } = await setup();
+    const { callTool } = await setup({ features: ['development'] });
     const org = await createOrganization({
       name: 'My Org',
       plan: 'free',
@@ -543,7 +545,7 @@ describe('tools', () => {
   });
 
   test('list storage buckets', async () => {
-    const { callTool } = await setup();
+    const { callTool } = await setup({ features: ['storage'] });
 
     const org = await createOrganization({
       name: 'My Org',
@@ -589,7 +591,7 @@ describe('tools', () => {
   });
 
   test('get storage config', async () => {
-    const { callTool } = await setup();
+    const { callTool } = await setup({ features: ['storage'] });
 
     const org = await createOrganization({
       name: 'My Org',
@@ -621,7 +623,7 @@ describe('tools', () => {
   });
 
   test('update storage config', async () => {
-    const { callTool } = await setup();
+    const { callTool } = await setup({ features: ['storage'] });
 
     const org = await createOrganization({
       name: 'My Org',
@@ -1559,7 +1561,9 @@ describe('tools', () => {
   });
 
   test('create branch', async () => {
-    const { callTool } = await setup();
+    const { callTool } = await setup({
+      features: ['account', 'branching', 'database'],
+    });
 
     const org = await createOrganization({
       name: 'My Org',
@@ -1611,7 +1615,7 @@ describe('tools', () => {
   });
 
   test('create branch without cost confirmation fails', async () => {
-    const { callTool } = await setup();
+    const { callTool } = await setup({ features: ['branching'] });
 
     const org = await createOrganization({
       name: 'Paid Org',
@@ -1641,7 +1645,9 @@ describe('tools', () => {
   });
 
   test('delete branch', async () => {
-    const { callTool } = await setup();
+    const { callTool } = await setup({
+      features: ['account', 'branching', 'database'],
+    });
 
     const org = await createOrganization({
       name: 'My Org',
@@ -1720,7 +1726,7 @@ describe('tools', () => {
   });
 
   test('list branches', async () => {
-    const { callTool } = await setup();
+    const { callTool } = await setup({ features: ['branching'] });
 
     const org = await createOrganization({
       name: 'My Org',
@@ -1746,7 +1752,9 @@ describe('tools', () => {
   });
 
   test('merge branch', async () => {
-    const { callTool } = await setup();
+    const { callTool } = await setup({
+      features: ['account', 'branching', 'database'],
+    });
 
     const org = await createOrganization({
       name: 'My Org',
@@ -1813,7 +1821,9 @@ describe('tools', () => {
   });
 
   test('reset branch', async () => {
-    const { callTool } = await setup();
+    const { callTool } = await setup({
+      features: ['account', 'branching', 'database'],
+    });
 
     const org = await createOrganization({
       name: 'My Org',
@@ -1889,7 +1899,9 @@ describe('tools', () => {
   });
 
   test('revert migrations', async () => {
-    const { callTool } = await setup();
+    const { callTool } = await setup({
+      features: ['account', 'branching', 'database'],
+    });
 
     const org = await createOrganization({
       name: 'My Org',
@@ -1989,7 +2001,9 @@ describe('tools', () => {
   });
 
   test('rebase branch', async () => {
-    const { callTool } = await setup();
+    const { callTool } = await setup({
+      features: ['account', 'branching', 'database'],
+    });
 
     const org = await createOrganization({
       name: 'My Org',

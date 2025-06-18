@@ -13,10 +13,11 @@ type SetupOptions = {
   accessToken?: string;
   projectId?: string;
   readOnly?: boolean;
+  features?: string[];
 };
 
 async function setup(options: SetupOptions = {}) {
-  const { accessToken = ACCESS_TOKEN, projectId, readOnly } = options;
+  const { accessToken = ACCESS_TOKEN, projectId, readOnly, features } = options;
   const clientTransport = new StreamTransport();
   const serverTransport = new StreamTransport();
 
@@ -40,6 +41,7 @@ async function setup(options: SetupOptions = {}) {
     },
     projectId,
     readOnly,
+    features,
   });
 
   await server.connect(serverTransport);

@@ -386,8 +386,6 @@ describe('llm tests', () => {
       ],
       maxSteps: 6,
       async onStepFinish({ toolCalls: tools, text }) {
-        console.log('Tool calls:', tools);
-        console.log('Text:', text);
         toolCalls.push(...tools);
       },
     });

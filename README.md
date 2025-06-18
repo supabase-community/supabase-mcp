@@ -50,6 +50,9 @@ The following additional options are available:
 
 - `--project-ref`: Used to scope the server to a specific project. See [project scoped mode](#project-scoped-mode).
 - `--read-only`: Used to restrict the server to read-only queries. See [read-only mode](#read-only-mode).
+- `--features`: Used to specify which feature groups to enable. Available features are: 'account', 'branching', 'database', 'debug', 'development', 'docs', 'functions', and 'storage'. Multiple features can be specified with comma separation (e.g., `--features=database,debug,docs`). 
+  - When no project is specified: Defaults to ['account', 'database', 'debug', 'docs', 'functions']
+  - When a project is specified: Defaults to ['database', 'debug', 'docs', 'functions']
 
 If you are on Windows, you will need to [prefix the command](#windows). If your MCP client doesn't accept JSON, the direct CLI command is:
 

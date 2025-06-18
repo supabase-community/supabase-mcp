@@ -165,9 +165,15 @@ export function tool<Params extends z.ZodObject<any>, Result>(
   return tool;
 }
 
+export type Root = {
+  uri: string;
+  name?: string;
+};
+
 export type InitData = {
   clientInfo: Implementation;
   clientCapabilities: ClientCapabilities;
+  roots?: Root[];
 };
 
 export type InitCallback = (initData: InitData) => void | Promise<void>;
@@ -276,9 +282,27 @@ export function createMcpServer(options: McpServerOptions) {
       throw new Error('client capabilities not available after initialization');
     }
 
+    let roots: Root[] | undefined;
+
+    if (clientCapabilities.roots) {
+      const { roots: r, error } = await server
+        .listRoots()
+        .catch((error) => ({ roots: undefined, error }));
+
+      if (error) {
+        console.error(
+          `MCP client '${clientInfo.name}/${clientInfo.version}' advertised 'roots' capability, but fetching roots failed:`,
+          error.message
+        );
+      }
+
+      roots = r;
+    }
+
     const initData: InitData = {
       clientInfo,
       clientCapabilities,
+      roots,
     };
 
     await options.onInitialize?.(initData);

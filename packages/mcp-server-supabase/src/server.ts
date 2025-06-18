@@ -56,7 +56,15 @@ export type SupabaseMcpServerOptions = {
   features?: string[];
 };
 
-export type FeatureGroup = 'account' | 'branching' | 'database' | 'debug' | 'development' | 'docs' | 'functions' | 'storage';
+export type FeatureGroup =
+  | 'account'
+  | 'branching'
+  | 'database'
+  | 'debug'
+  | 'development'
+  | 'docs'
+  | 'functions'
+  | 'storage';
 
 // Single source of truth for valid feature values
 export const VALID_FEATURES: readonly FeatureGroup[] = [
@@ -67,11 +75,22 @@ export const VALID_FEATURES: readonly FeatureGroup[] = [
   'development',
   'docs',
   'functions',
-  'storage'
+  'storage',
 ] as const;
 
-const DEFAULT_ACCOUNT_FEATURES: FeatureGroup[] = ['account', 'database', 'debug', 'docs', 'functions'];
-const DEFAULT_PROJECT_FEATURES: FeatureGroup[] = ['database', 'debug', 'docs', 'functions'];
+const DEFAULT_ACCOUNT_FEATURES: FeatureGroup[] = [
+  'account',
+  'database',
+  'debug',
+  'docs',
+  'functions',
+];
+const DEFAULT_PROJECT_FEATURES: FeatureGroup[] = [
+  'database',
+  'debug',
+  'docs',
+  'functions',
+];
 
 /**
  * Creates an MCP server for interacting with Supabase.
@@ -91,15 +110,17 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
 
   if (features && features.length > 0) {
     // Use explicitly provided features
-    features.forEach(feature => {
+    features.forEach((feature) => {
       if (VALID_FEATURES.includes(feature as FeatureGroup)) {
         enabledFeatures.add(feature as FeatureGroup);
       }
     });
   } else {
     // Use defaults based on mode
-    const defaultFeatures = projectId ? DEFAULT_PROJECT_FEATURES : DEFAULT_ACCOUNT_FEATURES;
-    defaultFeatures.forEach(feature => enabledFeatures.add(feature));
+    const defaultFeatures = projectId
+      ? DEFAULT_PROJECT_FEATURES
+      : DEFAULT_ACCOUNT_FEATURES;
+    defaultFeatures.forEach((feature) => enabledFeatures.add(feature));
   }
 
   const server = createMcpServer({
@@ -124,7 +145,10 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       }
 
       if (enabledFeatures.has('database')) {
-        Object.assign(tools, getDatabaseOperationTools({ platform, projectId, readOnly }));
+        Object.assign(
+          tools,
+          getDatabaseOperationTools({ platform, projectId, readOnly })
+        );
       }
 
       if (enabledFeatures.has('debug')) {

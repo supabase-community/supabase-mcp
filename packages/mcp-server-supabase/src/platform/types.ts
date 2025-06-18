@@ -154,7 +154,9 @@ export type GenerateTypescriptTypesResult = z.infer<
 
 export type StorageConfigResponse = z.infer<typeof storageConfigResponseSchema>;
 export type StorageConfigUpdate = z.infer<typeof storageConfigResponseSchema>;
-export type StorageBucketResponse = z.infer<typeof v1StorageBucketResponseSchema>;
+export type StorageBucketResponse = z.infer<
+  typeof v1StorageBucketResponseSchema
+>;
 
 export type SupabasePlatform = {
   init?(info: InitData): Promise<void>;
@@ -212,6 +214,9 @@ export type SupabasePlatform = {
 
   // Storage
   getStorageConfig(projectId: string): Promise<StorageConfigResponse>;
-  updateStorageConfig(projectId: string, config: StorageConfigUpdate): Promise<void>;
+  updateStorageConfig(
+    projectId: string,
+    config: StorageConfigUpdate
+  ): Promise<void>;
   listAllBuckets(projectId: string): Promise<StorageBucketResponse[]>;
 };

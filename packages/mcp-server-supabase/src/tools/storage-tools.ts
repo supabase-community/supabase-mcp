@@ -7,10 +7,7 @@ export type StorageToolsOptions = {
   projectId?: string;
 };
 
-export function getStorageTools({
-  platform,
-  projectId,
-}: StorageToolsOptions) {
+export function getStorageTools({ platform, projectId }: StorageToolsOptions) {
   const project_id = projectId;
 
   return {
@@ -44,7 +41,7 @@ export function getStorageTools({
             imageTransformation: z.object({ enabled: z.boolean() }),
             s3Protocol: z.object({ enabled: z.boolean() }),
           }),
-        })
+        }),
       }),
       inject: { project_id },
       execute: async ({ project_id, config }) => {

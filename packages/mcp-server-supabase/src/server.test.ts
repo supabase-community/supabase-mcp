@@ -570,18 +570,22 @@ describe('tools', () => {
 
     expect(Array.isArray(result)).toBe(true);
     expect(result.length).toBe(2);
-    expect(result[0]).toEqual(expect.objectContaining({
-      name: 'bucket1',
-      public: true,
-      created_at: expect.any(String),
-      updated_at: expect.any(String),
-    }));
-    expect(result[1]).toEqual(expect.objectContaining({
-      name: 'bucket2',
-      public: false,
-      created_at: expect.any(String),
-      updated_at: expect.any(String),
-    }));
+    expect(result[0]).toEqual(
+      expect.objectContaining({
+        name: 'bucket1',
+        public: true,
+        created_at: expect.any(String),
+        updated_at: expect.any(String),
+      })
+    );
+    expect(result[1]).toEqual(
+      expect.objectContaining({
+        name: 'bucket2',
+        public: false,
+        created_at: expect.any(String),
+        updated_at: expect.any(String),
+      })
+    );
   });
 
   test('get storage config', async () => {

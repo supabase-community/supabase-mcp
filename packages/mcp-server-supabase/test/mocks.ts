@@ -806,18 +806,20 @@ export const mockManagementApi = [
         );
       }
 
-      const buckets = Array.from(project.storage_buckets.values()).map(bucket => ({
-        id: bucket.id,
-        name: bucket.name,
-        public: bucket.public,
-        created_at: bucket.created_at.toISOString(),
-        updated_at: bucket.updated_at.toISOString(),
-      }));
+      const buckets = Array.from(project.storage_buckets.values()).map(
+        (bucket) => ({
+          id: bucket.id,
+          name: bucket.name,
+          public: bucket.public,
+          created_at: bucket.created_at.toISOString(),
+          updated_at: bucket.updated_at.toISOString(),
+        })
+      );
 
       return HttpResponse.json(buckets);
     }
   ),
-  
+
   /**
    * Get storage config
    */
@@ -837,11 +839,11 @@ export const mockManagementApi = [
         features: {
           imageTransformation: { enabled: true },
           s3Protocol: { enabled: false },
-        }
+        },
       });
     }
   ),
-  
+
   /**
    * Update storage config
    */
@@ -867,7 +869,7 @@ export const mockManagementApi = [
         );
       }
     }
-  )
+  ),
 ];
 
 export async function createOrganization(options: MockOrganizationOptions) {
@@ -1177,7 +1179,10 @@ export class MockProject {
     }
   }
 
-  createStorageBucket(name: string, isPublic: boolean = false): MockStorageBucket {
+  createStorageBucket(
+    name: string,
+    isPublic: boolean = false
+  ): MockStorageBucket {
     const id = nanoid();
     const bucket: MockStorageBucket = {
       id,

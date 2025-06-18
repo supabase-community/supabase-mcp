@@ -9,9 +9,7 @@ export type AccountToolsOptions = {
   platform: SupabasePlatform;
 };
 
-export function getAccountTools({
-  platform,
-}: AccountToolsOptions) {
+export function getAccountTools({ platform }: AccountToolsOptions) {
   return {
     list_organizations: tool({
       description: 'Lists all organizations that the user is a member of.',

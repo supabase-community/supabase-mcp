@@ -1,6 +1,6 @@
+import type { InitData } from '@supabase/mcp-utils';
 import { z } from 'zod';
 import { AWS_REGION_CODES } from '../regions.js';
-import type { InitData } from '@supabase/mcp-utils';
 
 export const v1StorageBucketResponseSchema = z.object({
   id: z.string(),
@@ -169,7 +169,7 @@ export type SupabasePlatform = {
     options: ApplyMigrationOptions
   ): Promise<void>;
 
-  // Project management
+  // Account
   listOrganizations(): Promise<Pick<Organization, 'id' | 'name'>[]>;
   getOrganization(organizationId: string): Promise<Organization>;
   listProjects(): Promise<Project[]>;

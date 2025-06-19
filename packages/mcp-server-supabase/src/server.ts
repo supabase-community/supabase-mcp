@@ -1,14 +1,15 @@
 import { createMcpServer, type Tool } from '@supabase/mcp-utils';
+import { z } from 'zod';
 import packageJson from '../package.json' with { type: 'json' };
 import { createContentApiClient } from './content-api/index.js';
 import type { SupabasePlatform } from './platform/types.js';
+import { getAccountTools } from './tools/account-tools.js';
 import { getBranchingTools } from './tools/branching-tools.js';
 import { getDatabaseOperationTools } from './tools/database-operation-tools.js';
 import { getDebuggingTools } from './tools/debugging-tools.js';
 import { getDevelopmentTools } from './tools/development-tools.js';
 import { getDocsTools } from './tools/docs-tools.js';
 import { getEdgeFunctionTools } from './tools/edge-function-tools.js';
-import { getAccountTools } from './tools/account-tools.js';
 import { getStorageTools } from './tools/storage-tools.js';
 
 const { version } = packageJson;
@@ -53,42 +54,28 @@ export type SupabaseMcpServerOptions = {
    * Features to enable.
    * Options: 'account', 'branching', 'database', 'debug', 'development', 'docs', 'functions', 'storage'
    */
-  features?: string[];
+  features?: FeatureGroup[];
 };
 
-export type FeatureGroup =
-  | 'account'
-  | 'branching'
-  | 'database'
-  | 'debug'
-  | 'development'
-  | 'docs'
-  | 'functions'
-  | 'storage';
-
-// Single source of truth for valid feature values
-export const VALID_FEATURES: readonly FeatureGroup[] = [
+const featureGroupSchema = z.enum([
+  'docs',
   'account',
-  'branching',
   'database',
   'debug',
   'development',
-  'docs',
   'functions',
+  'branching',
   'storage',
-] as const;
+]);
 
-const DEFAULT_ACCOUNT_FEATURES: FeatureGroup[] = [
+export type FeatureGroup = z.infer<typeof featureGroupSchema>;
+
+const DEFAULT_FEATURES: FeatureGroup[] = [
+  'docs',
   'account',
   'database',
   'debug',
-  'docs',
-  'functions',
-];
-const DEFAULT_PROJECT_FEATURES: FeatureGroup[] = [
-  'database',
-  'debug',
-  'docs',
+  'development',
   'functions',
 ];
 
@@ -106,22 +93,9 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
 
   const contentApiClientPromise = createContentApiClient(contentApiUrl);
 
-  const enabledFeatures = new Set<FeatureGroup>();
-
-  if (features && features.length > 0) {
-    // Use explicitly provided features
-    features.forEach((feature) => {
-      if (VALID_FEATURES.includes(feature as FeatureGroup)) {
-        enabledFeatures.add(feature as FeatureGroup);
-      }
-    });
-  } else {
-    // Use defaults based on mode
-    const defaultFeatures = projectId
-      ? DEFAULT_PROJECT_FEATURES
-      : DEFAULT_ACCOUNT_FEATURES;
-    defaultFeatures.forEach((feature) => enabledFeatures.add(feature));
-  }
+  const enabledFeatures = z
+    .set(featureGroupSchema)
+    .parse(new Set(features ?? DEFAULT_FEATURES));
 
   const server = createMcpServer({
     name: 'supabase',
@@ -136,7 +110,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       const tools: Record<string, Tool> = {};
 
       // Add feature-based tools
-      if (enabledFeatures.has('account') && !projectId) {
+      if (!projectId && enabledFeatures.has('account')) {
         Object.assign(tools, getAccountTools({ platform }));
       }
 

@@ -164,10 +164,10 @@ export type SupabasePlatform = {
   // Database operations
   executeSql<T>(projectId: string, options: ExecuteSqlOptions): Promise<T[]>;
   listMigrations(projectId: string): Promise<Migration[]>;
-  applyMigration<T>(
+  applyMigration(
     projectId: string,
     options: ApplyMigrationOptions
-  ): Promise<T[]>;
+  ): Promise<void>;
 
   // Project management
   listOrganizations(): Promise<Pick<Organization, 'id' | 'name'>[]>;

@@ -684,7 +684,10 @@ describe('tools', () => {
       },
     });
 
-    expect(result).toEqual([{ sum: 2 }]);
+    expect(result).toContain('untrusted user data');
+    expect(result).toMatch(/<untrusted-data-\w{8}-\w{4}-\w{4}-\w{4}-\w{12}>/);
+    expect(result).toContain(JSON.stringify([{ sum: 2 }]));
+    expect(result).toMatch(/<\/untrusted-data-\w{8}-\w{4}-\w{4}-\w{4}-\w{12}>/);
   });
 
   test('can run read queries in read-only mode', async () => {
@@ -713,7 +716,10 @@ describe('tools', () => {
       },
     });
 
-    expect(result).toEqual([{ sum: 2 }]);
+    expect(result).toContain('untrusted user data');
+    expect(result).toMatch(/<untrusted-data-\w{8}-\w{4}-\w{4}-\w{4}-\w{12}>/);
+    expect(result).toContain(JSON.stringify([{ sum: 2 }]));
+    expect(result).toMatch(/<\/untrusted-data-\w{8}-\w{4}-\w{4}-\w{4}-\w{12}>/);
   });
 
   test('cannot run write queries in read-only mode', async () => {
@@ -777,7 +783,7 @@ describe('tools', () => {
       },
     });
 
-    expect(result).toEqual([]);
+    expect(result).toEqual({ success: true });
 
     const listMigrationsResult = await callTool({
       name: 'list_migrations',

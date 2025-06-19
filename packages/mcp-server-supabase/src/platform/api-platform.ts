@@ -116,7 +116,7 @@ export function createSupabaseApiPlatform(
 
       return response.data;
     },
-    async applyMigration<T>(projectId: string, options: ApplyMigrationOptions) {
+    async applyMigration(projectId: string, options: ApplyMigrationOptions) {
       const { name, query } = applyMigrationOptionsSchema.parse(options);
 
       const response = await managementApiClient.POST(
@@ -136,7 +136,9 @@ export function createSupabaseApiPlatform(
 
       assertSuccess(response, 'Failed to apply migration');
 
-      return response.data as unknown as T[];
+      // Intentionally don't return the result of the migration
+      // to avoid prompt injection attacks. If the migration failed,
+      // it will throw an error.
     },
     async listOrganizations() {
       const response = await managementApiClient.GET('/v1/organizations');

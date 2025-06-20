@@ -2,7 +2,7 @@ import type { InitData } from '@supabase/mcp-utils';
 import { z } from 'zod';
 import { AWS_REGION_CODES } from '../regions.js';
 
-export const v1StorageBucketResponseSchema = z.object({
+export const storageBucketSchema = z.object({
   id: z.string(),
   name: z.string(),
   owner: z.string(),
@@ -11,7 +11,7 @@ export const v1StorageBucketResponseSchema = z.object({
   public: z.boolean(),
 });
 
-export const storageConfigResponseSchema = z.object({
+export const storageConfigSchema = z.object({
   fileSizeLimit: z.number(),
   features: z.object({
     imageTransformation: z.object({ enabled: z.boolean() }),
@@ -152,11 +152,8 @@ export type GenerateTypescriptTypesResult = z.infer<
   typeof generateTypescriptTypesResultSchema
 >;
 
-export type StorageConfigResponse = z.infer<typeof storageConfigResponseSchema>;
-export type StorageConfigUpdate = z.infer<typeof storageConfigResponseSchema>;
-export type StorageBucketResponse = z.infer<
-  typeof v1StorageBucketResponseSchema
->;
+export type StorageConfig = z.infer<typeof storageConfigSchema>;
+export type StorageBucket = z.infer<typeof storageBucketSchema>;
 
 export type SupabasePlatform = {
   init?(info: InitData): Promise<void>;
@@ -213,10 +210,7 @@ export type SupabasePlatform = {
   rebaseBranch(branchId: string): Promise<void>;
 
   // Storage
-  getStorageConfig(projectId: string): Promise<StorageConfigResponse>;
-  updateStorageConfig(
-    projectId: string,
-    config: StorageConfigUpdate
-  ): Promise<void>;
-  listAllBuckets(projectId: string): Promise<StorageBucketResponse[]>;
+  getStorageConfig(projectId: string): Promise<StorageConfig>;
+  updateStorageConfig(projectId: string, config: StorageConfig): Promise<void>;
+  listAllBuckets(projectId: string): Promise<StorageBucket[]>;
 };

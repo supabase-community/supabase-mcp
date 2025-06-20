@@ -29,8 +29,8 @@ import {
   type ExecuteSqlOptions,
   type GetLogsOptions,
   type ResetBranchOptions,
+  type StorageConfig,
   type SupabasePlatform,
-  type StorageConfigUpdate,
 } from './index.js';
 
 const { version } = packageJson;
@@ -637,7 +637,7 @@ export function createSupabaseApiPlatform(
       return response.data;
     },
 
-    async updateStorageConfig(projectId: string, config: StorageConfigUpdate) {
+    async updateStorageConfig(projectId: string, config: StorageConfig) {
       const response = await managementApiClient.PATCH(
         '/v1/projects/{ref}/config/storage',
         {

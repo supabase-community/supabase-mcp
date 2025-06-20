@@ -45,7 +45,8 @@ export function getStorageTools({ platform, projectId }: StorageToolsOptions) {
       }),
       inject: { project_id },
       execute: async ({ project_id, config }) => {
-        return await platform.updateStorageConfig(project_id, config);
+        await platform.updateStorageConfig(project_id, config);
+        return { success: true };
       },
     }),
   };

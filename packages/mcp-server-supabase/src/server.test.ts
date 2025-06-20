@@ -654,8 +654,7 @@ describe('tools', () => {
       },
     });
 
-    // Update should succeed without error
-    expect(result).toBeUndefined();
+    expect(result).toEqual({ success: true });
   });
 
   test('execute sql', async () => {

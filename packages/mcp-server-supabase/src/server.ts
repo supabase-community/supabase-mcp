@@ -54,7 +54,7 @@ export type SupabaseMcpServerOptions = {
    * Features to enable.
    * Options: 'account', 'branching', 'database', 'debug', 'development', 'docs', 'functions', 'storage'
    */
-  features?: FeatureGroup[];
+  features?: string[];
 };
 
 const featureGroupSchema = z.enum([

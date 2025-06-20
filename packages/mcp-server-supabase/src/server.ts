@@ -77,6 +77,7 @@ const DEFAULT_FEATURES: FeatureGroup[] = [
   'debug',
   'development',
   'functions',
+  'branching',
 ];
 
 /**

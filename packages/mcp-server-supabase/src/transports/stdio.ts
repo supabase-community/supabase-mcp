@@ -5,6 +5,7 @@ import { parseArgs } from 'node:util';
 import packageJson from '../../package.json' with { type: 'json' };
 import { createSupabaseApiPlatform } from '../platform/api-platform.js';
 import { createSupabaseMcpServer } from '../server.js';
+import { parseList } from './util.js';
 
 const { version } = packageJson;
 
@@ -16,6 +17,7 @@ async function main() {
       ['read-only']: readOnly,
       ['api-url']: apiUrl,
       ['version']: showVersion,
+      ['features']: cliFeatures,
     },
   } = parseArgs({
     options: {
@@ -35,6 +37,9 @@ async function main() {
       ['version']: {
         type: 'boolean',
       },
+      ['features']: {
+        type: 'string',
+      },
     },
   });
 
@@ -43,7 +48,6 @@ async function main() {
     process.exit(0);
   }
 
-  // Use access token from CLI argument or environment variable
   const accessToken = cliAccessToken ?? process.env.SUPABASE_ACCESS_TOKEN;
 
   if (!accessToken) {
@@ -52,6 +56,8 @@ async function main() {
     );
     process.exit(1);
   }
+
+  const features = cliFeatures ? parseList(cliFeatures) : undefined;
 
   const platform = createSupabaseApiPlatform({
     accessToken,
@@ -62,6 +68,7 @@ async function main() {
     platform,
     projectId,
     readOnly,
+    features,
   });
 
   const transport = new StdioServerTransport();

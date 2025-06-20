@@ -24,7 +24,7 @@ import {
 } from '../test/mocks.js';
 import { createSupabaseApiPlatform } from './platform/api-platform.js';
 import { BRANCH_COST_HOURLY, PROJECT_COST_MONTHLY } from './pricing.js';
-import { createSupabaseMcpServer } from './server.js';
+import { createSupabaseMcpServer, type FeatureGroup } from './server.js';
 
 beforeEach(async () => {
   mockOrgs.clear();
@@ -39,13 +39,14 @@ type SetupOptions = {
   accessToken?: string;
   projectId?: string;
   readOnly?: boolean;
+  features?: FeatureGroup[];
 };
 
 /**
  * Sets up an MCP client and server for testing.
  */
 async function setup(options: SetupOptions = {}) {
-  const { accessToken = ACCESS_TOKEN, projectId, readOnly } = options;
+  const { accessToken = ACCESS_TOKEN, projectId, readOnly, features } = options;
   const clientTransport = new StreamTransport();
   const serverTransport = new StreamTransport();
 
@@ -71,6 +72,7 @@ async function setup(options: SetupOptions = {}) {
     platform,
     projectId,
     readOnly,
+    features,
   });
 
   await server.connect(serverTransport);
@@ -540,6 +542,119 @@ describe('tools', () => {
       },
     });
     expect(result).toEqual('dummy-anon-key');
+  });
+
+  test('list storage buckets', async () => {
+    const { callTool } = await setup({ features: ['storage'] });
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    project.createStorageBucket('bucket1', true);
+    project.createStorageBucket('bucket2', false);
+
+    const result = await callTool({
+      name: 'list_storage_buckets',
+      arguments: {
+        project_id: project.id,
+      },
+    });
+
+    expect(Array.isArray(result)).toBe(true);
+    expect(result.length).toBe(2);
+    expect(result[0]).toEqual(
+      expect.objectContaining({
+        name: 'bucket1',
+        public: true,
+        created_at: expect.any(String),
+        updated_at: expect.any(String),
+      })
+    );
+    expect(result[1]).toEqual(
+      expect.objectContaining({
+        name: 'bucket2',
+        public: false,
+        created_at: expect.any(String),
+        updated_at: expect.any(String),
+      })
+    );
+  });
+
+  test('get storage config', async () => {
+    const { callTool } = await setup({ features: ['storage'] });
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const result = await callTool({
+      name: 'get_storage_config',
+      arguments: {
+        project_id: project.id,
+      },
+    });
+
+    expect(result).toEqual({
+      fileSizeLimit: expect.any(Number),
+      features: {
+        imageTransformation: { enabled: expect.any(Boolean) },
+        s3Protocol: { enabled: expect.any(Boolean) },
+      },
+    });
+  });
+
+  test('update storage config', async () => {
+    const { callTool } = await setup({ features: ['storage'] });
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const config = {
+      fileSizeLimit: 50,
+      features: {
+        imageTransformation: { enabled: true },
+        s3Protocol: { enabled: false },
+      },
+    };
+
+    const result = await callTool({
+      name: 'update_storage_config',
+      arguments: {
+        project_id: project.id,
+        config,
+      },
+    });
+
+    expect(result).toEqual({ success: true });
   });
 
   test('execute sql', async () => {
@@ -1451,7 +1566,9 @@ describe('tools', () => {
   });
 
   test('create branch', async () => {
-    const { callTool } = await setup();
+    const { callTool } = await setup({
+      features: ['account', 'branching'],
+    });
 
     const org = await createOrganization({
       name: 'My Org',
@@ -1503,7 +1620,7 @@ describe('tools', () => {
   });
 
   test('create branch without cost confirmation fails', async () => {
-    const { callTool } = await setup();
+    const { callTool } = await setup({ features: ['branching'] });
 
     const org = await createOrganization({
       name: 'Paid Org',
@@ -1533,7 +1650,9 @@ describe('tools', () => {
   });
 
   test('delete branch', async () => {
-    const { callTool } = await setup();
+    const { callTool } = await setup({
+      features: ['account', 'branching'],
+    });
 
     const org = await createOrganization({
       name: 'My Org',
@@ -1612,7 +1731,7 @@ describe('tools', () => {
   });
 
   test('list branches', async () => {
-    const { callTool } = await setup();
+    const { callTool } = await setup({ features: ['branching'] });
 
     const org = await createOrganization({
       name: 'My Org',
@@ -1638,7 +1757,9 @@ describe('tools', () => {
   });
 
   test('merge branch', async () => {
-    const { callTool } = await setup();
+    const { callTool } = await setup({
+      features: ['account', 'branching', 'database'],
+    });
 
     const org = await createOrganization({
       name: 'My Org',
@@ -1705,7 +1826,9 @@ describe('tools', () => {
   });
 
   test('reset branch', async () => {
-    const { callTool } = await setup();
+    const { callTool } = await setup({
+      features: ['account', 'branching', 'database'],
+    });
 
     const org = await createOrganization({
       name: 'My Org',
@@ -1781,7 +1904,9 @@ describe('tools', () => {
   });
 
   test('revert migrations', async () => {
-    const { callTool } = await setup();
+    const { callTool } = await setup({
+      features: ['account', 'branching', 'database'],
+    });
 
     const org = await createOrganization({
       name: 'My Org',
@@ -1881,7 +2006,9 @@ describe('tools', () => {
   });
 
   test('rebase branch', async () => {
-    const { callTool } = await setup();
+    const { callTool } = await setup({
+      features: ['account', 'branching', 'database'],
+    });
 
     const org = await createOrganization({
       name: 'My Org',
@@ -1965,6 +2092,159 @@ describe('tools', () => {
         );
       }
     }
+  });
+});
+
+describe('feature groups', () => {
+  test('account tools', async () => {
+    const { client: accountClient } = await setup({
+      features: ['account'],
+    });
+
+    const { tools: accountTools } = await accountClient.listTools();
+    const accountToolNames = accountTools.map((tool) => tool.name);
+
+    expect(accountToolNames).toEqual([
+      'list_organizations',
+      'get_organization',
+      'list_projects',
+      'get_project',
+      'get_cost',
+      'confirm_cost',
+      'create_project',
+      'pause_project',
+      'restore_project',
+    ]);
+  });
+
+  test('database tools', async () => {
+    const { client: databaseClient } = await setup({
+      features: ['database'],
+    });
+
+    const { tools: databaseTools } = await databaseClient.listTools();
+    const databaseToolNames = databaseTools.map((tool) => tool.name);
+
+    expect(databaseToolNames).toEqual([
+      'list_tables',
+      'list_extensions',
+      'list_migrations',
+      'apply_migration',
+      'execute_sql',
+    ]);
+  });
+
+  test('debug tools', async () => {
+    const { client: debugClient } = await setup({
+      features: ['debug'],
+    });
+
+    const { tools: debugTools } = await debugClient.listTools();
+    const debugToolNames = debugTools.map((tool) => tool.name);
+
+    expect(debugToolNames).toEqual(['get_logs', 'get_advisors']);
+  });
+
+  test('development tools', async () => {
+    const { client: developmentClient } = await setup({
+      features: ['development'],
+    });
+
+    const { tools: developmentTools } = await developmentClient.listTools();
+    const developmentToolNames = developmentTools.map((tool) => tool.name);
+
+    expect(developmentToolNames).toEqual([
+      'get_project_url',
+      'get_anon_key',
+      'generate_typescript_types',
+    ]);
+  });
+
+  test('docs tools', async () => {
+    const { client: docsClient } = await setup({
+      features: ['docs'],
+    });
+
+    const { tools: docsTools } = await docsClient.listTools();
+    const docsToolNames = docsTools.map((tool) => tool.name);
+
+    expect(docsToolNames).toEqual(['search_docs']);
+  });
+
+  test('functions tools', async () => {
+    const { client: functionsClient } = await setup({
+      features: ['functions'],
+    });
+
+    const { tools: functionsTools } = await functionsClient.listTools();
+    const functionsToolNames = functionsTools.map((tool) => tool.name);
+
+    expect(functionsToolNames).toEqual([
+      'list_edge_functions',
+      'deploy_edge_function',
+    ]);
+  });
+
+  test('branching tools', async () => {
+    const { client: branchingClient } = await setup({
+      features: ['branching'],
+    });
+
+    const { tools: branchingTools } = await branchingClient.listTools();
+    const branchingToolNames = branchingTools.map((tool) => tool.name);
+
+    expect(branchingToolNames).toEqual([
+      'create_branch',
+      'list_branches',
+      'delete_branch',
+      'merge_branch',
+      'reset_branch',
+      'rebase_branch',
+    ]);
+  });
+
+  test('storage tools', async () => {
+    const { client: storageClient } = await setup({
+      features: ['storage'],
+    });
+
+    const { tools: storageTools } = await storageClient.listTools();
+    const storageToolNames = storageTools.map((tool) => tool.name);
+
+    expect(storageToolNames).toEqual([
+      'list_storage_buckets',
+      'get_storage_config',
+      'update_storage_config',
+    ]);
+  });
+
+  test('invalid group fails', async () => {
+    const setupPromise = setup({
+      features: ['my-invalid-group' as FeatureGroup],
+    });
+
+    await expect(setupPromise).rejects.toThrow('Invalid enum value');
+  });
+
+  test('duplicate group behaves like single group', async () => {
+    const { client: duplicateClient } = await setup({
+      features: ['account', 'account'],
+    });
+
+    const { tools: duplicateTools } = await duplicateClient.listTools();
+    const duplicateToolNames = duplicateTools.map((tool) => tool.name);
+
+    expect(duplicateToolNames).toEqual([
+      'list_organizations',
+      'get_organization',
+      'list_projects',
+      'get_project',
+      'get_cost',
+      'confirm_cost',
+      'create_project',
+      'pause_project',
+      'restore_project',
+    ]);
   });
 });
 

@@ -5,13 +5,11 @@ import { type Cost, getBranchCost, getNextProjectCost } from '../pricing.js';
 import { AWS_REGION_CODES } from '../regions.js';
 import { hashObject } from '../util.js';
 
-export type ProjectManagementToolsOptions = {
+export type AccountToolsOptions = {
   platform: SupabasePlatform;
 };
 
-export function getProjectManagementTools({
-  platform,
-}: ProjectManagementToolsOptions) {
+export function getAccountTools({ platform }: AccountToolsOptions) {
   return {
     list_organizations: tool({
       description: 'Lists all organizations that the user is a member of.',

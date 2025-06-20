@@ -158,7 +158,7 @@ npx -y @supabase/mcp-server-supabase@latest --features=database,docs
 
 Available groups are: [`account`](#account), [`docs`](#knowledge-base), [`database`](#database), [`debug`](#debug), [`development`](#development), [`functions`](#edge-functions), [`storage`](#storage), and [`branching`](#branching-experimental-requires-a-paid-plan).
 
-If this flag is not passed, the default feature groups are: `account`, `database`, `debug`, `development`, `docs`, and `functions`.
+If this flag is not passed, the default feature groups are: `account`, `database`, `debug`, `development`, `docs`, `functions`, and `branching`.
 
 ## Tools
 
@@ -220,17 +220,9 @@ Enabled by default. Use `functions` to target this group of tools with the [`--f
 - `list_edge_functions`: Lists all Edge Functions in a Supabase project.
 - `deploy_edge_function`: Deploys a new Edge Function to a Supabase project. LLMs can use this to deploy new functions or update existing ones.
 
-#### Storage
-
-Disabled by default to reduce tool count. Use `storage` to target this group of tools with the [`--features`](#feature-groups) option.
-
-- `list_storage_buckets`: Lists all storage buckets in a Supabase project.
-- `get_storage_config`: Gets the storage config for a Supabase project.
-- `update_storage_config`: Updates the storage config for a Supabase project (requires a paid plan).
-
 #### Branching (Experimental, requires a paid plan)
 
-Disabled by default to reduce tool count. Use `branching` to target this group of tools with the [`--features`](#feature-groups) option.
+Enabled by default. Use `branching` to target this group of tools with the [`--features`](#feature-groups) option.
 
 - `create_branch`: Creates a development branch with migrations from production branch.
 - `list_branches`: Lists all development branches.
@@ -238,6 +230,14 @@ Disabled by default to reduce tool count. Use `branching` to target this group o
 - `merge_branch`: Merges migrations and edge functions from a development branch to production.
 - `reset_branch`: Resets migrations of a development branch to a prior version.
 - `rebase_branch`: Rebases development branch on production to handle migration drift.
+
+#### Storage
+
+Disabled by default to reduce tool count. Use `storage` to target this group of tools with the [`--features`](#feature-groups) option.
+
+- `list_storage_buckets`: Lists all storage buckets in a Supabase project.
+- `get_storage_config`: Gets the storage config for a Supabase project.
+- `update_storage_config`: Updates the storage config for a Supabase project (requires a paid plan).
 
 ## Other MCP servers
 

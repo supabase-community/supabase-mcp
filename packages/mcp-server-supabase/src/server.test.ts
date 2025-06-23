@@ -2248,6 +2248,28 @@ describe('feature groups', () => {
       'execute_sql',
     ]);
   });
+
+  test('unimplemented feature group produces custom error message', async () => {
+    const platform: SupabasePlatform = {
+      database: {
+        executeSql() {
+          throw new Error('Not implemented');
+        },
+        listMigrations() {
+          throw new Error('Not implemented');
+        },
+        applyMigration() {
+          throw new Error('Not implemented');
+        },
+      },
+    };
+
+    const setupPromise = setup({ platform, features: ['account'] });
+
+    await expect(setupPromise).rejects.toThrow(
+      "This platform does not support the 'account' feature group"
+    );
+  });
 });
 
 describe('project scoped tools', () => {

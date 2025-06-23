@@ -1,13 +1,13 @@
 import { z } from 'zod';
-import type { SupabasePlatform } from '../platform/types.js';
+import type { StorageOperations } from '../platform/types.js';
 import { injectableTool } from './util.js';
 
 export type StorageToolsOptions = {
-  platform: SupabasePlatform;
+  storage: StorageOperations;
   projectId?: string;
 };
 
-export function getStorageTools({ platform, projectId }: StorageToolsOptions) {
+export function getStorageTools({ storage, projectId }: StorageToolsOptions) {
   const project_id = projectId;
 
   return {
@@ -18,7 +18,7 @@ export function getStorageTools({ platform, projectId }: StorageToolsOptions) {
       }),
       inject: { project_id },
       execute: async ({ project_id }) => {
-        return await platform.listAllBuckets(project_id);
+        return await storage.listAllBuckets(project_id);
       },
     }),
     get_storage_config: injectableTool({
@@ -28,7 +28,7 @@ export function getStorageTools({ platform, projectId }: StorageToolsOptions) {
       }),
       inject: { project_id },
       execute: async ({ project_id }) => {
-        return await platform.getStorageConfig(project_id);
+        return await storage.getStorageConfig(project_id);
       },
     }),
     update_storage_config: injectableTool({
@@ -45,7 +45,7 @@ export function getStorageTools({ platform, projectId }: StorageToolsOptions) {
       }),
       inject: { project_id },
       execute: async ({ project_id, config }) => {
-        await platform.updateStorageConfig(project_id, config);
+        await storage.updateStorageConfig(project_id, config);
         return { success: true };
       },
     }),

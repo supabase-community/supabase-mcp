@@ -7,7 +7,7 @@ import {
   MCP_CLIENT_NAME,
   MCP_CLIENT_VERSION,
 } from '../test/mocks.js';
-import { createSupabaseMcpServer } from './index.js';
+import { createSupabaseApiPlatform, createSupabaseMcpServer } from './index.js';
 
 type SetupOptions = {
   accessToken?: string;
@@ -34,11 +34,13 @@ async function setup(options: SetupOptions = {}) {
     }
   );
 
+  const platform = createSupabaseApiPlatform({
+    apiUrl: API_URL,
+    accessToken,
+  });
+
   const server = createSupabaseMcpServer({
-    platform: {
-      apiUrl: API_URL,
-      accessToken,
-    },
+    platform,
     projectId,
     readOnly,
     features,

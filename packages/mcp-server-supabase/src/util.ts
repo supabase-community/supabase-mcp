@@ -1,20 +1,24 @@
+import { z } from 'zod';
+import { featureGroupSchema, type FeatureGroup } from './types.js';
+import type { SupabasePlatform } from './platform/types.js';
+import { PLATFORM_INDEPENDENT_FEATURES } from './server.js';
+
 export type ValueOf<T> = T[keyof T];
 
 // UnionToIntersection<A | B> = A & B
 export type UnionToIntersection<U> = (
-  U extends unknown
-    ? (arg: U) => 0
-    : never
+  U extends unknown ? (arg: U) => 0 : never
 ) extends (arg: infer I) => 0
   ? I
   : never;
 
 // LastInUnion<A | B> = B
-export type LastInUnion<U> = UnionToIntersection<
-  U extends unknown ? (x: U) => 0 : never
-> extends (x: infer L) => 0
-  ? L
-  : never;
+export type LastInUnion<U> =
+  UnionToIntersection<U extends unknown ? (x: U) => 0 : never> extends (
+    x: infer L
+  ) => 0
+    ? L
+    : never;
 
 // UnionToTuple<A, B> = [A, B]
 export type UnionToTuple<T, Last = LastInUnion<T>> = [T] extends [never]
@@ -70,4 +74,43 @@ export async function hashObject(
   // Convert to base64
   const base64Hash = btoa(String.fromCharCode(...new Uint8Array(buffer)));
   return base64Hash.slice(0, length);
+}
+
+/**
+ * Parses and validates feature groups based on the platform's available features.
+ */
+export function parseFeatureGroups(
+  platform: SupabasePlatform,
+  features: string[]
+) {
+  // First pass: validate that all features are valid
+  const desiredFeatures = z.set(featureGroupSchema).parse(new Set(features));
+
+  // The platform implementation can define a subset of features
+  const availableFeatures: FeatureGroup[] = [
+    ...PLATFORM_INDEPENDENT_FEATURES,
+    ...featureGroupSchema.options.filter((key) =>
+      Object.keys(platform).includes(key)
+    ),
+  ];
+
+  const availableFeaturesSchema = z.enum(
+    availableFeatures as [string, ...string[]],
+    {
+      description: 'Available features based on platform implementation',
+      errorMap: (issue, ctx) => {
+        switch (issue.code) {
+          case 'invalid_enum_value':
+            return {
+              message: `This platform does not support the '${issue.received}' feature group. Supported groups are: ${availableFeatures.join(', ')}`,
+            };
+          default:
+            return { message: ctx.defaultError };
+        }
+      },
+    }
+  );
+
+  // Second pass: validate the desired features against this platform's available features
+  return z.set(availableFeaturesSchema).parse(desiredFeatures);
 }

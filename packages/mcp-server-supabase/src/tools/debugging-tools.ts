@@ -1,15 +1,15 @@
 import { z } from 'zod';
 import { getLogQuery } from '../logs.js';
-import type { SupabasePlatform } from '../platform/types.js';
+import type { DebuggingOperations } from '../platform/types.js';
 import { injectableTool } from './util.js';
 
 export type DebuggingToolsOptions = {
-  platform: SupabasePlatform;
+  debugging: DebuggingOperations;
   projectId?: string;
 };
 
 export function getDebuggingTools({
-  platform,
+  debugging,
   projectId,
 }: DebuggingToolsOptions) {
   const project_id = projectId;
@@ -42,7 +42,7 @@ export function getDebuggingTools({
             ? new Date(Date.now() - 5 * 60 * 1000)
             : undefined;
 
-        return platform.getLogs(project_id, {
+        return debugging.getLogs(project_id, {
           sql: getLogQuery(service),
           iso_timestamp_start: startTimestamp?.toISOString(),
         });
@@ -61,9 +61,9 @@ export function getDebuggingTools({
       execute: async ({ project_id, type }) => {
         switch (type) {
           case 'security':
-            return platform.getSecurityAdvisors(project_id);
+            return debugging.getSecurityAdvisors(project_id);
           case 'performance':
-            return platform.getPerformanceAdvisors(project_id);
+            return debugging.getPerformanceAdvisors(project_id);
           default:
             throw new Error(`Unknown advisor type: ${type}`);
         }

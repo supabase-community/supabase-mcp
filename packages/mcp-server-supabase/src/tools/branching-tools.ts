@@ -1,17 +1,17 @@
 import { tool } from '@supabase/mcp-utils';
 import { z } from 'zod';
-import type { SupabasePlatform } from '../platform/types.js';
+import type { BranchingOperations } from '../platform/types.js';
 import { getBranchCost } from '../pricing.js';
 import { hashObject } from '../util.js';
 import { injectableTool } from './util.js';
 
 export type BranchingToolsOptions = {
-  platform: SupabasePlatform;
+  branching: BranchingOperations;
   projectId?: string;
 };
 
 export function getBranchingTools({
-  platform,
+  branching,
   projectId,
 }: BranchingToolsOptions) {
   const project_id = projectId;
@@ -42,7 +42,7 @@ export function getBranchingTools({
             'Cost confirmation ID does not match the expected cost of creating a branch.'
           );
         }
-        return await platform.createBranch(project_id, { name });
+        return await branching.createBranch(project_id, { name });
       },
     }),
     list_branches: injectableTool({
@@ -53,7 +53,7 @@ export function getBranchingTools({
       }),
       inject: { project_id },
       execute: async ({ project_id }) => {
-        return await platform.listBranches(project_id);
+        return await branching.listBranches(project_id);
       },
     }),
     delete_branch: tool({
@@ -62,7 +62,7 @@ export function getBranchingTools({
         branch_id: z.string(),
       }),
       execute: async ({ branch_id }) => {
-        return await platform.deleteBranch(branch_id);
+        return await branching.deleteBranch(branch_id);
       },
     }),
     merge_branch: tool({
@@ -72,7 +72,7 @@ export function getBranchingTools({
         branch_id: z.string(),
       }),
       execute: async ({ branch_id }) => {
-        return await platform.mergeBranch(branch_id);
+        return await branching.mergeBranch(branch_id);
       },
     }),
     reset_branch: tool({
@@ -88,7 +88,7 @@ export function getBranchingTools({
           ),
       }),
       execute: async ({ branch_id, migration_version }) => {
-        return await platform.resetBranch(branch_id, {
+        return await branching.resetBranch(branch_id, {
           migration_version,
         });
       },
@@ -100,7 +100,7 @@ export function getBranchingTools({
         branch_id: z.string(),
       }),
       execute: async ({ branch_id }) => {
-        return await platform.rebaseBranch(branch_id);
+        return await branching.rebaseBranch(branch_id);
       },
     }),
   };

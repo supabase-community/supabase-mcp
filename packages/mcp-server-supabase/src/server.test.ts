@@ -25,6 +25,7 @@ import {
 import { createSupabaseApiPlatform } from './platform/api-platform.js';
 import { BRANCH_COST_HOURLY, PROJECT_COST_MONTHLY } from './pricing.js';
 import { createSupabaseMcpServer } from './server.js';
+import type { SupabasePlatform } from './platform/types.js';
 
 beforeEach(async () => {
   mockOrgs.clear();
@@ -38,6 +39,7 @@ beforeEach(async () => {
 type SetupOptions = {
   accessToken?: string;
   projectId?: string;
+  platform?: SupabasePlatform;
   readOnly?: boolean;
   features?: string[];
 };
@@ -63,10 +65,12 @@ async function setup(options: SetupOptions = {}) {
     }
   );
 
-  const platform = createSupabaseApiPlatform({
-    accessToken,
-    apiUrl: API_URL,
-  });
+  const platform =
+    options.platform ??
+    createSupabaseApiPlatform({
+      accessToken,
+      apiUrl: API_URL,
+    });
 
   const server = createSupabaseMcpServer({
     platform,
@@ -2213,6 +2217,35 @@ describe('feature groups', () => {
       'create_project',
       'pause_project',
       'restore_project',
+    ]);
+  });
+
+  test('tools filtered to available platform operations', async () => {
+    const platform: SupabasePlatform = {
+      database: {
+        executeSql() {
+          throw new Error('Not implemented');
+        },
+        listMigrations() {
+          throw new Error('Not implemented');
+        },
+        applyMigration() {
+          throw new Error('Not implemented');
+        },
+      },
+    };
+
+    const { client } = await setup({ platform });
+    const { tools } = await client.listTools();
+    const toolNames = tools.map((tool) => tool.name);
+
+    expect(toolNames).toEqual([
+      'search_docs',
+      'list_tables',
+      'list_extensions',
+      'list_migrations',
+      'apply_migration',
+      'execute_sql',
     ]);
   });
 });

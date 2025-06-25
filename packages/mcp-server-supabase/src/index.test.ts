@@ -7,7 +7,8 @@ import {
   MCP_CLIENT_NAME,
   MCP_CLIENT_VERSION,
 } from '../test/mocks.js';
-import { createSupabaseApiPlatform, createSupabaseMcpServer } from './index.js';
+import { createSupabaseMcpServer } from './index.js';
+import { createSupabaseApiPlatform } from './platform/api-platform.js';
 
 type SetupOptions = {
   accessToken?: string;

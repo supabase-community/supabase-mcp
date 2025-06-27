@@ -12,7 +12,7 @@ export default defineWorkspace([
     extends: './vitest.config.ts',
     test: {
       name: 'e2e',
-      include: ['test/**/*.e2e.ts'],
+      include: ['test/e2e/**/*.e2e.ts'],
       testTimeout: 60_000,
     },
   },

@@ -3,11 +3,9 @@
 import { generateText, type ToolCallUnion, type ToolSet } from "ai";
 import { codeBlock } from "common-tags";
 import { describe, expect, test } from "vitest";
-import { setup, setupTestEnvironment, getTestModel } from "./setup.js";
 import { createOrganization, createProject } from "../mocks.js";
 import { join } from "node:path/posix";
-
-setupTestEnvironment();
+import { getTestModel, setup } from "./utils.js";
 
 describe("edge function e2e tests", () => {
   test("deploys an edge function", async () => {

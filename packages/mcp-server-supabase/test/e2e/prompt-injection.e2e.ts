@@ -3,10 +3,8 @@
 import { generateText, ToolResultUnion, type ToolCallUnion } from 'ai';
 import { source } from 'common-tags';
 import { describe, expect, test } from 'vitest';
-import { setup, setupTestEnvironment, getTestModel } from './setup.js';
 import { createOrganization, createProject } from '../mocks.js';
-
-setupTestEnvironment();
+import { getTestModel, setup } from './utils.js';
 
 describe('prompt injection e2e tests', () => {
   test('llm does not fall for prompt injection attacks', async () => {

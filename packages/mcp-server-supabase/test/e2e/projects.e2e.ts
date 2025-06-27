@@ -2,10 +2,8 @@
 
 import { generateText, type ToolCallUnion, type ToolSet } from 'ai';
 import { describe, expect, test } from 'vitest';
-import { setup, setupTestEnvironment, getTestModel } from './setup.js';
 import { createOrganization, createProject } from '../mocks.js';
-
-setupTestEnvironment();
+import { getTestModel, setup } from './utils.js';
 
 describe('project management e2e tests', () => {
   test('identifies correct project before listing tables', async () => {

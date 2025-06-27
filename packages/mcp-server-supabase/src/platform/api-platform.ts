@@ -1,8 +1,12 @@
+import {
+  getMultipartBoundary,
+  parseMultipartStream,
+} from '@mjackson/multipart-parser';
 import type { InitData } from '@supabase/mcp-utils';
+import { relative } from 'node:path/posix';
 import { fileURLToPath } from 'node:url';
 import packageJson from '../../package.json' with { type: 'json' };
 import { getDeploymentId, getPathPrefix } from '../edge-function.js';
-import { extractFiles } from '../eszip.js';
 import {
   assertSuccess,
   createManagementApiClient,
@@ -284,18 +288,20 @@ export function createSupabaseApiPlatform(
       const pathPrefix = getPathPrefix(deploymentId);
 
       const entrypoint_path = edgeFunction.entrypoint_path
-        ? fileURLToPath(edgeFunction.entrypoint_path, {
-            windows: false,
-          }).replace(pathPrefix, '')
+        ? relative(
+            pathPrefix,
+            fileURLToPath(edgeFunction.entrypoint_path, { windows: false })
+          )
         : undefined;
 
       const import_map_path = edgeFunction.import_map_path
-        ? fileURLToPath(edgeFunction.import_map_path, {
-            windows: false,
-          }).replace(pathPrefix, '')
+        ? relative(
+            pathPrefix,
+            fileURLToPath(edgeFunction.import_map_path, { windows: false })
+          )
         : undefined;
 
-      const eszipResponse = await managementApiClient.GET(
+      const bodyResponse = await managementApiClient.GET(
         '/v1/projects/{ref}/functions/{function_slug}/body',
         {
           params: {
@@ -304,26 +310,44 @@ export function createSupabaseApiPlatform(
               function_slug: functionSlug,
             },
           },
-          parseAs: 'arrayBuffer',
+          headers: {
+            Accept: 'multipart/form-data',
+          },
+          parseAs: 'stream',
         }
       );
 
-      assertSuccess(
-        eszipResponse,
-        'Failed to fetch Edge Function eszip bundle'
-      );
+      assertSuccess(bodyResponse, 'Failed to fetch Edge Function files');
 
-      const extractedFiles = await extractFiles(
-        new Uint8Array(eszipResponse.data),
-        pathPrefix
-      );
+      const contentType = bodyResponse.response.headers.get('content-type');
 
-      const files = await Promise.all(
-        extractedFiles.map(async (file) => ({
-          name: file.name,
-          content: await file.text(),
-        }))
-      );
+      if (!contentType || !contentType.startsWith('multipart/form-data')) {
+        throw new Error(
+          `Unexpected content type: ${contentType}. Expected multipart/form-data.`
+        );
+      }
+
+      const boundary = getMultipartBoundary(contentType);
+
+      if (!boundary) {
+        throw new Error('No multipart boundary found in response headers');
+      }
+
+      if (!bodyResponse.data) {
+        throw new Error('No data received from Edge Function body');
+      }
+
+      const files: EdgeFunction['files'] = [];
+      const parts = parseMultipartStream(bodyResponse.data, { boundary });
+
+      for await (const part of parts) {
+        if (part.isFile && part.filename) {
+          files.push({
+            name: relative(pathPrefix, part.filename),
+            content: part.text,
+          });
+        }
+      }
 
       return {
         ...edgeFunction,
@@ -477,7 +501,7 @@ export function createSupabaseApiPlatform(
 
       const anonKey = response.data?.find((key) => key.name === 'anon');
 
-      if (!anonKey) {
+      if (!anonKey?.api_key) {
         throw new Error('Anonymous key not found');
       }
 

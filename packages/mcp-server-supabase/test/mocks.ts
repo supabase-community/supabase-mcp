@@ -13,7 +13,6 @@ import {
   graphqlRequestSchema,
 } from '../src/content-api/graphql.js';
 import { getDeploymentId, getPathPrefix } from '../src/edge-function.js';
-import { bundleFiles } from '../src/eszip.js';
 import type { components } from '../src/management-api/types.js';
 import { TRACE_URL } from '../src/regions.js';
 
@@ -354,11 +353,21 @@ export const mockManagementApi = [
   ),
 
   /**
-   * Gets the eszip bundle for an Edge Function
+   * Gets the files for an Edge Function
    */
   http.get<{ projectId: string; functionSlug: string }>(
     `${API_URL}/v1/projects/:projectId/functions/:functionSlug/body`,
-    ({ params }) => {
+    ({ params, request }) => {
+      if (request.headers.get('Accept') !== 'multipart/form-data') {
+        return HttpResponse.json(
+          {
+            message:
+              'Invalid Accept header. Must be multipart/form-data for testing',
+          },
+          { status: 406 }
+        );
+      }
+
       const project = mockProjects.get(params.projectId);
       if (!project) {
         return HttpResponse.json(
@@ -375,16 +384,15 @@ export const mockManagementApi = [
         );
       }
 
-      if (!edgeFunction.eszip) {
-        return HttpResponse.json(
-          { message: 'Edge Function files not found' },
-          { status: 404 }
-        );
+      const formData = new FormData();
+      for (const file of edgeFunction.files) {
+        formData.append('file', file, file.name);
       }
 
-      return HttpResponse.arrayBuffer(edgeFunction.eszip);
+      return HttpResponse.formData(formData);
     }
   ),
+
   /**
    * Deploys an Edge Function
    */
@@ -985,10 +993,17 @@ export class MockEdgeFunction {
   created_at: Date;
   updated_at: Date;
 
-  eszip?: Uint8Array;
+  files: File[] = [];
 
   async setFiles(files: File[]) {
-    this.eszip = await bundleFiles(files, this.pathPrefix);
+    this.files = [];
+    for (const file of files) {
+      this.files.push(
+        new File([file], `${join(this.pathPrefix, file.name)}`, {
+          type: file.type,
+        })
+      );
+    }
   }
 
   get deploymentId() {

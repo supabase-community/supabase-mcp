@@ -12,7 +12,6 @@ import {
 import { codeBlock, source } from 'common-tags';
 import { setupServer } from 'msw/node';
 import { beforeEach, describe, expect, test } from 'vitest';
-import { extractFiles } from '../src/eszip.js';
 import { createSupabaseMcpServer } from '../src/index.js';
 import { createSupabaseApiPlatform } from '../src/platform/api-platform.js';
 import {
@@ -26,6 +25,7 @@ import {
   mockOrgs,
   mockProjects,
 } from './mocks.js';
+import { join } from 'node:path/posix';
 
 type SetupOptions = {
   projectId?: string;
@@ -250,14 +250,11 @@ describe('llm tests', () => {
       'Confirms the successful modification of an Edge Function.'
     );
 
-    const files = await extractFiles(
-      edgeFunction.eszip!,
-      edgeFunction.pathPrefix
+    expect(edgeFunction.files).toHaveLength(1);
+    expect(edgeFunction.files[0].name).toBe(
+      join(edgeFunction.pathPrefix, 'index.ts')
     );
-
-    expect(files).toHaveLength(1);
-    expect(files[0].name).toBe('index.ts');
-    await expect(files[0].text()).resolves.toEqual(codeBlock`
+    await expect(edgeFunction.files[0].text()).resolves.toEqual(codeBlock`
       Deno.serve(async (req: Request) => {
         return new Response('Hello Earth!', { headers: { 'Content-Type': 'text/plain' } })
       })

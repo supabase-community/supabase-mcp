@@ -17,7 +17,9 @@
     "test:coverage": "vitest --coverage",
     "generate:management-api-types": "openapi-typescript https://api.supabase.com/api/v1-json -o ./src/management-api/types.ts"
   },
-  "files": ["dist/**/*"],
+  "files": [
+    "dist/**/*"
+  ],
   "bin": {
     "mcp-server-supabase": "./dist/transports/stdio.js"
   },
@@ -34,7 +36,7 @@
     }
   },
   "dependencies": {
-    "@deno/eszip": "^0.84.0",
+    "@mjackson/multipart-parser": "^0.10.1",
     "@modelcontextprotocol/sdk": "^1.11.0",
     "@supabase/mcp-utils": "0.2.1",
     "common-tags": "^1.8.2",

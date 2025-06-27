@@ -155,18 +155,16 @@ export type GenerateTypescriptTypesResult = z.infer<
 export type StorageConfig = z.infer<typeof storageConfigSchema>;
 export type StorageBucket = z.infer<typeof storageBucketSchema>;
 
-export type SupabasePlatform = {
-  init?(info: InitData): Promise<void>;
-
-  // Database operations
+export type DatabaseOperations = {
   executeSql<T>(projectId: string, options: ExecuteSqlOptions): Promise<T[]>;
   listMigrations(projectId: string): Promise<Migration[]>;
   applyMigration(
     projectId: string,
     options: ApplyMigrationOptions
   ): Promise<void>;
+};
 
-  // Account
+export type AccountOperations = {
   listOrganizations(): Promise<Pick<Organization, 'id' | 'name'>[]>;
   getOrganization(organizationId: string): Promise<Organization>;
   listProjects(): Promise<Project[]>;
@@ -174,8 +172,9 @@ export type SupabasePlatform = {
   createProject(options: CreateProjectOptions): Promise<Project>;
   pauseProject(projectId: string): Promise<void>;
   restoreProject(projectId: string): Promise<void>;
+};
 
-  // Edge functions
+export type EdgeFunctionsOperations = {
   listEdgeFunctions(projectId: string): Promise<EdgeFunction[]>;
   getEdgeFunction(
     projectId: string,
@@ -185,20 +184,29 @@ export type SupabasePlatform = {
     projectId: string,
     options: DeployEdgeFunctionOptions
   ): Promise<Omit<EdgeFunction, 'files'>>;
+};
 
-  // Debugging
+export type DebuggingOperations = {
   getLogs(projectId: string, options: GetLogsOptions): Promise<unknown>;
   getSecurityAdvisors(projectId: string): Promise<unknown>;
   getPerformanceAdvisors(projectId: string): Promise<unknown>;
+};
 
-  // Development
+export type DevelopmentOperations = {
   getProjectUrl(projectId: string): Promise<string>;
   getAnonKey(projectId: string): Promise<string>;
   generateTypescriptTypes(
     projectId: string
   ): Promise<GenerateTypescriptTypesResult>;
+};
 
-  // Branching
+export type StorageOperations = {
+  getStorageConfig(projectId: string): Promise<StorageConfig>;
+  updateStorageConfig(projectId: string, config: StorageConfig): Promise<void>;
+  listAllBuckets(projectId: string): Promise<StorageBucket[]>;
+};
+
+export type BranchingOperations = {
   listBranches(projectId: string): Promise<Branch[]>;
   createBranch(
     projectId: string,
@@ -208,9 +216,15 @@ export type SupabasePlatform = {
   mergeBranch(branchId: string): Promise<void>;
   resetBranch(branchId: string, options: ResetBranchOptions): Promise<void>;
   rebaseBranch(branchId: string): Promise<void>;
+};
 
-  // Storage
-  getStorageConfig(projectId: string): Promise<StorageConfig>;
-  updateStorageConfig(projectId: string, config: StorageConfig): Promise<void>;
-  listAllBuckets(projectId: string): Promise<StorageBucket[]>;
+export type SupabasePlatform = {
+  init?(info: InitData): Promise<void>;
+  account?: AccountOperations;
+  database?: DatabaseOperations;
+  functions?: EdgeFunctionsOperations;
+  debugging?: DebuggingOperations;
+  development?: DevelopmentOperations;
+  storage?: StorageOperations;
+  branching?: BranchingOperations;
 };

@@ -156,9 +156,9 @@ You can enable or disable specific tool groups by passing the `--features` flag 
 npx -y @supabase/mcp-server-supabase@latest --features=database,docs
 ```
 
-Available groups are: [`account`](#account), [`docs`](#knowledge-base), [`database`](#database), [`debug`](#debug), [`development`](#development), [`functions`](#edge-functions), [`storage`](#storage), and [`branching`](#branching-experimental-requires-a-paid-plan).
+Available groups are: [`account`](#account), [`docs`](#knowledge-base), [`database`](#database), [`debugging`](#debugging), [`development`](#development), [`functions`](#edge-functions), [`storage`](#storage), and [`branching`](#branching-experimental-requires-a-paid-plan).
 
-If this flag is not passed, the default feature groups are: `account`, `database`, `debug`, `development`, `docs`, `functions`, and `branching`.
+If this flag is not passed, the default feature groups are: `account`, `database`, `debugging`, `development`, `docs`, `functions`, and `branching`.
 
 ## Tools
 
@@ -198,9 +198,9 @@ Enabled by default. Use `database` to target this group of tools with the [`--fe
 - `apply_migration`: Applies a SQL migration to the database. SQL passed to this tool will be tracked within the database, so LLMs should use this for DDL operations (schema changes).
 - `execute_sql`: Executes raw SQL in the database. LLMs should use this for regular queries that don't change the schema.
 
-#### Debug
+#### Debugging
 
-Enabled by default. Use `debug` to target this group of tools with the [`--features`](#feature-groups) option.
+Enabled by default. Use `debugging` to target this group of tools with the [`--features`](#feature-groups) option.
 
 - `get_logs`: Gets logs for a Supabase project by service type (api, postgres, edge functions, auth, storage, realtime). LLMs can use this to help with debugging and monitoring service performance.
 - `get_advisors`: Gets a list of advisory notices for a Supabase project. LLMs can use this to check for security vulnerabilities or performance issues.

@@ -1,21 +1,21 @@
 import { tool } from '@supabase/mcp-utils';
 import { z } from 'zod';
-import type { SupabasePlatform } from '../platform/types.js';
+import type { AccountOperations } from '../platform/types.js';
 import { type Cost, getBranchCost, getNextProjectCost } from '../pricing.js';
 import { AWS_REGION_CODES } from '../regions.js';
 import { hashObject } from '../util.js';
 
 export type AccountToolsOptions = {
-  platform: SupabasePlatform;
+  account: AccountOperations;
 };
 
-export function getAccountTools({ platform }: AccountToolsOptions) {
+export function getAccountTools({ account }: AccountToolsOptions) {
   return {
     list_organizations: tool({
       description: 'Lists all organizations that the user is a member of.',
       parameters: z.object({}),
       execute: async () => {
-        return await platform.listOrganizations();
+        return await account.listOrganizations();
       },
     }),
     get_organization: tool({
@@ -25,7 +25,7 @@ export function getAccountTools({ platform }: AccountToolsOptions) {
         id: z.string().describe('The organization ID'),
       }),
       execute: async ({ id: organizationId }) => {
-        return await platform.getOrganization(organizationId);
+        return await account.getOrganization(organizationId);
       },
     }),
     list_projects: tool({
@@ -33,7 +33,7 @@ export function getAccountTools({ platform }: AccountToolsOptions) {
         'Lists all Supabase projects for the user. Use this to help discover the project ID of the project that the user is working on.',
       parameters: z.object({}),
       execute: async () => {
-        return await platform.listProjects();
+        return await account.listProjects();
       },
     }),
     get_project: tool({
@@ -42,7 +42,7 @@ export function getAccountTools({ platform }: AccountToolsOptions) {
         id: z.string().describe('The project ID'),
       }),
       execute: async ({ id }) => {
-        return await platform.getProject(id);
+        return await account.getProject(id);
       },
     }),
     get_cost: tool({
@@ -60,7 +60,7 @@ export function getAccountTools({ platform }: AccountToolsOptions) {
         }
         switch (type) {
           case 'project': {
-            const cost = await getNextProjectCost(platform, organization_id);
+            const cost = await getNextProjectCost(account, organization_id);
             return generateResponse(cost);
           }
           case 'branch': {
@@ -105,7 +105,7 @@ export function getAccountTools({ platform }: AccountToolsOptions) {
           .describe('The cost confirmation ID. Call `confirm_cost` first.'),
       }),
       execute: async ({ name, region, organization_id, confirm_cost_id }) => {
-        const cost = await getNextProjectCost(platform, organization_id);
+        const cost = await getNextProjectCost(account, organization_id);
         const costHash = await hashObject(cost);
         if (costHash !== confirm_cost_id) {
           throw new Error(
@@ -113,7 +113,7 @@ export function getAccountTools({ platform }: AccountToolsOptions) {
           );
         }
 
-        return await platform.createProject({
+        return await account.createProject({
           name,
           region,
           organization_id,
@@ -126,7 +126,7 @@ export function getAccountTools({ platform }: AccountToolsOptions) {
         project_id: z.string(),
       }),
       execute: async ({ project_id }) => {
-        return await platform.pauseProject(project_id);
+        return await account.pauseProject(project_id);
       },
     }),
     restore_project: tool({
@@ -135,7 +135,7 @@ export function getAccountTools({ platform }: AccountToolsOptions) {
         project_id: z.string(),
       }),
       execute: async ({ project_id }) => {
-        return await platform.restoreProject(project_id);
+        return await account.restoreProject(project_id);
       },
     }),
   };

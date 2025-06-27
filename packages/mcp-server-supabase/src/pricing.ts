@@ -1,4 +1,4 @@
-import type { SupabasePlatform } from './platform/types.js';
+import type { AccountOperations } from './platform/types.js';
 
 export const PROJECT_COST_MONTHLY = 10;
 export const BRANCH_COST_HOURLY = 0.01344;
@@ -21,11 +21,11 @@ export type Cost = ProjectCost | BranchCost;
  * Gets the cost of the next project in an organization.
  */
 export async function getNextProjectCost(
-  platform: SupabasePlatform,
+  account: AccountOperations,
   orgId: string
 ): Promise<Cost> {
-  const org = await platform.getOrganization(orgId);
-  const projects = await platform.listProjects();
+  const org = await account.getOrganization(orgId);
+  const projects = await account.listProjects();
 
   const activeProjects = projects.filter(
     (project) =>

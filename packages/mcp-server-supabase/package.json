@@ -23,14 +23,19 @@
   },
   "exports": {
     ".": {
-      "import": "./dist/index.js",
       "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
       "default": "./dist/index.cjs"
     },
     "./platform": {
-      "import": "./dist/platform/index.js",
       "types": "./dist/platform/index.d.ts",
+      "import": "./dist/platform/index.js",
       "default": "./dist/platform/index.cjs"
+    },
+    "./platform/api": {
+      "types": "./dist/platform/api-platform.d.ts",
+      "import": "./dist/platform/api-platform.js",
+      "default": "./dist/platform/api-platform.cjs"
     }
   },
   "dependencies": {

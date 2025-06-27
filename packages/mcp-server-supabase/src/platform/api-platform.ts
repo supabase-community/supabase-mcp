@@ -21,15 +21,22 @@ import {
   executeSqlOptionsSchema,
   getLogsOptionsSchema,
   resetBranchOptionsSchema,
+  type AccountOperations,
   type ApplyMigrationOptions,
+  type BranchingOperations,
   type CreateBranchOptions,
   type CreateProjectOptions,
+  type DatabaseOperations,
+  type DebuggingOperations,
   type DeployEdgeFunctionOptions,
+  type DevelopmentOperations,
   type EdgeFunction,
+  type EdgeFunctionsOperations,
   type ExecuteSqlOptions,
   type GetLogsOptions,
   type ResetBranchOptions,
   type StorageConfig,
+  type StorageOperations,
   type SupabasePlatform,
 } from './index.js';
 
@@ -62,84 +69,7 @@ export function createSupabaseApiPlatform(
     accessToken
   );
 
-  const platform: SupabasePlatform = {
-    async init(info: InitData) {
-      const { clientInfo } = info;
-      if (!clientInfo) {
-        throw new Error('Client info is required');
-      }
-
-      // Re-initialize the management API client with the user agent
-      managementApiClient = createManagementApiClient(
-        managementApiUrl,
-        accessToken,
-        {
-          'User-Agent': `supabase-mcp/${version} (${clientInfo.name}/${clientInfo.version})`,
-        }
-      );
-    },
-    async executeSql<T>(projectId: string, options: ExecuteSqlOptions) {
-      const { query, read_only } = executeSqlOptionsSchema.parse(options);
-
-      const response = await managementApiClient.POST(
-        '/v1/projects/{ref}/database/query',
-        {
-          params: {
-            path: {
-              ref: projectId,
-            },
-          },
-          body: {
-            query,
-            read_only,
-          },
-        }
-      );
-
-      assertSuccess(response, 'Failed to execute SQL query');
-
-      return response.data as unknown as T[];
-    },
-    async listMigrations(projectId: string) {
-      const response = await managementApiClient.GET(
-        '/v1/projects/{ref}/database/migrations',
-        {
-          params: {
-            path: {
-              ref: projectId,
-            },
-          },
-        }
-      );
-
-      assertSuccess(response, 'Failed to fetch migrations');
-
-      return response.data;
-    },
-    async applyMigration(projectId: string, options: ApplyMigrationOptions) {
-      const { name, query } = applyMigrationOptionsSchema.parse(options);
-
-      const response = await managementApiClient.POST(
-        '/v1/projects/{ref}/database/migrations',
-        {
-          params: {
-            path: {
-              ref: projectId,
-            },
-          },
-          body: {
-            name,
-            query,
-          },
-        }
-      );
-
-      assertSuccess(response, 'Failed to apply migration');
-
-      // Intentionally don't return the result of the migration
-      // to avoid prompt injection attacks. If the migration failed,
-      // it will throw an error.
-    },
+  const account: AccountOperations = {
     async listOrganizations() {
       const response = await managementApiClient.GET('/v1/organizations');
 
@@ -233,6 +163,181 @@ export function createSupabaseApiPlatform(
 
       assertSuccess(response, 'Failed to restore project');
     },
+  };
+
+  const database: DatabaseOperations = {
+    async executeSql<T>(projectId: string, options: ExecuteSqlOptions) {
+      const { query, read_only } = executeSqlOptionsSchema.parse(options);
+
+      const response = await managementApiClient.POST(
+        '/v1/projects/{ref}/database/query',
+        {
+          params: {
+            path: {
+              ref: projectId,
+            },
+          },
+          body: {
+            query,
+            read_only,
+          },
+        }
+      );
+
+      assertSuccess(response, 'Failed to execute SQL query');
+
+      return response.data as unknown as T[];
+    },
+    async listMigrations(projectId: string) {
+      const response = await managementApiClient.GET(
+        '/v1/projects/{ref}/database/migrations',
+        {
+          params: {
+            path: {
+              ref: projectId,
+            },
+          },
+        }
+      );
+
+      assertSuccess(response, 'Failed to fetch migrations');
+
+      return response.data;
+    },
+    async applyMigration(projectId: string, options: ApplyMigrationOptions) {
+      const { name, query } = applyMigrationOptionsSchema.parse(options);
+
+      const response = await managementApiClient.POST(
+        '/v1/projects/{ref}/database/migrations',
+        {
+          params: {
+            path: {
+              ref: projectId,
+            },
+          },
+          body: {
+            name,
+            query,
+          },
+        }
+      );
+
+      assertSuccess(response, 'Failed to apply migration');
+
+      // Intentionally don't return the result of the migration
+      // to avoid prompt injection attacks. If the migration failed,
+      // it will throw an error.
+    },
+  };
+
+  const debugging: DebuggingOperations = {
+    async getLogs(projectId: string, options: GetLogsOptions) {
+      const { sql, iso_timestamp_start, iso_timestamp_end } =
+        getLogsOptionsSchema.parse(options);
+
+      const response = await managementApiClient.GET(
+        '/v1/projects/{ref}/analytics/endpoints/logs.all',
+        {
+          params: {
+            path: {
+              ref: projectId,
+            },
+            query: {
+              sql,
+              iso_timestamp_start,
+              iso_timestamp_end,
+            },
+          },
+        }
+      );
+
+      assertSuccess(response, 'Failed to fetch logs');
+
+      return response.data;
+    },
+    async getSecurityAdvisors(projectId: string) {
+      const response = await managementApiClient.GET(
+        '/v1/projects/{ref}/advisors/security',
+        {
+          params: {
+            path: {
+              ref: projectId,
+            },
+          },
+        }
+      );
+
+      assertSuccess(response, 'Failed to fetch security advisors');
+
+      return response.data;
+    },
+    async getPerformanceAdvisors(projectId: string) {
+      const response = await managementApiClient.GET(
+        '/v1/projects/{ref}/advisors/performance',
+        {
+          params: {
+            path: {
+              ref: projectId,
+            },
+          },
+        }
+      );
+
+      assertSuccess(response, 'Failed to fetch performance advisors');
+
+      return response.data;
+    },
+  };
+
+  const development: DevelopmentOperations = {
+    async getProjectUrl(projectId: string): Promise<string> {
+      const apiUrl = new URL(managementApiUrl);
+      return `https://${projectId}.${getProjectDomain(apiUrl.hostname)}`;
+    },
+    async getAnonKey(projectId: string): Promise<string> {
+      const response = await managementApiClient.GET(
+        '/v1/projects/{ref}/api-keys',
+        {
+          params: {
+            path: {
+              ref: projectId,
+            },
+            query: {
+              reveal: false,
+            },
+          },
+        }
+      );
+
+      assertSuccess(response, 'Failed to fetch API keys');
+
+      const anonKey = response.data?.find((key) => key.name === 'anon');
+
+      if (!anonKey) {
+        throw new Error('Anonymous key not found');
+      }
+
+      return anonKey.api_key;
+    },
+    async generateTypescriptTypes(projectId: string) {
+      const response = await managementApiClient.GET(
+        '/v1/projects/{ref}/types/typescript',
+        {
+          params: {
+            path: {
+              ref: projectId,
+            },
+          },
+        }
+      );
+
+      assertSuccess(response, 'Failed to fetch TypeScript types');
+
+      return response.data;
+    },
+  };
+
+  const functions: EdgeFunctionsOperations = {
     async listEdgeFunctions(projectId: string) {
       const response = await managementApiClient.GET(
         '/v1/projects/{ref}/functions',
@@ -250,7 +355,10 @@ export function createSupabaseApiPlatform(
       // Fetch files for each Edge Function
       return await Promise.all(
         response.data.map(async (listedFunction) => {
-          return await platform.getEdgeFunction(projectId, listedFunction.slug);
+          return await functions.getEdgeFunction(
+            projectId,
+            listedFunction.slug
+          );
         })
       );
     },
@@ -345,7 +453,7 @@ export function createSupabaseApiPlatform(
 
       let existingEdgeFunction: EdgeFunction | undefined;
       try {
-        existingEdgeFunction = await platform.getEdgeFunction(projectId, name);
+        existingEdgeFunction = await functions.getEdgeFunction(projectId, name);
       } catch (error) {}
 
       const import_map_file = inputFiles.find((file) =>
@@ -398,107 +506,9 @@ export function createSupabaseApiPlatform(
 
       return response.data;
     },
-    async getLogs(projectId: string, options: GetLogsOptions) {
-      const { sql, iso_timestamp_start, iso_timestamp_end } =
-        getLogsOptionsSchema.parse(options);
+  };
 
-      const response = await managementApiClient.GET(
-        '/v1/projects/{ref}/analytics/endpoints/logs.all',
-        {
-          params: {
-            path: {
-              ref: projectId,
-            },
-            query: {
-              sql,
-              iso_timestamp_start,
-              iso_timestamp_end,
-            },
-          },
-        }
-      );
-
-      assertSuccess(response, 'Failed to fetch logs');
-
-      return response.data;
-    },
-    async getSecurityAdvisors(projectId: string) {
-      const response = await managementApiClient.GET(
-        '/v1/projects/{ref}/advisors/security',
-        {
-          params: {
-            path: {
-              ref: projectId,
-            },
-          },
-        }
-      );
-
-      assertSuccess(response, 'Failed to fetch security advisors');
-
-      return response.data;
-    },
-    async getPerformanceAdvisors(projectId: string) {
-      const response = await managementApiClient.GET(
-        '/v1/projects/{ref}/advisors/performance',
-        {
-          params: {
-            path: {
-              ref: projectId,
-            },
-          },
-        }
-      );
-
-      assertSuccess(response, 'Failed to fetch performance advisors');
-
-      return response.data;
-    },
-    async getProjectUrl(projectId: string): Promise<string> {
-      const apiUrl = new URL(managementApiUrl);
-      return `https://${projectId}.${getProjectDomain(apiUrl.hostname)}`;
-    },
-    async getAnonKey(projectId: string): Promise<string> {
-      const response = await managementApiClient.GET(
-        '/v1/projects/{ref}/api-keys',
-        {
-          params: {
-            path: {
-              ref: projectId,
-            },
-            query: {
-              reveal: false,
-            },
-          },
-        }
-      );
-
-      assertSuccess(response, 'Failed to fetch API keys');
-
-      const anonKey = response.data?.find((key) => key.name === 'anon');
-
-      if (!anonKey) {
-        throw new Error('Anonymous key not found');
-      }
-
-      return anonKey.api_key;
-    },
-    async generateTypescriptTypes(projectId: string) {
-      const response = await managementApiClient.GET(
-        '/v1/projects/{ref}/types/typescript',
-        {
-          params: {
-            path: {
-              ref: projectId,
-            },
-          },
-        }
-      );
-
-      assertSuccess(response, 'Failed to fetch TypeScript types');
-
-      return response.data;
-    },
+  const branching: BranchingOperations = {
     async listBranches(projectId: string) {
       const response = await managementApiClient.GET(
         '/v1/projects/{ref}/branches',
@@ -601,7 +611,9 @@ export function createSupabaseApiPlatform(
 
       assertSuccess(response, 'Failed to rebase branch');
     },
+  };
 
+  const storage: StorageOperations = {
     // Storage methods
     async listAllBuckets(project_id: string) {
       const response = await managementApiClient.GET(
@@ -664,6 +676,31 @@ export function createSupabaseApiPlatform(
 
       return response.data;
     },
+  };
+
+  const platform: SupabasePlatform = {
+    async init(info: InitData) {
+      const { clientInfo } = info;
+      if (!clientInfo) {
+        throw new Error('Client info is required');
+      }
+
+      // Re-initialize the management API client with the user agent
+      managementApiClient = createManagementApiClient(
+        managementApiUrl,
+        accessToken,
+        {
+          'User-Agent': `supabase-mcp/${version} (${clientInfo.name}/${clientInfo.version})`,
+        }
+      );
+    },
+    account,
+    database,
+    debugging,
+    development,
+    functions,
+    branching,
+    storage,
   };
 
   return platform;

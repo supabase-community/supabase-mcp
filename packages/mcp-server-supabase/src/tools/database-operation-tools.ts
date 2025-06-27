@@ -5,17 +5,17 @@ import {
   postgresExtensionSchema,
   postgresTableSchema,
 } from '../pg-meta/types.js';
-import type { SupabasePlatform } from '../platform/types.js';
+import type { DatabaseOperations } from '../platform/types.js';
 import { injectableTool } from './util.js';
 
 export type DatabaseOperationToolsOptions = {
-  platform: SupabasePlatform;
+  database: DatabaseOperations;
   projectId?: string;
   readOnly?: boolean;
 };
 
-export function getDatabaseOperationTools({
-  platform,
+export function getDatabaseTools({
+  database,
   projectId,
   readOnly,
 }: DatabaseOperationToolsOptions) {
@@ -34,7 +34,7 @@ export function getDatabaseOperationTools({
       inject: { project_id },
       execute: async ({ project_id, schemas }) => {
         const query = listTablesSql(schemas);
-        const data = await platform.executeSql(project_id, {
+        const data = await database.executeSql(project_id, {
           query,
           read_only: readOnly,
         });
@@ -50,7 +50,7 @@ export function getDatabaseOperationTools({
       inject: { project_id },
       execute: async ({ project_id }) => {
         const query = listExtensionsSql();
-        const data = await platform.executeSql(project_id, {
+        const data = await database.executeSql(project_id, {
           query,
           read_only: readOnly,
         });
@@ -67,7 +67,7 @@ export function getDatabaseOperationTools({
       }),
       inject: { project_id },
       execute: async ({ project_id }) => {
-        return await platform.listMigrations(project_id);
+        return await database.listMigrations(project_id);
       },
     }),
     apply_migration: injectableTool({
@@ -84,7 +84,7 @@ export function getDatabaseOperationTools({
           throw new Error('Cannot apply migration in read-only mode.');
         }
 
-        await platform.applyMigration(project_id, {
+        await database.applyMigration(project_id, {
           name,
           query,
         });
@@ -101,7 +101,7 @@ export function getDatabaseOperationTools({
       }),
       inject: { project_id },
       execute: async ({ query, project_id }) => {
-        const result = await platform.executeSql(project_id, {
+        const result = await database.executeSql(project_id, {
           query,
           read_only: readOnly,
         });

@@ -1,15 +1,15 @@
 import { z } from 'zod';
 import { edgeFunctionExample } from '../edge-function.js';
-import type { SupabasePlatform } from '../platform/types.js';
+import type { EdgeFunctionsOperations } from '../platform/types.js';
 import { injectableTool } from './util.js';
 
 export type EdgeFunctionToolsOptions = {
-  platform: SupabasePlatform;
+  functions: EdgeFunctionsOperations;
   projectId?: string;
 };
 
 export function getEdgeFunctionTools({
-  platform,
+  functions,
   projectId,
 }: EdgeFunctionToolsOptions) {
   const project_id = projectId;
@@ -22,7 +22,7 @@ export function getEdgeFunctionTools({
       }),
       inject: { project_id },
       execute: async ({ project_id }) => {
-        return await platform.listEdgeFunctions(project_id);
+        return await functions.listEdgeFunctions(project_id);
       },
     }),
     deploy_edge_function: injectableTool({
@@ -57,7 +57,7 @@ export function getEdgeFunctionTools({
         import_map_path,
         files,
       }) => {
-        return await platform.deployEdgeFunction(project_id, {
+        return await functions.deployEdgeFunction(project_id, {
           name,
           entrypoint_path,
           import_map_path,

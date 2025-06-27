@@ -1,3 +1,6 @@
-export * from './platform/api-platform.js';
 export type { SupabasePlatform } from './platform/index.js';
-export * from './server.js';
+export {
+  createSupabaseMcpServer,
+  type SupabaseMcpServerOptions,
+} from './server.js';
+export { featureGroupSchema, type FeatureGroup } from './types.js';

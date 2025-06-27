@@ -1,14 +1,14 @@
 import { z } from 'zod';
-import type { SupabasePlatform } from '../platform/types.js';
+import type { DevelopmentOperations } from '../platform/types.js';
 import { injectableTool } from './util.js';
 
 export type DevelopmentToolsOptions = {
-  platform: SupabasePlatform;
+  development: DevelopmentOperations;
   projectId?: string;
 };
 
 export function getDevelopmentTools({
-  platform,
+  development,
   projectId,
 }: DevelopmentToolsOptions) {
   const project_id = projectId;
@@ -21,7 +21,7 @@ export function getDevelopmentTools({
       }),
       inject: { project_id },
       execute: async ({ project_id }) => {
-        return platform.getProjectUrl(project_id);
+        return development.getProjectUrl(project_id);
       },
     }),
     get_anon_key: injectableTool({
@@ -31,7 +31,7 @@ export function getDevelopmentTools({
       }),
       inject: { project_id },
       execute: async ({ project_id }) => {
-        return platform.getAnonKey(project_id);
+        return development.getAnonKey(project_id);
       },
     }),
     generate_typescript_types: injectableTool({
@@ -41,7 +41,7 @@ export function getDevelopmentTools({
       }),
       inject: { project_id },
       execute: async ({ project_id }) => {
-        return platform.generateTypescriptTypes(project_id);
+        return development.generateTypescriptTypes(project_id);
       },
     }),
   };

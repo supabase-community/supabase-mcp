@@ -15,18 +15,6 @@ import { parseFeatureGroups } from './util.js';
 
 const { version } = packageJson;
 
-export type SupabasePlatformOptions = {
-  /**
-   * The access token for the Supabase Management API.
-   */
-  accessToken: string;
-
-  /**
-   * The API URL for the Supabase Management API.
-   */
-  apiUrl?: string;
-};
-
 export type SupabaseMcpServerOptions = {
   /**
    * Platform implementation for Supabase.

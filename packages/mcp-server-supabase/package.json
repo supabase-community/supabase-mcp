@@ -1,6 +1,6 @@
 {
   "name": "@supabase/mcp-server-supabase",
-  "version": "0.3.0",
+  "version": "0.4.5",
   "description": "MCP server for interacting with Supabase",
   "license": "Apache-2.0",
   "type": "module",
@@ -11,37 +11,47 @@
     "build": "tsup --clean",
     "prepublishOnly": "npm run build",
     "test": "vitest",
+    "test:unit": "vitest --project unit",
+    "test:e2e": "vitest --project e2e",
+    "test:integration": "vitest --project integration",
+    "test:coverage": "vitest --coverage",
     "generate:management-api-types": "openapi-typescript https://api.supabase.com/api/v1-json -o ./src/management-api/types.ts"
   },
-  "files": [
-    "dist/**/*"
-  ],
+  "files": ["dist/**/*"],
   "bin": {
-    "mcp-server-supabase": "./dist/stdio.js"
+    "mcp-server-supabase": "./dist/transports/stdio.js"
   },
   "exports": {
     ".": {
       "import": "./dist/index.js",
       "types": "./dist/index.d.ts",
       "default": "./dist/index.cjs"
+    },
+    "./platform": {
+      "import": "./dist/platform/index.js",
+      "types": "./dist/platform/index.d.ts",
+      "default": "./dist/platform/index.cjs"
     }
   },
   "dependencies": {
-    "@gregnr/postgres-meta": "^0.82.0-dev.2",
-    "@modelcontextprotocol/sdk": "^1.4.1",
-    "@supabase/mcp-utils": "0.1.2",
+    "@deno/eszip": "^0.84.0",
+    "@modelcontextprotocol/sdk": "^1.11.0",
+    "@supabase/mcp-utils": "0.2.1",
     "common-tags": "^1.8.2",
-    "openapi-fetch": "^0.13.4",
-    "postgres": "^3.4.5",
-    "zod": "^3.24.1",
-    "zod-to-json-schema": "^3.24.1"
+    "graphql": "^16.11.0",
+    "openapi-fetch": "^0.13.5",
+    "zod": "^3.24.1"
   },
   "devDependencies": {
+    "@ai-sdk/anthropic": "^1.2.9",
     "@electric-sql/pglite": "^0.2.17",
     "@total-typescript/tsconfig": "^1.0.4",
     "@types/common-tags": "^1.8.4",
     "@types/node": "^22.8.6",
+    "@vitest/coverage-v8": "^2.1.9",
+    "ai": "^4.3.4",
     "date-fns": "^4.1.0",
+    "dotenv": "^16.5.0",
     "msw": "^2.7.3",
     "nanoid": "^5.1.5",
     "openapi-typescript": "^7.5.0",

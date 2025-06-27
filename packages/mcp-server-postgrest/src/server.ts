@@ -67,7 +67,12 @@ export function createPostgrestMcpServer(options: PostgrestMcpServerOptions) {
         parameters: z.object({
           method: z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']),
           path: z.string(),
-          body: z.record(z.unknown()).optional(),
+          body: z
+            .union([
+              z.record(z.string(), z.unknown()),
+              z.array(z.record(z.string(), z.unknown())),
+            ])
+            .optional(),
         }),
         async execute({ method, path, body }) {
           const url = new URL(`${apiUrl}${path}`);

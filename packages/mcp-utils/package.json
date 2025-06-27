@@ -1,6 +1,6 @@
 {
   "name": "@supabase/mcp-utils",
-  "version": "0.1.2",
+  "version": "0.2.1",
   "description": "MCP utilities",
   "license": "Apache-2.0",
   "type": "module",
@@ -10,11 +10,10 @@
   "scripts": {
     "build": "tsup --clean",
     "test": "vitest",
+    "test:coverage": "vitest --coverage",
     "prepublishOnly": "npm run build"
   },
-  "files": [
-    "dist/**/*"
-  ],
+  "files": ["dist/**/*"],
   "exports": {
     ".": {
       "import": "./dist/index.js",
@@ -23,7 +22,7 @@
     }
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.4.1",
+    "@modelcontextprotocol/sdk": "^1.11.0",
     "zod": "^3.24.1",
     "zod-to-json-schema": "^3.24.1"
   },

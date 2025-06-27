@@ -4,42 +4,49 @@ import {
   type CallToolRequest,
 } from '@modelcontextprotocol/sdk/types.js';
 import { StreamTransport } from '@supabase/mcp-utils';
+import { codeBlock, stripIndent } from 'common-tags';
 import { setupServer } from 'msw/node';
 import { beforeEach, describe, expect, test } from 'vitest';
 import {
   ACCESS_TOKEN,
   API_URL,
   CLOSEST_REGION,
+  contentApiMockSchema,
   createOrganization,
   createProject,
   MCP_CLIENT_NAME,
   MCP_CLIENT_VERSION,
   mockBranches,
+  mockContentApi,
   mockManagementApi,
   mockOrgs,
   mockProjects,
 } from '../test/mocks.js';
+import { createSupabaseApiPlatform } from './platform/api-platform.js';
 import { BRANCH_COST_HOURLY, PROJECT_COST_MONTHLY } from './pricing.js';
-import { createSupabaseMcpServer } from './server.js';
+import { createSupabaseMcpServer, type FeatureGroup } from './server.js';
 
 beforeEach(async () => {
   mockOrgs.clear();
   mockProjects.clear();
   mockBranches.clear();
 
-  const server = setupServer(...mockManagementApi);
+  const server = setupServer(...mockContentApi, ...mockManagementApi);
   server.listen({ onUnhandledRequest: 'error' });
 });
 
 type SetupOptions = {
   accessToken?: string;
+  projectId?: string;
+  readOnly?: boolean;
+  features?: FeatureGroup[];
 };
 
 /**
  * Sets up an MCP client and server for testing.
  */
 async function setup(options: SetupOptions = {}) {
-  const { accessToken = ACCESS_TOKEN } = options;
+  const { accessToken = ACCESS_TOKEN, projectId, readOnly, features } = options;
   const clientTransport = new StreamTransport();
   const serverTransport = new StreamTransport();
 
@@ -56,11 +63,16 @@ async function setup(options: SetupOptions = {}) {
     }
   );
 
+  const platform = createSupabaseApiPlatform({
+    accessToken,
+    apiUrl: API_URL,
+  });
+
   const server = createSupabaseMcpServer({
-    platform: {
-      apiUrl: API_URL,
-      accessToken,
-    },
+    platform,
+    projectId,
+    readOnly,
+    features,
   });
 
   await server.connect(serverTransport);
@@ -345,7 +357,6 @@ describe('tools', () => {
       name: 'New Project',
       region: 'us-east-1',
       organization_id: freeOrg.id,
-      db_pass: 'dummy-password',
       confirm_cost_id,
     };
 
@@ -354,7 +365,7 @@ describe('tools', () => {
       arguments: newProject,
     });
 
-    const { db_pass, confirm_cost_id: _, ...projectInfo } = newProject;
+    const { confirm_cost_id: _, ...projectInfo } = newProject;
 
     expect(result).toEqual({
       ...projectInfo,
@@ -387,7 +398,6 @@ describe('tools', () => {
     const newProject = {
       name: 'New Project',
       organization_id: freeOrg.id,
-      db_pass: 'dummy-password',
       confirm_cost_id,
     };
 
@@ -396,7 +406,7 @@ describe('tools', () => {
       arguments: newProject,
     });
 
-    const { db_pass, confirm_cost_id: _, ...projectInfo } = newProject;
+    const { confirm_cost_id: _, ...projectInfo } = newProject;
 
     expect(result).toEqual({
       ...projectInfo,
@@ -422,7 +432,6 @@ describe('tools', () => {
       name: 'New Project',
       region: 'us-east-1',
       organization_id: org.id,
-      db_pass: 'dummy-password',
     };
 
     const createProjectPromise = callTool({
@@ -535,6 +544,119 @@ describe('tools', () => {
     expect(result).toEqual('dummy-anon-key');
   });
 
+  test('list storage buckets', async () => {
+    const { callTool } = await setup({ features: ['storage'] });
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    project.createStorageBucket('bucket1', true);
+    project.createStorageBucket('bucket2', false);
+
+    const result = await callTool({
+      name: 'list_storage_buckets',
+      arguments: {
+        project_id: project.id,
+      },
+    });
+
+    expect(Array.isArray(result)).toBe(true);
+    expect(result.length).toBe(2);
+    expect(result[0]).toEqual(
+      expect.objectContaining({
+        name: 'bucket1',
+        public: true,
+        created_at: expect.any(String),
+        updated_at: expect.any(String),
+      })
+    );
+    expect(result[1]).toEqual(
+      expect.objectContaining({
+        name: 'bucket2',
+        public: false,
+        created_at: expect.any(String),
+        updated_at: expect.any(String),
+      })
+    );
+  });
+
+  test('get storage config', async () => {
+    const { callTool } = await setup({ features: ['storage'] });
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const result = await callTool({
+      name: 'get_storage_config',
+      arguments: {
+        project_id: project.id,
+      },
+    });
+
+    expect(result).toEqual({
+      fileSizeLimit: expect.any(Number),
+      features: {
+        imageTransformation: { enabled: expect.any(Boolean) },
+        s3Protocol: { enabled: expect.any(Boolean) },
+      },
+    });
+  });
+
+  test('update storage config', async () => {
+    const { callTool } = await setup({ features: ['storage'] });
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const config = {
+      fileSizeLimit: 50,
+      features: {
+        imageTransformation: { enabled: true },
+        s3Protocol: { enabled: false },
+      },
+    };
+
+    const result = await callTool({
+      name: 'update_storage_config',
+      arguments: {
+        project_id: project.id,
+        config,
+      },
+    });
+
+    expect(result).toEqual({ success: true });
+  });
+
   test('execute sql', async () => {
     const { callTool } = await setup();
 
@@ -561,7 +683,74 @@ describe('tools', () => {
       },
     });
 
-    expect(result).toEqual([{ sum: 2 }]);
+    expect(result).toContain('untrusted user data');
+    expect(result).toMatch(/<untrusted-data-\w{8}-\w{4}-\w{4}-\w{4}-\w{12}>/);
+    expect(result).toContain(JSON.stringify([{ sum: 2 }]));
+    expect(result).toMatch(/<\/untrusted-data-\w{8}-\w{4}-\w{4}-\w{4}-\w{12}>/);
+  });
+
+  test('can run read queries in read-only mode', async () => {
+    const { callTool } = await setup({ readOnly: true });
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const query = 'select 1+1 as sum';
+
+    const result = await callTool({
+      name: 'execute_sql',
+      arguments: {
+        project_id: project.id,
+        query,
+      },
+    });
+
+    expect(result).toContain('untrusted user data');
+    expect(result).toMatch(/<untrusted-data-\w{8}-\w{4}-\w{4}-\w{4}-\w{12}>/);
+    expect(result).toContain(JSON.stringify([{ sum: 2 }]));
+    expect(result).toMatch(/<\/untrusted-data-\w{8}-\w{4}-\w{4}-\w{4}-\w{12}>/);
+  });
+
+  test('cannot run write queries in read-only mode', async () => {
+    const { callTool } = await setup({ readOnly: true });
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const query =
+      'create table test (id integer generated always as identity primary key)';
+
+    const resultPromise = callTool({
+      name: 'execute_sql',
+      arguments: {
+        project_id: project.id,
+        query,
+      },
+    });
+
+    await expect(resultPromise).rejects.toThrow(
+      'permission denied for schema public'
+    );
   });
 
   test('apply migration, list migrations, check tables', async () => {
@@ -593,7 +782,7 @@ describe('tools', () => {
       },
     });
 
-    expect(result).toEqual([]);
+    expect(result).toEqual({ success: true });
 
     const listMigrationsResult = await callTool({
       name: 'list_migrations',
@@ -617,54 +806,164 @@ describe('tools', () => {
       },
     });
 
-    expect(listTablesResult).toMatchInlineSnapshot(`
-      [
-        {
-          "bytes": 8192,
-          "columns": [
-            {
-              "check": null,
-              "comment": null,
-              "data_type": "integer",
-              "default_value": null,
-              "enums": [],
-              "format": "int4",
-              "id": "16385.1",
-              "identity_generation": "ALWAYS",
-              "is_generated": false,
-              "is_identity": true,
-              "is_nullable": false,
-              "is_unique": false,
-              "is_updatable": true,
-              "name": "id",
-              "ordinal_position": 1,
-              "schema": "public",
-              "table": "test",
-              "table_id": 16385,
-            },
-          ],
-          "comment": null,
-          "dead_rows_estimate": 0,
-          "id": 16385,
-          "live_rows_estimate": 0,
-          "name": "test",
-          "primary_keys": [
-            {
-              "name": "id",
-              "schema": "public",
-              "table_id": 16385,
-              "table_name": "test",
-            },
-          ],
-          "relationships": [],
-          "replica_identity": "DEFAULT",
-          "rls_enabled": false,
-          "rls_forced": false,
-          "schema": "public",
-          "size": "8192 bytes",
-        },
-      ]
-    `);
+    expect(listTablesResult).toEqual([
+      {
+        bytes: 8192,
+        columns: [
+          {
+            check: null,
+            comment: null,
+            data_type: 'integer',
+            default_value: null,
+            enums: [],
+            format: 'int4',
+            id: expect.stringMatching(/^\d+\.\d+$/),
+            identity_generation: 'ALWAYS',
+            is_generated: false,
+            is_identity: true,
+            is_nullable: false,
+            is_unique: false,
+            is_updatable: true,
+            name: 'id',
+            ordinal_position: 1,
+            schema: 'public',
+            table: 'test',
+            table_id: expect.any(Number),
+          },
+        ],
+        comment: null,
+        dead_rows_estimate: 0,
+        id: expect.any(Number),
+        live_rows_estimate: 0,
+        name: 'test',
+        primary_keys: [
+          {
+            name: 'id',
+            schema: 'public',
+            table_id: expect.any(Number),
+            table_name: 'test',
+          },
+        ],
+        relationships: [],
+        replica_identity: 'DEFAULT',
+        rls_enabled: false,
+        rls_forced: false,
+        schema: 'public',
+        size: '8192 bytes',
+      },
+    ]);
+  });
+
+  test('cannot apply migration in read-only mode', async () => {
+    const { callTool } = await setup({ readOnly: true });
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const name = 'test-migration';
+    const query =
+      'create table test (id integer generated always as identity primary key)';
+
+    const resultPromise = callTool({
+      name: 'apply_migration',
+      arguments: {
+        project_id: project.id,
+        name,
+        query,
+      },
+    });
+
+    await expect(resultPromise).rejects.toThrow(
+      'Cannot apply migration in read-only mode.'
+    );
+  });
+
+  test('list tables only under a specific schema', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    await project.db.exec('create schema test;');
+    await project.db.exec(
+      'create table public.test_1 (id serial primary key);'
+    );
+    await project.db.exec('create table test.test_2 (id serial primary key);');
+
+    const result = await callTool({
+      name: 'list_tables',
+      arguments: {
+        project_id: project.id,
+        schemas: ['test'],
+      },
+    });
+
+    expect(result).toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: 'test_2' })])
+    );
+    expect(result).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: 'test_1' })])
+    );
+  });
+
+  test('listing all tables excludes system schemas', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const result = await callTool({
+      name: 'list_tables',
+      arguments: {
+        project_id: project.id,
+      },
+    });
+
+    expect(result).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ schema: 'pg_catalog' }),
+      ])
+    );
+
+    expect(result).not.toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ schema: 'information_schema' }),
+      ])
+    );
+
+    expect(result).not.toEqual(
+      expect.arrayContaining([expect.objectContaining({ schema: 'pg_toast' })])
+    );
   });
 
   test('list extensions', async () => {
@@ -711,9 +1010,7 @@ describe('tools', () => {
       arguments: {},
     });
 
-    await expect(listOrganizationsPromise).rejects.toThrow(
-      'Unauthorized. Please provide a valid access token to the MCP server via the --access-token flag.'
-    );
+    await expect(listOrganizationsPromise).rejects.toThrow('Unauthorized.');
   });
 
   test('invalid sql for apply_migration', async () => {
@@ -819,6 +1116,60 @@ describe('tools', () => {
     }
   });
 
+  test('get security advisors', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const result = await callTool({
+      name: 'get_advisors',
+      arguments: {
+        project_id: project.id,
+        type: 'security',
+      },
+    });
+
+    expect(result).toEqual({ lints: [] });
+  });
+
+  test('get performance advisors', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const result = await callTool({
+      name: 'get_advisors',
+      arguments: {
+        project_id: project.id,
+        type: 'performance',
+      },
+    });
+
+    expect(result).toEqual({ lints: [] });
+  });
+
   test('get logs for invalid service type', async () => {
     const { callTool } = await setup();
 
@@ -846,8 +1197,378 @@ describe('tools', () => {
     await expect(getLogsPromise).rejects.toThrow('Invalid enum value');
   });
 
-  test('create branch', async () => {
+  test('list edge functions', async () => {
     const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const indexContent = codeBlock`
+      Deno.serve(async (req: Request) => {
+        return new Response('Hello world!', { headers: { 'Content-Type': 'text/plain' } })
+      });
+    `;
+
+    const edgeFunction = await project.deployEdgeFunction(
+      {
+        name: 'hello-world',
+        entrypoint_path: 'index.ts',
+      },
+      [
+        new File([indexContent], 'index.ts', {
+          type: 'application/typescript',
+        }),
+      ]
+    );
+
+    const result = await callTool({
+      name: 'list_edge_functions',
+      arguments: {
+        project_id: project.id,
+      },
+    });
+
+    expect(result).toEqual([
+      {
+        id: edgeFunction.id,
+        slug: edgeFunction.slug,
+        version: edgeFunction.version,
+        name: edgeFunction.name,
+        status: edgeFunction.status,
+        entrypoint_path: 'index.ts',
+        import_map_path: undefined,
+        import_map: false,
+        verify_jwt: true,
+        created_at: expect.stringMatching(
+          /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
+        ),
+        updated_at: expect.stringMatching(
+          /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
+        ),
+        files: [
+          {
+            name: 'index.ts',
+            content: indexContent,
+          },
+        ],
+      },
+    ]);
+  });
+
+  test('deploy new edge function', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const functionName = 'hello-world';
+    const functionCode = 'console.log("Hello, world!");';
+
+    const result = await callTool({
+      name: 'deploy_edge_function',
+      arguments: {
+        project_id: project.id,
+        name: functionName,
+        files: [
+          {
+            name: 'index.ts',
+            content: functionCode,
+          },
+        ],
+      },
+    });
+
+    expect(result).toEqual({
+      id: expect.stringMatching(/^.+$/),
+      slug: functionName,
+      version: 1,
+      name: functionName,
+      status: 'ACTIVE',
+      entrypoint_path: expect.stringMatching(/index\.ts$/),
+      import_map_path: undefined,
+      import_map: false,
+      verify_jwt: true,
+      created_at: expect.stringMatching(
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
+      ),
+      updated_at: expect.stringMatching(
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
+      ),
+    });
+  });
+
+  test('deploy new version of existing edge function', async () => {
+    const { callTool } = await setup();
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const functionName = 'hello-world';
+
+    const edgeFunction = await project.deployEdgeFunction(
+      {
+        name: functionName,
+        entrypoint_path: 'index.ts',
+      },
+      [
+        new File(['console.log("Hello, world!");'], 'index.ts', {
+          type: 'application/typescript',
+        }),
+      ]
+    );
+
+    expect(edgeFunction.version).toEqual(1);
+
+    const originalCreatedAt = edgeFunction.created_at.getTime();
+    const originalUpdatedAt = edgeFunction.updated_at.getTime();
+
+    const result = await callTool({
+      name: 'deploy_edge_function',
+      arguments: {
+        project_id: project.id,
+        name: functionName,
+        files: [
+          {
+            name: 'index.ts',
+            content: 'console.log("Hello, world! v2");',
+          },
+        ],
+      },
+    });
+
+    expect(result).toEqual({
+      id: edgeFunction.id,
+      slug: functionName,
+      version: 2,
+      name: functionName,
+      status: 'ACTIVE',
+      entrypoint_path: expect.stringMatching(/index\.ts$/),
+      import_map_path: undefined,
+      import_map: false,
+      verify_jwt: true,
+      created_at: expect.stringMatching(
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
+      ),
+      updated_at: expect.stringMatching(
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
+      ),
+    });
+
+    expect(new Date(result.created_at).getTime()).toEqual(originalCreatedAt);
+    expect(new Date(result.updated_at).getTime()).toBeGreaterThan(
+      originalUpdatedAt
+    );
+  });
+
+  test('custom edge function import map', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+
+    const functionName = 'hello-world';
+    const functionCode = 'console.log("Hello, world!");';
+
+    const result = await callTool({
+      name: 'deploy_edge_function',
+      arguments: {
+        project_id: project.id,
+        name: functionName,
+        import_map_path: 'custom-map.json',
+        files: [
+          {
+            name: 'index.ts',
+            content: functionCode,
+          },
+          {
+            name: 'custom-map.json',
+            content: '{}',
+          },
+        ],
+      },
+    });
+
+    expect(result.import_map).toBe(true);
+    expect(result.import_map_path).toMatch(/custom-map\.json$/);
+  });
+
+  test('default edge function import map to deno.json', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+
+    const functionName = 'hello-world';
+    const functionCode = 'console.log("Hello, world!");';
+
+    const result = await callTool({
+      name: 'deploy_edge_function',
+      arguments: {
+        project_id: project.id,
+        name: functionName,
+        files: [
+          {
+            name: 'index.ts',
+            content: functionCode,
+          },
+          {
+            name: 'deno.json',
+            content: '{}',
+          },
+        ],
+      },
+    });
+
+    expect(result.import_map).toBe(true);
+    expect(result.import_map_path).toMatch(/deno\.json$/);
+  });
+
+  test('default edge function import map to import_map.json', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+
+    const functionName = 'hello-world';
+    const functionCode = 'console.log("Hello, world!");';
+
+    const result = await callTool({
+      name: 'deploy_edge_function',
+      arguments: {
+        project_id: project.id,
+        name: functionName,
+        files: [
+          {
+            name: 'index.ts',
+            content: functionCode,
+          },
+          {
+            name: 'import_map.json',
+            content: '{}',
+          },
+        ],
+      },
+    });
+
+    expect(result.import_map).toBe(true);
+    expect(result.import_map_path).toMatch(/import_map\.json$/);
+  });
+
+  test('updating edge function with missing import_map_path defaults to previous value', async () => {
+    const { callTool } = await setup();
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const functionName = 'hello-world';
+
+    const edgeFunction = await project.deployEdgeFunction(
+      {
+        name: functionName,
+        entrypoint_path: 'index.ts',
+        import_map_path: 'custom-map.json',
+      },
+      [
+        new File(['console.log("Hello, world!");'], 'index.ts', {
+          type: 'application/typescript',
+        }),
+        new File(['{}'], 'custom-map.json', {
+          type: 'application/json',
+        }),
+      ]
+    );
+
+    const result = await callTool({
+      name: 'deploy_edge_function',
+      arguments: {
+        project_id: project.id,
+        name: functionName,
+        files: [
+          {
+            name: 'index.ts',
+            content: 'console.log("Hello, world! v2");',
+          },
+          {
+            name: 'custom-map.json',
+            content: '{}',
+          },
+        ],
+      },
+    });
+
+    expect(result.import_map).toBe(true);
+    expect(result.import_map_path).toMatch(/custom-map\.json$/);
+  });
+
+  test('create branch', async () => {
+    const { callTool } = await setup({
+      features: ['account', 'branching'],
+    });
 
     const org = await createOrganization({
       name: 'My Org',
@@ -899,7 +1620,7 @@ describe('tools', () => {
   });
 
   test('create branch without cost confirmation fails', async () => {
-    const { callTool } = await setup();
+    const { callTool } = await setup({ features: ['branching'] });
 
     const org = await createOrganization({
       name: 'Paid Org',
@@ -929,7 +1650,9 @@ describe('tools', () => {
   });
 
   test('delete branch', async () => {
-    const { callTool } = await setup();
+    const { callTool } = await setup({
+      features: ['account', 'branching'],
+    });
 
     const org = await createOrganization({
       name: 'My Org',
@@ -1008,7 +1731,7 @@ describe('tools', () => {
   });
 
   test('list branches', async () => {
-    const { callTool } = await setup();
+    const { callTool } = await setup({ features: ['branching'] });
 
     const org = await createOrganization({
       name: 'My Org',
@@ -1034,7 +1757,9 @@ describe('tools', () => {
   });
 
   test('merge branch', async () => {
-    const { callTool } = await setup();
+    const { callTool } = await setup({
+      features: ['account', 'branching', 'database'],
+    });
 
     const org = await createOrganization({
       name: 'My Org',
@@ -1079,15 +1804,11 @@ describe('tools', () => {
       },
     });
 
-    const mergeResult = await callTool({
+    await callTool({
       name: 'merge_branch',
       arguments: {
         branch_id: branch.id,
       },
-    });
-
-    expect(mergeResult).toEqual({
-      migration_version: expect.stringMatching(/^\d{14}$/),
     });
 
     // Check that the migration was applied to the parent project
@@ -1105,7 +1826,9 @@ describe('tools', () => {
   });
 
   test('reset branch', async () => {
-    const { callTool } = await setup();
+    const { callTool } = await setup({
+      features: ['account', 'branching', 'database'],
+    });
 
     const org = await createOrganization({
       name: 'My Org',
@@ -1181,7 +1904,9 @@ describe('tools', () => {
   });
 
   test('revert migrations', async () => {
-    const { callTool } = await setup();
+    const { callTool } = await setup({
+      features: ['account', 'branching', 'database'],
+    });
 
     const org = await createOrganization({
       name: 'My Org',
@@ -1281,7 +2006,9 @@ describe('tools', () => {
   });
 
   test('rebase branch', async () => {
-    const { callTool } = await setup();
+    const { callTool } = await setup({
+      features: ['account', 'branching', 'database'],
+    });
 
     const org = await createOrganization({
       name: 'My Org',
@@ -1326,15 +2053,11 @@ describe('tools', () => {
       },
     });
 
-    const rebaseResult = await callTool({
+    await callTool({
       name: 'rebase_branch',
       arguments: {
         branch_id: branch.id,
       },
-    });
-
-    expect(rebaseResult).toEqual({
-      migration_version: expect.stringMatching(/^\d{14}$/),
     });
 
     // Check that the production migration was applied to the branch
@@ -1369,5 +2092,352 @@ describe('tools', () => {
         );
       }
     }
+  });
+});
+
+describe('feature groups', () => {
+  test('account tools', async () => {
+    const { client: accountClient } = await setup({
+      features: ['account'],
+    });
+
+    const { tools: accountTools } = await accountClient.listTools();
+    const accountToolNames = accountTools.map((tool) => tool.name);
+
+    expect(accountToolNames).toEqual([
+      'list_organizations',
+      'get_organization',
+      'list_projects',
+      'get_project',
+      'get_cost',
+      'confirm_cost',
+      'create_project',
+      'pause_project',
+      'restore_project',
+    ]);
+  });
+
+  test('database tools', async () => {
+    const { client: databaseClient } = await setup({
+      features: ['database'],
+    });
+
+    const { tools: databaseTools } = await databaseClient.listTools();
+    const databaseToolNames = databaseTools.map((tool) => tool.name);
+
+    expect(databaseToolNames).toEqual([
+      'list_tables',
+      'list_extensions',
+      'list_migrations',
+      'apply_migration',
+      'execute_sql',
+    ]);
+  });
+
+  test('debug tools', async () => {
+    const { client: debugClient } = await setup({
+      features: ['debug'],
+    });
+
+    const { tools: debugTools } = await debugClient.listTools();
+    const debugToolNames = debugTools.map((tool) => tool.name);
+
+    expect(debugToolNames).toEqual(['get_logs', 'get_advisors']);
+  });
+
+  test('development tools', async () => {
+    const { client: developmentClient } = await setup({
+      features: ['development'],
+    });
+
+    const { tools: developmentTools } = await developmentClient.listTools();
+    const developmentToolNames = developmentTools.map((tool) => tool.name);
+
+    expect(developmentToolNames).toEqual([
+      'get_project_url',
+      'get_anon_key',
+      'generate_typescript_types',
+    ]);
+  });
+
+  test('docs tools', async () => {
+    const { client: docsClient } = await setup({
+      features: ['docs'],
+    });
+
+    const { tools: docsTools } = await docsClient.listTools();
+    const docsToolNames = docsTools.map((tool) => tool.name);
+
+    expect(docsToolNames).toEqual(['search_docs']);
+  });
+
+  test('functions tools', async () => {
+    const { client: functionsClient } = await setup({
+      features: ['functions'],
+    });
+
+    const { tools: functionsTools } = await functionsClient.listTools();
+    const functionsToolNames = functionsTools.map((tool) => tool.name);
+
+    expect(functionsToolNames).toEqual([
+      'list_edge_functions',
+      'deploy_edge_function',
+    ]);
+  });
+
+  test('branching tools', async () => {
+    const { client: branchingClient } = await setup({
+      features: ['branching'],
+    });
+
+    const { tools: branchingTools } = await branchingClient.listTools();
+    const branchingToolNames = branchingTools.map((tool) => tool.name);
+
+    expect(branchingToolNames).toEqual([
+      'create_branch',
+      'list_branches',
+      'delete_branch',
+      'merge_branch',
+      'reset_branch',
+      'rebase_branch',
+    ]);
+  });
+
+  test('storage tools', async () => {
+    const { client: storageClient } = await setup({
+      features: ['storage'],
+    });
+
+    const { tools: storageTools } = await storageClient.listTools();
+    const storageToolNames = storageTools.map((tool) => tool.name);
+
+    expect(storageToolNames).toEqual([
+      'list_storage_buckets',
+      'get_storage_config',
+      'update_storage_config',
+    ]);
+  });
+
+  test('invalid group fails', async () => {
+    const setupPromise = setup({
+      features: ['my-invalid-group' as FeatureGroup],
+    });
+
+    await expect(setupPromise).rejects.toThrow('Invalid enum value');
+  });
+
+  test('duplicate group behaves like single group', async () => {
+    const { client: duplicateClient } = await setup({
+      features: ['account', 'account'],
+    });
+
+    const { tools: duplicateTools } = await duplicateClient.listTools();
+    const duplicateToolNames = duplicateTools.map((tool) => tool.name);
+
+    expect(duplicateToolNames).toEqual([
+      'list_organizations',
+      'get_organization',
+      'list_projects',
+      'get_project',
+      'get_cost',
+      'confirm_cost',
+      'create_project',
+      'pause_project',
+      'restore_project',
+    ]);
+  });
+});
+
+describe('project scoped tools', () => {
+  test('no account level tools should exist', async () => {
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+
+    const { client } = await setup({ projectId: project.id });
+
+    const result = await client.listTools();
+
+    const accountLevelToolNames = [
+      'list_organizations',
+      'get_organization',
+      'list_projects',
+      'get_project',
+      'get_cost',
+      'confirm_cost',
+      'create_project',
+      'pause_project',
+      'restore_project',
+    ];
+
+    const toolNames = result.tools.map((tool) => tool.name);
+
+    for (const accountLevelToolName of accountLevelToolNames) {
+      expect(
+        toolNames,
+        `tool ${accountLevelToolName} should not be available in project scope`
+      ).not.toContain(accountLevelToolName);
+    }
+  });
+
+  test('no tool should accept a project_id', async () => {
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+
+    const { client } = await setup({ projectId: project.id });
+
+    const result = await client.listTools();
+
+    expect(result.tools).toBeDefined();
+    expect(Array.isArray(result.tools)).toBe(true);
+
+    for (const tool of result.tools) {
+      const schemaProperties = tool.inputSchema.properties ?? {};
+      expect(
+        'project_id' in schemaProperties,
+        `tool ${tool.name} should not accept a project_id`
+      ).toBe(false);
+    }
+  });
+
+  test('invalid project ID should throw an error', async () => {
+    const { callTool } = await setup({ projectId: 'invalid-project-id' });
+
+    const listTablesPromise = callTool({
+      name: 'list_tables',
+      arguments: {
+        schemas: ['public'],
+      },
+    });
+
+    await expect(listTablesPromise).rejects.toThrow('Project not found');
+  });
+
+  test('passing project_id to a tool should throw an error', async () => {
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const { callTool } = await setup({ projectId: project.id });
+
+    const listTablesPromise = callTool({
+      name: 'list_tables',
+      arguments: {
+        project_id: 'my-project-id',
+        schemas: ['public'],
+      },
+    });
+
+    await expect(listTablesPromise).rejects.toThrow('Unrecognized key');
+  });
+
+  test('listing tables implicitly uses the scoped project_id', async () => {
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    project.db
+      .sql`create table test (id integer generated always as identity primary key)`;
+
+    const { callTool } = await setup({ projectId: project.id });
+
+    const result = await callTool({
+      name: 'list_tables',
+      arguments: {
+        schemas: ['public'],
+      },
+    });
+
+    expect(result).toEqual([
+      expect.objectContaining({
+        name: 'test',
+        schema: 'public',
+        columns: [
+          expect.objectContaining({
+            name: 'id',
+            is_identity: true,
+            is_generated: false,
+          }),
+        ],
+      }),
+    ]);
+  });
+});
+
+describe('docs tools', () => {
+  test('gets content', async () => {
+    const { callTool } = await setup();
+    const query = stripIndent`
+      query ContentQuery {
+        searchDocs(query: "typescript") {
+          nodes {
+            title
+            href
+          }
+        }
+      }
+    `;
+
+    const result = await callTool({
+      name: 'search_docs',
+      arguments: {
+        graphql_query: query,
+      },
+    });
+
+    expect(result).toEqual({ dummy: true });
+  });
+
+  test('tool description contains schema', async () => {
+    const { client } = await setup();
+
+    const { tools } = await client.listTools();
+
+    const tool = tools.find((tool) => tool.name === 'search_docs');
+
+    if (!tool) {
+      throw new Error('tool not found');
+    }
+
+    if (!tool.description) {
+      throw new Error('tool description not found');
+    }
+
+    expect(tool.description.includes(contentApiMockSchema)).toBe(true);
   });
 });

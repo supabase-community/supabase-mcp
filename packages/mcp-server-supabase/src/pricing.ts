@@ -1,7 +1,4 @@
-import {
-  assertSuccess,
-  type ManagementApiClient,
-} from './management-api/index.js';
+import type { SupabasePlatform } from './platform/types.js';
 
 export const PROJECT_COST_MONTHLY = 10;
 export const BRANCH_COST_HOURLY = 0.01344;
@@ -24,28 +21,13 @@ export type Cost = ProjectCost | BranchCost;
  * Gets the cost of the next project in an organization.
  */
 export async function getNextProjectCost(
-  managementApiClient: ManagementApiClient,
+  platform: SupabasePlatform,
   orgId: string
 ): Promise<Cost> {
-  const orgResponse = await managementApiClient.GET(
-    '/v1/organizations/{slug}',
-    {
-      params: {
-        path: {
-          slug: orgId,
-        },
-      },
-    }
-  );
+  const org = await platform.getOrganization(orgId);
+  const projects = await platform.listProjects();
 
-  assertSuccess(orgResponse, 'Failed to fetch organization');
-
-  const projectsResponse = await managementApiClient.GET('/v1/projects');
-
-  assertSuccess(projectsResponse, 'Failed to fetch projects');
-
-  const org = orgResponse.data;
-  const activeProjects = projectsResponse.data.filter(
+  const activeProjects = projects.filter(
     (project) =>
       project.organization_id === orgId &&
       !['INACTIVE', 'GOING_DOWN', 'REMOVED'].includes(project.status)

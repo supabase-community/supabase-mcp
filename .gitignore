@@ -4,3 +4,4 @@ dist/
 .temp/
 .DS_Store
 .env
+.env*

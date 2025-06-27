@@ -1,23 +1,76 @@
 import { PGlite, type PGliteInterface } from '@electric-sql/pglite';
+import { source } from 'common-tags';
 import { format } from 'date-fns';
+import { buildSchema, parse, validate } from 'graphql';
 import { http, HttpResponse } from 'msw';
 import { customAlphabet } from 'nanoid';
+import { join } from 'node:path/posix';
 import { expect } from 'vitest';
 import { z } from 'zod';
-import { version } from '../package.json';
-import type { components } from '../src/management-api/types';
+import packageJson from '../package.json' with { type: 'json' };
+import {
+  getQueryFields,
+  graphqlRequestSchema,
+} from '../src/content-api/graphql.js';
+import { getDeploymentId, getPathPrefix } from '../src/edge-function.js';
+import { bundleFiles } from '../src/eszip.js';
+import type { components } from '../src/management-api/types.js';
 import { TRACE_URL } from '../src/regions.js';
+
+const { version } = packageJson;
 
 const nanoid = customAlphabet('abcdefghijklmnopqrstuvwxyz', 20);
 
 export const API_URL = 'https://api.supabase.com';
+export const CONTENT_API_URL = 'https://supabase.com/docs/api/graphql';
 export const MCP_SERVER_NAME = 'supabase-mcp';
 export const MCP_SERVER_VERSION = version;
 export const MCP_CLIENT_NAME = 'test-client';
-export const MCP_CLIENT_VERSION = '0.1.0';
+export const MCP_CLIENT_VERSION = '1.0.0';
 export const ACCESS_TOKEN = 'dummy-token';
 export const COUNTRY_CODE = 'US';
 export const CLOSEST_REGION = 'us-east-2';
+
+export const contentApiMockSchema = source`
+  schema {
+    query: RootQueryType
+  }
+    
+  type RootQueryType {
+    """Get the GraphQL schema for this endpoint"""
+    schema: String!
+
+    """Search the Supabase docs for content matching a query string"""
+    searchDocs(query: String!, limit: Int): SearchResultCollection
+  }
+
+  """Document that matches a search query"""
+  interface SearchResult {
+    """The title of the matching result"""
+    title: String
+
+    """The URL of the matching result"""
+    href: String
+
+    """The full content of the matching result"""
+    content: String
+  }
+
+  """A collection of search results containing content from Supabase docs"""
+  type SearchResultCollection {
+    """A list of edges containing nodes in this collection"""
+    edges: [SearchResultEdge!]!
+
+    """The nodes in this collection, directly accessible"""
+    nodes: [SearchResult!]!
+  }
+
+  """An edge in a collection of SearchResults"""
+  type SearchResultEdge {
+    """The SearchResult at the end of the edge"""
+    node: SearchResult!
+  }
+`;
 
 type Organization = components['schemas']['V1OrganizationSlugResponse'];
 type Project = components['schemas']['V1ProjectWithDatabaseResponse'];
@@ -33,6 +86,37 @@ export const mockOrgs = new Map<string, Organization>();
 export const mockProjects = new Map<string, MockProject>();
 export const mockBranches = new Map<string, MockBranch>();
 
+export const mockContentApi = [
+  http.post(CONTENT_API_URL, async ({ request }) => {
+    const json = await request.json();
+    const { query } = graphqlRequestSchema.parse(json);
+
+    const schema = buildSchema(contentApiMockSchema);
+    const document = parse(query);
+    const validationErrors = validate(schema, document);
+
+    const [queryName] = getQueryFields(document);
+
+    if (queryName === 'schema') {
+      return HttpResponse.json({
+        data: {
+          schema: contentApiMockSchema,
+        },
+      });
+    }
+
+    if (validationErrors.length > 0) {
+      throw Error('Invalid query made to Content API');
+    }
+
+    return HttpResponse.json({
+      data: {
+        dummy: true,
+      },
+    });
+  }),
+];
+
 export const mockManagementApi = [
   http.get(TRACE_URL, () => {
     return HttpResponse.text(
@@ -43,7 +127,7 @@ export const mockManagementApi = [
   /**
    * Check authorization
    */
-  http.all('*', ({ request }) => {
+  http.all(`${API_URL}/*`, ({ request }) => {
     const authHeader = request.headers.get('Authorization');
 
     const accessToken = authHeader?.replace('Bearer ', '');
@@ -55,7 +139,7 @@ export const mockManagementApi = [
   /**
    * Check user agent
    */
-  http.all('*', ({ request }) => {
+  http.all(`${API_URL}/*`, ({ request }) => {
     const userAgent = request.headers.get('user-agent');
     expect(userAgent).toBe(
       `${MCP_SERVER_NAME}/${MCP_SERVER_VERSION} (${MCP_CLIENT_NAME}/${MCP_CLIENT_VERSION})`
@@ -182,7 +266,7 @@ export const mockManagementApi = [
   /**
    * Execute a SQL query on a project's database
    */
-  http.post<{ projectId: string }, { query: string }>(
+  http.post<{ projectId: string }, { query: string; read_only?: boolean }>(
     `${API_URL}/v1/projects/:projectId/database/query`,
     async ({ params, request }) => {
       const project = mockProjects.get(params.projectId);
@@ -193,17 +277,159 @@ export const mockManagementApi = [
         );
       }
       const { db } = project;
-      const { query } = await request.json();
-      const [results] = await db.exec(query);
+      const { query, read_only } = await request.json();
 
-      if (!results) {
+      // Not secure, but good enough for testing
+      const wrappedQuery = `
+        SET ROLE ${read_only ? 'supabase_read_only_role' : 'postgres'};
+        ${query};
+        RESET ROLE;
+      `;
+
+      const statementResults = await db.exec(wrappedQuery);
+
+      // Remove last result, which is for the "RESET ROLE" statement
+      statementResults.pop();
+
+      const lastStatementResults = statementResults.at(-1);
+
+      if (!lastStatementResults) {
         return HttpResponse.json(
           { message: 'Failed to execute query' },
           { status: 500 }
         );
       }
 
-      return HttpResponse.json(results.rows);
+      return HttpResponse.json(lastStatementResults.rows);
+    }
+  ),
+
+  /**
+   * Lists all Edge Functions for a project
+   */
+  http.get<{ projectId: string }>(
+    `${API_URL}/v1/projects/:projectId/functions`,
+    ({ params }) => {
+      const project = mockProjects.get(params.projectId);
+      if (!project) {
+        return HttpResponse.json(
+          { message: 'Project not found' },
+          { status: 404 }
+        );
+      }
+
+      return HttpResponse.json(
+        Array.from(project.edge_functions.values()).map(
+          (edgeFunction) => edgeFunction.details
+        )
+      );
+    }
+  ),
+
+  /**
+   * Get details for an Edge Function
+   */
+  http.get<{ projectId: string; functionSlug: string }>(
+    `${API_URL}/v1/projects/:projectId/functions/:functionSlug`,
+    ({ params }) => {
+      const project = mockProjects.get(params.projectId);
+      if (!project) {
+        return HttpResponse.json(
+          { message: 'Project not found' },
+          { status: 404 }
+        );
+      }
+
+      const edgeFunction = project.edge_functions.get(params.functionSlug);
+
+      if (!edgeFunction) {
+        return HttpResponse.json(
+          { message: 'Edge Function not found' },
+          { status: 404 }
+        );
+      }
+
+      return HttpResponse.json(edgeFunction.details);
+    }
+  ),
+
+  /**
+   * Gets the eszip bundle for an Edge Function
+   */
+  http.get<{ projectId: string; functionSlug: string }>(
+    `${API_URL}/v1/projects/:projectId/functions/:functionSlug/body`,
+    ({ params }) => {
+      const project = mockProjects.get(params.projectId);
+      if (!project) {
+        return HttpResponse.json(
+          { message: 'Project not found' },
+          { status: 404 }
+        );
+      }
+
+      const edgeFunction = project.edge_functions.get(params.functionSlug);
+      if (!edgeFunction) {
+        return HttpResponse.json(
+          { message: 'Edge Function not found' },
+          { status: 404 }
+        );
+      }
+
+      if (!edgeFunction.eszip) {
+        return HttpResponse.json(
+          { message: 'Edge Function files not found' },
+          { status: 404 }
+        );
+      }
+
+      return HttpResponse.arrayBuffer(edgeFunction.eszip);
+    }
+  ),
+  /**
+   * Deploys an Edge Function
+   */
+  http.post<{ projectId: string }>(
+    `${API_URL}/v1/projects/:projectId/functions/deploy`,
+    async ({ params, request }) => {
+      const project = mockProjects.get(params.projectId);
+      if (!project) {
+        return HttpResponse.json(
+          { message: 'Project not found' },
+          { status: 404 }
+        );
+      }
+      const formData = await request.formData();
+
+      const metadataSchema = z.object({
+        name: z.string(),
+        entrypoint_path: z.string(),
+        import_map_path: z.string().optional(),
+      });
+
+      const metadataFormValue = formData.get('metadata');
+      const metadataString =
+        metadataFormValue instanceof File
+          ? await metadataFormValue.text()
+          : (metadataFormValue ?? undefined);
+
+      if (!metadataString) {
+        throw new Error('Metadata is required');
+      }
+
+      const metadata = metadataSchema.parse(JSON.parse(metadataString));
+
+      const fileFormValues = formData.getAll('file');
+
+      const files = fileFormValues.map((file) => {
+        if (typeof file === 'string') {
+          throw new Error('Multipart file is a string instead of a File');
+        }
+        return file;
+      });
+
+      const edgeFunction = await project.deployEdgeFunction(metadata, files);
+
+      return HttpResponse.json(edgeFunction.details);
     }
   ),
 
@@ -270,7 +496,7 @@ export const mockManagementApi = [
    */
   http.get<{ projectId: string }, { sql: string }>(
     `${API_URL}/v1/projects/:projectId/analytics/endpoints/logs.all`,
-    async ({ params, request }) => {
+    async ({ params }) => {
       const project = mockProjects.get(params.projectId);
       if (!project) {
         return HttpResponse.json(
@@ -280,6 +506,46 @@ export const mockManagementApi = [
       }
 
       return HttpResponse.json([]);
+    }
+  ),
+
+  /**
+   * Get security advisors for a project
+   */
+  http.get<{ projectId: string }, { sql: string }>(
+    `${API_URL}/v1/projects/:projectId/advisors/security`,
+    async ({ params }) => {
+      const project = mockProjects.get(params.projectId);
+      if (!project) {
+        return HttpResponse.json(
+          { message: 'Project not found' },
+          { status: 404 }
+        );
+      }
+
+      return HttpResponse.json({
+        lints: [],
+      });
+    }
+  ),
+
+  /**
+   * Get performance advisors for a project
+   */
+  http.get<{ projectId: string }, { sql: string }>(
+    `${API_URL}/v1/projects/:projectId/advisors/performance`,
+    async ({ params }) => {
+      const project = mockProjects.get(params.projectId);
+      if (!project) {
+        return HttpResponse.json(
+          { message: 'Project not found' },
+          { status: 404 }
+        );
+      }
+
+      return HttpResponse.json({
+        lints: [],
+      });
     }
   ),
 
@@ -426,9 +692,7 @@ export const mockManagementApi = [
         );
       }
 
-      const migration_version = parentProject.migrations.at(-1)?.version;
-
-      return HttpResponse.json({ migration_version });
+      return HttpResponse.json({ message: 'ok' });
     }
   ),
 
@@ -476,9 +740,7 @@ export const mockManagementApi = [
         );
       }
 
-      const migration_version = project.migrations.at(-1)?.version;
-
-      return HttpResponse.json({ migration_version });
+      return HttpResponse.json({ message: 'ok' });
     }
   ),
 
@@ -526,20 +788,88 @@ export const mockManagementApi = [
         );
       }
 
-      const migration_version = project.migrations.at(-1)?.version;
-
-      return HttpResponse.json({ migration_version });
+      return HttpResponse.json({ message: 'ok' });
     }
   ),
 
   /**
-   * Catch-all handler that rejects any other requests
+   * List storage buckets
    */
-  http.all('*', ({ request }) => {
-    throw new Error(
-      `No request handler found for ${request.method} ${request.url}`
-    );
-  }),
+  http.get<{ ref: string }>(
+    `${API_URL}/v1/projects/:ref/storage/buckets`,
+    ({ params }) => {
+      const project = mockProjects.get(params.ref);
+      if (!project) {
+        return HttpResponse.json(
+          { message: 'Project not found' },
+          { status: 404 }
+        );
+      }
+
+      const buckets = Array.from(project.storage_buckets.values()).map(
+        (bucket) => ({
+          id: bucket.id,
+          name: bucket.name,
+          public: bucket.public,
+          created_at: bucket.created_at.toISOString(),
+          updated_at: bucket.updated_at.toISOString(),
+        })
+      );
+
+      return HttpResponse.json(buckets);
+    }
+  ),
+
+  /**
+   * Get storage config
+   */
+  http.get<{ ref: string }>(
+    `${API_URL}/v1/projects/:ref/config/storage`,
+    ({ params }) => {
+      const project = mockProjects.get(params.ref);
+      if (!project) {
+        return HttpResponse.json(
+          { message: 'Project not found' },
+          { status: 404 }
+        );
+      }
+
+      return HttpResponse.json({
+        fileSizeLimit: 50,
+        features: {
+          imageTransformation: { enabled: true },
+          s3Protocol: { enabled: false },
+        },
+      });
+    }
+  ),
+
+  /**
+   * Update storage config
+   */
+  http.patch<{ ref: string }>(
+    `${API_URL}/v1/projects/:ref/config/storage`,
+    async ({ params, request }) => {
+      const project = mockProjects.get(params.ref);
+      if (!project) {
+        return HttpResponse.json(
+          { message: 'Project not found' },
+          { status: 404 }
+        );
+      }
+
+      // Accept any valid config
+      try {
+        await request.json();
+        return new HttpResponse(null, { status: 204 });
+      } catch (e) {
+        return HttpResponse.json(
+          { message: 'Invalid request body' },
+          { status: 400 }
+        );
+      }
+    }
+  ),
 ];
 
 export async function createOrganization(options: MockOrganizationOptions) {
@@ -635,6 +965,109 @@ export class MockOrganization {
   }
 }
 
+export type MockEdgeFunctionOptions = {
+  name: string;
+  entrypoint_path: string;
+  import_map_path?: string;
+};
+
+export class MockEdgeFunction {
+  projectId: string;
+  id: string;
+  slug: string;
+  version: number;
+  name: string;
+  status: 'ACTIVE' | 'REMOVED' | 'THROTTLED';
+  entrypoint_path: string;
+  import_map_path?: string;
+  import_map: boolean;
+  verify_jwt: boolean;
+  created_at: Date;
+  updated_at: Date;
+
+  eszip?: Uint8Array;
+
+  async setFiles(files: File[]) {
+    this.eszip = await bundleFiles(files, this.pathPrefix);
+  }
+
+  get deploymentId() {
+    return getDeploymentId(this.projectId, this.id, this.version);
+  }
+
+  get pathPrefix() {
+    return getPathPrefix(this.deploymentId);
+  }
+
+  get details() {
+    return {
+      id: this.id,
+      slug: this.slug,
+      version: this.version,
+      name: this.name,
+      status: this.status,
+      entrypoint_path: this.entrypoint_path,
+      import_map_path: this.import_map_path,
+      import_map: this.import_map,
+      verify_jwt: this.verify_jwt,
+      created_at: this.created_at.toISOString(),
+      updated_at: this.updated_at.toISOString(),
+    };
+  }
+
+  constructor(
+    projectId: string,
+    { name, entrypoint_path, import_map_path }: MockEdgeFunctionOptions
+  ) {
+    this.projectId = projectId;
+    this.id = crypto.randomUUID();
+    this.slug = name;
+    this.version = 1;
+    this.name = name;
+    this.status = 'ACTIVE';
+    this.entrypoint_path = `file://${join(this.pathPrefix, entrypoint_path)}`;
+    this.import_map_path = import_map_path
+      ? `file://${join(this.pathPrefix, import_map_path)}`
+      : undefined;
+    this.import_map = !!import_map_path;
+    this.verify_jwt = true;
+    this.created_at = new Date();
+    this.updated_at = new Date();
+  }
+
+  update({ name, entrypoint_path, import_map_path }: MockEdgeFunctionOptions) {
+    this.name = name;
+    this.version += 1;
+    this.entrypoint_path = `file://${join(this.pathPrefix, entrypoint_path)}`;
+    this.import_map_path = import_map_path
+      ? `file://${join(this.pathPrefix, import_map_path)}`
+      : undefined;
+    this.import_map = !!import_map_path;
+    this.updated_at = new Date();
+  }
+}
+
+export type MockStorageBucketOptions = {
+  name: string;
+  isPublic: boolean;
+};
+
+export class MockStorageBucket {
+  id: string;
+  name: string;
+  public: boolean;
+  created_at: Date;
+  updated_at: Date;
+
+  constructor({ name, isPublic }: MockStorageBucketOptions) {
+    this.id = crypto.randomUUID();
+    this.name = name;
+    this.public = isPublic;
+    this.created_at = new Date();
+    this.updated_at = new Date();
+  }
+}
+
 export type MockProjectOptions = {
   name: string;
   region: string;
@@ -656,13 +1089,21 @@ export class MockProject {
   };
 
   migrations: Migration[] = [];
+  edge_functions = new Map<string, MockEdgeFunction>();
+  storage_buckets = new Map<string, MockStorageBucket>();
 
-  #db: PGliteInterface;
+  #db?: PGliteInterface;
 
   // Lazy load the database connection
   get db() {
     if (!this.#db) {
       this.#db = new PGlite();
+      this.#db.waitReady.then(() => {
+        this.#db!.exec(`
+          CREATE ROLE supabase_read_only_role;
+          GRANT pg_read_all_data TO supabase_read_only_role;
+        `);
+      });
     }
     return this.#db;
   }
@@ -694,8 +1135,6 @@ export class MockProject {
       postgres_engine: '15',
       release_channel: 'ga',
     };
-
-    this.#db = new PGlite();
   }
 
   async applyMigrations() {
@@ -711,14 +1150,50 @@ export class MockProject {
     if (this.#db) {
       await this.#db.close();
     }
-    this.#db = new PGlite();
-    return this.#db;
+    this.#db = undefined;
+    return this.db;
+  }
+
+  async deployEdgeFunction(
+    options: MockEdgeFunctionOptions,
+    files: File[] = []
+  ) {
+    const edgeFunction = new MockEdgeFunction(this.id, options);
+    const existingFunction = this.edge_functions.get(edgeFunction.slug);
+
+    if (existingFunction) {
+      existingFunction.update(options);
+      await existingFunction.setFiles(files);
+      return existingFunction;
+    }
+
+    await edgeFunction.setFiles(files);
+    this.edge_functions.set(edgeFunction.slug, edgeFunction);
+
+    return edgeFunction;
   }
 
   async destroy() {
     if (this.#db) {
       await this.#db.close();
     }
+  }
+
+  createStorageBucket(
+    name: string,
+    isPublic: boolean = false
+  ): MockStorageBucket {
+    const id = nanoid();
+    const bucket: MockStorageBucket = {
+      id,
+      name,
+      public: isPublic,
+      created_at: new Date(),
+      updated_at: new Date(),
+    };
+
+    this.storage_buckets.set(id, bucket);
+    return bucket;
   }
 }
 

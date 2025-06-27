@@ -182,8 +182,19 @@ describe('tools', () => {
           "additionalProperties": false,
           "properties": {
             "body": {
-              "additionalProperties": {},
-              "type": "object",
+              "anyOf": [
+                {
+                  "additionalProperties": {},
+                  "type": "object",
+                },
+                {
+                  "items": {
+                    "additionalProperties": {},
+                    "type": "object",
+                  },
+                  "type": "array",
+                },
+              ],
             },
             "method": {
               "enum": [

@@ -1813,6 +1813,7 @@ export interface components {
         CreateBranchBody: {
             branch_name: string;
             git_branch?: string;
+            is_default?: boolean;
             persistent?: boolean;
             region?: string;
             /** @enum {string} */
@@ -2402,6 +2403,7 @@ export interface components {
             sms_vonage_api_key: string | null;
             sms_vonage_api_secret: string | null;
             sms_vonage_from: string | null;
+            /** Format: email */
             smtp_admin_email: string | null;
             smtp_host: string | null;
             smtp_max_frequency: number | null;
@@ -2415,6 +2417,7 @@ export interface components {
             site_url?: string | null;
             disable_signup?: boolean | null;
             jwt_exp?: number | null;
+            /** Format: email */
             smtp_admin_email?: string | null;
             smtp_host?: string | null;
             smtp_port?: string | null;

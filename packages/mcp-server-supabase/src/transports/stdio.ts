@@ -13,7 +13,7 @@ async function main() {
   const {
     values: {
       ['access-token']: cliAccessToken,
-      ['project-ref']: projectId,
+      ['project-ref']: projectRef,
       ['read-only']: readOnly,
       ['api-url']: apiUrl,
       ['version']: showVersion,
@@ -66,7 +66,7 @@ async function main() {
 
   const server = createSupabaseMcpServer({
     platform,
-    projectId,
+    projectRef,
     readOnly,
     features,
   });

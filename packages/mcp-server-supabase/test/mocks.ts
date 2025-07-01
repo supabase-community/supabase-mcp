@@ -18,7 +18,7 @@ import { TRACE_URL } from '../src/regions.js';
 
 const { version } = packageJson;
 
-const nanoid = customAlphabet('abcdefghijklmnopqrstuvwxyz', 20);
+const generateProjectRef = customAlphabet('abcdefghijklmnopqrstuvwxyz', 20);
 
 export const API_URL = 'https://api.supabase.com';
 export const CONTENT_API_URL = 'https://supabase.com/docs/api/graphql';
@@ -157,10 +157,10 @@ export const mockManagementApi = [
   /**
    * Get details for a project
    */
-  http.get<{ projectId: string }>(
-    `${API_URL}/v1/projects/:projectId`,
+  http.get<{ projectRef: string }>(
+    `${API_URL}/v1/projects/:projectRef`,
     ({ params }) => {
-      const project = mockProjects.get(params.projectId);
+      const project = mockProjects.get(params.projectRef);
       if (!project) {
         return HttpResponse.json(
           { message: 'Project not found' },
@@ -198,10 +198,10 @@ export const mockManagementApi = [
   /**
    * Pause a project
    */
-  http.post<{ projectId: string }>(
-    `${API_URL}/v1/projects/:projectId/pause`,
+  http.post<{ projectRef: string }>(
+    `${API_URL}/v1/projects/:projectRef/pause`,
     ({ params }) => {
-      const project = mockProjects.get(params.projectId);
+      const project = mockProjects.get(params.projectRef);
       if (!project) {
         return HttpResponse.json(
           { error: 'Project not found' },
@@ -216,10 +216,10 @@ export const mockManagementApi = [
   /**
    * Restore a project
    */
-  http.post<{ projectId: string }>(
-    `${API_URL}/v1/projects/:projectId/restore`,
+  http.post<{ projectRef: string }>(
+    `${API_URL}/v1/projects/:projectRef/restore`,
     ({ params }) => {
-      const project = mockProjects.get(params.projectId);
+      const project = mockProjects.get(params.projectRef);
       if (!project) {
         return HttpResponse.json(
           { error: 'Project not found' },
@@ -253,7 +253,7 @@ export const mockManagementApi = [
   /**
    * Get the API keys for a project
    */
-  http.get(`${API_URL}/v1/projects/:projectId/api-keys`, ({ params }) => {
+  http.get(`${API_URL}/v1/projects/:projectRef/api-keys`, ({ params }) => {
     return HttpResponse.json([
       {
         name: 'anon',
@@ -265,10 +265,10 @@ export const mockManagementApi = [
   /**
    * Execute a SQL query on a project's database
    */
-  http.post<{ projectId: string }, { query: string; read_only?: boolean }>(
-    `${API_URL}/v1/projects/:projectId/database/query`,
+  http.post<{ projectRef: string }, { query: string; read_only?: boolean }>(
+    `${API_URL}/v1/projects/:projectRef/database/query`,
     async ({ params, request }) => {
-      const project = mockProjects.get(params.projectId);
+      const project = mockProjects.get(params.projectRef);
       if (!project) {
         return HttpResponse.json(
           { message: 'Project not found' },
@@ -306,10 +306,10 @@ export const mockManagementApi = [
   /**
    * Lists all Edge Functions for a project
    */
-  http.get<{ projectId: string }>(
-    `${API_URL}/v1/projects/:projectId/functions`,
+  http.get<{ projectRef: string }>(
+    `${API_URL}/v1/projects/:projectRef/functions`,
     ({ params }) => {
-      const project = mockProjects.get(params.projectId);
+      const project = mockProjects.get(params.projectRef);
       if (!project) {
         return HttpResponse.json(
           { message: 'Project not found' },
@@ -328,10 +328,10 @@ export const mockManagementApi = [
   /**
    * Get details for an Edge Function
    */
-  http.get<{ projectId: string; functionSlug: string }>(
-    `${API_URL}/v1/projects/:projectId/functions/:functionSlug`,
+  http.get<{ projectRef: string; functionSlug: string }>(
+    `${API_URL}/v1/projects/:projectRef/functions/:functionSlug`,
     ({ params }) => {
-      const project = mockProjects.get(params.projectId);
+      const project = mockProjects.get(params.projectRef);
       if (!project) {
         return HttpResponse.json(
           { message: 'Project not found' },
@@ -355,8 +355,8 @@ export const mockManagementApi = [
   /**
    * Gets the files for an Edge Function
    */
-  http.get<{ projectId: string; functionSlug: string }>(
-    `${API_URL}/v1/projects/:projectId/functions/:functionSlug/body`,
+  http.get<{ projectRef: string; functionSlug: string }>(
+    `${API_URL}/v1/projects/:projectRef/functions/:functionSlug/body`,
     ({ params, request }) => {
       if (request.headers.get('Accept') !== 'multipart/form-data') {
         return HttpResponse.json(
@@ -368,7 +368,7 @@ export const mockManagementApi = [
         );
       }
 
-      const project = mockProjects.get(params.projectId);
+      const project = mockProjects.get(params.projectRef);
       if (!project) {
         return HttpResponse.json(
           { message: 'Project not found' },
@@ -396,10 +396,10 @@ export const mockManagementApi = [
   /**
    * Deploys an Edge Function
    */
-  http.post<{ projectId: string }>(
-    `${API_URL}/v1/projects/:projectId/functions/deploy`,
+  http.post<{ projectRef: string }>(
+    `${API_URL}/v1/projects/:projectRef/functions/deploy`,
     async ({ params, request }) => {
-      const project = mockProjects.get(params.projectId);
+      const project = mockProjects.get(params.projectRef);
       if (!project) {
         return HttpResponse.json(
           { message: 'Project not found' },
@@ -444,10 +444,10 @@ export const mockManagementApi = [
   /**
    * List migrations for a project
    */
-  http.get<{ projectId: string }>(
-    `${API_URL}/v1/projects/:projectId/database/migrations`,
+  http.get<{ projectRef: string }>(
+    `${API_URL}/v1/projects/:projectRef/database/migrations`,
     async ({ params }) => {
-      const project = mockProjects.get(params.projectId);
+      const project = mockProjects.get(params.projectRef);
       if (!project) {
         return HttpResponse.json(
           { message: 'Project not found' },
@@ -468,10 +468,10 @@ export const mockManagementApi = [
   /**
    * Create a new migration for a project
    */
-  http.post<{ projectId: string }, { name: string; query: string }>(
-    `${API_URL}/v1/projects/:projectId/database/migrations`,
+  http.post<{ projectRef: string }, { name: string; query: string }>(
+    `${API_URL}/v1/projects/:projectRef/database/migrations`,
     async ({ params, request }) => {
-      const project = mockProjects.get(params.projectId);
+      const project = mockProjects.get(params.projectRef);
       if (!project) {
         return HttpResponse.json(
           { message: 'Project not found' },
@@ -502,10 +502,10 @@ export const mockManagementApi = [
   /**
    * Get logs for a project
    */
-  http.get<{ projectId: string }, { sql: string }>(
-    `${API_URL}/v1/projects/:projectId/analytics/endpoints/logs.all`,
+  http.get<{ projectRef: string }, { sql: string }>(
+    `${API_URL}/v1/projects/:projectRef/analytics/endpoints/logs.all`,
     async ({ params }) => {
-      const project = mockProjects.get(params.projectId);
+      const project = mockProjects.get(params.projectRef);
       if (!project) {
         return HttpResponse.json(
           { message: 'Project not found' },
@@ -520,10 +520,10 @@ export const mockManagementApi = [
   /**
    * Get security advisors for a project
    */
-  http.get<{ projectId: string }, { sql: string }>(
-    `${API_URL}/v1/projects/:projectId/advisors/security`,
+  http.get<{ projectRef: string }, { sql: string }>(
+    `${API_URL}/v1/projects/:projectRef/advisors/security`,
     async ({ params }) => {
-      const project = mockProjects.get(params.projectId);
+      const project = mockProjects.get(params.projectRef);
       if (!project) {
         return HttpResponse.json(
           { message: 'Project not found' },
@@ -540,10 +540,10 @@ export const mockManagementApi = [
   /**
    * Get performance advisors for a project
    */
-  http.get<{ projectId: string }, { sql: string }>(
-    `${API_URL}/v1/projects/:projectId/advisors/performance`,
+  http.get<{ projectRef: string }, { sql: string }>(
+    `${API_URL}/v1/projects/:projectRef/advisors/performance`,
     async ({ params }) => {
-      const project = mockProjects.get(params.projectId);
+      const project = mockProjects.get(params.projectRef);
       if (!project) {
         return HttpResponse.json(
           { message: 'Project not found' },
@@ -560,12 +560,12 @@ export const mockManagementApi = [
   /**
    * Create a new branch for a project
    */
-  http.post<{ projectId: string }, { branch_name: string }>(
-    `${API_URL}/v1/projects/:projectId/branches`,
+  http.post<{ projectRef: string }, { branch_name: string }>(
+    `${API_URL}/v1/projects/:projectRef/branches`,
     async ({ params, request }) => {
       const { branch_name } = await request.json();
 
-      const project = mockProjects.get(params.projectId);
+      const project = mockProjects.get(params.projectRef);
       if (!project) {
         return HttpResponse.json(
           { message: 'Project not found' },
@@ -601,11 +601,11 @@ export const mockManagementApi = [
   /**
    * List all branches for a project
    */
-  http.get<{ projectId: string }>(
-    `${API_URL}/v1/projects/:projectId/branches`,
+  http.get<{ projectRef: string }>(
+    `${API_URL}/v1/projects/:projectRef/branches`,
     async ({ params }) => {
       const projectBranches = Array.from(mockBranches.values()).filter(
-        (branch) => branch.parent_project_ref === params.projectId
+        (branch) => branch.parent_project_ref === params.projectRef
       );
 
       if (projectBranches.length === 0) {
@@ -965,7 +965,7 @@ export class MockOrganization {
   }
 
   constructor(options: MockOrganizationOptions) {
-    this.id = nanoid();
+    this.id = generateProjectRef();
     this.name = options.name;
     this.plan = options.plan;
     this.allowed_release_channels = options.allowed_release_channels;
@@ -980,7 +980,7 @@ export type MockEdgeFunctionOptions = {
 };
 
 export class MockEdgeFunction {
-  projectId: string;
+  projectRef: string;
   id: string;
   slug: string;
   version: number;
@@ -1007,7 +1007,7 @@ export class MockEdgeFunction {
   }
 
   get deploymentId() {
-    return getDeploymentId(this.projectId, this.id, this.version);
+    return getDeploymentId(this.projectRef, this.id, this.version);
   }
 
   get pathPrefix() {
@@ -1031,10 +1031,10 @@ export class MockEdgeFunction {
   }
 
   constructor(
-    projectId: string,
+    projectRef: string,
     { name, entrypoint_path, import_map_path }: MockEdgeFunctionOptions
   ) {
-    this.projectId = projectId;
+    this.projectRef = projectRef;
     this.id = crypto.randomUUID();
     this.slug = name;
     this.version = 1;
@@ -1136,7 +1136,7 @@ export class MockProject {
   }
 
   constructor({ name, region, organization_id }: MockProjectOptions) {
-    this.id = nanoid();
+    this.id = generateProjectRef();
 
     this.name = name;
     this.region = region;
@@ -1194,11 +1194,8 @@ export class MockProject {
     }
   }
 
-  createStorageBucket(
-    name: string,
-    isPublic: boolean = false
-  ): MockStorageBucket {
-    const id = nanoid();
+  createStorageBucket(name: string, isPublic = false): MockStorageBucket {
+    const id = generateProjectRef();
     const bucket: MockStorageBucket = {
       id,
       name,
@@ -1250,7 +1247,7 @@ export class MockBranch {
     parent_project_ref,
     is_default,
   }: MockBranchOptions) {
-    this.id = nanoid();
+    this.id = generateProjectRef();
     this.name = name;
     this.project_ref = project_ref;
     this.parent_project_ref = parent_project_ref;

@@ -37,7 +37,7 @@ beforeEach(async () => {
 
 type SetupOptions = {
   accessToken?: string;
-  projectId?: string;
+  projectRef?: string;
   readOnly?: boolean;
   features?: FeatureGroup[];
 };
@@ -46,7 +46,12 @@ type SetupOptions = {
  * Sets up an MCP client and server for testing.
  */
 async function setup(options: SetupOptions = {}) {
-  const { accessToken = ACCESS_TOKEN, projectId, readOnly, features } = options;
+  const {
+    accessToken = ACCESS_TOKEN,
+    projectRef,
+    readOnly,
+    features,
+  } = options;
   const clientTransport = new StreamTransport();
   const serverTransport = new StreamTransport();
 
@@ -70,7 +75,7 @@ async function setup(options: SetupOptions = {}) {
 
   const server = createSupabaseMcpServer({
     platform,
-    projectId,
+    projectRef: projectRef,
     readOnly,
     features,
   });
@@ -328,7 +333,7 @@ describe('tools', () => {
     const result = await callTool({
       name: 'get_project',
       arguments: {
-        id: project.id,
+        project_ref: project.id,
       },
     });
 
@@ -463,7 +468,7 @@ describe('tools', () => {
     await callTool({
       name: 'pause_project',
       arguments: {
-        project_id: project.id,
+        project_ref: project.id,
       },
     });
 
@@ -489,7 +494,7 @@ describe('tools', () => {
     await callTool({
       name: 'restore_project',
       arguments: {
-        project_id: project.id,
+        project_ref: project.id,
       },
     });
 
@@ -515,7 +520,7 @@ describe('tools', () => {
     const result = await callTool({
       name: 'get_project_url',
       arguments: {
-        project_id: project.id,
+        project_ref: project.id,
       },
     });
     expect(result).toEqual(`https://${project.id}.supabase.co`);
@@ -538,7 +543,7 @@ describe('tools', () => {
     const result = await callTool({
       name: 'get_anon_key',
       arguments: {
-        project_id: project.id,
+        project_ref: project.id,
       },
     });
     expect(result).toEqual('dummy-anon-key');
@@ -566,7 +571,7 @@ describe('tools', () => {
     const result = await callTool({
       name: 'list_storage_buckets',
       arguments: {
-        project_id: project.id,
+        project_ref: project.id,
       },
     });
 
@@ -609,7 +614,7 @@ describe('tools', () => {
     const result = await callTool({
       name: 'get_storage_config',
       arguments: {
-        project_id: project.id,
+        project_ref: project.id,
       },
     });
 
@@ -649,7 +654,7 @@ describe('tools', () => {
     const result = await callTool({
       name: 'update_storage_config',
       arguments: {
-        project_id: project.id,
+        project_ref: project.id,
         config,
       },
     });
@@ -678,7 +683,7 @@ describe('tools', () => {
     const result = await callTool({
       name: 'execute_sql',
       arguments: {
-        project_id: project.id,
+        project_ref: project.id,
         query,
       },
     });
@@ -710,7 +715,7 @@ describe('tools', () => {
     const result = await callTool({
       name: 'execute_sql',
       arguments: {
-        project_id: project.id,
+        project_ref: project.id,
         query,
       },
     });
@@ -743,7 +748,7 @@ describe('tools', () => {
     const resultPromise = callTool({
       name: 'execute_sql',
       arguments: {
-        project_id: project.id,
+        project_ref: project.id,
         query,
       },
     });
@@ -776,7 +781,7 @@ describe('tools', () => {
     const result = await callTool({
       name: 'apply_migration',
       arguments: {
-        project_id: project.id,
+        project_ref: project.id,
         name,
         query,
       },
@@ -787,7 +792,7 @@ describe('tools', () => {
     const listMigrationsResult = await callTool({
       name: 'list_migrations',
       arguments: {
-        project_id: project.id,
+        project_ref: project.id,
       },
     });
 
@@ -801,7 +806,7 @@ describe('tools', () => {
     const listTablesResult = await callTool({
       name: 'list_tables',
       arguments: {
-        project_id: project.id,
+        project_ref: project.id,
         schemas: ['public'],
       },
     });
@@ -877,7 +882,7 @@ describe('tools', () => {
     const resultPromise = callTool({
       name: 'apply_migration',
       arguments: {
-        project_id: project.id,
+        project_ref: project.id,
         name,
         query,
       },
@@ -913,7 +918,7 @@ describe('tools', () => {
     const result = await callTool({
       name: 'list_tables',
       arguments: {
-        project_id: project.id,
+        project_ref: project.id,
         schemas: ['test'],
       },
     });
@@ -945,7 +950,7 @@ describe('tools', () => {
     const result = await callTool({
       name: 'list_tables',
       arguments: {
-        project_id: project.id,
+        project_ref: project.id,
       },
     });
 
@@ -985,7 +990,7 @@ describe('tools', () => {
     const result = await callTool({
       name: 'list_extensions',
       arguments: {
-        project_id: project.id,
+        project_ref: project.id,
       },
     });
 
@@ -1035,7 +1040,7 @@ describe('tools', () => {
     const applyMigrationPromise = callTool({
       name: 'apply_migration',
       arguments: {
-        project_id: project.id,
+        project_ref: project.id,
         name,
         query,
       },
@@ -1067,7 +1072,7 @@ describe('tools', () => {
     const executeSqlPromise = callTool({
       name: 'execute_sql',
       arguments: {
-        project_id: project.id,
+        project_ref: project.id,
         query,
       },
     });
@@ -1107,7 +1112,7 @@ describe('tools', () => {
       const result = await callTool({
         name: 'get_logs',
         arguments: {
-          project_id: project.id,
+          project_ref: project.id,
           service,
         },
       });
@@ -1135,7 +1140,7 @@ describe('tools', () => {
     const result = await callTool({
       name: 'get_advisors',
       arguments: {
-        project_id: project.id,
+        project_ref: project.id,
         type: 'security',
       },
     });
@@ -1162,7 +1167,7 @@ describe('tools', () => {
     const result = await callTool({
       name: 'get_advisors',
       arguments: {
-        project_id: project.id,
+        project_ref: project.id,
         type: 'performance',
       },
     });
@@ -1190,7 +1195,7 @@ describe('tools', () => {
     const getLogsPromise = callTool({
       name: 'get_logs',
       arguments: {
-        project_id: project.id,
+        project_ref: project.id,
         service: invalidService,
       },
     });
@@ -1234,7 +1239,7 @@ describe('tools', () => {
     const result = await callTool({
       name: 'list_edge_functions',
       arguments: {
-        project_id: project.id,
+        project_ref: project.id,
       },
     });
 
@@ -1287,7 +1292,7 @@ describe('tools', () => {
     const result = await callTool({
       name: 'deploy_edge_function',
       arguments: {
-        project_id: project.id,
+        project_ref: project.id,
         name: functionName,
         files: [
           {
@@ -1354,7 +1359,7 @@ describe('tools', () => {
     const result = await callTool({
       name: 'deploy_edge_function',
       arguments: {
-        project_id: project.id,
+        project_ref: project.id,
         name: functionName,
         files: [
           {
@@ -1410,7 +1415,7 @@ describe('tools', () => {
     const result = await callTool({
       name: 'deploy_edge_function',
       arguments: {
-        project_id: project.id,
+        project_ref: project.id,
         name: functionName,
         import_map_path: 'custom-map.json',
         files: [
@@ -1451,7 +1456,7 @@ describe('tools', () => {
     const result = await callTool({
       name: 'deploy_edge_function',
       arguments: {
-        project_id: project.id,
+        project_ref: project.id,
         name: functionName,
         files: [
           {
@@ -1491,7 +1496,7 @@ describe('tools', () => {
     const result = await callTool({
       name: 'deploy_edge_function',
       arguments: {
-        project_id: project.id,
+        project_ref: project.id,
         name: functionName,
         files: [
           {
@@ -1546,7 +1551,7 @@ describe('tools', () => {
     const result = await callTool({
       name: 'deploy_edge_function',
       arguments: {
-        project_id: project.id,
+        project_ref: project.id,
         name: functionName,
         files: [
           {
@@ -1596,7 +1601,7 @@ describe('tools', () => {
     const result = await callTool({
       name: 'create_branch',
       arguments: {
-        project_id: project.id,
+        project_ref: project.id,
         name: branchName,
         confirm_cost_id,
       },
@@ -1639,7 +1644,7 @@ describe('tools', () => {
     const createBranchPromise = callTool({
       name: 'create_branch',
       arguments: {
-        project_id: project.id,
+        project_ref: project.id,
         name: branchName,
       },
     });
@@ -1679,7 +1684,7 @@ describe('tools', () => {
     const branch = await callTool({
       name: 'create_branch',
       arguments: {
-        project_id: project.id,
+        project_ref: project.id,
         name: 'test-branch',
         confirm_cost_id,
       },
@@ -1688,7 +1693,7 @@ describe('tools', () => {
     const listBranchesResult = await callTool({
       name: 'list_branches',
       arguments: {
-        project_id: project.id,
+        project_ref: project.id,
       },
     });
 
@@ -1707,7 +1712,7 @@ describe('tools', () => {
     const listBranchesResultAfterDelete = await callTool({
       name: 'list_branches',
       arguments: {
-        project_id: project.id,
+        project_ref: project.id,
       },
     });
 
@@ -1749,7 +1754,7 @@ describe('tools', () => {
     const result = await callTool({
       name: 'list_branches',
       arguments: {
-        project_id: project.id,
+        project_ref: project.id,
       },
     });
 
@@ -1786,7 +1791,7 @@ describe('tools', () => {
     const branch = await callTool({
       name: 'create_branch',
       arguments: {
-        project_id: project.id,
+        project_ref: project.id,
         name: 'test-branch',
         confirm_cost_id,
       },
@@ -1798,7 +1803,7 @@ describe('tools', () => {
     await callTool({
       name: 'apply_migration',
       arguments: {
-        project_id: branch.project_ref,
+        project_ref: branch.project_ref,
         name: migrationName,
         query: migrationQuery,
       },
@@ -1815,7 +1820,7 @@ describe('tools', () => {
     const listResult = await callTool({
       name: 'list_migrations',
       arguments: {
-        project_id: project.id,
+        project_ref: project.id,
       },
     });
 
@@ -1855,7 +1860,7 @@ describe('tools', () => {
     const branch = await callTool({
       name: 'create_branch',
       arguments: {
-        project_id: project.id,
+        project_ref: project.id,
         name: 'test-branch',
         confirm_cost_id,
       },
@@ -1867,7 +1872,7 @@ describe('tools', () => {
     await callTool({
       name: 'execute_sql',
       arguments: {
-        project_id: branch.project_ref,
+        project_ref: branch.project_ref,
         query,
       },
     });
@@ -1875,7 +1880,7 @@ describe('tools', () => {
     const firstTablesResult = await callTool({
       name: 'list_tables',
       arguments: {
-        project_id: branch.project_ref,
+        project_ref: branch.project_ref,
       },
     });
 
@@ -1893,7 +1898,7 @@ describe('tools', () => {
     const secondTablesResult = await callTool({
       name: 'list_tables',
       arguments: {
-        project_id: branch.project_ref,
+        project_ref: branch.project_ref,
       },
     });
 
@@ -1933,7 +1938,7 @@ describe('tools', () => {
     const branch = await callTool({
       name: 'create_branch',
       arguments: {
-        project_id: project.id,
+        project_ref: project.id,
         name: 'test-branch',
         confirm_cost_id,
       },
@@ -1945,7 +1950,7 @@ describe('tools', () => {
     await callTool({
       name: 'apply_migration',
       arguments: {
-        project_id: branch.project_ref,
+        project_ref: branch.project_ref,
         name: migrationName,
         query: migrationQuery,
       },
@@ -1955,7 +1960,7 @@ describe('tools', () => {
     const firstListResult = await callTool({
       name: 'list_migrations',
       arguments: {
-        project_id: branch.project_ref,
+        project_ref: branch.project_ref,
       },
     });
 
@@ -1967,7 +1972,7 @@ describe('tools', () => {
     const firstTablesResult = await callTool({
       name: 'list_tables',
       arguments: {
-        project_id: branch.project_ref,
+        project_ref: branch.project_ref,
       },
     });
 
@@ -1987,7 +1992,7 @@ describe('tools', () => {
     const secondListResult = await callTool({
       name: 'list_migrations',
       arguments: {
-        project_id: branch.project_ref,
+        project_ref: branch.project_ref,
       },
     });
 
@@ -1996,7 +2001,7 @@ describe('tools', () => {
     const secondTablesResult = await callTool({
       name: 'list_tables',
       arguments: {
-        project_id: branch.project_ref,
+        project_ref: branch.project_ref,
       },
     });
 
@@ -2035,7 +2040,7 @@ describe('tools', () => {
     const branch = await callTool({
       name: 'create_branch',
       arguments: {
-        project_id: project.id,
+        project_ref: project.id,
         name: 'test-branch',
         confirm_cost_id,
       },
@@ -2047,7 +2052,7 @@ describe('tools', () => {
     await callTool({
       name: 'apply_migration',
       arguments: {
-        project_id: project.id,
+        project_ref: project.id,
         name: migrationName,
         query: migrationQuery,
       },
@@ -2064,7 +2069,7 @@ describe('tools', () => {
     const listResult = await callTool({
       name: 'list_migrations',
       arguments: {
-        project_id: branch.project_ref,
+        project_ref: branch.project_ref,
       },
     });
 
@@ -2262,7 +2267,7 @@ describe('project scoped tools', () => {
       organization_id: org.id,
     });
 
-    const { client } = await setup({ projectId: project.id });
+    const { client } = await setup({ projectRef: project.id });
 
     const result = await client.listTools();
 
@@ -2288,7 +2293,7 @@ describe('project scoped tools', () => {
     }
   });
 
-  test('no tool should accept a project_id', async () => {
+  test('no tool should accept a project_ref', async () => {
     const org = await createOrganization({
       name: 'My Org',
       plan: 'free',
@@ -2301,7 +2306,7 @@ describe('project scoped tools', () => {
       organization_id: org.id,
     });
 
-    const { client } = await setup({ projectId: project.id });
+    const { client } = await setup({ projectRef: project.id });
 
     const result = await client.listTools();
 
@@ -2311,14 +2316,14 @@ describe('project scoped tools', () => {
     for (const tool of result.tools) {
       const schemaProperties = tool.inputSchema.properties ?? {};
       expect(
-        'project_id' in schemaProperties,
-        `tool ${tool.name} should not accept a project_id`
+        'project_ref' in schemaProperties,
+        `tool ${tool.name} should not accept a project_ref`
       ).toBe(false);
     }
   });
 
   test('invalid project ID should throw an error', async () => {
-    const { callTool } = await setup({ projectId: 'invalid-project-id' });
+    const { callTool } = await setup({ projectRef: 'invalid-project-id' });
 
     const listTablesPromise = callTool({
       name: 'list_tables',
@@ -2330,7 +2335,7 @@ describe('project scoped tools', () => {
     await expect(listTablesPromise).rejects.toThrow('Project not found');
   });
 
-  test('passing project_id to a tool should throw an error', async () => {
+  test('passing project_ref to a tool should throw an error', async () => {
     const org = await createOrganization({
       name: 'My Org',
       plan: 'free',
@@ -2344,12 +2349,12 @@ describe('project scoped tools', () => {
     });
     project.status = 'ACTIVE_HEALTHY';
 
-    const { callTool } = await setup({ projectId: project.id });
+    const { callTool } = await setup({ projectRef: project.id });
 
     const listTablesPromise = callTool({
       name: 'list_tables',
       arguments: {
-        project_id: 'my-project-id',
+        project_ref: 'my-project-id',
         schemas: ['public'],
       },
     });
@@ -2357,7 +2362,7 @@ describe('project scoped tools', () => {
     await expect(listTablesPromise).rejects.toThrow('Unrecognized key');
   });
 
-  test('listing tables implicitly uses the scoped project_id', async () => {
+  test('listing tables implicitly uses the scoped project_ref', async () => {
     const org = await createOrganization({
       name: 'My Org',
       plan: 'free',
@@ -2374,7 +2379,7 @@ describe('project scoped tools', () => {
     project.db
       .sql`create table test (id integer generated always as identity primary key)`;
 
-    const { callTool } = await setup({ projectId: project.id });
+    const { callTool } = await setup({ projectRef: project.id });
 
     const result = await callTool({
       name: 'list_tables',

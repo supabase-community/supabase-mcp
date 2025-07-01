@@ -5,30 +5,30 @@ import { injectableTool } from './util.js';
 
 export type EdgeFunctionToolsOptions = {
   platform: SupabasePlatform;
-  projectId?: string;
+  projectRef?: string;
 };
 
 export function getEdgeFunctionTools({
   platform,
-  projectId,
+  projectRef,
 }: EdgeFunctionToolsOptions) {
-  const project_id = projectId;
+  const project_ref = projectRef;
 
   return {
     list_edge_functions: injectableTool({
       description: 'Lists all Edge Functions in a Supabase project.',
       parameters: z.object({
-        project_id: z.string(),
+        project_ref: z.string(),
       }),
-      inject: { project_id },
-      execute: async ({ project_id }) => {
-        return await platform.listEdgeFunctions(project_id);
+      inject: { project_ref },
+      execute: async ({ project_ref }) => {
+        return await platform.listEdgeFunctions(project_ref);
       },
     }),
     deploy_edge_function: injectableTool({
       description: `Deploys an Edge Function to a Supabase project. If the function already exists, this will create a new version. Example:\n\n${edgeFunctionExample}`,
       parameters: z.object({
-        project_id: z.string(),
+        project_ref: z.string(),
         name: z.string().describe('The name of the function'),
         entrypoint_path: z
           .string()
@@ -49,15 +49,15 @@ export function getEdgeFunctionTools({
             'The files to upload. This should include the entrypoint and any relative dependencies.'
           ),
       }),
-      inject: { project_id },
+      inject: { project_ref },
       execute: async ({
-        project_id,
+        project_ref,
         name,
         entrypoint_path,
         import_map_path,
         files,
       }) => {
-        return await platform.deployEdgeFunction(project_id, {
+        return await platform.deployEdgeFunction(project_ref, {
           name,
           entrypoint_path,
           import_map_path,

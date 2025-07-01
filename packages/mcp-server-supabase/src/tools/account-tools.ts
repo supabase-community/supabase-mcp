@@ -30,7 +30,7 @@ export function getAccountTools({ platform }: AccountToolsOptions) {
     }),
     list_projects: tool({
       description:
-        'Lists all Supabase projects for the user. Use this to help discover the project ID of the project that the user is working on.',
+        'Lists all Supabase projects for the user. Use this to help discover the project reference of the project that the user is working on.',
       parameters: z.object({}),
       execute: async () => {
         return await platform.listProjects();
@@ -39,10 +39,10 @@ export function getAccountTools({ platform }: AccountToolsOptions) {
     get_project: tool({
       description: 'Gets details for a Supabase project.',
       parameters: z.object({
-        id: z.string().describe('The project ID'),
+        project_ref: z.string().describe('The project reference'),
       }),
-      execute: async ({ id }) => {
-        return await platform.getProject(id);
+      execute: async ({ project_ref }) => {
+        return await platform.getProject(project_ref);
       },
     }),
     get_cost: tool({
@@ -123,19 +123,19 @@ export function getAccountTools({ platform }: AccountToolsOptions) {
     pause_project: tool({
       description: 'Pauses a Supabase project.',
       parameters: z.object({
-        project_id: z.string(),
+        project_ref: z.string(),
       }),
-      execute: async ({ project_id }) => {
-        return await platform.pauseProject(project_id);
+      execute: async ({ project_ref }) => {
+        return await platform.pauseProject(project_ref);
       },
     }),
     restore_project: tool({
       description: 'Restores a Supabase project.',
       parameters: z.object({
-        project_id: z.string(),
+        project_ref: z.string(),
       }),
-      execute: async ({ project_id }) => {
-        return await platform.restoreProject(project_id);
+      execute: async ({ project_ref }) => {
+        return await platform.restoreProject(project_ref);
       },
     }),
   };

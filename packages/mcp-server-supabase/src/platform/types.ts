@@ -159,10 +159,10 @@ export type SupabasePlatform = {
   init?(info: InitData): Promise<void>;
 
   // Database operations
-  executeSql<T>(projectId: string, options: ExecuteSqlOptions): Promise<T[]>;
-  listMigrations(projectId: string): Promise<Migration[]>;
+  executeSql<T>(projectRef: string, options: ExecuteSqlOptions): Promise<T[]>;
+  listMigrations(projectRef: string): Promise<Migration[]>;
   applyMigration(
-    projectId: string,
+    projectRef: string,
     options: ApplyMigrationOptions
   ): Promise<void>;
 
@@ -170,38 +170,38 @@ export type SupabasePlatform = {
   listOrganizations(): Promise<Pick<Organization, 'id' | 'name'>[]>;
   getOrganization(organizationId: string): Promise<Organization>;
   listProjects(): Promise<Project[]>;
-  getProject(projectId: string): Promise<Project>;
+  getProject(projectRef: string): Promise<Project>;
   createProject(options: CreateProjectOptions): Promise<Project>;
-  pauseProject(projectId: string): Promise<void>;
-  restoreProject(projectId: string): Promise<void>;
+  pauseProject(projectRef: string): Promise<void>;
+  restoreProject(projectRef: string): Promise<void>;
 
   // Edge functions
-  listEdgeFunctions(projectId: string): Promise<EdgeFunction[]>;
+  listEdgeFunctions(projectRef: string): Promise<EdgeFunction[]>;
   getEdgeFunction(
-    projectId: string,
+    projectRef: string,
     functionSlug: string
   ): Promise<EdgeFunction>;
   deployEdgeFunction(
-    projectId: string,
+    projectRef: string,
     options: DeployEdgeFunctionOptions
   ): Promise<Omit<EdgeFunction, 'files'>>;
 
   // Debugging
-  getLogs(projectId: string, options: GetLogsOptions): Promise<unknown>;
-  getSecurityAdvisors(projectId: string): Promise<unknown>;
-  getPerformanceAdvisors(projectId: string): Promise<unknown>;
+  getLogs(projectRef: string, options: GetLogsOptions): Promise<unknown>;
+  getSecurityAdvisors(projectRef: string): Promise<unknown>;
+  getPerformanceAdvisors(projectRef: string): Promise<unknown>;
 
   // Development
-  getProjectUrl(projectId: string): Promise<string>;
-  getAnonKey(projectId: string): Promise<string>;
+  getProjectUrl(projectRef: string): Promise<string>;
+  getAnonKey(projectRef: string): Promise<string>;
   generateTypescriptTypes(
-    projectId: string
+    projectRef: string
   ): Promise<GenerateTypescriptTypesResult>;
 
   // Branching
-  listBranches(projectId: string): Promise<Branch[]>;
+  listBranches(projectRef: string): Promise<Branch[]>;
   createBranch(
-    projectId: string,
+    projectRef: string,
     options: CreateBranchOptions
   ): Promise<Branch>;
   deleteBranch(branchId: string): Promise<void>;
@@ -210,7 +210,7 @@ export type SupabasePlatform = {
   rebaseBranch(branchId: string): Promise<void>;
 
   // Storage
-  getStorageConfig(projectId: string): Promise<StorageConfig>;
-  updateStorageConfig(projectId: string, config: StorageConfig): Promise<void>;
-  listAllBuckets(projectId: string): Promise<StorageBucket[]>;
+  getStorageConfig(projectRef: string): Promise<StorageConfig>;
+  updateStorageConfig(projectRef: string, config: StorageConfig): Promise<void>;
+  listAllBuckets(projectRef: string): Promise<StorageBucket[]>;
 };

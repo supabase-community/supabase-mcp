@@ -4,44 +4,44 @@ import { injectableTool } from './util.js';
 
 export type DevelopmentToolsOptions = {
   platform: SupabasePlatform;
-  projectId?: string;
+  projectRef?: string;
 };
 
 export function getDevelopmentTools({
   platform,
-  projectId,
+  projectRef,
 }: DevelopmentToolsOptions) {
-  const project_id = projectId;
+  const project_ref = projectRef;
 
   return {
     get_project_url: injectableTool({
       description: 'Gets the API URL for a project.',
       parameters: z.object({
-        project_id: z.string(),
+        project_ref: z.string(),
       }),
-      inject: { project_id },
-      execute: async ({ project_id }) => {
-        return platform.getProjectUrl(project_id);
+      inject: { project_ref },
+      execute: async ({ project_ref }) => {
+        return platform.getProjectUrl(project_ref);
       },
     }),
     get_anon_key: injectableTool({
       description: 'Gets the anonymous API key for a project.',
       parameters: z.object({
-        project_id: z.string(),
+        project_ref: z.string(),
       }),
-      inject: { project_id },
-      execute: async ({ project_id }) => {
-        return platform.getAnonKey(project_id);
+      inject: { project_ref },
+      execute: async ({ project_ref }) => {
+        return platform.getAnonKey(project_ref);
       },
     }),
     generate_typescript_types: injectableTool({
       description: 'Generates TypeScript types for a project.',
       parameters: z.object({
-        project_id: z.string(),
+        project_ref: z.string(),
       }),
-      inject: { project_id },
-      execute: async ({ project_id }) => {
-        return platform.generateTypescriptTypes(project_id);
+      inject: { project_ref },
+      execute: async ({ project_ref }) => {
+        return platform.generateTypescriptTypes(project_ref);
       },
     }),
   };

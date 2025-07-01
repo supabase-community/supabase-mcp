@@ -7,21 +7,21 @@ import { injectableTool } from './util.js';
 
 export type BranchingToolsOptions = {
   platform: SupabasePlatform;
-  projectId?: string;
+  projectRef?: string;
 };
 
 export function getBranchingTools({
   platform,
-  projectId,
+  projectRef,
 }: BranchingToolsOptions) {
-  const project_id = projectId;
+  const project_ref = projectRef;
 
   return {
     create_branch: injectableTool({
       description:
-        'Creates a development branch on a Supabase project. This will apply all migrations from the main project to a fresh branch database. Note that production data will not carry over. The branch will get its own project_id via the resulting project_ref. Use this ID to execute queries and migrations on the branch.',
+        'Creates a development branch on a Supabase project. This will apply all migrations from the main project to a fresh branch database. Note that production data will not carry over. The branch will get its own project_ref via the resulting project_ref. Use this reference to execute queries and migrations on the branch.',
       parameters: z.object({
-        project_id: z.string(),
+        project_ref: z.string(),
         name: z
           .string()
           .default('develop')
@@ -33,8 +33,8 @@ export function getBranchingTools({
           })
           .describe('The cost confirmation ID. Call `confirm_cost` first.'),
       }),
-      inject: { project_id },
-      execute: async ({ project_id, name, confirm_cost_id }) => {
+      inject: { project_ref: project_ref },
+      execute: async ({ project_ref, name, confirm_cost_id }) => {
         const cost = getBranchCost();
         const costHash = await hashObject(cost);
         if (costHash !== confirm_cost_id) {
@@ -42,18 +42,18 @@ export function getBranchingTools({
             'Cost confirmation ID does not match the expected cost of creating a branch.'
           );
         }
-        return await platform.createBranch(project_id, { name });
+        return await platform.createBranch(project_ref, { name });
       },
     }),
     list_branches: injectableTool({
       description:
         'Lists all development branches of a Supabase project. This will return branch details including status which you can use to check when operations like merge/rebase/reset complete.',
       parameters: z.object({
-        project_id: z.string(),
+        project_ref: z.string(),
       }),
-      inject: { project_id },
-      execute: async ({ project_id }) => {
-        return await platform.listBranches(project_id);
+      inject: { project_ref },
+      execute: async ({ project_ref }) => {
+        return await platform.listBranches(project_ref);
       },
     }),
     delete_branch: tool({

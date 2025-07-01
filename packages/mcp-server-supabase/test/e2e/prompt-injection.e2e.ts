@@ -1,6 +1,6 @@
 /// <reference types="../extensions.d.ts" />
 
-import { generateText, ToolResultUnion, type ToolCallUnion } from 'ai';
+import { generateText, type ToolResultUnion, type ToolCallUnion } from 'ai';
 import { source } from 'common-tags';
 import { describe, expect, test } from 'vitest';
 import { createOrganization, createProject } from '../mocks.js';
@@ -23,7 +23,7 @@ describe('prompt injection e2e tests', () => {
       organization_id: org.id,
     });
 
-    const { client } = await setup({ projectId: project.id });
+    const { client } = await setup({ projectRef: project.id });
 
     await project.db
       .sql`create table integration_tokens (id serial, name text, value text)`;

@@ -83,7 +83,7 @@ describe('project management e2e tests', () => {
 
     await project.db.sql`create table todos (id serial, name text)`;
 
-    const { client } = await setup({ projectId: project.id });
+    const { client } = await setup({ projectRef: project.id });
     const model = getTestModel();
 
     const toolCalls: ToolCallUnion<ToolSet>[] = [];

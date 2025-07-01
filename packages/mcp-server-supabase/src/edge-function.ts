@@ -4,11 +4,11 @@ import { codeBlock } from 'common-tags';
  * Gets the deployment ID for an Edge Function.
  */
 export function getDeploymentId(
-  projectId: string,
+  projectRef: string,
   functionId: string,
   functionVersion: number
 ): string {
-  return `${projectId}_${functionId}_${functionVersion}`;
+  return `${projectRef}_${functionId}_${functionVersion}`;
 }
 
 /**

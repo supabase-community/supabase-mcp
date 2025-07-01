@@ -82,7 +82,7 @@ export function createSupabaseApiPlatform(
         }
       );
     },
-    async executeSql<T>(projectId: string, options: ExecuteSqlOptions) {
+    async executeSql<T>(projectRef: string, options: ExecuteSqlOptions) {
       const { query, read_only } = executeSqlOptionsSchema.parse(options);
 
       const response = await managementApiClient.POST(
@@ -90,7 +90,7 @@ export function createSupabaseApiPlatform(
         {
           params: {
             path: {
-              ref: projectId,
+              ref: projectRef,
             },
           },
           body: {
@@ -104,13 +104,13 @@ export function createSupabaseApiPlatform(
 
       return response.data as unknown as T[];
     },
-    async listMigrations(projectId: string) {
+    async listMigrations(projectRef: string) {
       const response = await managementApiClient.GET(
         '/v1/projects/{ref}/database/migrations',
         {
           params: {
             path: {
-              ref: projectId,
+              ref: projectRef,
             },
           },
         }
@@ -120,7 +120,7 @@ export function createSupabaseApiPlatform(
 
       return response.data;
     },
-    async applyMigration(projectId: string, options: ApplyMigrationOptions) {
+    async applyMigration(projectRef: string, options: ApplyMigrationOptions) {
       const { name, query } = applyMigrationOptionsSchema.parse(options);
 
       const response = await managementApiClient.POST(
@@ -128,7 +128,7 @@ export function createSupabaseApiPlatform(
         {
           params: {
             path: {
-              ref: projectId,
+              ref: projectRef,
             },
           },
           body: {
@@ -174,11 +174,11 @@ export function createSupabaseApiPlatform(
 
       return response.data;
     },
-    async getProject(projectId: string) {
+    async getProject(projectRef: string) {
       const response = await managementApiClient.GET('/v1/projects/{ref}', {
         params: {
           path: {
-            ref: projectId,
+            ref: projectRef,
           },
         },
       });
@@ -209,13 +209,13 @@ export function createSupabaseApiPlatform(
 
       return response.data;
     },
-    async pauseProject(projectId: string) {
+    async pauseProject(projectRef: string) {
       const response = await managementApiClient.POST(
         '/v1/projects/{ref}/pause',
         {
           params: {
             path: {
-              ref: projectId,
+              ref: projectRef,
             },
           },
         }
@@ -223,13 +223,13 @@ export function createSupabaseApiPlatform(
 
       assertSuccess(response, 'Failed to pause project');
     },
-    async restoreProject(projectId: string) {
+    async restoreProject(projectRef: string) {
       const response = await managementApiClient.POST(
         '/v1/projects/{ref}/restore',
         {
           params: {
             path: {
-              ref: projectId,
+              ref: projectRef,
             },
           },
         }
@@ -237,13 +237,13 @@ export function createSupabaseApiPlatform(
 
       assertSuccess(response, 'Failed to restore project');
     },
-    async listEdgeFunctions(projectId: string) {
+    async listEdgeFunctions(projectRef: string) {
       const response = await managementApiClient.GET(
         '/v1/projects/{ref}/functions',
         {
           params: {
             path: {
-              ref: projectId,
+              ref: projectRef,
             },
           },
         }
@@ -254,17 +254,20 @@ export function createSupabaseApiPlatform(
       // Fetch files for each Edge Function
       return await Promise.all(
         response.data.map(async (listedFunction) => {
-          return await platform.getEdgeFunction(projectId, listedFunction.slug);
+          return await platform.getEdgeFunction(
+            projectRef,
+            listedFunction.slug
+          );
         })
       );
     },
-    async getEdgeFunction(projectId: string, functionSlug: string) {
+    async getEdgeFunction(projectRef: string, functionSlug: string) {
       const functionResponse = await managementApiClient.GET(
         '/v1/projects/{ref}/functions/{function_slug}',
         {
           params: {
             path: {
-              ref: projectId,
+              ref: projectRef,
               function_slug: functionSlug,
             },
           },
@@ -280,7 +283,7 @@ export function createSupabaseApiPlatform(
       const edgeFunction = functionResponse.data;
 
       const deploymentId = getDeploymentId(
-        projectId,
+        projectRef,
         edgeFunction.id,
         edgeFunction.version
       );
@@ -306,7 +309,7 @@ export function createSupabaseApiPlatform(
         {
           params: {
             path: {
-              ref: projectId,
+              ref: projectRef,
               function_slug: functionSlug,
             },
           },
@@ -357,7 +360,7 @@ export function createSupabaseApiPlatform(
       };
     },
     async deployEdgeFunction(
-      projectId: string,
+      projectRef: string,
       options: DeployEdgeFunctionOptions
     ) {
       let {
@@ -369,7 +372,7 @@ export function createSupabaseApiPlatform(
 
       let existingEdgeFunction: EdgeFunction | undefined;
       try {
-        existingEdgeFunction = await platform.getEdgeFunction(projectId, name);
+        existingEdgeFunction = await platform.getEdgeFunction(projectRef, name);
       } catch (error) {}
 
       const import_map_file = inputFiles.find((file) =>
@@ -385,7 +388,7 @@ export function createSupabaseApiPlatform(
         {
           params: {
             path: {
-              ref: projectId,
+              ref: projectRef,
             },
             query: { slug: name },
           },
@@ -422,7 +425,7 @@ export function createSupabaseApiPlatform(
 
       return response.data;
     },
-    async getLogs(projectId: string, options: GetLogsOptions) {
+    async getLogs(projectRef: string, options: GetLogsOptions) {
       const { sql, iso_timestamp_start, iso_timestamp_end } =
         getLogsOptionsSchema.parse(options);
 
@@ -431,7 +434,7 @@ export function createSupabaseApiPlatform(
         {
           params: {
             path: {
-              ref: projectId,
+              ref: projectRef,
             },
             query: {
               sql,
@@ -446,13 +449,13 @@ export function createSupabaseApiPlatform(
 
       return response.data;
     },
-    async getSecurityAdvisors(projectId: string) {
+    async getSecurityAdvisors(projectRef: string) {
       const response = await managementApiClient.GET(
         '/v1/projects/{ref}/advisors/security',
         {
           params: {
             path: {
-              ref: projectId,
+              ref: projectRef,
             },
           },
         }
@@ -462,13 +465,13 @@ export function createSupabaseApiPlatform(
 
       return response.data;
     },
-    async getPerformanceAdvisors(projectId: string) {
+    async getPerformanceAdvisors(projectRef: string) {
       const response = await managementApiClient.GET(
         '/v1/projects/{ref}/advisors/performance',
         {
           params: {
             path: {
-              ref: projectId,
+              ref: projectRef,
             },
           },
         }
@@ -478,17 +481,17 @@ export function createSupabaseApiPlatform(
 
       return response.data;
     },
-    async getProjectUrl(projectId: string): Promise<string> {
+    async getProjectUrl(projectRef: string): Promise<string> {
       const apiUrl = new URL(managementApiUrl);
-      return `https://${projectId}.${getProjectDomain(apiUrl.hostname)}`;
+      return `https://${projectRef}.${getProjectDomain(apiUrl.hostname)}`;
     },
-    async getAnonKey(projectId: string): Promise<string> {
+    async getAnonKey(projectRef: string): Promise<string> {
       const response = await managementApiClient.GET(
         '/v1/projects/{ref}/api-keys',
         {
           params: {
             path: {
-              ref: projectId,
+              ref: projectRef,
             },
             query: {
               reveal: false,
@@ -507,13 +510,13 @@ export function createSupabaseApiPlatform(
 
       return anonKey.api_key;
     },
-    async generateTypescriptTypes(projectId: string) {
+    async generateTypescriptTypes(projectRef: string) {
       const response = await managementApiClient.GET(
         '/v1/projects/{ref}/types/typescript',
         {
           params: {
             path: {
-              ref: projectId,
+              ref: projectRef,
             },
           },
         }
@@ -523,13 +526,13 @@ export function createSupabaseApiPlatform(
 
       return response.data;
     },
-    async listBranches(projectId: string) {
+    async listBranches(projectRef: string) {
       const response = await managementApiClient.GET(
         '/v1/projects/{ref}/branches',
         {
           params: {
             path: {
-              ref: projectId,
+              ref: projectRef,
             },
           },
         }
@@ -541,7 +544,7 @@ export function createSupabaseApiPlatform(
 
       return response.data;
     },
-    async createBranch(projectId: string, options: CreateBranchOptions) {
+    async createBranch(projectRef: string, options: CreateBranchOptions) {
       const { name } = createBranchOptionsSchema.parse(options);
 
       const createBranchResponse = await managementApiClient.POST(
@@ -549,7 +552,7 @@ export function createSupabaseApiPlatform(
         {
           params: {
             path: {
-              ref: projectId,
+              ref: projectRef,
             },
           },
           body: {
@@ -627,13 +630,13 @@ export function createSupabaseApiPlatform(
     },
 
     // Storage methods
-    async listAllBuckets(project_id: string) {
+    async listAllBuckets(projectRef: string) {
       const response = await managementApiClient.GET(
         '/v1/projects/{ref}/storage/buckets',
         {
           params: {
             path: {
-              ref: project_id,
+              ref: projectRef,
             },
           },
         }
@@ -644,13 +647,13 @@ export function createSupabaseApiPlatform(
       return response.data;
     },
 
-    async getStorageConfig(project_id: string) {
+    async getStorageConfig(projectRef: string) {
       const response = await managementApiClient.GET(
         '/v1/projects/{ref}/config/storage',
         {
           params: {
             path: {
-              ref: project_id,
+              ref: projectRef,
             },
           },
         }
@@ -661,13 +664,13 @@ export function createSupabaseApiPlatform(
       return response.data;
     },
 
-    async updateStorageConfig(projectId: string, config: StorageConfig) {
+    async updateStorageConfig(projectRef: string, config: StorageConfig) {
       const response = await managementApiClient.PATCH(
         '/v1/projects/{ref}/config/storage',
         {
           params: {
             path: {
-              ref: projectId,
+              ref: projectRef,
             },
           },
           body: {

@@ -8,13 +8,13 @@ import { ACCESS_TOKEN, API_URL, MCP_CLIENT_NAME } from '../mocks.js';
 const DEFAULT_TEST_MODEL = 'claude-3-7-sonnet-20250219';
 
 type SetupOptions = {
-  projectId?: string;
+  projectRef?: string;
 };
 
 /**
  * Sets up an MCP client and server for testing.
  */
-export async function setup({ projectId }: SetupOptions = {}) {
+export async function setup({ projectRef }: SetupOptions = {}) {
   const clientTransport = new StreamTransport();
   const serverTransport = new StreamTransport();
 
@@ -28,7 +28,7 @@ export async function setup({ projectId }: SetupOptions = {}) {
 
   const server = createSupabaseMcpServer({
     platform,
-    projectId,
+    projectRef,
   });
 
   await server.connect(serverTransport);

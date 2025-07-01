@@ -4,37 +4,37 @@ import { injectableTool } from './util.js';
 
 export type StorageToolsOptions = {
   platform: SupabasePlatform;
-  projectId?: string;
+  projectRef?: string;
 };
 
-export function getStorageTools({ platform, projectId }: StorageToolsOptions) {
-  const project_id = projectId;
+export function getStorageTools({ platform, projectRef }: StorageToolsOptions) {
+  const project_ref = projectRef;
 
   return {
     list_storage_buckets: injectableTool({
       description: 'Lists all storage buckets in a Supabase project.',
       parameters: z.object({
-        project_id: z.string(),
+        project_ref: z.string(),
       }),
-      inject: { project_id },
-      execute: async ({ project_id }) => {
-        return await platform.listAllBuckets(project_id);
+      inject: { project_ref },
+      execute: async ({ project_ref }) => {
+        return await platform.listAllBuckets(project_ref);
       },
     }),
     get_storage_config: injectableTool({
       description: 'Get the storage config for a Supabase project.',
       parameters: z.object({
-        project_id: z.string(),
+        project_ref: z.string(),
       }),
-      inject: { project_id },
-      execute: async ({ project_id }) => {
-        return await platform.getStorageConfig(project_id);
+      inject: { project_ref },
+      execute: async ({ project_ref }) => {
+        return await platform.getStorageConfig(project_ref);
       },
     }),
     update_storage_config: injectableTool({
       description: 'Update the storage config for a Supabase project.',
       parameters: z.object({
-        project_id: z.string(),
+        project_ref: z.string(),
         config: z.object({
           fileSizeLimit: z.number(),
           features: z.object({
@@ -43,9 +43,9 @@ export function getStorageTools({ platform, projectId }: StorageToolsOptions) {
           }),
         }),
       }),
-      inject: { project_id },
-      execute: async ({ project_id, config }) => {
-        await platform.updateStorageConfig(project_id, config);
+      inject: { project_ref },
+      execute: async ({ project_ref, config }) => {
+        await platform.updateStorageConfig(project_ref, config);
         return { success: true };
       },
     }),

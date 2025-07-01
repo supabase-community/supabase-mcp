@@ -6,12 +6,12 @@ import { LoggingMessageNotificationSchema } from '@modelcontextprotocol/sdk/type
 
 type SetupOptions = {
   accessToken?: string;
-  projectId?: string;
+  projectRef?: string;
   readOnly?: boolean;
 };
 
 async function setup(options: SetupOptions = {}) {
-  const { accessToken = ACCESS_TOKEN, projectId, readOnly } = options;
+  const { accessToken = ACCESS_TOKEN, projectRef, readOnly } = options;
 
   const client = new Client(
     {
@@ -39,8 +39,8 @@ async function setup(options: SetupOptions = {}) {
     args.push('--access-token', accessToken);
   }
 
-  if (projectId) {
-    args.push('--project-ref', projectId);
+  if (projectRef) {
+    args.push('--project-ref', projectRef);
   }
 
   if (readOnly) {

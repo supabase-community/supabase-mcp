@@ -38,12 +38,12 @@ export type SupabaseMcpServerOptions = {
   contentApiUrl?: string;
 
   /**
-   * The project ID to scope the server to.
+   * The project reference to scope the server to.
    *
    * If undefined, the server will have access
    * to all organizations and projects for the user.
    */
-  projectId?: string;
+  projectRef?: string;
 
   /**
    * Executes database queries in read-only mode if true.
@@ -86,7 +86,7 @@ const DEFAULT_FEATURES: FeatureGroup[] = [
 export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
   const {
     platform,
-    projectId,
+    projectRef,
     readOnly,
     features,
     contentApiUrl = 'https://supabase.com/docs/api/graphql',
@@ -111,27 +111,31 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       const tools: Record<string, Tool> = {};
 
       // Add feature-based tools
-      if (!projectId && enabledFeatures.has('account')) {
+      if (!projectRef && enabledFeatures.has('account')) {
         Object.assign(tools, getAccountTools({ platform }));
       }
 
       if (enabledFeatures.has('branching')) {
-        Object.assign(tools, getBranchingTools({ platform, projectId }));
+        Object.assign(tools, getBranchingTools({ platform, projectRef }));
       }
 
       if (enabledFeatures.has('database')) {
         Object.assign(
           tools,
-          getDatabaseOperationTools({ platform, projectId, readOnly })
+          getDatabaseOperationTools({
+            platform,
+            projectRef,
+            readOnly,
+          })
         );
       }
 
       if (enabledFeatures.has('debug')) {
-        Object.assign(tools, getDebuggingTools({ platform, projectId }));
+        Object.assign(tools, getDebuggingTools({ platform, projectRef }));
       }
 
       if (enabledFeatures.has('development')) {
-        Object.assign(tools, getDevelopmentTools({ platform, projectId }));
+        Object.assign(tools, getDevelopmentTools({ platform, projectRef }));
       }
 
       if (enabledFeatures.has('docs')) {
@@ -139,11 +143,11 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       }
 
       if (enabledFeatures.has('functions')) {
-        Object.assign(tools, getEdgeFunctionTools({ platform, projectId }));
+        Object.assign(tools, getEdgeFunctionTools({ platform, projectRef }));
       }
 
       if (enabledFeatures.has('storage')) {
-        Object.assign(tools, getStorageTools({ platform, projectId }));
+        Object.assign(tools, getStorageTools({ platform, projectRef }));
       }
 
       return tools;

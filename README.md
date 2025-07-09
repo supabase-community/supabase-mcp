@@ -266,6 +266,8 @@ We recommend the following best practices to mitigate security risks when using 
 
 - **Don't connect to production**: Use the MCP server with a development or staging project, not production. LLMs are great at helping design and test applications, so leverage them in a safe environment without exposing real data.
 
+- **Don't give to your customers**: The MCP server operates under the context of your developer permissions, so it should not be given to your customers or end users. Instead, use it internally as a developer tool to help you build and test your applications. We are working on a separate [PostgREST MCP server](#other-mcp-servers) that allows you to connect your own users to your app via REST API, which will be more suitable for production use.
+
 - **Read-only mode**: If you must connect to real data, set the server to [read-only](#read-only-mode) mode, which executes all queries as a read-only Postgres user.
 
 - **Project scoping**: Scope your MCP server to a [specific project](#project-scoped-mode), limiting access to only that project's resources. This prevents LLMs from accessing data from other projects in your Supabase account.

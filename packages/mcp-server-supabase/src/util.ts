@@ -1,7 +1,11 @@
 import { z } from 'zod';
-import { featureGroupSchema, type FeatureGroup } from './types.js';
 import type { SupabasePlatform } from './platform/types.js';
 import { PLATFORM_INDEPENDENT_FEATURES } from './server.js';
+import {
+  currentFeatureGroupSchema,
+  featureGroupSchema,
+  type FeatureGroup,
+} from './types.js';
 
 export type ValueOf<T> = T[keyof T];
 
@@ -89,7 +93,7 @@ export function parseFeatureGroups(
   // The platform implementation can define a subset of features
   const availableFeatures: FeatureGroup[] = [
     ...PLATFORM_INDEPENDENT_FEATURES,
-    ...featureGroupSchema.options.filter((key) =>
+    ...currentFeatureGroupSchema.options.filter((key) =>
       Object.keys(platform).includes(key)
     ),
   ];

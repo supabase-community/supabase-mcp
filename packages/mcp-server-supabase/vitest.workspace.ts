@@ -14,6 +14,7 @@ export default defineWorkspace([
       name: 'e2e',
       include: ['test/e2e/**/*.e2e.ts'],
       testTimeout: 60_000,
+      retry: process.env.CI ? 2 : 0,
       setupFiles: 'test/e2e/setup.ts',
     },
   },

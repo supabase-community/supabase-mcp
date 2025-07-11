@@ -264,7 +264,7 @@ To lower this risk further, Supabase MCP wraps SQL results with additional instr
 
 We recommend the following best practices to mitigate security risks when using the Supabase MCP server:
 
-- **Don't connect to production**: Use the MCP server with a development or staging project, not production. LLMs are great at helping design and test applications, so leverage them in a safe environment without exposing real data.
+- **Don't connect to production**: Use the MCP server with a development project, not production. LLMs are great at helping design and test applications, so leverage them in a safe environment without exposing real data. Be sure that your development environment contains non-production data (or obfuscated data).
 
 - **Don't give to your customers**: The MCP server operates under the context of your developer permissions, so it should not be given to your customers or end users. Instead, use it internally as a developer tool to help you build and test your applications. We are working on a separate [PostgREST MCP server](#other-mcp-servers) that allows you to connect your own users to your app via REST API, which will be more suitable for production use.
 

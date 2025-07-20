@@ -6,11 +6,13 @@ import { injectableTool } from './util.js';
 export type EdgeFunctionToolsOptions = {
   platform: SupabasePlatform;
   projectId?: string;
+  readOnly?: boolean;
 };
 
 export function getEdgeFunctionTools({
   platform,
   projectId,
+  readOnly,
 }: EdgeFunctionToolsOptions) {
   const project_id = projectId;
 
@@ -57,6 +59,10 @@ export function getEdgeFunctionTools({
         import_map_path,
         files,
       }) => {
+        if (readOnly) {
+          throw new Error('Cannot deploy an edge function in read-only mode.');
+        }
+
         return await platform.deployEdgeFunction(project_id, {
           name,
           entrypoint_path,

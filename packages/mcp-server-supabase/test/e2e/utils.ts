@@ -9,12 +9,14 @@ const DEFAULT_TEST_MODEL = 'claude-3-7-sonnet-20250219';
 
 type SetupOptions = {
   projectId?: string;
+  readOnly?: boolean;
+  features?: string[];
 };
 
 /**
  * Sets up an MCP client and server for testing.
  */
-export async function setup({ projectId }: SetupOptions = {}) {
+export async function setup({ projectId, readOnly }: SetupOptions = {}) {
   const clientTransport = new StreamTransport();
   const serverTransport = new StreamTransport();
 
@@ -29,6 +31,7 @@ export async function setup({ projectId }: SetupOptions = {}) {
   const server = createSupabaseMcpServer({
     platform,
     projectId,
+    readOnly,
   });
 
   await server.connect(serverTransport);

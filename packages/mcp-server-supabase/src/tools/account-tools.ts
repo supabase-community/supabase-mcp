@@ -7,7 +7,7 @@ import { hashObject } from '../util.js';
 
 export type AccountToolsOptions = {
   platform: SupabasePlatform;
-  readOnly?: Boolean;
+  readOnly?: boolean;
 };
 
 export function getAccountTools({ platform, readOnly }: AccountToolsOptions) {

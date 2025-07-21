@@ -115,7 +115,55 @@ describe('project management e2e tests', () => {
     );
 
     await expect(text).toMatchCriteria(
-      `Describes the a single todos table available in the project.`
+      `Describes the single todos table available in the project.`
+    );
+  });
+
+  test('should reject creating a project in read-only mode', async () => {
+    const { client } = await setup({ readOnly: true });
+    const model = getTestModel();
+
+    const org = await createOrganization({
+      name: 'test-org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const toolCalls: ToolCallUnion<ToolSet>[] = [];
+    const tools = await client.tools();
+
+    const { text } = await generateText({
+      model,
+      tools,
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a coding assistant.',
+        },
+        {
+          role: 'user',
+          content: `Create a new project named "todos-app" with organization_id ${org.id} in the region "us-east-1".`,
+        },
+      ],
+      maxSteps: 3,
+      async onStepFinish({ toolCalls: tools }) {
+        toolCalls.push(...tools);
+      },
+    });
+
+    expect(toolCalls).toHaveLength(3);
+    expect(toolCalls[0]).toEqual(
+      expect.objectContaining({ toolName: 'get_cost' })
+    );
+    expect(toolCalls[1]).toEqual(
+      expect.objectContaining({ toolName: 'confirm_cost' })
+    );
+    expect(toolCalls[2]).toEqual(
+      expect.objectContaining({ toolName: 'create_project' })
+    );
+
+    await expect(text).toMatchCriteria(
+      'It is not possible to create a new project in read-only mode.'
     );
   });
 });

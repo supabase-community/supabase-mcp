@@ -378,7 +378,7 @@ describe('tools', () => {
     });
   });
 
-  test('try creating a project in read-only mode', async () => {
+  test('create project in read-only mode throws an error', async () => {
     const { callTool } = await setup({ readOnly: true });
 
     const freeOrg = await createOrganization({
@@ -506,7 +506,7 @@ describe('tools', () => {
     expect(project.status).toEqual('INACTIVE');
   });
 
-  test('try pausing a project in read-only mode', async () => {
+  test('pause project in read-only mode throws an error', async () => {
     const { callTool } = await setup({ readOnly: true });
 
     const org = await createOrganization({
@@ -560,7 +560,7 @@ describe('tools', () => {
     expect(project.status).toEqual('ACTIVE_HEALTHY');
   });
 
-  test('try restoring a project in read-only mode', async () => {
+  test('restore project in read-only mode throws an error', async () => {
     const { callTool } = await setup({ readOnly: true });
 
     const org = await createOrganization({
@@ -749,7 +749,7 @@ describe('tools', () => {
     expect(result).toEqual({ success: true });
   });
 
-  test('try updating storage config in read-only mode', async () => {
+  test('update storage config in read-only mode throws an error', async () => {
     const { callTool } = await setup({ readOnly: true, features: ['storage'] });
 
     const org = await createOrganization({
@@ -1446,7 +1446,7 @@ describe('tools', () => {
     });
   });
 
-  test('try deploying edge function in read-only mode', async () => {
+  test('deploy edge function in read-only mode throws an error', async () => {
     const { callTool } = await setup({ readOnly: true });
 
     const org = await createOrganization({
@@ -1786,7 +1786,7 @@ describe('tools', () => {
     });
   });
 
-  test('try creating a branch in read-only mode', async () => {
+  test('create branch in read-only mode throws an error', async () => {
     const { callTool } = await setup({
       readOnly: true,
       features: ['account', 'branching'],
@@ -1940,7 +1940,7 @@ describe('tools', () => {
     );
   });
 
-  test('try deleting a branch in read-only mode', async () => {
+  test('delete branch in read-only mode throws an error', async () => {
     const { callTool } = await setup({
       readOnly: true,
       features: ['account', 'branching'],
@@ -2083,7 +2083,7 @@ describe('tools', () => {
     });
   });
 
-  test('try merging a branch in read-only mode', async () => {
+  test('merge branch in read-only mode throws an error', async () => {
     const { callTool } = await setup({
       readOnly: true,
       features: ['account', 'branching', 'database'],
@@ -2195,7 +2195,7 @@ describe('tools', () => {
     );
   });
 
-  test('try resetting a branch in read-only mode', async () => {
+  test('reset branch in read-only mode throws an error', async () => {
     const { callTool } = await setup({
       readOnly: true,
       features: ['account', 'branching', 'database'],
@@ -2400,7 +2400,7 @@ describe('tools', () => {
     });
   });
 
-  test('try rebasing a branch in read-only mode', async () => {
+  test('rebase branch in read-only mode throws an error', async () => {
     const { callTool } = await setup({
       readOnly: true,
       features: ['account', 'branching', 'database'],

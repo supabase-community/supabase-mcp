@@ -179,6 +179,7 @@ export const mockManagementApi = [
       name: z.string(),
       region: z.string(),
       organization_id: z.string(),
+      db_pass: z.string(),
     });
     const body = await request.json();
     const { name, region, organization_id } = bodySchema.parse(body);

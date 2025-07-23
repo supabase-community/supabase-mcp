@@ -781,7 +781,7 @@ describe('tools', () => {
       },
     });
 
-    expect(result).rejects.toThrow(
+    await expect(result).rejects.toThrow(
       'Cannot update storage config in read-only mode.'
     );
   });
@@ -2114,7 +2114,9 @@ describe('tools', () => {
       },
     });
 
-    expect(result).rejects.toThrow('Cannot merge a branch in read-only mode.');
+    await expect(result).rejects.toThrow(
+      'Cannot merge a branch in read-only mode.'
+    );
   });
 
   test('reset branch', async () => {
@@ -2226,7 +2228,9 @@ describe('tools', () => {
       },
     });
 
-    expect(result).rejects.toThrow('Cannot reset a branch in read-only mode.');
+    await expect(result).rejects.toThrow(
+      'Cannot reset a branch in read-only mode.'
+    );
   });
 
   test('revert migrations', async () => {
@@ -2431,7 +2435,9 @@ describe('tools', () => {
       },
     });
 
-    expect(result).rejects.toThrow('Cannot rebase a branch in read-only mode.');
+    await expect(result).rejects.toThrow(
+      'Cannot rebase a branch in read-only mode.'
+    );
   });
 
   // We use snake_case because it aligns better with most MCP clients

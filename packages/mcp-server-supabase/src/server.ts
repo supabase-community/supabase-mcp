@@ -92,7 +92,9 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
     contentApiUrl = 'https://supabase.com/docs/api/graphql',
   } = options;
 
-  const contentApiClientPromise = createContentApiClient(contentApiUrl);
+  const contentApiClientPromise = createContentApiClient(contentApiUrl, {
+    'User-Agent': `supabase-map/${version}`,
+  });
 
   const enabledFeatures = z
     .set(featureGroupSchema)
@@ -104,7 +106,15 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
     async onInitialize(info) {
       // Note: in stateless HTTP mode, `onInitialize` will not always be called
       // so we cannot rely on it for initialization. It's still useful for telemetry.
-      await platform.init?.(info);
+      const { clientInfo } = info;
+      const userAgent = `supabase-mcp/${version} (${clientInfo.name}/${clientInfo.version})`;
+
+      await Promise.all([
+        platform.init?.(info),
+        contentApiClientPromise.then((client) =>
+          client.setUserAgent(userAgent)
+        ),
+      ]);
     },
     tools: async () => {
       const contentApiClient = await contentApiClientPromise;

@@ -8,6 +8,7 @@ const contentApiSchemaResponseSchema = z.object({
 export type ContentApiClient = {
   schema: string;
   query: QueryFn;
+  setUserAgent: (userAgent: string) => void;
 };
 
 export async function createContentApiClient(
@@ -31,6 +32,9 @@ export async function createContentApiClient(
     schema: source,
     async query(request: GraphQLRequest) {
       return graphqlClient.query(request);
+    },
+    setUserAgent(userAgent: string) {
+      graphqlClient.setUserAgent(userAgent);
     },
   };
 }

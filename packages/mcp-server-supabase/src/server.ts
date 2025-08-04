@@ -93,7 +93,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
   } = options;
 
   const contentApiClientPromise = createContentApiClient(contentApiUrl, {
-    'User-Agent': `supabase-map/${version}`,
+    'User-Agent': `supabase-mcp/${version}`,
   });
 
   const enabledFeatures = z

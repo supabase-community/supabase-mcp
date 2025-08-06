@@ -122,11 +122,11 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
 
       // Add feature-based tools
       if (!projectId && enabledFeatures.has('account')) {
-        Object.assign(tools, getAccountTools({ platform }));
+        Object.assign(tools, getAccountTools({ platform, readOnly }));
       }
 
       if (enabledFeatures.has('branching')) {
-        Object.assign(tools, getBranchingTools({ platform, projectId }));
+        Object.assign(tools, getBranchingTools({ platform, projectId, readOnly }));
       }
 
       if (enabledFeatures.has('database')) {
@@ -149,11 +149,11 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       }
 
       if (enabledFeatures.has('functions')) {
-        Object.assign(tools, getEdgeFunctionTools({ platform, projectId }));
+        Object.assign(tools, getEdgeFunctionTools({ platform, projectId, readOnly }));
       }
 
       if (enabledFeatures.has('storage')) {
-        Object.assign(tools, getStorageTools({ platform, projectId }));
+        Object.assign(tools, getStorageTools({ platform, projectId, readOnly }));
       }
 
       return tools;

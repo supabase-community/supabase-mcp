@@ -115,7 +115,7 @@ describe('project management e2e tests', () => {
     );
 
     await expect(text).toMatchCriteria(
-      `Describes the a single todos table available in the project.`
+      `Describes the single todos table available in the project.`
     );
   });
 });

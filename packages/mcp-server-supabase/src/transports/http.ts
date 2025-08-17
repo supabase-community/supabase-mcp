@@ -1,4 +1,5 @@
 import { Hono } from 'hono';
+import axios from 'axios';
 import { createSupabaseMcpServer } from '../server.js';
 import { StatelessHttpServerTransport } from '@supabase/mcp-utils';
 import { serve } from '@hono/node-server';
@@ -85,41 +86,18 @@ app.delete('/mcp', async (c) => {
   );
 });
 
-const oauthMetadata = {
-  issuer: `${managementApiUrl}`,
-  authorization_endpoint: `${managementApiUrl}/v1/oauth/authorize`,
-  token_endpoint: `${managementApiUrl}/v1/oauth/token`,
-  registration_endpoint: `${managementApiUrl}/platform/oauth/apps/register`,
-  token_endpoint_auth_methods_supported: ['client_secret_post'],
-  scopes_supported: [
-    'analytics:read',
-    'analytics:write',
-    'auth:read',
-    'auth:write',
-    'database:read',
-    'database:write',
-    'domains:read',
-    'domains:write',
-    'edge_functions:read',
-    'edge_functions:write',
-    'environment:read',
-    'environment:write',
-    'organizations:read',
-    'organizations:write',
-    'projects:read',
-    'projects:write',
-    'rest:read',
-    'rest:write',
-    'secrets:read',
-    'secrets:write',
-    'storage:read',
-    'storage:write',
-  ],
-  response_types_supported: ['code'],
-  response_modes_supported: ['query'],
-  grant_types_supported: ['authorization_code', 'refresh_token'],
-  code_challenge_methods_supported: ['S256'],
+const fetchOauthMetadata = async () => {
+  const response = await axios.get(
+    `${managementApiUrl}/.well-known/oauth-authorization-server`
+  );
+  if (response.status != 200) {
+    throw new Error('Failed to fetch OAuth metadata');
+  }
+
+  return response.data;
 };
+
+const oauthMetadata = await fetchOauthMetadata();
 
 const protectedResourceMetadata = {
   resource: `http://localhost:${port}`, // "https://api.supabase.io/mcp",

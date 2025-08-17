@@ -8,7 +8,6 @@
   "types": "dist/index.d.ts",
   "sideEffects": false,
   "scripts": {
-    "dev": "tsup --watch & nodemon dist/transports/http.js",
     "build": "tsup --clean",
     "prepublishOnly": "npm run build",
     "test": "vitest",
@@ -40,7 +39,6 @@
     "@modelcontextprotocol/sdk": "^1.11.0",
     "@supabase/mcp-utils": "0.2.1",
     "common-tags": "^1.8.2",
-    "express": "^5.1.0",
     "graphql": "^16.11.0",
     "hono": "^4.7.8",
     "openapi-fetch": "^0.13.5",
@@ -51,7 +49,6 @@
     "@electric-sql/pglite": "^0.2.17",
     "@total-typescript/tsconfig": "^1.0.4",
     "@types/common-tags": "^1.8.4",
-    "@types/express": "^5.0.3",
     "@types/node": "^22.8.6",
     "@vitest/coverage-v8": "^2.1.9",
     "ai": "^4.3.4",

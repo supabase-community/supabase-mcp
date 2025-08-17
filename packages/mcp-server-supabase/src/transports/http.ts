@@ -86,7 +86,7 @@ const oauthMetadata = {
   issuer: `${managementApiUrl}`,
     authorization_endpoint: `${managementApiUrl}/v1/oauth/authorize`,
     token_endpoint: `${managementApiUrl}/v1/oauth/token`,
-    registration_endpoint: `${managementApiUrl}/v1/oauth/register`,
+    registration_endpoint: `${managementApiUrl}/platform/oauth/apps/register`,
     token_endpoint_auth_methods_supported: ['client_secret_post'],
     scopes_supported: [
       'analytics:read', 'analytics:write',

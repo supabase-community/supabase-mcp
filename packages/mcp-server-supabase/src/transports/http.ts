@@ -14,7 +14,14 @@ const port = process.env.PORT ? parseInt(process.env.PORT, 10) : 3000
 
 const app = new Hono();
 
-app.use(cors())
+//
+app.use(cors(
+  {
+    origin: ['dev', 'test'].includes((process.env.ENV ?? '').toLowerCase())
+      ? '*'
+      : 'https://api.supabase.io/mcp',
+  }
+))
 
 /**
  * Stateless HTTP transport for the Supabase MCP server.

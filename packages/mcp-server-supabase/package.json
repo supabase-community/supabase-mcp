@@ -11,7 +11,6 @@
     "build": "tsup --clean",
     "prepublishOnly": "pnpm build",
     "test": "vitest",
-    "test:run": "vitest run",
     "test:unit": "vitest --project unit",
     "test:e2e": "vitest --project e2e",
     "test:integration": "vitest --project integration",

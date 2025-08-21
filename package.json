@@ -1,7 +1,7 @@
 {
   "scripts": {
     "build": "pnpm --parallel --filter @supabase/mcp-utils --filter @supabase/mcp-server-supabase build",
-    "test": "pnpm --filter @supabase/mcp-utils --filter @supabase/mcp-server-supabase test:run",
+    "test": "pnpm --parallel --filter @supabase/mcp-utils --filter @supabase/mcp-server-supabase test",
     "test:coverage": "pnpm --filter @supabase/mcp-server-supabase test:coverage",
     "format": "biome check --write .",
     "format:check": "biome check ."

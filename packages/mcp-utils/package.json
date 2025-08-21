@@ -11,7 +11,8 @@
     "build": "tsup --clean",
     "test": "vitest",
     "test:coverage": "vitest --coverage",
-    "prepublishOnly": "npm run build"
+    "test:run": "vitest run",
+    "prepublishOnly": "pnpm build"
   },
   "files": ["dist/**/*"],
   "exports": {

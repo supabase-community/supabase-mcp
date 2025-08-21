@@ -21,7 +21,7 @@ importers:
         specifier: ^1.11.0
         version: 1.17.3
       '@supabase/mcp-utils':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../mcp-utils
       '@supabase/sql-to-rest':
         specifier: ^0.1.8
@@ -67,7 +67,7 @@ importers:
         specifier: ^1.11.0
         version: 1.17.3
       '@supabase/mcp-utils':
-        specifier: workspace:*
+        specifier: workspace:^
         version: link:../mcp-utils
       common-tags:
         specifier: ^1.8.2

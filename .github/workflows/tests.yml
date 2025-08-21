@@ -12,18 +12,21 @@ jobs:
       ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
     steps:
       - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          run_install: false
       - uses: actions/setup-node@v4
         with:
           node-version: lts/*
-          cache: 'npm'
+          cache: 'pnpm'
       - name: Install dependencies
-        run: npm ci --ignore-scripts
+        run: pnpm install --ignore-scripts
       - name: Build libs
         run: |
-          npm run build
-          npm rebuild # To create bin links
+          pnpm run build
+          pnpm rebuild # To create bin links
       - name: Tests
-        run: npm run test:coverage
+        run: pnpm run test:coverage
       - name: Upload coverage results to Coveralls
         uses: coverallsapp/github-action@v2
         with:

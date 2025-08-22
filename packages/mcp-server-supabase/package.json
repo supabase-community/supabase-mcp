@@ -9,7 +9,7 @@
   "sideEffects": false,
   "scripts": {
     "build": "tsup --clean",
-    "prepublishOnly": "npm run build",
+    "prepublishOnly": "pnpm build",
     "test": "vitest",
     "test:unit": "vitest --project unit",
     "test:e2e": "vitest --project e2e",
@@ -38,7 +38,7 @@
   "dependencies": {
     "@mjackson/multipart-parser": "^0.10.1",
     "@modelcontextprotocol/sdk": "^1.11.0",
-    "@supabase/mcp-utils": "0.2.1",
+    "@supabase/mcp-utils": "workspace:^",
     "common-tags": "^1.8.2",
     "graphql": "^16.11.0",
     "openapi-fetch": "^0.13.5",
@@ -62,6 +62,7 @@
     "tsup": "^8.3.5",
     "tsx": "^4.19.2",
     "typescript": "^5.6.3",
+    "vite": "^5.4.19",
     "vitest": "^2.1.9"
   }
 }

@@ -94,6 +94,9 @@ export function getDatabaseOperationTools({
                   if (is_unique) options.push('unique');
 
                   return {
+                    ...column,
+                    options,
+
                     // Omit empty fields
                     ...(default_value !== null && { default_value }),
                     ...(identity_generation !== null && {
@@ -102,8 +105,6 @@ export function getDatabaseOperationTools({
                     ...(enums.length > 0 && { enums }),
                     ...(check !== null && { check }),
                     ...(comment !== null && { comment }),
-                    options,
-                    ...column,
                   };
                 }
               ),
@@ -113,7 +114,6 @@ export function getDatabaseOperationTools({
               ),
               foreign_key_constraints: relationships?.map(
                 ({
-                  // Modified fields
                   constraint_name,
                   source_schema,
                   source_table_name,

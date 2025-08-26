@@ -808,48 +808,20 @@ describe('tools', () => {
 
     expect(listTablesResult).toEqual([
       {
-        bytes: 8192,
+        schema: 'public',
+        name: 'test',
+        rls_enabled: false,
+        rows: 0,
         columns: [
           {
-            check: null,
-            comment: null,
+            name: 'id',
             data_type: 'integer',
-            default_value: null,
-            enums: [],
             format: 'int4',
-            id: expect.stringMatching(/^\d+\.\d+$/),
+            options: ['identity', 'updatable'],
             identity_generation: 'ALWAYS',
-            is_generated: false,
-            is_identity: true,
-            is_nullable: false,
-            is_unique: false,
-            is_updatable: true,
-            name: 'id',
-            ordinal_position: 1,
-            schema: 'public',
-            table: 'test',
-            table_id: expect.any(Number),
           },
         ],
-        comment: null,
-        dead_rows_estimate: 0,
-        id: expect.any(Number),
-        live_rows_estimate: 0,
-        name: 'test',
-        primary_keys: [
-          {
-            name: 'id',
-            schema: 'public',
-            table_id: expect.any(Number),
-            table_name: 'test',
-          },
-        ],
-        relationships: [],
-        replica_identity: 'DEFAULT',
-        rls_enabled: false,
-        rls_forced: false,
-        schema: 'public',
-        size: '8192 bytes',
+        primary_keys: ['id'],
       },
     ]);
   });
@@ -2390,8 +2362,7 @@ describe('project scoped tools', () => {
         columns: [
           expect.objectContaining({
             name: 'id',
-            is_identity: true,
-            is_generated: false,
+            options: expect.arrayContaining(['identity']),
           }),
         ],
       }),

@@ -56,63 +56,12 @@ export function getDatabaseOperationTools({
               columns,
               primary_keys,
               relationships,
+              comment,
 
               // Passthrough rest
               ...table
-            }) => ({
-              ...table,
-              rows: live_rows_estimate,
-              columns: columns?.map(
-                ({
-                  // Discarded fields
-                  id,
-                  table,
-                  table_id,
-                  schema,
-                  ordinal_position,
-
-                  // Modified fields
-                  default_value,
-                  is_identity,
-                  identity_generation,
-                  is_generated,
-                  is_nullable,
-                  is_updatable,
-                  is_unique,
-                  check,
-                  comment,
-                  enums,
-
-                  // Passthrough rest
-                  ...column
-                }) => {
-                  const options: string[] = [];
-                  if (is_identity) options.push('identity');
-                  if (is_generated) options.push('generated');
-                  if (is_nullable) options.push('nullable');
-                  if (is_updatable) options.push('updatable');
-                  if (is_unique) options.push('unique');
-
-                  return {
-                    ...column,
-                    options,
-
-                    // Omit empty fields
-                    ...(default_value !== null && { default_value }),
-                    ...(identity_generation !== null && {
-                      identity_generation,
-                    }),
-                    ...(enums.length > 0 && { enums }),
-                    ...(check !== null && { check }),
-                    ...(comment !== null && { comment }),
-                  };
-                }
-              ),
-              primary_keys: primary_keys?.map(
-                ({ table_id, schema, table_name, ...primary_key }) =>
-                  primary_key.name
-              ),
-              foreign_key_constraints: relationships?.map(
+            }) => {
+              const foreign_key_constraints = relationships?.map(
                 ({
                   constraint_name,
                   source_schema,
@@ -126,8 +75,69 @@ export function getDatabaseOperationTools({
                   source: `${source_schema}.${source_table_name}.${source_column_name}`,
                   target: `${target_table_schema}.${target_table_name}.${target_column_name}`,
                 })
-              ),
-            })
+              );
+
+              return {
+                ...table,
+                rows: live_rows_estimate,
+                columns: columns?.map(
+                  ({
+                    // Discarded fields
+                    id,
+                    table,
+                    table_id,
+                    schema,
+                    ordinal_position,
+
+                    // Modified fields
+                    default_value,
+                    is_identity,
+                    identity_generation,
+                    is_generated,
+                    is_nullable,
+                    is_updatable,
+                    is_unique,
+                    check,
+                    comment,
+                    enums,
+
+                    // Passthrough rest
+                    ...column
+                  }) => {
+                    const options: string[] = [];
+                    if (is_identity) options.push('identity');
+                    if (is_generated) options.push('generated');
+                    if (is_nullable) options.push('nullable');
+                    if (is_updatable) options.push('updatable');
+                    if (is_unique) options.push('unique');
+
+                    return {
+                      ...column,
+                      options,
+
+                      // Omit fields when empty
+                      ...(default_value !== null && { default_value }),
+                      ...(identity_generation !== null && {
+                        identity_generation,
+                      }),
+                      ...(enums.length > 0 && { enums }),
+                      ...(check !== null && { check }),
+                      ...(comment !== null && { comment }),
+                    };
+                  }
+                ),
+                primary_keys: primary_keys?.map(
+                  ({ table_id, schema, table_name, ...primary_key }) =>
+                    primary_key.name
+                ),
+
+                // Omit fields when empty
+                ...(comment !== null && { comment }),
+                ...(foreign_key_constraints.length > 0 && {
+                  foreign_key_constraints,
+                }),
+              };
+            }
           );
         return tables;
       },

@@ -14,7 +14,6 @@ import {
 } from '../src/content-api/graphql.js';
 import { getDeploymentId, getPathPrefix } from '../src/edge-function.js';
 import type { components } from '../src/management-api/types.js';
-import { TRACE_URL } from '../src/regions.js';
 
 const { version } = packageJson;
 
@@ -117,12 +116,6 @@ export const mockContentApi = [
 ];
 
 export const mockManagementApi = [
-  http.get(TRACE_URL, () => {
-    return HttpResponse.text(
-      `fl=123abc\nvisit_scheme=https\nloc=${COUNTRY_CODE}\ntls=TLSv1.3\nhttp=http/2`
-    );
-  }),
-
   /**
    * Check authorization
    */

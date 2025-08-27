@@ -91,9 +91,7 @@ export function getAccountTools({ account }: AccountToolsOptions) {
         name: z.string().describe('The name of the project'),
         region: z
           .enum(AWS_REGION_CODES)
-          .describe(
-            'The region to create the project in. Defaults to the closest region.'
-          ),
+          .describe('The region to create the project in.'),
         organization_id: z.string(),
         confirm_cost_id: z
           .string({

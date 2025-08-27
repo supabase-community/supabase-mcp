@@ -381,7 +381,7 @@ describe('tools', () => {
     });
   });
 
-  test('create project chooses closest region when undefined', async () => {
+  test('create project without region fails', async () => {
     const { callTool } = await setup();
 
     const freeOrg = await createOrganization({
@@ -405,22 +405,12 @@ describe('tools', () => {
       confirm_cost_id,
     };
 
-    const result = await callTool({
+    const createProjectPromise = callTool({
       name: 'create_project',
       arguments: newProject,
     });
 
-    const { confirm_cost_id: _, ...projectInfo } = newProject;
-
-    expect(result).toEqual({
-      ...projectInfo,
-      id: expect.stringMatching(/^.+$/),
-      created_at: expect.stringMatching(
-        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
-      ),
-      status: 'UNKNOWN',
-      region: CLOSEST_REGION,
-    });
+    expect(createProjectPromise).rejects.toThrow();
   });
 
   test('create project without cost confirmation fails', async () => {

@@ -89,13 +89,11 @@ export function getAccountTools({ account }: AccountToolsOptions) {
         'Creates a new Supabase project. Always ask the user which organization to create the project in. The project can take a few minutes to initialize - use `get_project` to check the status.',
       parameters: z.object({
         name: z.string().describe('The name of the project'),
-        region: z.optional(
-          z
-            .enum(AWS_REGION_CODES)
-            .describe(
-              'The region to create the project in. Defaults to the closest region.'
-            )
-        ),
+        region: z
+          .enum(AWS_REGION_CODES)
+          .describe(
+            'The region to create the project in. Defaults to the closest region.'
+          ),
         organization_id: z.string(),
         confirm_cost_id: z
           .string({

@@ -81,7 +81,7 @@ export const edgeFunctionSchema = z.object({
 export const createProjectOptionsSchema = z.object({
   name: z.string(),
   organization_id: z.string(),
-  region: z.enum(AWS_REGION_CODES).optional(),
+  region: z.enum(AWS_REGION_CODES),
   db_pass: z.string().optional(),
 });
 

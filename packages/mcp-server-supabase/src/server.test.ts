@@ -410,7 +410,7 @@ describe('tools', () => {
       arguments: newProject,
     });
 
-    expect(createProjectPromise).rejects.toThrow();
+    await expect(createProjectPromise).rejects.toThrow();
   });
 
   test('create project without cost confirmation fails', async () => {

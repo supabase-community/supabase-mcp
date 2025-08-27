@@ -13,11 +13,6 @@ import {
 } from '../management-api/index.js';
 import { generatePassword } from '../password.js';
 import {
-  getClosestAwsRegion,
-  getCountryCode,
-  getCountryCoordinates,
-} from '../regions.js';
-import {
   applyMigrationOptionsSchema,
   createBranchOptionsSchema,
   createProjectOptionsSchema,
@@ -122,7 +117,7 @@ export function createSupabaseApiPlatform(
       const response = await managementApiClient.POST('/v1/projects', {
         body: {
           name,
-          region: region ?? (await getClosestRegion()),
+          region,
           organization_id,
           db_pass:
             db_pass ??
@@ -739,9 +734,4 @@ function getProjectDomain(apiHostname: string) {
     default:
       return 'supabase.red';
   }
-}
-
-async function getClosestRegion() {
-  return getClosestAwsRegion(getCountryCoordinates(await getCountryCode()))
-    .code;
 }

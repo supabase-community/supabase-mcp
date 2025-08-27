@@ -9,6 +9,9 @@
   "sideEffects": false,
   "scripts": {
     "build": "tsup --clean",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "prebuild": "pnpm typecheck",
     "prepublishOnly": "pnpm build",
     "test": "vitest"
   },

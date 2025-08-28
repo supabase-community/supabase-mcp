@@ -3,4 +3,8 @@ export {
   createSupabaseMcpServer,
   type SupabaseMcpServerOptions,
 } from './server.js';
-export { featureGroupSchema, type FeatureGroup } from './types.js';
+export {
+  featureGroupSchema,
+  currentFeatureGroupSchema,
+  type FeatureGroup,
+} from './types.js';

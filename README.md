@@ -8,13 +8,13 @@ The [Model Context Protocol](https://modelcontextprotocol.io/introduction) (MCP)
 
 ## Prerequisites
 
-You will need Node.js installed on your machine. You can check this by running:
+You will need Node.js ([active LTS](https://nodejs.org/en/about/previous-releases) or newer) installed on your machine. You can check this by running:
 
 ```shell
 node -v
 ```
 
-If you don't have Node.js installed, you can download it from [nodejs.org](https://nodejs.org/).
+If you don't have Node.js 22+ installed, you can download it from [nodejs.org](https://nodejs.org/).
 
 ## Setup
 

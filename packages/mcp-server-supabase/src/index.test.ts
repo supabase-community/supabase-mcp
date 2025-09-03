@@ -7,7 +7,7 @@ import {
   MCP_CLIENT_NAME,
   MCP_CLIENT_VERSION,
 } from '../test/mocks.js';
-import { createSupabaseMcpServer } from './index.js';
+import { createSupabaseMcpServer, version } from './index.js';
 import { createSupabaseApiPlatform } from './platform/api-platform.js';
 
 type SetupOptions = {
@@ -60,5 +60,9 @@ describe('index', () => {
     const { tools } = await client.listTools();
 
     expect(tools.length).toBeGreaterThan(0);
+  });
+
+  test('index.ts exports a version', () => {
+    expect(version).toStrictEqual(expect.any(String));
   });
 });

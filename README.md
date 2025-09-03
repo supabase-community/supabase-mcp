@@ -289,16 +289,43 @@ The PostgREST MCP server allows you to connect your own users to your app via RE
 
 ## For developers
 
-This repo uses npm for package management, and the latest LTS version of Node.js.
+This repo uses pnpm for package management and the active LTS version of Node.js (see versions pinned in `.nvmrc` and `"packageManager"` in `package.json`).
 
 Clone the repo and run:
 
-```
-npm install --ignore-scripts
+```bash
+pnpm install
 ```
 
-> [!NOTE]
-> On recent versions of MacOS, you may have trouble installing the `libpg-query` transient dependency without the `--ignore-scripts` flag.
+To build the MCP server and watch for file changes:
+
+```bash
+cd packages/mcp-server-supabase
+pnpm dev
+```
+
+Configure your MCP client with the `file:` protocol to run the local build. You may need to restart the server in your MCP client after each change.
+
+```json
+{
+  "mcpServers": {
+    "supabase": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@supabase/mcp-server-supabase@file:/path/to/mcp-server-supabase/packages/mcp-server-supabase",
+        "--project-ref",
+        "<your project ref>"
+      ],
+      "env": {
+        "SUPABASE_ACCESS_TOKEN": "<your pat>"
+      }
+    }
+  }
+}
+```
+
+Optionally, configure `--api-url` to point at a different Supabase instance (defaults to `https://api.supabase.com`)
 
 ## License
 

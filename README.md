@@ -8,13 +8,13 @@ The [Model Context Protocol](https://modelcontextprotocol.io/introduction) (MCP)
 
 ## Prerequisites
 
-You will need Node.js installed on your machine. You can check this by running:
+You will need Node.js ([active LTS](https://nodejs.org/en/about/previous-releases) or newer) installed on your machine. You can check this by running:
 
 ```shell
 node -v
 ```
 
-If you don't have Node.js installed, you can download it from [nodejs.org](https://nodejs.org/).
+If you don't have Node.js 22+ installed, you can download it from [nodejs.org](https://nodejs.org/).
 
 ## Setup
 
@@ -289,16 +289,43 @@ The PostgREST MCP server allows you to connect your own users to your app via RE
 
 ## For developers
 
-This repo uses npm for package management, and the latest LTS version of Node.js.
+This repo uses pnpm for package management and the active LTS version of Node.js (see versions pinned in `.nvmrc` and `"packageManager"` in `package.json`).
 
 Clone the repo and run:
 
-```
-npm install --ignore-scripts
+```bash
+pnpm install
 ```
 
-> [!NOTE]
-> On recent versions of MacOS, you may have trouble installing the `libpg-query` transient dependency without the `--ignore-scripts` flag.
+To build the MCP server and watch for file changes:
+
+```bash
+cd packages/mcp-server-supabase
+pnpm dev
+```
+
+Configure your MCP client with the `file:` protocol to run the local build. You may need to restart the server in your MCP client after each change.
+
+```json
+{
+  "mcpServers": {
+    "supabase": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@supabase/mcp-server-supabase@file:/path/to/mcp-server-supabase/packages/mcp-server-supabase",
+        "--project-ref",
+        "<your project ref>"
+      ],
+      "env": {
+        "SUPABASE_ACCESS_TOKEN": "<your pat>"
+      }
+    }
+  }
+}
+```
+
+Optionally, configure `--api-url` to point at a different Supabase instance (defaults to `https://api.supabase.com`)
 
 ## License
 

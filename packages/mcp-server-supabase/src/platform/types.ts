@@ -70,6 +70,9 @@ export const edgeFunctionSchema = z.object({
   import_map: z.boolean().optional(),
   import_map_path: z.string().optional(),
   entrypoint_path: z.string().optional(),
+});
+
+export const edgeFunctionWithBodySchema = edgeFunctionSchema.extend({
   files: z.array(
     z.object({
       name: z.string(),
@@ -134,6 +137,7 @@ export type Organization = z.infer<typeof organizationSchema>;
 export type Project = z.infer<typeof projectSchema>;
 export type Branch = z.infer<typeof branchSchema>;
 export type EdgeFunction = z.infer<typeof edgeFunctionSchema>;
+export type EdgeFunctionWithBody = z.infer<typeof edgeFunctionWithBodySchema>;
 
 export type CreateProjectOptions = z.infer<typeof createProjectOptionsSchema>;
 export type CreateBranchOptions = z.infer<typeof createBranchOptionsSchema>;
@@ -179,7 +183,7 @@ export type EdgeFunctionsOperations = {
   getEdgeFunction(
     projectId: string,
     functionSlug: string
-  ): Promise<EdgeFunction>;
+  ): Promise<EdgeFunctionWithBody>;
   deployEdgeFunction(
     projectId: string,
     options: DeployEdgeFunctionOptions

@@ -56,7 +56,7 @@ describe('edge function e2e tests', () => {
     );
   });
 
-  test.only('modifies an edge function', async () => {
+  test('modifies an edge function', async () => {
     const { client } = await setup();
     const model = getTestModel();
 

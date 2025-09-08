@@ -1225,7 +1225,7 @@ describe('tools', () => {
     ]);
   });
 
-  test.only('get edge function', async () => {
+  test('get edge function', async () => {
     const { callTool } = await setup();
 
     const org = await createOrganization({

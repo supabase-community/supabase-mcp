@@ -26,13 +26,13 @@ export function normalizeFilename({
   deploymentId,
   filename,
 }: { deploymentId: string; filename: string }) {
-  const pathPrefix = `/tmp/user_fn_${deploymentId}/`;
+  const pathPrefix = getPathPrefix(deploymentId);
 
   // Deno 2 uses relative filenames, Deno 1 uses absolute. Resolve both to absolute first.
   const filenameAbsolute = resolve(pathPrefix, filename);
 
-  // Strip prefix
-  return filenameAbsolute.replace(pathPrefix, '');
+  // Strip prefix(es)
+  return filenameAbsolute.replace(pathPrefix, '').replace('source/', '');
 }
 
 export const edgeFunctionExample = codeBlock`

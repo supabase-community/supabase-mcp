@@ -20,6 +20,13 @@ export function getPathPrefix(deploymentId: string) {
 }
 
 /**
+ * Strips a prefix from a string.
+ */
+function withoutPrefix(value: string, prefix: string) {
+  return value.startsWith(prefix) ? value.slice(prefix.length) : value;
+}
+
+/**
  * Strips prefix from edge function file names, accounting for Deno 1 and 2.
  */
 export function normalizeFilename({
@@ -32,9 +39,11 @@ export function normalizeFilename({
   const filenameAbsolute = resolve(pathPrefix, filename);
 
   // Strip prefix(es)
-  return filenameAbsolute
-    .replace(new RegExp(`^${pathPrefix}`), '')
-    .replace(new RegExp(`^source/`), '');
+  let filenameWithoutPrefix = filenameAbsolute;
+  filenameWithoutPrefix = withoutPrefix(filenameWithoutPrefix, pathPrefix);
+  filenameWithoutPrefix = withoutPrefix(filenameWithoutPrefix, 'source/');
+
+  return filenameWithoutPrefix;
 }
 
 export const edgeFunctionExample = codeBlock`

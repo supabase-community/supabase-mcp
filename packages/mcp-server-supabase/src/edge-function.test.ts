@@ -20,4 +20,13 @@ describe('normalizeFilename', () => {
     });
     expect(result).toBe('index.ts');
   });
+
+  it("doesn't interfere with nested directories", () => {
+    const result = normalizeFilename({
+      deploymentId:
+        'xnzcmvwhvqonuunmwgdz_2b72daae-bbb3-437f-80cb-46f2df0463d1_2',
+      filename: '/my/local/source/index.ts',
+    });
+    expect(result).toBe('/my/local/source/index.ts');
+  });
 });

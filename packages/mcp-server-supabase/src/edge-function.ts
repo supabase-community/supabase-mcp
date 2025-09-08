@@ -32,7 +32,9 @@ export function normalizeFilename({
   const filenameAbsolute = resolve(pathPrefix, filename);
 
   // Strip prefix(es)
-  return filenameAbsolute.replace(pathPrefix, '').replace('source/', '');
+  return filenameAbsolute
+    .replace(new RegExp(`^${pathPrefix}`), '')
+    .replace(new RegExp(`^source/`), '');
 }
 
 export const edgeFunctionExample = codeBlock`

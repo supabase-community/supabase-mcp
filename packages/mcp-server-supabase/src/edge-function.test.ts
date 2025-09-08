@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest';
 import { normalizeFilename } from './edge-function.js';
 
-describe('decodeEdgeFunctionFileName', () => {
+describe('normalizeFilename', () => {
   it('handles deno 1 paths', () => {
     const result = normalizeFilename({
       deploymentId:

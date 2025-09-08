@@ -56,7 +56,7 @@ describe("edge function e2e tests", () => {
     );
   });
 
-  test("modifies an edge function", async () => {
+  test.only("modifies an edge function", async () => {
     const { client } = await setup();
     const model = getTestModel();
 
@@ -107,17 +107,20 @@ describe("edge function e2e tests", () => {
           content: `Change my edge function (project id ${project.id}) to replace "world" with "Earth".`,
         },
       ],
-      maxSteps: 3,
+      maxSteps: 4,
       async onStepFinish({ toolCalls: tools }) {
         toolCalls.push(...tools);
       },
     });
 
-    expect(toolCalls).toHaveLength(2);
+    expect(toolCalls).toHaveLength(3);
     expect(toolCalls[0]).toEqual(
       expect.objectContaining({ toolName: "list_edge_functions" }),
     );
     expect(toolCalls[1]).toEqual(
+      expect.objectContaining({ toolName: "get_edge_function" }),
+    );
+    expect(toolCalls[2]).toEqual(
       expect.objectContaining({ toolName: "deploy_edge_function" }),
     );
 

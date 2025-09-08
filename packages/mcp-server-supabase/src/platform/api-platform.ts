@@ -359,20 +359,18 @@ export function createSupabaseApiPlatform(
           edgeFunction.version
         );
 
-        const pathPrefix = getPathPrefix(deploymentId);
-
         const entrypoint_path = edgeFunction.entrypoint_path
-          ? relative(
-              pathPrefix,
-              fileURLToPath(edgeFunction.entrypoint_path, { windows: false })
-            )
+          ? normalizeFilename({
+              deploymentId,
+              filename: fileURLToPath(edgeFunction.entrypoint_path),
+            })
           : undefined;
 
         const import_map_path = edgeFunction.import_map_path
-          ? relative(
-              pathPrefix,
-              fileURLToPath(edgeFunction.import_map_path, { windows: false })
-            )
+          ? normalizeFilename({
+              deploymentId,
+              filename: fileURLToPath(edgeFunction.import_map_path),
+            })
           : undefined;
 
         return {

@@ -222,6 +222,7 @@ Enabled by default. Use `development` to target this group of tools with the [`-
 Enabled by default. Use `functions` to target this group of tools with the [`--features`](#feature-groups) option.
 
 - `list_edge_functions`: Lists all Edge Functions in a Supabase project.
+- `get_edge_function`: Retrieves file contents for an Edge Function in a Supabase project.
 - `deploy_edge_function`: Deploys a new Edge Function to a Supabase project. LLMs can use this to deploy new functions or update existing ones.
 
 #### Branching (Experimental, requires a paid plan)

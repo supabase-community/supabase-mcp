@@ -25,6 +25,18 @@ export function getEdgeFunctionTools({
         return await functions.listEdgeFunctions(project_id);
       },
     }),
+    get_edge_function: injectableTool({
+      description:
+        'Retrieves file contents for an Edge Function in a Supabase project.',
+      parameters: z.object({
+        project_id: z.string(),
+        function_slug: z.string(),
+      }),
+      inject: { project_id },
+      execute: async ({ project_id, function_slug }) => {
+        return await functions.getEdgeFunction(project_id, function_slug);
+      },
+    }),
     deploy_edge_function: injectableTool({
       description: `Deploys an Edge Function to a Supabase project. If the function already exists, this will create a new version. Example:\n\n${edgeFunctionExample}`,
       parameters: z.object({

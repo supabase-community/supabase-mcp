@@ -1221,14 +1221,75 @@ describe('tools', () => {
         updated_at: expect.stringMatching(
           /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
         ),
-        files: [
-          {
-            name: 'index.ts',
-            content: indexContent,
-          },
-        ],
       },
     ]);
+  });
+
+  test('get edge function', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const indexContent = codeBlock`
+      Deno.serve(async (req: Request) => {
+        return new Response('Hello world!', { headers: { 'Content-Type': 'text/plain' } })
+      });
+    `;
+
+    const edgeFunction = await project.deployEdgeFunction(
+      {
+        name: 'hello-world',
+        entrypoint_path: 'index.ts',
+      },
+      [
+        new File([indexContent], 'index.ts', {
+          type: 'application/typescript',
+        }),
+      ]
+    );
+
+    const result = await callTool({
+      name: 'get_edge_function',
+      arguments: {
+        project_id: project.id,
+        function_slug: edgeFunction.slug,
+      },
+    });
+
+    expect(result).toEqual({
+      id: edgeFunction.id,
+      slug: edgeFunction.slug,
+      version: edgeFunction.version,
+      name: edgeFunction.name,
+      status: edgeFunction.status,
+      entrypoint_path: 'index.ts',
+      import_map_path: undefined,
+      import_map: false,
+      verify_jwt: true,
+      created_at: expect.stringMatching(
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
+      ),
+      updated_at: expect.stringMatching(
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
+      ),
+      files: [
+        {
+          name: 'index.ts',
+          content: indexContent,
+        },
+      ],
+    });
   });
 
   test('deploy new edge function', async () => {
@@ -2145,7 +2206,11 @@ describe('feature groups', () => {
     const { tools } = await client.listTools();
     const toolNames = tools.map((tool) => tool.name);
 
-    expect(toolNames).toEqual(['list_edge_functions', 'deploy_edge_function']);
+    expect(toolNames).toEqual([
+      'list_edge_functions',
+      'get_edge_function',
+      'deploy_edge_function',
+    ]);
   });
 
   test('branching tools', async () => {

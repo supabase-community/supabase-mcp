@@ -31,6 +31,7 @@ import {
   type DevelopmentOperations,
   type EdgeFunction,
   type EdgeFunctionsOperations,
+  type EdgeFunctionWithBody,
   type ExecuteSqlOptions,
   type GetLogsOptions,
   type ResetBranchOptions,
@@ -351,15 +352,35 @@ export function createSupabaseApiPlatform(
 
       assertSuccess(response, 'Failed to fetch Edge Functions');
 
-      // Fetch files for each Edge Function
-      return await Promise.all(
-        response.data.map(async (listedFunction) => {
-          return await functions.getEdgeFunction(
-            projectId,
-            listedFunction.slug
-          );
-        })
-      );
+      return response.data.map((edgeFunction) => {
+        const deploymentId = getDeploymentId(
+          projectId,
+          edgeFunction.id,
+          edgeFunction.version
+        );
+
+        const pathPrefix = getPathPrefix(deploymentId);
+
+        const entrypoint_path = edgeFunction.entrypoint_path
+          ? relative(
+              pathPrefix,
+              fileURLToPath(edgeFunction.entrypoint_path, { windows: false })
+            )
+          : undefined;
+
+        const import_map_path = edgeFunction.import_map_path
+          ? relative(
+              pathPrefix,
+              fileURLToPath(edgeFunction.import_map_path, { windows: false })
+            )
+          : undefined;
+
+        return {
+          ...edgeFunction,
+          entrypoint_path,
+          import_map_path,
+        };
+      });
     },
     async getEdgeFunction(projectId: string, functionSlug: string) {
       const functionResponse = await managementApiClient.GET(
@@ -440,7 +461,7 @@ export function createSupabaseApiPlatform(
         throw new Error('No data received from Edge Function body');
       }
 
-      const files: EdgeFunction['files'] = [];
+      const files: EdgeFunctionWithBody['files'] = [];
       const parts = parseMultipartStream(bodyResponse.data, { boundary });
 
       for await (const part of parts) {

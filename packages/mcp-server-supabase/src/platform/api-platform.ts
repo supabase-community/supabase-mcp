@@ -6,7 +6,7 @@ import type { InitData } from '@supabase/mcp-utils';
 import { relative } from 'node:path/posix';
 import { fileURLToPath } from 'node:url';
 import packageJson from '../../package.json' with { type: 'json' };
-import { getDeploymentId, getPathPrefix } from '../edge-function.js';
+import { getDeploymentId, normalizeFilename } from '../edge-function.js';
 import {
   assertSuccess,
   createManagementApiClient,
@@ -359,20 +359,22 @@ export function createSupabaseApiPlatform(
           edgeFunction.version
         );
 
-        const pathPrefix = getPathPrefix(deploymentId);
-
         const entrypoint_path = edgeFunction.entrypoint_path
-          ? relative(
-              pathPrefix,
-              fileURLToPath(edgeFunction.entrypoint_path, { windows: false })
-            )
+          ? normalizeFilename({
+              deploymentId,
+              filename: fileURLToPath(edgeFunction.entrypoint_path, {
+                windows: false,
+              }),
+            })
           : undefined;
 
         const import_map_path = edgeFunction.import_map_path
-          ? relative(
-              pathPrefix,
-              fileURLToPath(edgeFunction.import_map_path, { windows: false })
-            )
+          ? normalizeFilename({
+              deploymentId,
+              filename: fileURLToPath(edgeFunction.import_map_path, {
+                windows: false,
+              }),
+            })
           : undefined;
 
         return {
@@ -409,20 +411,22 @@ export function createSupabaseApiPlatform(
         edgeFunction.version
       );
 
-      const pathPrefix = getPathPrefix(deploymentId);
-
       const entrypoint_path = edgeFunction.entrypoint_path
-        ? relative(
-            pathPrefix,
-            fileURLToPath(edgeFunction.entrypoint_path, { windows: false })
-          )
+        ? normalizeFilename({
+            deploymentId,
+            filename: fileURLToPath(edgeFunction.entrypoint_path, {
+              windows: false,
+            }),
+          })
         : undefined;
 
       const import_map_path = edgeFunction.import_map_path
-        ? relative(
-            pathPrefix,
-            fileURLToPath(edgeFunction.import_map_path, { windows: false })
-          )
+        ? normalizeFilename({
+            deploymentId,
+            filename: fileURLToPath(edgeFunction.import_map_path, {
+              windows: false,
+            }),
+          })
         : undefined;
 
       const bodyResponse = await managementApiClient.GET(
@@ -467,7 +471,10 @@ export function createSupabaseApiPlatform(
       for await (const part of parts) {
         if (part.isFile && part.filename) {
           files.push({
-            name: relative(pathPrefix, part.filename),
+            name: normalizeFilename({
+              deploymentId,
+              filename: part.filename,
+            }),
             content: part.text,
           });
         }

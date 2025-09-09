@@ -1,0 +1,62 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-07-09/server.schema.json",
+  "name": "com.supabase/mcp",
+  "description": "MCP server for interacting with the Supabase platform",
+  "status": "active",
+  "repository": {
+    "url": "https://github.com/supabase-community/mcp-server-supabase",
+    "source": "github"
+  },
+  "version": "0.5.3",
+  "packages": [
+    {
+      "registry_type": "npm",
+      "registry_base_url": "https://registry.npmjs.org",
+      "identifier": "@supabase/mcp-server-supabase",
+      "version": "0.5.3",
+      "transport": {
+        "type": "stdio"
+      },
+      "runtime_hint": "npx",
+      "runtime_arguments": [
+        {
+          "type": "named",
+          "name": "--project-ref",
+          "description": "Supabase project reference ID",
+          "format": "string",
+          "is_required": false
+        },
+        {
+          "type": "named",
+          "name": "--read-only",
+          "description": "Enable read-only mode",
+          "format": "boolean",
+          "is_required": false
+        },
+        {
+          "type": "named",
+          "name": "--features",
+          "description": "Comma-separated list of features to enable",
+          "format": "string",
+          "is_required": false
+        },
+        {
+          "type": "named",
+          "name": "--api-url",
+          "description": "Custom API URL",
+          "format": "string",
+          "is_required": false
+        }
+      ],
+      "environment_variables": [
+        {
+          "name": "SUPABASE_ACCESS_TOKEN",
+          "description": "Personal access token for Supabase API",
+          "format": "string",
+          "is_required": true,
+          "is_secret": true
+        }
+      ]
+    }
+  ]
+}

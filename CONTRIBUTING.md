@@ -43,7 +43,7 @@ Optionally, configure `--api-url` to point at a different Supabase instance (def
 ## Publishing to the MCP registry
 
 We publish the MCP server to the official MCP registry so that it can be discovered and used by MCP clients.
-Note the MCP registry does not host the server itself, only metadata about the server. This is defined in the `server.json` file.
+Note the MCP registry does not host the server itself, only metadata about the server. This is defined in the `packages/mcp-server-supabase/server.json` file.
 
 ### Dependencies
 
@@ -59,13 +59,11 @@ See the [MCP publisher documentation](https://github.com/modelcontextprotocol/re
 
 1. Update the package version in `packages/mcp-server-supabase/package.json`. Follow [semver](https://semver.org/) guidelines for versioning.
 
-2. Update the MCP registry by running:
+2. Update `server.json` with the new version by running:
 
    ```shell
    pnpm registry:update
    ```
-
-This will update the `server.json` file with the new version.
 
 3. Download the `domain-verification-key.pem` from Bitwarden and place it in `packages/mcp-server-supabase/`. This will be used to verify ownership of the `supabase.com` domain during the login process.
 

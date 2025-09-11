@@ -5,7 +5,8 @@
   "status": "active",
   "repository": {
     "url": "https://github.com/supabase-community/mcp-server-supabase",
-    "source": "github"
+    "source": "github",
+    "subfolder": "packages/mcp-server-supabase"
   },
   "version": "0.5.3",
   "packages": [

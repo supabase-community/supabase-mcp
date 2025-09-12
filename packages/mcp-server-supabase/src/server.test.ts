@@ -10,7 +10,6 @@ import { beforeEach, describe, expect, test } from 'vitest';
 import {
   ACCESS_TOKEN,
   API_URL,
-  CLOSEST_REGION,
   contentApiMockSchema,
   createOrganization,
   createProject,
@@ -2118,6 +2117,30 @@ describe('tools', () => {
           /^[a-z0-9_]+$/
         );
       }
+    }
+  });
+
+  test('all tools provide annotations', async () => {
+    const { client } = await setup();
+
+    const { tools } = await client.listTools();
+
+    for (const tool of tools) {
+      expect(tool.annotations, `${tool.name} tool`).toBeDefined();
+      expect(tool.annotations!.title, `${tool.name} tool`).toBeDefined();
+      expect(tool.annotations!.readOnlyHint, `${tool.name} tool`).toBeDefined();
+      expect(
+        tool.annotations!.destructiveHint,
+        `${tool.name} tool`
+      ).toBeDefined();
+      expect(
+        tool.annotations!.idempotentHint,
+        `${tool.name} tool`
+      ).toBeDefined();
+      expect(
+        tool.annotations!.openWorldHint,
+        `${tool.name} tool`
+      ).toBeDefined();
     }
   });
 });

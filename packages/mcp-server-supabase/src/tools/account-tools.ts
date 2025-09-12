@@ -13,6 +13,13 @@ export function getAccountTools({ account }: AccountToolsOptions) {
   return {
     list_organizations: tool({
       description: 'Lists all organizations that the user is a member of.',
+      annotations: {
+        title: 'List organizations',
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
       parameters: z.object({}),
       execute: async () => {
         return await account.listOrganizations();
@@ -21,6 +28,13 @@ export function getAccountTools({ account }: AccountToolsOptions) {
     get_organization: tool({
       description:
         'Gets details for an organization. Includes subscription plan.',
+      annotations: {
+        title: 'Get organization details',
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
       parameters: z.object({
         id: z.string().describe('The organization ID'),
       }),
@@ -31,6 +45,13 @@ export function getAccountTools({ account }: AccountToolsOptions) {
     list_projects: tool({
       description:
         'Lists all Supabase projects for the user. Use this to help discover the project ID of the project that the user is working on.',
+      annotations: {
+        title: 'List projects',
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
       parameters: z.object({}),
       execute: async () => {
         return await account.listProjects();
@@ -38,6 +59,13 @@ export function getAccountTools({ account }: AccountToolsOptions) {
     }),
     get_project: tool({
       description: 'Gets details for a Supabase project.',
+      annotations: {
+        title: 'Get project details',
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
       parameters: z.object({
         id: z.string().describe('The project ID'),
       }),
@@ -48,6 +76,13 @@ export function getAccountTools({ account }: AccountToolsOptions) {
     get_cost: tool({
       description:
         'Gets the cost of creating a new project or branch. Never assume organization as costs can be different for each.',
+      annotations: {
+        title: 'Get cost of new resources',
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
       parameters: z.object({
         type: z.enum(['project', 'branch']),
         organization_id: z
@@ -75,6 +110,13 @@ export function getAccountTools({ account }: AccountToolsOptions) {
     confirm_cost: tool({
       description:
         'Ask the user to confirm their understanding of the cost of creating a new project or branch. Call `get_cost` first. Returns a unique ID for this confirmation which should be passed to `create_project` or `create_branch`.',
+      annotations: {
+        title: 'Confirm cost understanding',
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
       parameters: z.object({
         type: z.enum(['project', 'branch']),
         recurrence: z.enum(['hourly', 'monthly']),
@@ -87,6 +129,13 @@ export function getAccountTools({ account }: AccountToolsOptions) {
     create_project: tool({
       description:
         'Creates a new Supabase project. Always ask the user which organization to create the project in. The project can take a few minutes to initialize - use `get_project` to check the status.',
+      annotations: {
+        title: 'Create project',
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
       parameters: z.object({
         name: z.string().describe('The name of the project'),
         region: z
@@ -118,6 +167,13 @@ export function getAccountTools({ account }: AccountToolsOptions) {
     }),
     pause_project: tool({
       description: 'Pauses a Supabase project.',
+      annotations: {
+        title: 'Pause project',
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
       parameters: z.object({
         project_id: z.string(),
       }),
@@ -127,6 +183,13 @@ export function getAccountTools({ account }: AccountToolsOptions) {
     }),
     restore_project: tool({
       description: 'Restores a Supabase project.',
+      annotations: {
+        title: 'Restore project',
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
       parameters: z.object({
         project_id: z.string(),
       }),

@@ -18,6 +18,13 @@ export function getDebuggingTools({
     get_logs: injectableTool({
       description:
         'Gets logs for a Supabase project by service type. Use this to help debug problems with your app. This will only return logs within the last minute. If the logs you are looking for are older than 1 minute, re-run your test to reproduce them.',
+      annotations: {
+        title: 'Get project logs',
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
       parameters: z.object({
         project_id: z.string(),
         service: z
@@ -51,6 +58,13 @@ export function getDebuggingTools({
     get_advisors: injectableTool({
       description:
         "Gets a list of advisory notices for the Supabase project. Use this to check for security vulnerabilities or performance improvements. Include the remediation URL as a clickable link so that the user can reference the issue themselves. It's recommended to run this tool regularly, especially after making DDL changes to the database since it will catch things like missing RLS policies.",
+      annotations: {
+        title: 'Get project advisors',
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
       parameters: z.object({
         project_id: z.string(),
         type: z

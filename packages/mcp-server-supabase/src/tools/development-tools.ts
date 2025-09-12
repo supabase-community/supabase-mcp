@@ -16,6 +16,13 @@ export function getDevelopmentTools({
   return {
     get_project_url: injectableTool({
       description: 'Gets the API URL for a project.',
+      annotations: {
+        title: 'Get project URL',
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
       parameters: z.object({
         project_id: z.string(),
       }),
@@ -26,6 +33,13 @@ export function getDevelopmentTools({
     }),
     get_anon_key: injectableTool({
       description: 'Gets the anonymous API key for a project.',
+      annotations: {
+        title: 'Get anon key',
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
       parameters: z.object({
         project_id: z.string(),
       }),
@@ -36,6 +50,13 @@ export function getDevelopmentTools({
     }),
     generate_typescript_types: injectableTool({
       description: 'Generates TypeScript types for a project.',
+      annotations: {
+        title: 'Generate TypeScript types',
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
       parameters: z.object({
         project_id: z.string(),
       }),

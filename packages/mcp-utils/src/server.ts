@@ -11,6 +11,7 @@ import {
   type ListResourceTemplatesResult,
   type ReadResourceResult,
   type ServerCapabilities,
+  type ListToolsResult,
 } from '@modelcontextprotocol/sdk/types.js';
 import type { z } from 'zod';
 import zodToJsonSchema from 'zod-to-json-schema';
@@ -24,6 +25,9 @@ import type {
 import { assertValidUri, compareUris, matchUriTemplate } from './util.js';
 
 export type Scheme = string;
+export type Annotations = NonNullable<
+  ListToolsResult['tools'][number]['annotations']
+>;
 
 export type Resource<Uri extends string = string, Result = unknown> = {
   uri: Uri;
@@ -51,6 +55,7 @@ export type Tool<
   Result = unknown,
 > = {
   description: string;
+  annotations?: Annotations;
   parameters: Params;
   execute(params: z.infer<Params>): Promise<Result>;
 };
@@ -182,6 +187,14 @@ export type McpServerOptions = {
   name: string;
 
   /**
+   * The title of the MCP server. This is a human-readable name that can be
+   * displayed in the client UI.
+   *
+   * If not provided, the name will be used as the title.
+   */
+  title?: string;
+
+  /**
    * The version of the MCP server. This will be sent to the client as part of
    * the initialization process.
    */
@@ -237,6 +250,7 @@ export function createMcpServer(options: McpServerOptions) {
   const server = new Server(
     {
       name: options.name,
+      title: options.title,
       version: options.version,
     },
     {
@@ -394,20 +408,30 @@ export function createMcpServer(options: McpServerOptions) {
   }
 
   if (options.tools) {
-    server.setRequestHandler(ListToolsRequestSchema, async () => {
-      const tools = await getTools();
-      return {
-        tools: Object.entries(tools).map(
-          ([name, { description, parameters }]) => {
-            return {
-              name,
-              description,
-              inputSchema: zodToJsonSchema(parameters),
-            };
-          }
-        ),
-      };
-    });
+    server.setRequestHandler(
+      ListToolsRequestSchema,
+      async (): Promise<ListToolsResult> => {
+        const tools = await getTools();
+        return {
+          tools: Object.entries(tools).map(
+            ([name, { description, annotations, parameters }]) => {
+              const inputSchema = zodToJsonSchema(parameters);
+
+              if (!('properties' in inputSchema)) {
+                throw new Error('tool parameters must be a ZodObject');
+              }
+
+              return {
+                name,
+                description,
+                annotations,
+                inputSchema,
+              };
+            }
+          ),
+        };
+      }
+    );
 
     server.setRequestHandler(CallToolRequestSchema, async (request) => {
       try {

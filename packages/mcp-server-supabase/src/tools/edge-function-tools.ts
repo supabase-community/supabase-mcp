@@ -19,6 +19,13 @@ export function getEdgeFunctionTools({
   return {
     list_edge_functions: injectableTool({
       description: 'Lists all Edge Functions in a Supabase project.',
+      annotations: {
+        title: 'List Edge Functions',
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
       parameters: z.object({
         project_id: z.string(),
       }),
@@ -30,6 +37,13 @@ export function getEdgeFunctionTools({
     get_edge_function: injectableTool({
       description:
         'Retrieves file contents for an Edge Function in a Supabase project.',
+      annotations: {
+        title: 'Get Edge Function',
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
       parameters: z.object({
         project_id: z.string(),
         function_slug: z.string(),
@@ -41,6 +55,13 @@ export function getEdgeFunctionTools({
     }),
     deploy_edge_function: injectableTool({
       description: `Deploys an Edge Function to a Supabase project. If the function already exists, this will create a new version. Example:\n\n${edgeFunctionExample}`,
+      annotations: {
+        title: 'Deploy Edge Function',
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
       parameters: z.object({
         project_id: z.string(),
         name: z.string().describe('The name of the function'),

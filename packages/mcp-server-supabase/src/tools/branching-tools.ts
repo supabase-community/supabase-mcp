@@ -22,6 +22,13 @@ export function getBranchingTools({
     create_branch: injectableTool({
       description:
         'Creates a development branch on a Supabase project. This will apply all migrations from the main project to a fresh branch database. Note that production data will not carry over. The branch will get its own project_id via the resulting project_ref. Use this ID to execute queries and migrations on the branch.',
+      annotations: {
+        title: 'Create branch',
+        readOnlyHint: false,
+        destructiveHint: false,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
       parameters: z.object({
         project_id: z.string(),
         name: z
@@ -54,6 +61,13 @@ export function getBranchingTools({
     list_branches: injectableTool({
       description:
         'Lists all development branches of a Supabase project. This will return branch details including status which you can use to check when operations like merge/rebase/reset complete.',
+      annotations: {
+        title: 'List branches',
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
       parameters: z.object({
         project_id: z.string(),
       }),
@@ -64,6 +78,13 @@ export function getBranchingTools({
     }),
     delete_branch: tool({
       description: 'Deletes a development branch.',
+      annotations: {
+        title: 'Delete branch',
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
       parameters: z.object({
         branch_id: z.string(),
       }),
@@ -78,6 +99,13 @@ export function getBranchingTools({
     merge_branch: tool({
       description:
         'Merges migrations and edge functions from a development branch to production.',
+      annotations: {
+        title: 'Merge branch',
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
       parameters: z.object({
         branch_id: z.string(),
       }),
@@ -92,6 +120,13 @@ export function getBranchingTools({
     reset_branch: tool({
       description:
         'Resets migrations of a development branch. Any untracked data or schema changes will be lost.',
+      annotations: {
+        title: 'Reset branch',
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
       parameters: z.object({
         branch_id: z.string(),
         migration_version: z
@@ -114,6 +149,13 @@ export function getBranchingTools({
     rebase_branch: tool({
       description:
         'Rebases a development branch on production. This will effectively run any newer migrations from production onto this branch to help handle migration drift.',
+      annotations: {
+        title: 'Rebase branch',
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
       parameters: z.object({
         branch_id: z.string(),
       }),

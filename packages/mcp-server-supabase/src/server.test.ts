@@ -2485,6 +2485,30 @@ describe('tools', () => {
       }
     }
   });
+
+  test('all tools provide annotations', async () => {
+    const { client } = await setup();
+
+    const { tools } = await client.listTools();
+
+    for (const tool of tools) {
+      expect(tool.annotations, `${tool.name} tool`).toBeDefined();
+      expect(tool.annotations!.title, `${tool.name} tool`).toBeDefined();
+      expect(tool.annotations!.readOnlyHint, `${tool.name} tool`).toBeDefined();
+      expect(
+        tool.annotations!.destructiveHint,
+        `${tool.name} tool`
+      ).toBeDefined();
+      expect(
+        tool.annotations!.idempotentHint,
+        `${tool.name} tool`
+      ).toBeDefined();
+      expect(
+        tool.annotations!.openWorldHint,
+        `${tool.name} tool`
+      ).toBeDefined();
+    }
+  });
 });
 
 describe('feature groups', () => {

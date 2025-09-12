@@ -89,6 +89,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
 
   const server = createMcpServer({
     name: 'supabase',
+    title: 'Supabase',
     version,
     async onInitialize(info) {
       // Note: in stateless HTTP mode, `onInitialize` will not always be called

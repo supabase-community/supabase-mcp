@@ -13,6 +13,13 @@ export function getStorageTools({ storage, projectId }: StorageToolsOptions) {
   return {
     list_storage_buckets: injectableTool({
       description: 'Lists all storage buckets in a Supabase project.',
+      annotations: {
+        title: 'List storage buckets',
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
       parameters: z.object({
         project_id: z.string(),
       }),
@@ -23,6 +30,13 @@ export function getStorageTools({ storage, projectId }: StorageToolsOptions) {
     }),
     get_storage_config: injectableTool({
       description: 'Get the storage config for a Supabase project.',
+      annotations: {
+        title: 'Get storage config',
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
       parameters: z.object({
         project_id: z.string(),
       }),
@@ -33,6 +47,13 @@ export function getStorageTools({ storage, projectId }: StorageToolsOptions) {
     }),
     update_storage_config: injectableTool({
       description: 'Update the storage config for a Supabase project.',
+      annotations: {
+        title: 'Update storage config',
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: false,
+      },
       parameters: z.object({
         project_id: z.string(),
         config: z.object({

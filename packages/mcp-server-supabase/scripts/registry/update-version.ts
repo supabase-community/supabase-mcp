@@ -1,8 +1,10 @@
 import { readFile, writeFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 
-const packageJsonPath = fileURLToPath(import.meta.resolve('../package.json'));
-const serverJsonPath = fileURLToPath(import.meta.resolve('../server.json'));
+const packageJsonPath = fileURLToPath(
+  import.meta.resolve('../../package.json')
+);
+const serverJsonPath = fileURLToPath(import.meta.resolve('../../server.json'));
 
 try {
   // Read package.json to get the version

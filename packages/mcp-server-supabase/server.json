@@ -8,13 +8,13 @@
     "source": "github",
     "subfolder": "packages/mcp-server-supabase"
   },
-  "version": "0.5.3",
+  "version": "0.5.4",
   "packages": [
     {
       "registry_type": "npm",
       "registry_base_url": "https://registry.npmjs.org",
       "identifier": "@supabase/mcp-server-supabase",
-      "version": "0.5.3",
+      "version": "0.5.4",
       "transport": {
         "type": "stdio"
       },

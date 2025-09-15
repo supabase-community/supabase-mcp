@@ -1,3 +1,4 @@
+
 {
   "framework": null,
   "buildCommand": "pnpm -w -r install --prod=false && pnpm -w --filter @supabase/mcp-utils --filter @supabase/mcp-server-supabase build",

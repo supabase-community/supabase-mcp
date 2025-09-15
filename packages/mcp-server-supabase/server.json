@@ -4,7 +4,7 @@
   "description": "MCP server for interacting with the Supabase platform",
   "status": "active",
   "repository": {
-    "url": "https://github.com/supabase-community/mcp-server-supabase",
+    "url": "https://github.com/supabase-community/supabase-mcp",
     "source": "github",
     "subfolder": "packages/mcp-server-supabase"
   },

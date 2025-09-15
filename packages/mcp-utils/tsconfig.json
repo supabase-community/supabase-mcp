@@ -1,4 +1,10 @@
 {
-  "extends": "@total-typescript/tsconfig/bundler/no-dom/library",
-  "include": ["src/**/*.ts"]
+  "extends": "../../tsconfig.json",
+  "compilerOptions": {
+    "outDir": "dist",
+    "declaration": true,
+    "emitDeclarationOnly": false,
+    "composite": true
+  },
+  "include": ["src"]
 }

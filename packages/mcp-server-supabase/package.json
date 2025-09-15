@@ -1,6 +1,7 @@
 {
   "name": "@supabase/mcp-server-supabase",
-  "version": "0.4.5",
+  "mcpName": "com.supabase/mcp",
+  "version": "0.5.4",
   "description": "MCP server for interacting with Supabase",
   "license": "Apache-2.0",
   "type": "module",
@@ -9,7 +10,13 @@
   "sideEffects": false,
   "scripts": {
     "build": "tsup --clean",
-    "prepublishOnly": "npm run build",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "prebuild": "pnpm typecheck",
+    "prepublishOnly": "pnpm build",
+    "registry:update": "tsx scripts/registry/update-version.ts",
+    "registry:login": "scripts/registry/login.sh",
+    "registry:publish": "mcp-publisher publish",
     "test": "vitest",
     "test:unit": "vitest --project unit",
     "test:e2e": "vitest --project e2e",
@@ -17,28 +24,31 @@
     "test:coverage": "vitest --coverage",
     "generate:management-api-types": "openapi-typescript https://api.supabase.com/api/v1-json -o ./src/management-api/types.ts"
   },
-  "files": [
-    "dist/**/*"
-  ],
+  "files": ["dist/**/*"],
   "bin": {
     "mcp-server-supabase": "./dist/transports/stdio.js"
   },
   "exports": {
     ".": {
-      "import": "./dist/index.js",
       "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
       "default": "./dist/index.cjs"
     },
     "./platform": {
-      "import": "./dist/platform/index.js",
       "types": "./dist/platform/index.d.ts",
+      "import": "./dist/platform/index.js",
       "default": "./dist/platform/index.cjs"
+    },
+    "./platform/api": {
+      "types": "./dist/platform/api-platform.d.ts",
+      "import": "./dist/platform/api-platform.js",
+      "default": "./dist/platform/api-platform.cjs"
     }
   },
   "dependencies": {
     "@mjackson/multipart-parser": "^0.10.1",
     "@modelcontextprotocol/sdk": "^1.11.0",
-    "@supabase/mcp-utils": "0.2.1",
+    "@supabase/mcp-utils": "workspace:^",
     "common-tags": "^1.8.2",
     "graphql": "^16.11.0",
     "openapi-fetch": "^0.13.5",
@@ -62,6 +72,7 @@
     "tsup": "^8.3.5",
     "tsx": "^4.19.2",
     "typescript": "^5.6.3",
+    "vite": "^5.4.19",
     "vitest": "^2.1.9"
   }
 }

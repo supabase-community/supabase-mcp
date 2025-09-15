@@ -32,8 +32,8 @@ async function setup(options: SetupOptions = {}) {
     }
   });
 
-  const command = 'npx';
-  const args = ['@supabase/mcp-server-supabase'];
+  const command = 'node';
+  const args = ['dist/transports/stdio.js'];
 
   if (accessToken) {
     args.push('--access-token', accessToken);

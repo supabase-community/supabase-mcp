@@ -1,4 +1,5 @@
 import { codeBlock } from 'common-tags';
+import { resolve } from 'node:path';
 
 /**
  * Gets the deployment ID for an Edge Function.
@@ -16,6 +17,33 @@ export function getDeploymentId(
  */
 export function getPathPrefix(deploymentId: string) {
   return `/tmp/user_fn_${deploymentId}/`;
+}
+
+/**
+ * Strips a prefix from a string.
+ */
+function withoutPrefix(value: string, prefix: string) {
+  return value.startsWith(prefix) ? value.slice(prefix.length) : value;
+}
+
+/**
+ * Strips prefix from edge function file names, accounting for Deno 1 and 2.
+ */
+export function normalizeFilename({
+  deploymentId,
+  filename,
+}: { deploymentId: string; filename: string }) {
+  const pathPrefix = getPathPrefix(deploymentId);
+
+  // Deno 2 uses relative filenames, Deno 1 uses absolute. Resolve both to absolute first.
+  const filenameAbsolute = resolve(pathPrefix, filename);
+
+  // Strip prefix(es)
+  let filenameWithoutPrefix = filenameAbsolute;
+  filenameWithoutPrefix = withoutPrefix(filenameWithoutPrefix, pathPrefix);
+  filenameWithoutPrefix = withoutPrefix(filenameWithoutPrefix, 'source/');
+
+  return filenameWithoutPrefix;
 }
 
 export const edgeFunctionExample = codeBlock`

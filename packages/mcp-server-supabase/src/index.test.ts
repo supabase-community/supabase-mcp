@@ -7,7 +7,8 @@ import {
   MCP_CLIENT_NAME,
   MCP_CLIENT_VERSION,
 } from '../test/mocks.js';
-import { createSupabaseMcpServer } from './index.js';
+import { createSupabaseMcpServer, version } from './index.js';
+import { createSupabaseApiPlatform } from './platform/api-platform.js';
 
 type SetupOptions = {
   accessToken?: string;
@@ -34,11 +35,13 @@ async function setup(options: SetupOptions = {}) {
     }
   );
 
+  const platform = createSupabaseApiPlatform({
+    apiUrl: API_URL,
+    accessToken,
+  });
+
   const server = createSupabaseMcpServer({
-    platform: {
-      apiUrl: API_URL,
-      accessToken,
-    },
+    platform,
     projectId,
     readOnly,
     features,
@@ -57,5 +60,9 @@ describe('index', () => {
     const { tools } = await client.listTools();
 
     expect(tools.length).toBeGreaterThan(0);
+  });
+
+  test('index.ts exports a version', () => {
+    expect(version).toStrictEqual(expect.any(String));
   });
 });

@@ -8,13 +8,13 @@ The [Model Context Protocol](https://modelcontextprotocol.io/introduction) (MCP)
 
 ## Prerequisites
 
-You will need Node.js installed on your machine. You can check this by running:
+You will need Node.js ([active LTS](https://nodejs.org/en/about/previous-releases) or newer) installed on your machine. You can check this by running:
 
 ```shell
 node -v
 ```
 
-If you don't have Node.js installed, you can download it from [nodejs.org](https://nodejs.org/).
+If you don't have Node.js 22+ installed, you can download it from [nodejs.org](https://nodejs.org/).
 
 ## Setup
 
@@ -171,9 +171,9 @@ You can enable or disable specific tool groups by passing the `--features` flag 
 npx -y @supabase/mcp-server-supabase@latest --features=database,docs
 ```
 
-Available groups are: [`account`](#account), [`docs`](#knowledge-base), [`database`](#database), [`debug`](#debug), [`development`](#development), [`functions`](#edge-functions), [`storage`](#storage), and [`branching`](#branching-experimental-requires-a-paid-plan).
+Available groups are: [`account`](#account), [`docs`](#knowledge-base), [`database`](#database), [`debugging`](#debugging), [`development`](#development), [`functions`](#edge-functions), [`storage`](#storage), and [`branching`](#branching-experimental-requires-a-paid-plan).
 
-If this flag is not passed, the default feature groups are: `account`, `database`, `debug`, `development`, `docs`, `functions`, and `branching`.
+If this flag is not passed, the default feature groups are: `account`, `database`, `debugging`, `development`, `docs`, `functions`, and `branching`.
 
 ## Tools
 
@@ -213,9 +213,9 @@ Enabled by default. Use `database` to target this group of tools with the [`--fe
 - `apply_migration`: Applies a SQL migration to the database. SQL passed to this tool will be tracked within the database, so LLMs should use this for DDL operations (schema changes).
 - `execute_sql`: Executes raw SQL in the database. LLMs should use this for regular queries that don't change the schema.
 
-#### Debug
+#### Debugging
 
-Enabled by default. Use `debug` to target this group of tools with the [`--features`](#feature-groups) option.
+Enabled by default. Use `debugging` to target this group of tools with the [`--features`](#feature-groups) option.
 
 - `get_logs`: Gets logs for a Supabase project by service type (api, postgres, edge functions, auth, storage, realtime). LLMs can use this to help with debugging and monitoring service performance.
 - `get_advisors`: Gets a list of advisory notices for a Supabase project. LLMs can use this to check for security vulnerabilities or performance issues.
@@ -233,6 +233,7 @@ Enabled by default. Use `development` to target this group of tools with the [`-
 Enabled by default. Use `functions` to target this group of tools with the [`--features`](#feature-groups) option.
 
 - `list_edge_functions`: Lists all Edge Functions in a Supabase project.
+- `get_edge_function`: Retrieves file contents for an Edge Function in a Supabase project.
 - `deploy_edge_function`: Deploys a new Edge Function to a Supabase project. LLMs can use this to deploy new functions or update existing ones.
 
 #### Branching (Experimental, requires a paid plan)
@@ -300,16 +301,7 @@ The PostgREST MCP server allows you to connect your own users to your app via RE
 
 ## For developers
 
-This repo uses npm for package management, and the latest LTS version of Node.js.
-
-Clone the repo and run:
-
-```
-npm install --ignore-scripts
-```
-
-> [!NOTE]
-> On recent versions of MacOS, you may have trouble installing the `libpg-query` transient dependency without the `--ignore-scripts` flag.
+See [CONTRIBUTING](./CONTRIBUTING.md) for details on how to contribute to this project.
 
 ## License
 

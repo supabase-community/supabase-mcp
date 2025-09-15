@@ -70,6 +70,9 @@ export const edgeFunctionSchema = z.object({
   import_map: z.boolean().optional(),
   import_map_path: z.string().optional(),
   entrypoint_path: z.string().optional(),
+});
+
+export const edgeFunctionWithBodySchema = edgeFunctionSchema.extend({
   files: z.array(
     z.object({
       name: z.string(),
@@ -81,7 +84,7 @@ export const edgeFunctionSchema = z.object({
 export const createProjectOptionsSchema = z.object({
   name: z.string(),
   organization_id: z.string(),
-  region: z.enum(AWS_REGION_CODES).optional(),
+  region: z.enum(AWS_REGION_CODES),
   db_pass: z.string().optional(),
 });
 
@@ -134,6 +137,7 @@ export type Organization = z.infer<typeof organizationSchema>;
 export type Project = z.infer<typeof projectSchema>;
 export type Branch = z.infer<typeof branchSchema>;
 export type EdgeFunction = z.infer<typeof edgeFunctionSchema>;
+export type EdgeFunctionWithBody = z.infer<typeof edgeFunctionWithBodySchema>;
 
 export type CreateProjectOptions = z.infer<typeof createProjectOptionsSchema>;
 export type CreateBranchOptions = z.infer<typeof createBranchOptionsSchema>;
@@ -155,18 +159,16 @@ export type GenerateTypescriptTypesResult = z.infer<
 export type StorageConfig = z.infer<typeof storageConfigSchema>;
 export type StorageBucket = z.infer<typeof storageBucketSchema>;
 
-export type SupabasePlatform = {
-  init?(info: InitData): Promise<void>;
-
-  // Database operations
+export type DatabaseOperations = {
   executeSql<T>(projectId: string, options: ExecuteSqlOptions): Promise<T[]>;
   listMigrations(projectId: string): Promise<Migration[]>;
   applyMigration(
     projectId: string,
     options: ApplyMigrationOptions
   ): Promise<void>;
+};
 
-  // Account
+export type AccountOperations = {
   listOrganizations(): Promise<Pick<Organization, 'id' | 'name'>[]>;
   getOrganization(organizationId: string): Promise<Organization>;
   listProjects(): Promise<Project[]>;
@@ -174,31 +176,41 @@ export type SupabasePlatform = {
   createProject(options: CreateProjectOptions): Promise<Project>;
   pauseProject(projectId: string): Promise<void>;
   restoreProject(projectId: string): Promise<void>;
+};
 
-  // Edge functions
+export type EdgeFunctionsOperations = {
   listEdgeFunctions(projectId: string): Promise<EdgeFunction[]>;
   getEdgeFunction(
     projectId: string,
     functionSlug: string
-  ): Promise<EdgeFunction>;
+  ): Promise<EdgeFunctionWithBody>;
   deployEdgeFunction(
     projectId: string,
     options: DeployEdgeFunctionOptions
   ): Promise<Omit<EdgeFunction, 'files'>>;
+};
 
-  // Debugging
+export type DebuggingOperations = {
   getLogs(projectId: string, options: GetLogsOptions): Promise<unknown>;
   getSecurityAdvisors(projectId: string): Promise<unknown>;
   getPerformanceAdvisors(projectId: string): Promise<unknown>;
+};
 
-  // Development
+export type DevelopmentOperations = {
   getProjectUrl(projectId: string): Promise<string>;
   getAnonKey(projectId: string): Promise<string>;
   generateTypescriptTypes(
     projectId: string
   ): Promise<GenerateTypescriptTypesResult>;
+};
 
-  // Branching
+export type StorageOperations = {
+  getStorageConfig(projectId: string): Promise<StorageConfig>;
+  updateStorageConfig(projectId: string, config: StorageConfig): Promise<void>;
+  listAllBuckets(projectId: string): Promise<StorageBucket[]>;
+};
+
+export type BranchingOperations = {
   listBranches(projectId: string): Promise<Branch[]>;
   createBranch(
     projectId: string,
@@ -208,9 +220,15 @@ export type SupabasePlatform = {
   mergeBranch(branchId: string): Promise<void>;
   resetBranch(branchId: string, options: ResetBranchOptions): Promise<void>;
   rebaseBranch(branchId: string): Promise<void>;
+};
 
-  // Storage
-  getStorageConfig(projectId: string): Promise<StorageConfig>;
-  updateStorageConfig(projectId: string, config: StorageConfig): Promise<void>;
-  listAllBuckets(projectId: string): Promise<StorageBucket[]>;
+export type SupabasePlatform = {
+  init?(info: InitData): Promise<void>;
+  account?: AccountOperations;
+  database?: DatabaseOperations;
+  functions?: EdgeFunctionsOperations;
+  debugging?: DebuggingOperations;
+  development?: DevelopmentOperations;
+  storage?: StorageOperations;
+  branching?: BranchingOperations;
 };

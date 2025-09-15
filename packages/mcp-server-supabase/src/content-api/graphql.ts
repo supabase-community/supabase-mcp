@@ -150,6 +150,13 @@ export class GraphQLClient {
   }
 
   /**
+   * Sets the User-Agent header for all requests.
+   */
+  setUserAgent(userAgent: string) {
+    this.#headers['User-Agent'] = userAgent;
+  }
+
+  /**
    * Executes a GraphQL query against the provided URL.
    *
    * Does not validate the query against the schema.

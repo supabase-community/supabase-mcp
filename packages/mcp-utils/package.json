@@ -9,9 +9,12 @@
   "sideEffects": false,
   "scripts": {
     "build": "tsup --clean",
+    "dev": "tsup --watch",
+    "typecheck": "tsc --noEmit",
+    "prebuild": "pnpm typecheck",
     "test": "vitest",
     "test:coverage": "vitest --coverage",
-    "prepublishOnly": "npm run build"
+    "prepublishOnly": "pnpm build"
   },
   "files": ["dist/**/*"],
   "exports": {

@@ -10,7 +10,6 @@ import { beforeEach, describe, expect, test } from 'vitest';
 import {
   ACCESS_TOKEN,
   API_URL,
-  CLOSEST_REGION,
   contentApiMockSchema,
   createOrganization,
   createProject,
@@ -25,7 +24,8 @@ import {
 } from '../test/mocks.js';
 import { createSupabaseApiPlatform } from './platform/api-platform.js';
 import { BRANCH_COST_HOURLY, PROJECT_COST_MONTHLY } from './pricing.js';
-import { createSupabaseMcpServer, type FeatureGroup } from './server.js';
+import { createSupabaseMcpServer } from './server.js';
+import type { SupabasePlatform } from './platform/types.js';
 
 beforeEach(async () => {
   mockOrgs.clear();
@@ -39,8 +39,9 @@ beforeEach(async () => {
 type SetupOptions = {
   accessToken?: string;
   projectId?: string;
+  platform?: SupabasePlatform;
   readOnly?: boolean;
-  features?: FeatureGroup[];
+  features?: string[];
 };
 
 /**
@@ -64,10 +65,12 @@ async function setup(options: SetupOptions = {}) {
     }
   );
 
-  const platform = createSupabaseApiPlatform({
-    accessToken,
-    apiUrl: API_URL,
-  });
+  const platform =
+    options.platform ??
+    createSupabaseApiPlatform({
+      accessToken,
+      apiUrl: API_URL,
+    });
 
   const server = createSupabaseMcpServer({
     platform,
@@ -413,7 +416,7 @@ describe('tools', () => {
     );
   });
 
-  test('create project chooses closest region when undefined', async () => {
+  test('create project without region fails', async () => {
     const { callTool } = await setup();
 
     const freeOrg = await createOrganization({
@@ -437,22 +440,12 @@ describe('tools', () => {
       confirm_cost_id,
     };
 
-    const result = await callTool({
+    const createProjectPromise = callTool({
       name: 'create_project',
       arguments: newProject,
     });
 
-    const { confirm_cost_id: _, ...projectInfo } = newProject;
-
-    expect(result).toEqual({
-      ...projectInfo,
-      id: expect.stringMatching(/^.+$/),
-      created_at: expect.stringMatching(
-        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
-      ),
-      status: 'UNKNOWN',
-      region: CLOSEST_REGION,
-    });
+    await expect(createProjectPromise).rejects.toThrow();
   });
 
   test('create project without cost confirmation fails', async () => {
@@ -937,48 +930,20 @@ describe('tools', () => {
 
     expect(listTablesResult).toEqual([
       {
-        bytes: 8192,
+        schema: 'public',
+        name: 'test',
+        rls_enabled: false,
+        rows: 0,
         columns: [
           {
-            check: null,
-            comment: null,
+            name: 'id',
             data_type: 'integer',
-            default_value: null,
-            enums: [],
             format: 'int4',
-            id: expect.stringMatching(/^\d+\.\d+$/),
+            options: ['identity', 'updatable'],
             identity_generation: 'ALWAYS',
-            is_generated: false,
-            is_identity: true,
-            is_nullable: false,
-            is_unique: false,
-            is_updatable: true,
-            name: 'id',
-            ordinal_position: 1,
-            schema: 'public',
-            table: 'test',
-            table_id: expect.any(Number),
           },
         ],
-        comment: null,
-        dead_rows_estimate: 0,
-        id: expect.any(Number),
-        live_rows_estimate: 0,
-        name: 'test',
-        primary_keys: [
-          {
-            name: 'id',
-            schema: 'public',
-            table_id: expect.any(Number),
-            table_name: 'test',
-          },
-        ],
-        relationships: [],
-        replica_identity: 'DEFAULT',
-        rls_enabled: false,
-        rls_forced: false,
-        schema: 'public',
-        size: '8192 bytes',
+        primary_keys: ['id'],
       },
     ]);
   });
@@ -1384,14 +1349,75 @@ describe('tools', () => {
         updated_at: expect.stringMatching(
           /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
         ),
-        files: [
-          {
-            name: 'index.ts',
-            content: indexContent,
-          },
-        ],
       },
     ]);
+  });
+
+  test('get edge function', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const indexContent = codeBlock`
+      Deno.serve(async (req: Request) => {
+        return new Response('Hello world!', { headers: { 'Content-Type': 'text/plain' } })
+      });
+    `;
+
+    const edgeFunction = await project.deployEdgeFunction(
+      {
+        name: 'hello-world',
+        entrypoint_path: 'index.ts',
+      },
+      [
+        new File([indexContent], 'index.ts', {
+          type: 'application/typescript',
+        }),
+      ]
+    );
+
+    const result = await callTool({
+      name: 'get_edge_function',
+      arguments: {
+        project_id: project.id,
+        function_slug: edgeFunction.slug,
+      },
+    });
+
+    expect(result).toEqual({
+      id: edgeFunction.id,
+      slug: edgeFunction.slug,
+      version: edgeFunction.version,
+      name: edgeFunction.name,
+      status: edgeFunction.status,
+      entrypoint_path: 'index.ts',
+      import_map_path: undefined,
+      import_map: false,
+      verify_jwt: true,
+      created_at: expect.stringMatching(
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
+      ),
+      updated_at: expect.stringMatching(
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
+      ),
+      files: [
+        {
+          name: 'index.ts',
+          content: indexContent,
+        },
+      ],
+    });
   });
 
   test('deploy new edge function', async () => {
@@ -2463,14 +2489,14 @@ describe('tools', () => {
 
 describe('feature groups', () => {
   test('account tools', async () => {
-    const { client: accountClient } = await setup({
+    const { client } = await setup({
       features: ['account'],
     });
 
-    const { tools: accountTools } = await accountClient.listTools();
-    const accountToolNames = accountTools.map((tool) => tool.name);
+    const { tools } = await client.listTools();
+    const toolNames = tools.map((tool) => tool.name);
 
-    expect(accountToolNames).toEqual([
+    expect(toolNames).toEqual([
       'list_organizations',
       'get_organization',
       'list_projects',
@@ -2484,14 +2510,14 @@ describe('feature groups', () => {
   });
 
   test('database tools', async () => {
-    const { client: databaseClient } = await setup({
+    const { client } = await setup({
       features: ['database'],
     });
 
-    const { tools: databaseTools } = await databaseClient.listTools();
-    const databaseToolNames = databaseTools.map((tool) => tool.name);
+    const { tools } = await client.listTools();
+    const toolNames = tools.map((tool) => tool.name);
 
-    expect(databaseToolNames).toEqual([
+    expect(toolNames).toEqual([
       'list_tables',
       'list_extensions',
       'list_migrations',
@@ -2500,26 +2526,26 @@ describe('feature groups', () => {
     ]);
   });
 
-  test('debug tools', async () => {
-    const { client: debugClient } = await setup({
-      features: ['debug'],
+  test('debugging tools', async () => {
+    const { client } = await setup({
+      features: ['debugging'],
     });
 
-    const { tools: debugTools } = await debugClient.listTools();
-    const debugToolNames = debugTools.map((tool) => tool.name);
+    const { tools } = await client.listTools();
+    const toolNames = tools.map((tool) => tool.name);
 
-    expect(debugToolNames).toEqual(['get_logs', 'get_advisors']);
+    expect(toolNames).toEqual(['get_logs', 'get_advisors']);
   });
 
   test('development tools', async () => {
-    const { client: developmentClient } = await setup({
+    const { client } = await setup({
       features: ['development'],
     });
 
-    const { tools: developmentTools } = await developmentClient.listTools();
-    const developmentToolNames = developmentTools.map((tool) => tool.name);
+    const { tools } = await client.listTools();
+    const toolNames = tools.map((tool) => tool.name);
 
-    expect(developmentToolNames).toEqual([
+    expect(toolNames).toEqual([
       'get_project_url',
       'get_anon_key',
       'generate_typescript_types',
@@ -2527,39 +2553,40 @@ describe('feature groups', () => {
   });
 
   test('docs tools', async () => {
-    const { client: docsClient } = await setup({
+    const { client } = await setup({
       features: ['docs'],
     });
 
-    const { tools: docsTools } = await docsClient.listTools();
-    const docsToolNames = docsTools.map((tool) => tool.name);
+    const { tools } = await client.listTools();
+    const toolNames = tools.map((tool) => tool.name);
 
-    expect(docsToolNames).toEqual(['search_docs']);
+    expect(toolNames).toEqual(['search_docs']);
   });
 
   test('functions tools', async () => {
-    const { client: functionsClient } = await setup({
+    const { client } = await setup({
       features: ['functions'],
     });
 
-    const { tools: functionsTools } = await functionsClient.listTools();
-    const functionsToolNames = functionsTools.map((tool) => tool.name);
+    const { tools } = await client.listTools();
+    const toolNames = tools.map((tool) => tool.name);
 
-    expect(functionsToolNames).toEqual([
+    expect(toolNames).toEqual([
       'list_edge_functions',
+      'get_edge_function',
       'deploy_edge_function',
     ]);
   });
 
   test('branching tools', async () => {
-    const { client: branchingClient } = await setup({
+    const { client } = await setup({
       features: ['branching'],
     });
 
-    const { tools: branchingTools } = await branchingClient.listTools();
-    const branchingToolNames = branchingTools.map((tool) => tool.name);
+    const { tools } = await client.listTools();
+    const toolNames = tools.map((tool) => tool.name);
 
-    expect(branchingToolNames).toEqual([
+    expect(toolNames).toEqual([
       'create_branch',
       'list_branches',
       'delete_branch',
@@ -2570,14 +2597,14 @@ describe('feature groups', () => {
   });
 
   test('storage tools', async () => {
-    const { client: storageClient } = await setup({
+    const { client } = await setup({
       features: ['storage'],
     });
 
-    const { tools: storageTools } = await storageClient.listTools();
-    const storageToolNames = storageTools.map((tool) => tool.name);
+    const { tools } = await client.listTools();
+    const toolNames = tools.map((tool) => tool.name);
 
-    expect(storageToolNames).toEqual([
+    expect(toolNames).toEqual([
       'list_storage_buckets',
       'get_storage_config',
       'update_storage_config',
@@ -2586,7 +2613,7 @@ describe('feature groups', () => {
 
   test('invalid group fails', async () => {
     const setupPromise = setup({
-      features: ['my-invalid-group' as FeatureGroup],
+      features: ['my-invalid-group'],
     });
 
     await expect(setupPromise).rejects.toThrow('Invalid enum value');
@@ -2597,10 +2624,10 @@ describe('feature groups', () => {
       features: ['account', 'account'],
     });
 
-    const { tools: duplicateTools } = await duplicateClient.listTools();
-    const duplicateToolNames = duplicateTools.map((tool) => tool.name);
+    const { tools } = await duplicateClient.listTools();
+    const toolNames = tools.map((tool) => tool.name);
 
-    expect(duplicateToolNames).toEqual([
+    expect(toolNames).toEqual([
       'list_organizations',
       'get_organization',
       'list_projects',
@@ -2611,6 +2638,57 @@ describe('feature groups', () => {
       'pause_project',
       'restore_project',
     ]);
+  });
+
+  test('tools filtered to available platform operations', async () => {
+    const platform: SupabasePlatform = {
+      database: {
+        executeSql() {
+          throw new Error('Not implemented');
+        },
+        listMigrations() {
+          throw new Error('Not implemented');
+        },
+        applyMigration() {
+          throw new Error('Not implemented');
+        },
+      },
+    };
+
+    const { client } = await setup({ platform });
+    const { tools } = await client.listTools();
+    const toolNames = tools.map((tool) => tool.name);
+
+    expect(toolNames).toEqual([
+      'search_docs',
+      'list_tables',
+      'list_extensions',
+      'list_migrations',
+      'apply_migration',
+      'execute_sql',
+    ]);
+  });
+
+  test('unimplemented feature group produces custom error message', async () => {
+    const platform: SupabasePlatform = {
+      database: {
+        executeSql() {
+          throw new Error('Not implemented');
+        },
+        listMigrations() {
+          throw new Error('Not implemented');
+        },
+        applyMigration() {
+          throw new Error('Not implemented');
+        },
+      },
+    };
+
+    const setupPromise = setup({ platform, features: ['account'] });
+
+    await expect(setupPromise).rejects.toThrow(
+      "This platform does not support the 'account' feature group"
+    );
   });
 });
 
@@ -2756,8 +2834,7 @@ describe('project scoped tools', () => {
         columns: [
           expect.objectContaining({
             name: 'id',
-            is_identity: true,
-            is_generated: false,
+            options: expect.arrayContaining(['identity']),
           }),
         ],
       }),

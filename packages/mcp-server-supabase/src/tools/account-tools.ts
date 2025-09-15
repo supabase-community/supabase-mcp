@@ -1,22 +1,22 @@
 import { tool } from '@supabase/mcp-utils';
 import { z } from 'zod';
-import type { SupabasePlatform } from '../platform/types.js';
+import type { AccountOperations } from '../platform/types.js';
 import { type Cost, getBranchCost, getNextProjectCost } from '../pricing.js';
 import { AWS_REGION_CODES } from '../regions.js';
 import { hashObject } from '../util.js';
 
 export type AccountToolsOptions = {
-  platform: SupabasePlatform;
+  account: AccountOperations;
   readOnly?: boolean;
 };
 
-export function getAccountTools({ platform, readOnly }: AccountToolsOptions) {
+export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
   return {
     list_organizations: tool({
       description: 'Lists all organizations that the user is a member of.',
       parameters: z.object({}),
       execute: async () => {
-        return await platform.listOrganizations();
+        return await account.listOrganizations();
       },
     }),
     get_organization: tool({
@@ -26,7 +26,7 @@ export function getAccountTools({ platform, readOnly }: AccountToolsOptions) {
         id: z.string().describe('The organization ID'),
       }),
       execute: async ({ id: organizationId }) => {
-        return await platform.getOrganization(organizationId);
+        return await account.getOrganization(organizationId);
       },
     }),
     list_projects: tool({
@@ -34,7 +34,7 @@ export function getAccountTools({ platform, readOnly }: AccountToolsOptions) {
         'Lists all Supabase projects for the user. Use this to help discover the project ID of the project that the user is working on.',
       parameters: z.object({}),
       execute: async () => {
-        return await platform.listProjects();
+        return await account.listProjects();
       },
     }),
     get_project: tool({
@@ -43,7 +43,7 @@ export function getAccountTools({ platform, readOnly }: AccountToolsOptions) {
         id: z.string().describe('The project ID'),
       }),
       execute: async ({ id }) => {
-        return await platform.getProject(id);
+        return await account.getProject(id);
       },
     }),
     get_cost: tool({
@@ -61,7 +61,7 @@ export function getAccountTools({ platform, readOnly }: AccountToolsOptions) {
         }
         switch (type) {
           case 'project': {
-            const cost = await getNextProjectCost(platform, organization_id);
+            const cost = await getNextProjectCost(account, organization_id);
             return generateResponse(cost);
           }
           case 'branch': {
@@ -90,13 +90,9 @@ export function getAccountTools({ platform, readOnly }: AccountToolsOptions) {
         'Creates a new Supabase project. Always ask the user which organization to create the project in. The project can take a few minutes to initialize - use `get_project` to check the status.',
       parameters: z.object({
         name: z.string().describe('The name of the project'),
-        region: z.optional(
-          z
-            .enum(AWS_REGION_CODES)
-            .describe(
-              'The region to create the project in. Defaults to the closest region.'
-            )
-        ),
+        region: z
+          .enum(AWS_REGION_CODES)
+          .describe('The region to create the project in.'),
         organization_id: z.string(),
         confirm_cost_id: z
           .string({
@@ -110,7 +106,7 @@ export function getAccountTools({ platform, readOnly }: AccountToolsOptions) {
           throw new Error('Cannot create a project in read-only mode.');
         }
 
-        const cost = await getNextProjectCost(platform, organization_id);
+        const cost = await getNextProjectCost(account, organization_id);
         const costHash = await hashObject(cost);
         if (costHash !== confirm_cost_id) {
           throw new Error(
@@ -118,7 +114,7 @@ export function getAccountTools({ platform, readOnly }: AccountToolsOptions) {
           );
         }
 
-        return await platform.createProject({
+        return await account.createProject({
           name,
           region,
           organization_id,
@@ -135,7 +131,7 @@ export function getAccountTools({ platform, readOnly }: AccountToolsOptions) {
           throw new Error('Cannot pause a project in read-only mode.');
         }
 
-        return await platform.pauseProject(project_id);
+        return await account.pauseProject(project_id);
       },
     }),
     restore_project: tool({
@@ -148,7 +144,7 @@ export function getAccountTools({ platform, readOnly }: AccountToolsOptions) {
           throw new Error('Cannot restore a project in read-only mode.');
         }
 
-        return await platform.restoreProject(project_id);
+        return await account.restoreProject(project_id);
       },
     }),
   };

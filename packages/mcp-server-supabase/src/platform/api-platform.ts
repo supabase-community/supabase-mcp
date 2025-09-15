@@ -6,17 +6,12 @@ import type { InitData } from '@supabase/mcp-utils';
 import { relative } from 'node:path/posix';
 import { fileURLToPath } from 'node:url';
 import packageJson from '../../package.json' with { type: 'json' };
-import { getDeploymentId, getPathPrefix } from '../edge-function.js';
+import { getDeploymentId, normalizeFilename } from '../edge-function.js';
 import {
   assertSuccess,
   createManagementApiClient,
 } from '../management-api/index.js';
 import { generatePassword } from '../password.js';
-import {
-  getClosestAwsRegion,
-  getCountryCode,
-  getCountryCoordinates,
-} from '../regions.js';
 import {
   applyMigrationOptionsSchema,
   createBranchOptionsSchema,
@@ -25,15 +20,23 @@ import {
   executeSqlOptionsSchema,
   getLogsOptionsSchema,
   resetBranchOptionsSchema,
+  type AccountOperations,
   type ApplyMigrationOptions,
+  type BranchingOperations,
   type CreateBranchOptions,
   type CreateProjectOptions,
+  type DatabaseOperations,
+  type DebuggingOperations,
   type DeployEdgeFunctionOptions,
+  type DevelopmentOperations,
   type EdgeFunction,
+  type EdgeFunctionsOperations,
+  type EdgeFunctionWithBody,
   type ExecuteSqlOptions,
   type GetLogsOptions,
   type ResetBranchOptions,
   type StorageConfig,
+  type StorageOperations,
   type SupabasePlatform,
 } from './index.js';
 
@@ -66,22 +69,103 @@ export function createSupabaseApiPlatform(
     accessToken
   );
 
-  const platform: SupabasePlatform = {
-    async init(info: InitData) {
-      const { clientInfo } = info;
-      if (!clientInfo) {
-        throw new Error('Client info is required');
-      }
+  const account: AccountOperations = {
+    async listOrganizations() {
+      const response = await managementApiClient.GET('/v1/organizations');
 
-      // Re-initialize the management API client with the user agent
-      managementApiClient = createManagementApiClient(
-        managementApiUrl,
-        accessToken,
+      assertSuccess(response, 'Failed to fetch organizations');
+
+      return response.data;
+    },
+    async getOrganization(organizationId: string) {
+      const response = await managementApiClient.GET(
+        '/v1/organizations/{slug}',
         {
-          'User-Agent': `supabase-mcp/${version} (${clientInfo.name}/${clientInfo.version})`,
+          params: {
+            path: {
+              slug: organizationId,
+            },
+          },
         }
       );
+
+      assertSuccess(response, 'Failed to fetch organization');
+
+      return response.data;
     },
+    async listProjects() {
+      const response = await managementApiClient.GET('/v1/projects');
+
+      assertSuccess(response, 'Failed to fetch projects');
+
+      return response.data;
+    },
+    async getProject(projectId: string) {
+      const response = await managementApiClient.GET('/v1/projects/{ref}', {
+        params: {
+          path: {
+            ref: projectId,
+          },
+        },
+      });
+      assertSuccess(response, 'Failed to fetch project');
+      return response.data;
+    },
+    async createProject(options: CreateProjectOptions) {
+      const { name, organization_id, region, db_pass } =
+        createProjectOptionsSchema.parse(options);
+
+      const response = await managementApiClient.POST('/v1/projects', {
+        body: {
+          name,
+          region,
+          organization_id,
+          db_pass:
+            db_pass ??
+            generatePassword({
+              length: 16,
+              numbers: true,
+              uppercase: true,
+              lowercase: true,
+            }),
+        },
+      });
+
+      assertSuccess(response, 'Failed to create project');
+
+      return response.data;
+    },
+    async pauseProject(projectId: string) {
+      const response = await managementApiClient.POST(
+        '/v1/projects/{ref}/pause',
+        {
+          params: {
+            path: {
+              ref: projectId,
+            },
+          },
+        }
+      );
+
+      assertSuccess(response, 'Failed to pause project');
+    },
+    async restoreProject(projectId: string) {
+      const response = await managementApiClient.POST(
+        '/v1/projects/{ref}/restore',
+        {
+          params: {
+            path: {
+              ref: projectId,
+            },
+          },
+        }
+      );
+
+      assertSuccess(response, 'Failed to restore project');
+    },
+  };
+
+  const database: DatabaseOperations = {
     async executeSql<T>(projectId: string, options: ExecuteSqlOptions) {
       const { query, read_only } = executeSqlOptionsSchema.parse(options);
 
@@ -144,284 +228,9 @@ export function createSupabaseApiPlatform(
       // to avoid prompt injection attacks. If the migration failed,
       // it will throw an error.
     },
-    async listOrganizations() {
-      const response = await managementApiClient.GET('/v1/organizations');
+  };
 
-      assertSuccess(response, 'Failed to fetch organizations');
-
-      return response.data;
-    },
-    async getOrganization(organizationId: string) {
-      const response = await managementApiClient.GET(
-        '/v1/organizations/{slug}',
-        {
-          params: {
-            path: {
-              slug: organizationId,
-            },
-          },
-        }
-      );
-
-      assertSuccess(response, 'Failed to fetch organization');
-
-      return response.data;
-    },
-    async listProjects() {
-      const response = await managementApiClient.GET('/v1/projects');
-
-      assertSuccess(response, 'Failed to fetch projects');
-
-      return response.data;
-    },
-    async getProject(projectId: string) {
-      const response = await managementApiClient.GET('/v1/projects/{ref}', {
-        params: {
-          path: {
-            ref: projectId,
-          },
-        },
-      });
-      assertSuccess(response, 'Failed to fetch project');
-      return response.data;
-    },
-    async createProject(options: CreateProjectOptions) {
-      const { name, organization_id, region, db_pass } =
-        createProjectOptionsSchema.parse(options);
-
-      const response = await managementApiClient.POST('/v1/projects', {
-        body: {
-          name,
-          region: region ?? (await getClosestRegion()),
-          organization_id,
-          db_pass:
-            db_pass ??
-            generatePassword({
-              length: 16,
-              numbers: true,
-              uppercase: true,
-              lowercase: true,
-            }),
-        },
-      });
-
-      assertSuccess(response, 'Failed to create project');
-
-      return response.data;
-    },
-    async pauseProject(projectId: string) {
-      const response = await managementApiClient.POST(
-        '/v1/projects/{ref}/pause',
-        {
-          params: {
-            path: {
-              ref: projectId,
-            },
-          },
-        }
-      );
-
-      assertSuccess(response, 'Failed to pause project');
-    },
-    async restoreProject(projectId: string) {
-      const response = await managementApiClient.POST(
-        '/v1/projects/{ref}/restore',
-        {
-          params: {
-            path: {
-              ref: projectId,
-            },
-          },
-        }
-      );
-
-      assertSuccess(response, 'Failed to restore project');
-    },
-    async listEdgeFunctions(projectId: string) {
-      const response = await managementApiClient.GET(
-        '/v1/projects/{ref}/functions',
-        {
-          params: {
-            path: {
-              ref: projectId,
-            },
-          },
-        }
-      );
-
-      assertSuccess(response, 'Failed to fetch Edge Functions');
-
-      // Fetch files for each Edge Function
-      return await Promise.all(
-        response.data.map(async (listedFunction) => {
-          return await platform.getEdgeFunction(projectId, listedFunction.slug);
-        })
-      );
-    },
-    async getEdgeFunction(projectId: string, functionSlug: string) {
-      const functionResponse = await managementApiClient.GET(
-        '/v1/projects/{ref}/functions/{function_slug}',
-        {
-          params: {
-            path: {
-              ref: projectId,
-              function_slug: functionSlug,
-            },
-          },
-        }
-      );
-
-      if (functionResponse.error) {
-        throw functionResponse.error;
-      }
-
-      assertSuccess(functionResponse, 'Failed to fetch Edge Function');
-
-      const edgeFunction = functionResponse.data;
-
-      const deploymentId = getDeploymentId(
-        projectId,
-        edgeFunction.id,
-        edgeFunction.version
-      );
-
-      const pathPrefix = getPathPrefix(deploymentId);
-
-      const entrypoint_path = edgeFunction.entrypoint_path
-        ? relative(
-            pathPrefix,
-            fileURLToPath(edgeFunction.entrypoint_path, { windows: false })
-          )
-        : undefined;
-
-      const import_map_path = edgeFunction.import_map_path
-        ? relative(
-            pathPrefix,
-            fileURLToPath(edgeFunction.import_map_path, { windows: false })
-          )
-        : undefined;
-
-      const bodyResponse = await managementApiClient.GET(
-        '/v1/projects/{ref}/functions/{function_slug}/body',
-        {
-          params: {
-            path: {
-              ref: projectId,
-              function_slug: functionSlug,
-            },
-          },
-          headers: {
-            Accept: 'multipart/form-data',
-          },
-          parseAs: 'stream',
-        }
-      );
-
-      assertSuccess(bodyResponse, 'Failed to fetch Edge Function files');
-
-      const contentType = bodyResponse.response.headers.get('content-type');
-
-      if (!contentType || !contentType.startsWith('multipart/form-data')) {
-        throw new Error(
-          `Unexpected content type: ${contentType}. Expected multipart/form-data.`
-        );
-      }
-
-      const boundary = getMultipartBoundary(contentType);
-
-      if (!boundary) {
-        throw new Error('No multipart boundary found in response headers');
-      }
-
-      if (!bodyResponse.data) {
-        throw new Error('No data received from Edge Function body');
-      }
-
-      const files: EdgeFunction['files'] = [];
-      const parts = parseMultipartStream(bodyResponse.data, { boundary });
-
-      for await (const part of parts) {
-        if (part.isFile && part.filename) {
-          files.push({
-            name: relative(pathPrefix, part.filename),
-            content: part.text,
-          });
-        }
-      }
-
-      return {
-        ...edgeFunction,
-        entrypoint_path,
-        import_map_path,
-        files,
-      };
-    },
-    async deployEdgeFunction(
-      projectId: string,
-      options: DeployEdgeFunctionOptions
-    ) {
-      let {
-        name,
-        entrypoint_path,
-        import_map_path,
-        files: inputFiles,
-      } = deployEdgeFunctionOptionsSchema.parse(options);
-
-      let existingEdgeFunction: EdgeFunction | undefined;
-      try {
-        existingEdgeFunction = await platform.getEdgeFunction(projectId, name);
-      } catch (error) {}
-
-      const import_map_file = inputFiles.find((file) =>
-        ['deno.json', 'import_map.json'].includes(file.name)
-      );
-
-      // Use existing import map path or file name heuristic if not provided
-      import_map_path ??=
-        existingEdgeFunction?.import_map_path ?? import_map_file?.name;
-
-      const response = await managementApiClient.POST(
-        '/v1/projects/{ref}/functions/deploy',
-        {
-          params: {
-            path: {
-              ref: projectId,
-            },
-            query: { slug: name },
-          },
-          body: {
-            metadata: {
-              name,
-              entrypoint_path,
-              import_map_path,
-            },
-            file: inputFiles as any, // We need to pass file name and content to our serializer
-          },
-          bodySerializer(body) {
-            const formData = new FormData();
-
-            const blob = new Blob([JSON.stringify(body.metadata)], {
-              type: 'application/json',
-            });
-            formData.append('metadata', blob);
-
-            body.file?.forEach((f: any) => {
-              const file: { name: string; content: string } = f;
-              const blob = new Blob([file.content], {
-                type: 'application/typescript',
-              });
-              formData.append('file', blob, file.name);
-            });
-
-            return formData;
-          },
-        }
-      );
-
-      assertSuccess(response, 'Failed to deploy Edge Function');
-
-      return response.data;
-    },
+  const debugging: DebuggingOperations = {
     async getLogs(projectId: string, options: GetLogsOptions) {
       const { sql, iso_timestamp_start, iso_timestamp_end } =
         getLogsOptionsSchema.parse(options);
@@ -478,6 +287,9 @@ export function createSupabaseApiPlatform(
 
       return response.data;
     },
+  };
+
+  const development: DevelopmentOperations = {
     async getProjectUrl(projectId: string): Promise<string> {
       const apiUrl = new URL(managementApiUrl);
       return `https://${projectId}.${getProjectDomain(apiUrl.hostname)}`;
@@ -523,6 +335,227 @@ export function createSupabaseApiPlatform(
 
       return response.data;
     },
+  };
+
+  const functions: EdgeFunctionsOperations = {
+    async listEdgeFunctions(projectId: string) {
+      const response = await managementApiClient.GET(
+        '/v1/projects/{ref}/functions',
+        {
+          params: {
+            path: {
+              ref: projectId,
+            },
+          },
+        }
+      );
+
+      assertSuccess(response, 'Failed to fetch Edge Functions');
+
+      return response.data.map((edgeFunction) => {
+        const deploymentId = getDeploymentId(
+          projectId,
+          edgeFunction.id,
+          edgeFunction.version
+        );
+
+        const entrypoint_path = edgeFunction.entrypoint_path
+          ? normalizeFilename({
+              deploymentId,
+              filename: fileURLToPath(edgeFunction.entrypoint_path, {
+                windows: false,
+              }),
+            })
+          : undefined;
+
+        const import_map_path = edgeFunction.import_map_path
+          ? normalizeFilename({
+              deploymentId,
+              filename: fileURLToPath(edgeFunction.import_map_path, {
+                windows: false,
+              }),
+            })
+          : undefined;
+
+        return {
+          ...edgeFunction,
+          entrypoint_path,
+          import_map_path,
+        };
+      });
+    },
+    async getEdgeFunction(projectId: string, functionSlug: string) {
+      const functionResponse = await managementApiClient.GET(
+        '/v1/projects/{ref}/functions/{function_slug}',
+        {
+          params: {
+            path: {
+              ref: projectId,
+              function_slug: functionSlug,
+            },
+          },
+        }
+      );
+
+      if (functionResponse.error) {
+        throw functionResponse.error;
+      }
+
+      assertSuccess(functionResponse, 'Failed to fetch Edge Function');
+
+      const edgeFunction = functionResponse.data;
+
+      const deploymentId = getDeploymentId(
+        projectId,
+        edgeFunction.id,
+        edgeFunction.version
+      );
+
+      const entrypoint_path = edgeFunction.entrypoint_path
+        ? normalizeFilename({
+            deploymentId,
+            filename: fileURLToPath(edgeFunction.entrypoint_path, {
+              windows: false,
+            }),
+          })
+        : undefined;
+
+      const import_map_path = edgeFunction.import_map_path
+        ? normalizeFilename({
+            deploymentId,
+            filename: fileURLToPath(edgeFunction.import_map_path, {
+              windows: false,
+            }),
+          })
+        : undefined;
+
+      const bodyResponse = await managementApiClient.GET(
+        '/v1/projects/{ref}/functions/{function_slug}/body',
+        {
+          params: {
+            path: {
+              ref: projectId,
+              function_slug: functionSlug,
+            },
+          },
+          headers: {
+            Accept: 'multipart/form-data',
+          },
+          parseAs: 'stream',
+        }
+      );
+
+      assertSuccess(bodyResponse, 'Failed to fetch Edge Function files');
+
+      const contentType = bodyResponse.response.headers.get('content-type');
+
+      if (!contentType || !contentType.startsWith('multipart/form-data')) {
+        throw new Error(
+          `Unexpected content type: ${contentType}. Expected multipart/form-data.`
+        );
+      }
+
+      const boundary = getMultipartBoundary(contentType);
+
+      if (!boundary) {
+        throw new Error('No multipart boundary found in response headers');
+      }
+
+      if (!bodyResponse.data) {
+        throw new Error('No data received from Edge Function body');
+      }
+
+      const files: EdgeFunctionWithBody['files'] = [];
+      const parts = parseMultipartStream(bodyResponse.data, { boundary });
+
+      for await (const part of parts) {
+        if (part.isFile && part.filename) {
+          files.push({
+            name: normalizeFilename({
+              deploymentId,
+              filename: part.filename,
+            }),
+            content: part.text,
+          });
+        }
+      }
+
+      return {
+        ...edgeFunction,
+        entrypoint_path,
+        import_map_path,
+        files,
+      };
+    },
+    async deployEdgeFunction(
+      projectId: string,
+      options: DeployEdgeFunctionOptions
+    ) {
+      let {
+        name,
+        entrypoint_path,
+        import_map_path,
+        files: inputFiles,
+      } = deployEdgeFunctionOptionsSchema.parse(options);
+
+      let existingEdgeFunction: EdgeFunction | undefined;
+      try {
+        existingEdgeFunction = await functions.getEdgeFunction(projectId, name);
+      } catch (error) {}
+
+      const import_map_file = inputFiles.find((file) =>
+        ['deno.json', 'import_map.json'].includes(file.name)
+      );
+
+      // Use existing import map path or file name heuristic if not provided
+      import_map_path ??=
+        existingEdgeFunction?.import_map_path ?? import_map_file?.name;
+
+      const response = await managementApiClient.POST(
+        '/v1/projects/{ref}/functions/deploy',
+        {
+          params: {
+            path: {
+              ref: projectId,
+            },
+            query: { slug: name },
+          },
+          body: {
+            metadata: {
+              name,
+              entrypoint_path,
+              import_map_path,
+            },
+            file: inputFiles as any, // We need to pass file name and content to our serializer
+          },
+          bodySerializer(body) {
+            const formData = new FormData();
+
+            const blob = new Blob([JSON.stringify(body.metadata)], {
+              type: 'application/json',
+            });
+            formData.append('metadata', blob);
+
+            body.file?.forEach((f: any) => {
+              const file: { name: string; content: string } = f;
+              const blob = new Blob([file.content], {
+                type: 'application/typescript',
+              });
+              formData.append('file', blob, file.name);
+            });
+
+            return formData;
+          },
+        }
+      );
+
+      assertSuccess(response, 'Failed to deploy Edge Function');
+
+      return response.data;
+    },
+  };
+
+  const branching: BranchingOperations = {
     async listBranches(projectId: string) {
       const response = await managementApiClient.GET(
         '/v1/projects/{ref}/branches',
@@ -625,7 +658,9 @@ export function createSupabaseApiPlatform(
 
       assertSuccess(response, 'Failed to rebase branch');
     },
+  };
 
+  const storage: StorageOperations = {
     // Storage methods
     async listAllBuckets(project_id: string) {
       const response = await managementApiClient.GET(
@@ -690,6 +725,31 @@ export function createSupabaseApiPlatform(
     },
   };
 
+  const platform: SupabasePlatform = {
+    async init(info: InitData) {
+      const { clientInfo } = info;
+      if (!clientInfo) {
+        throw new Error('Client info is required');
+      }
+
+      // Re-initialize the management API client with the user agent
+      managementApiClient = createManagementApiClient(
+        managementApiUrl,
+        accessToken,
+        {
+          'User-Agent': `supabase-mcp/${version} (${clientInfo.name}/${clientInfo.version})`,
+        }
+      );
+    },
+    account,
+    database,
+    debugging,
+    development,
+    functions,
+    branching,
+    storage,
+  };
+
   return platform;
 }
 
@@ -702,9 +762,4 @@ function getProjectDomain(apiHostname: string) {
     default:
       return 'supabase.red';
   }
-}
-
-async function getClosestRegion() {
-  return getClosestAwsRegion(getCountryCoordinates(await getCountryCode()))
-    .code;
 }

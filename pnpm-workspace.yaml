@@ -1,0 +1,10 @@
+packages:
+  - packages/*
+
+ignoredBuiltDependencies:
+  - '@biomejs/biome'
+  - esbuild
+  - msw
+
+onlyBuiltDependencies:
+  - supabase

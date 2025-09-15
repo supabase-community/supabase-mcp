@@ -8,11 +8,13 @@ import { injectableTool } from './util.js';
 export type BranchingToolsOptions = {
   branching: BranchingOperations;
   projectId?: string;
+  readOnly?: boolean;
 };
 
 export function getBranchingTools({
   branching,
   projectId,
+  readOnly,
 }: BranchingToolsOptions) {
   const project_id = projectId;
 
@@ -35,6 +37,10 @@ export function getBranchingTools({
       }),
       inject: { project_id },
       execute: async ({ project_id, name, confirm_cost_id }) => {
+        if (readOnly) {
+          throw new Error('Cannot create a branch in read-only mode.');
+        }
+
         const cost = getBranchCost();
         const costHash = await hashObject(cost);
         if (costHash !== confirm_cost_id) {
@@ -62,6 +68,10 @@ export function getBranchingTools({
         branch_id: z.string(),
       }),
       execute: async ({ branch_id }) => {
+        if (readOnly) {
+          throw new Error('Cannot delete a branch in read-only mode.');
+        }
+
         return await branching.deleteBranch(branch_id);
       },
     }),
@@ -72,6 +82,10 @@ export function getBranchingTools({
         branch_id: z.string(),
       }),
       execute: async ({ branch_id }) => {
+        if (readOnly) {
+          throw new Error('Cannot merge a branch in read-only mode.');
+        }
+
         return await branching.mergeBranch(branch_id);
       },
     }),
@@ -88,6 +102,10 @@ export function getBranchingTools({
           ),
       }),
       execute: async ({ branch_id, migration_version }) => {
+        if (readOnly) {
+          throw new Error('Cannot reset a branch in read-only mode.');
+        }
+
         return await branching.resetBranch(branch_id, {
           migration_version,
         });
@@ -100,6 +118,10 @@ export function getBranchingTools({
         branch_id: z.string(),
       }),
       execute: async ({ branch_id }) => {
+        if (readOnly) {
+          throw new Error('Cannot rebase a branch in read-only mode.');
+        }
+
         return await branching.rebaseBranch(branch_id);
       },
     }),

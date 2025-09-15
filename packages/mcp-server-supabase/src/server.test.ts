@@ -10,10 +10,10 @@ import { beforeEach, describe, expect, test } from 'vitest';
 import {
   ACCESS_TOKEN,
   API_URL,
-  CLOSEST_REGION,
   contentApiMockSchema,
   createOrganization,
   createProject,
+  createBranch,
   MCP_CLIENT_NAME,
   MCP_CLIENT_VERSION,
   mockBranches,
@@ -381,6 +381,41 @@ describe('tools', () => {
     });
   });
 
+  test('create project in read-only mode throws an error', async () => {
+    const { callTool } = await setup({ readOnly: true });
+
+    const freeOrg = await createOrganization({
+      name: 'Free Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const confirm_cost_id = await callTool({
+      name: 'confirm_cost',
+      arguments: {
+        type: 'project',
+        recurrence: 'monthly',
+        amount: 0,
+      },
+    });
+
+    const newProject = {
+      name: 'New Project',
+      region: 'us-east-1',
+      organization_id: freeOrg.id,
+      confirm_cost_id,
+    };
+
+    const result = callTool({
+      name: 'create_project',
+      arguments: newProject,
+    });
+
+    await expect(result).rejects.toThrow(
+      'Cannot create a project in read-only mode.'
+    );
+  });
+
   test('create project without region fails', async () => {
     const { callTool } = await setup();
 
@@ -464,6 +499,34 @@ describe('tools', () => {
     expect(project.status).toEqual('INACTIVE');
   });
 
+  test('pause project in read-only mode throws an error', async () => {
+    const { callTool } = await setup({ readOnly: true });
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const result = callTool({
+      name: 'pause_project',
+      arguments: {
+        project_id: project.id,
+      },
+    });
+
+    await expect(result).rejects.toThrow(
+      'Cannot pause a project in read-only mode.'
+    );
+  });
+
   test('restore project', async () => {
     const { callTool } = await setup();
 
@@ -488,6 +551,34 @@ describe('tools', () => {
     });
 
     expect(project.status).toEqual('ACTIVE_HEALTHY');
+  });
+
+  test('restore project in read-only mode throws an error', async () => {
+    const { callTool } = await setup({ readOnly: true });
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'INACTIVE';
+
+    const result = callTool({
+      name: 'restore_project',
+      arguments: {
+        project_id: project.id,
+      },
+    });
+
+    await expect(result).rejects.toThrow(
+      'Cannot restore a project in read-only mode.'
+    );
   });
 
   test('get project url', async () => {
@@ -649,6 +740,43 @@ describe('tools', () => {
     });
 
     expect(result).toEqual({ success: true });
+  });
+
+  test('update storage config in read-only mode throws an error', async () => {
+    const { callTool } = await setup({ readOnly: true, features: ['storage'] });
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const config = {
+      fileSizeLimit: 50,
+      features: {
+        imageTransformation: { enabled: true },
+        s3Protocol: { enabled: false },
+      },
+    };
+
+    const result = callTool({
+      name: 'update_storage_config',
+      arguments: {
+        project_id: project.id,
+        config,
+      },
+    });
+
+    await expect(result).rejects.toThrow(
+      'Cannot update storage config in read-only mode.'
+    );
   });
 
   test('execute sql', async () => {
@@ -1344,6 +1472,44 @@ describe('tools', () => {
     });
   });
 
+  test('deploy edge function in read-only mode throws an error', async () => {
+    const { callTool } = await setup({ readOnly: true });
+
+    const org = await createOrganization({
+      name: 'test-org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'test-app',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const functionName = 'hello-world';
+    const functionCode = 'console.log("Hello, world!");';
+
+    const result = callTool({
+      name: 'deploy_edge_function',
+      arguments: {
+        project_id: project.id,
+        name: functionName,
+        files: [
+          {
+            name: 'index.ts',
+            content: functionCode,
+          },
+        ],
+      },
+    });
+
+    await expect(result).rejects.toThrow(
+      'Cannot deploy an edge function in read-only mode.'
+    );
+  });
+
   test('deploy new version of existing edge function', async () => {
     const { callTool } = await setup();
     const org = await createOrganization({
@@ -1646,6 +1812,49 @@ describe('tools', () => {
     });
   });
 
+  test('create branch in read-only mode throws an error', async () => {
+    const { callTool } = await setup({
+      readOnly: true,
+      features: ['account', 'branching'],
+    });
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const confirm_cost_id = await callTool({
+      name: 'confirm_cost',
+      arguments: {
+        type: 'branch',
+        recurrence: 'hourly',
+        amount: BRANCH_COST_HOURLY,
+      },
+    });
+
+    const branchName = 'test-branch';
+    const result = callTool({
+      name: 'create_branch',
+      arguments: {
+        project_id: project.id,
+        name: branchName,
+        confirm_cost_id,
+      },
+    });
+
+    await expect(result).rejects.toThrow(
+      'Cannot create a branch in read-only mode.'
+    );
+  });
+
   test('create branch without cost confirmation fails', async () => {
     const { callTool } = await setup({ features: ['branching'] });
 
@@ -1757,6 +1966,54 @@ describe('tools', () => {
     );
   });
 
+  test('delete branch in read-only mode throws an error', async () => {
+    const { callTool } = await setup({
+      readOnly: true,
+      features: ['account', 'branching'],
+    });
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const branch = await createBranch({
+      name: 'test-branch',
+      parent_project_ref: project.id,
+    });
+
+    const listBranchesResult = await callTool({
+      name: 'list_branches',
+      arguments: {
+        project_id: project.id,
+      },
+    });
+
+    expect(listBranchesResult).toHaveLength(1);
+    expect(listBranchesResult).toContainEqual(
+      expect.objectContaining({ id: branch.id })
+    );
+
+    const result = callTool({
+      name: 'delete_branch',
+      arguments: {
+        branch_id: branch.id,
+      },
+    });
+
+    await expect(result).rejects.toThrow(
+      'Cannot delete a branch in read-only mode.'
+    );
+  });
+
   test('list branches', async () => {
     const { callTool } = await setup({ features: ['branching'] });
 
@@ -1852,6 +2109,42 @@ describe('tools', () => {
     });
   });
 
+  test('merge branch in read-only mode throws an error', async () => {
+    const { callTool } = await setup({
+      readOnly: true,
+      features: ['account', 'branching', 'database'],
+    });
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const branch = await createBranch({
+      name: 'test-branch',
+      parent_project_ref: project.id,
+    });
+
+    const result = callTool({
+      name: 'merge_branch',
+      arguments: {
+        branch_id: branch.id,
+      },
+    });
+
+    await expect(result).rejects.toThrow(
+      'Cannot merge a branch in read-only mode.'
+    );
+  });
+
   test('reset branch', async () => {
     const { callTool } = await setup({
       features: ['account', 'branching', 'database'],
@@ -1927,6 +2220,42 @@ describe('tools', () => {
     // Expect the untracked table to be removed after reset
     expect(secondTablesResult).not.toContainEqual(
       expect.objectContaining({ name: 'test_untracked' })
+    );
+  });
+
+  test('reset branch in read-only mode throws an error', async () => {
+    const { callTool } = await setup({
+      readOnly: true,
+      features: ['account', 'branching', 'database'],
+    });
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const branch = await createBranch({
+      name: 'test-branch',
+      parent_project_ref: project.id,
+    });
+
+    const result = callTool({
+      name: 'reset_branch',
+      arguments: {
+        branch_id: branch.id,
+      },
+    });
+
+    await expect(result).rejects.toThrow(
+      'Cannot reset a branch in read-only mode.'
     );
   });
 
@@ -2099,6 +2428,42 @@ describe('tools', () => {
       name: migrationName,
       version: expect.stringMatching(/^\d{14}$/),
     });
+  });
+
+  test('rebase branch in read-only mode throws an error', async () => {
+    const { callTool } = await setup({
+      readOnly: true,
+      features: ['account', 'branching', 'database'],
+    });
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const branch = await createBranch({
+      name: 'test-branch',
+      parent_project_ref: project.id,
+    });
+
+    const result = callTool({
+      name: 'rebase_branch',
+      arguments: {
+        branch_id: branch.id,
+      },
+    });
+
+    await expect(result).rejects.toThrow(
+      'Cannot rebase a branch in read-only mode.'
+    );
   });
 
   // We use snake_case because it aligns better with most MCP clients

@@ -5,9 +5,14 @@ import { injectableTool } from './util.js';
 export type StorageToolsOptions = {
   storage: StorageOperations;
   projectId?: string;
+  readOnly?: boolean;
 };
 
-export function getStorageTools({ storage, projectId }: StorageToolsOptions) {
+export function getStorageTools({
+  storage,
+  projectId,
+  readOnly,
+}: StorageToolsOptions) {
   const project_id = projectId;
 
   return {
@@ -45,6 +50,10 @@ export function getStorageTools({ storage, projectId }: StorageToolsOptions) {
       }),
       inject: { project_id },
       execute: async ({ project_id, config }) => {
+        if (readOnly) {
+          throw new Error('Cannot update storage config in read-only mode.');
+        }
+
         await storage.updateStorageConfig(project_id, config);
         return { success: true };
       },

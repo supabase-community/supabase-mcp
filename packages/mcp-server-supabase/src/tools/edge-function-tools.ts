@@ -6,11 +6,13 @@ import { injectableTool } from './util.js';
 export type EdgeFunctionToolsOptions = {
   functions: EdgeFunctionsOperations;
   projectId?: string;
+  readOnly?: boolean;
 };
 
 export function getEdgeFunctionTools({
   functions,
   projectId,
+  readOnly,
 }: EdgeFunctionToolsOptions) {
   const project_id = projectId;
 
@@ -69,6 +71,10 @@ export function getEdgeFunctionTools({
         import_map_path,
         files,
       }) => {
+        if (readOnly) {
+          throw new Error('Cannot deploy an edge function in read-only mode.');
+        }
+
         return await functions.deployEdgeFunction(project_id, {
           name,
           entrypoint_path,

@@ -7,9 +7,10 @@ import { hashObject } from '../util.js';
 
 export type AccountToolsOptions = {
   account: AccountOperations;
+  readOnly?: boolean;
 };
 
-export function getAccountTools({ account }: AccountToolsOptions) {
+export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
   return {
     list_organizations: tool({
       description: 'Lists all organizations that the user is a member of.',
@@ -101,6 +102,10 @@ export function getAccountTools({ account }: AccountToolsOptions) {
           .describe('The cost confirmation ID. Call `confirm_cost` first.'),
       }),
       execute: async ({ name, region, organization_id, confirm_cost_id }) => {
+        if (readOnly) {
+          throw new Error('Cannot create a project in read-only mode.');
+        }
+
         const cost = await getNextProjectCost(account, organization_id);
         const costHash = await hashObject(cost);
         if (costHash !== confirm_cost_id) {
@@ -122,6 +127,10 @@ export function getAccountTools({ account }: AccountToolsOptions) {
         project_id: z.string(),
       }),
       execute: async ({ project_id }) => {
+        if (readOnly) {
+          throw new Error('Cannot pause a project in read-only mode.');
+        }
+
         return await account.pauseProject(project_id);
       },
     }),
@@ -131,6 +140,10 @@ export function getAccountTools({ account }: AccountToolsOptions) {
         project_id: z.string(),
       }),
       execute: async ({ project_id }) => {
+        if (readOnly) {
+          throw new Error('Cannot restore a project in read-only mode.');
+        }
+
         return await account.restoreProject(project_id);
       },
     }),

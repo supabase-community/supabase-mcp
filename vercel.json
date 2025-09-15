@@ -1,0 +1,9 @@
+{
+  "name": "supabase-mcp-sse",
+  "private": true,
+  "type": "module",
+  "dependencies": {
+    "@modelcontextprotocol/server-http": "^0.1.0",
+    "@supabase-community/mcp-server-supabase": "^0.1.0"
+  }
+}

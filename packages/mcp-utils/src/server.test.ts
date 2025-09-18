@@ -4,7 +4,7 @@ import {
   CallToolResultSchema,
   type CallToolRequest,
 } from '@modelcontextprotocol/sdk/types.js';
-import { describe, expect, test } from 'vitest';
+import { describe, expect, test, vi } from 'vitest';
 import { z } from 'zod';
 import {
   createMcpServer,
@@ -113,6 +113,107 @@ describe('tools', () => {
       query: 'hello',
       caseSensitive: false,
     });
+  });
+
+  test('tool callback is called for success', async () => {
+    const onToolCall = vi.fn();
+
+    const server = createMcpServer({
+      name: 'test-server',
+      version: '0.0.0',
+      onToolCall,
+      tools: {
+        good_tool: tool({
+          description: 'A tool that always succeeds',
+          annotations: {
+            title: 'Good tool',
+            readOnlyHint: true,
+          },
+          parameters: z.object({}),
+          execute: async () => {
+            return 'Success';
+          },
+        }),
+        bad_tool: tool({
+          description: 'A tool that always fails',
+          annotations: {
+            title: 'Bad tool',
+            readOnlyHint: true,
+          },
+          parameters: z.object({}),
+          execute: async () => {
+            throw new Error('Failure');
+          },
+        }),
+      },
+    });
+
+    const { callTool } = await setup({ server });
+
+    const goodToolPromise = callTool({
+      name: 'good_tool',
+      arguments: {},
+    });
+
+    await expect(goodToolPromise).resolves.toEqual('Success');
+    expect(onToolCall).toHaveBeenLastCalledWith({
+      name: 'good_tool',
+      success: true,
+      annotations: {
+        title: 'Good tool',
+        readOnlyHint: true,
+      },
+    });
+
+    const badToolPromise = callTool({
+      name: 'bad_tool',
+      arguments: {},
+    });
+
+    await expect(badToolPromise).rejects.toThrow('Failure');
+    expect(onToolCall).toHaveBeenLastCalledWith({
+      name: 'bad_tool',
+      success: false,
+      annotations: {
+        title: 'Bad tool',
+        readOnlyHint: true,
+      },
+    });
+  });
+
+  test("tool callback error doesn't fail the tool call", async () => {
+    const onToolCall = vi.fn(() => {
+      throw new Error('Tool callback failed');
+    });
+
+    const server = createMcpServer({
+      name: 'test-server',
+      version: '0.0.0',
+      onToolCall,
+      tools: {
+        good_tool: tool({
+          description: 'A tool that always succeeds',
+          annotations: {
+            title: 'Good tool',
+            readOnlyHint: true,
+          },
+          parameters: z.object({}),
+          execute: async () => {
+            return 'Success';
+          },
+        }),
+      },
+    });
+
+    const { callTool } = await setup({ server });
+
+    const goodToolPromise = callTool({
+      name: 'good_tool',
+      arguments: {},
+    });
+
+    await expect(goodToolPromise).resolves.toEqual('Success');
+    expect(onToolCall.mock.results[0]?.type).toBe('throw');
   });
 });
 

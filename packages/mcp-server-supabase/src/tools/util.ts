@@ -1,5 +1,5 @@
 import { type Tool, tool } from '@supabase/mcp-utils';
-import { z } from 'zod';
+import type { z } from 'zod';
 
 type RequireKeys<Injected, Params> = {
   [K in keyof Injected]: K extends keyof Params ? Injected[K] : never;
@@ -26,6 +26,7 @@ export function injectableTool<
   Injected extends Partial<z.infer<Params>>,
 >({
   description,
+  annotations,
   parameters,
   inject,
   execute,
@@ -34,6 +35,7 @@ export function injectableTool<
   if (!inject || Object.values(inject).every((value) => value === undefined)) {
     return tool({
       description,
+      annotations,
       parameters,
       execute,
     });
@@ -60,6 +62,7 @@ export function injectableTool<
 
   return tool({
     description,
+    annotations,
     parameters: parameters.omit(mask),
     execute: (args) => execute({ ...args, ...inject }),
   }) as Tool<z.ZodObject<any, any, any, CleanParams>, Result>;

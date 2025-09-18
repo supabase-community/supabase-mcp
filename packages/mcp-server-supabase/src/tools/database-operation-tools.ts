@@ -43,7 +43,7 @@ export function getDatabaseTools({
         const query = listTablesSql(schemas);
         const data = await database.executeSql(project_id, {
           query,
-          read_only: readOnly,
+          read_only: true,
         });
         const tables = data
           .map((table) => postgresTableSchema.parse(table))
@@ -166,7 +166,7 @@ export function getDatabaseTools({
         const query = listExtensionsSql();
         const data = await database.executeSql(project_id, {
           query,
-          read_only: readOnly,
+          read_only: true,
         });
         const extensions = data.map((extension) =>
           postgresExtensionSchema.parse(extension)

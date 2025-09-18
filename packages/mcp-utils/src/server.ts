@@ -175,7 +175,16 @@ export type InitData = {
   clientCapabilities: ClientCapabilities;
 };
 
+export type ToolCallDetails = {
+  name: string; // unique tool name
+  success: boolean; // whether the tool ran successfully or not
+  annotations?: Annotations; // annotations for the tool
+};
+
 export type InitCallback = (initData: InitData) => void | Promise<void>;
+export type ToolCallCallback = (
+  details: ToolCallDetails
+) => void | Promise<void>;
 export type PropCallback<T> = () => T | Promise<T>;
 export type Prop<T> = T | PropCallback<T>;
 
@@ -204,6 +213,11 @@ export type McpServerOptions = {
    * Callback for when initialization has fully completed with the client.
    */
   onInitialize?: InitCallback;
+
+  /**
+   * Callback for after a tool is called.
+   */
+  onToolCall?: ToolCallCallback;
 
   /**
    * Resources to be served by the server. These can be defined as a static
@@ -452,7 +466,33 @@ export function createMcpServer(options: McpServerOptions) {
           .strict()
           .parse(request.params.arguments ?? {});
 
-        const result = await tool.execute(args);
+        const executeWithCallback = async (tool: Tool) => {
+          // Wrap success or error in a result value
+          const res = await tool
+            .execute(args)
+            .then((data: unknown) => ({ success: true as const, data }))
+            .catch((error) => ({ success: false as const, error }));
+
+          try {
+            await options.onToolCall?.({
+              name: toolName,
+              success: res.success,
+              annotations: tool.annotations,
+            });
+          } catch (error) {
+            // Don't fail the tool call if the callback fails
+            console.error('Failed to run tool callback', error);
+          }
+
+          // Unwrap result
+          if (!res.success) {
+            throw res.error;
+          }
+          return res.data;
+        };
+
+        const result = await executeWithCallback(tool);
+
         const content = result
           ? [{ type: 'text', text: JSON.stringify(result) }]
           : [];

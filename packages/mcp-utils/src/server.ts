@@ -176,9 +176,9 @@ export type InitData = {
 };
 
 export type ToolCallDetails = {
-  name: string; // unique tool name
-  success: boolean; // whether the tool ran successfully or not
-  annotations?: Annotations; // annotations for the tool
+  name: string;
+  success: boolean;
+  annotations?: Annotations;
 };
 
 export type InitCallback = (initData: InitData) => void | Promise<void>;

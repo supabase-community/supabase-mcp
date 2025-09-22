@@ -1,4 +1,8 @@
-import { createMcpServer, type Tool } from '@supabase/mcp-utils';
+import {
+  createMcpServer,
+  type Tool,
+  type ToolCallCallback,
+} from '@supabase/mcp-utils';
 import packageJson from '../package.json' with { type: 'json' };
 import { createContentApiClient } from './content-api/index.js';
 import type { SupabasePlatform } from './platform/types.js';
@@ -44,6 +48,11 @@ export type SupabaseMcpServerOptions = {
    * Options: 'account', 'branching', 'database', 'debugging', 'development', 'docs', 'functions', 'storage'
    */
   features?: string[];
+
+  /**
+   * Callback for after a supabase tool is called.
+   */
+  onToolCall?: ToolCallCallback;
 };
 
 const DEFAULT_FEATURES: FeatureGroup[] = [
@@ -68,6 +77,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
     readOnly,
     features,
     contentApiUrl = 'https://supabase.com/docs/api/graphql',
+    onToolCall,
   } = options;
 
   const contentApiClientPromise = createContentApiClient(contentApiUrl, {
@@ -104,6 +114,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
         ),
       ]);
     },
+    onToolCall,
     tools: async () => {
       const contentApiClient = await contentApiClientPromise;
       const tools: Record<string, Tool> = {};

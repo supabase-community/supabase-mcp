@@ -175,7 +175,26 @@ export type InitData = {
   clientCapabilities: ClientCapabilities;
 };
 
+type ToolCallBaseDetails = {
+  name: string;
+  arguments: Record<string, unknown>;
+  annotations?: Annotations;
+};
+
+type ToolCallSuccessDetails = ToolCallBaseDetails & {
+  success: true;
+  data: unknown;
+};
+
+type ToolCallErrorDetails = ToolCallBaseDetails & {
+  success: false;
+  error: unknown;
+};
+
+export type ToolCallDetails = ToolCallSuccessDetails | ToolCallErrorDetails;
+
 export type InitCallback = (initData: InitData) => void | Promise<void>;
+export type ToolCallCallback = (details: ToolCallDetails) => void;
 export type PropCallback<T> = () => T | Promise<T>;
 export type Prop<T> = T | PropCallback<T>;
 
@@ -204,6 +223,11 @@ export type McpServerOptions = {
    * Callback for when initialization has fully completed with the client.
    */
   onInitialize?: InitCallback;
+
+  /**
+   * Callback for after a tool is called.
+   */
+  onToolCall?: ToolCallCallback;
 
   /**
    * Resources to be served by the server. These can be defined as a static
@@ -452,7 +476,34 @@ export function createMcpServer(options: McpServerOptions) {
           .strict()
           .parse(request.params.arguments ?? {});
 
-        const result = await tool.execute(args);
+        const executeWithCallback = async (tool: Tool) => {
+          // Wrap success or error in a result value
+          const res = await tool
+            .execute(args)
+            .then((data: unknown) => ({ success: true as const, data }))
+            .catch((error) => ({ success: false as const, error }));
+
+          try {
+            options.onToolCall?.({
+              name: toolName,
+              arguments: args,
+              annotations: tool.annotations,
+              ...res,
+            });
+          } catch (error) {
+            // Don't fail the tool call if the callback fails
+            console.error('Failed to run tool callback', error);
+          }
+
+          // Unwrap result
+          if (!res.success) {
+            throw res.error;
+          }
+          return res.data;
+        };
+
+        const result = await executeWithCallback(tool);
+
         const content = result
           ? [{ type: 'text', text: JSON.stringify(result) }]
           : [];

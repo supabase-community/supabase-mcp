@@ -115,7 +115,7 @@ describe('tools', () => {
     });
   });
 
-  test('tool callback is called for success', async () => {
+  test('tool callback is called for success and errors', async () => {
     const onToolCall = vi.fn();
 
     const server = createMcpServer({

@@ -473,16 +473,16 @@ export function createMcpServer(options: McpServerOptions) {
             .then((data: unknown) => ({ success: true as const, data }))
             .catch((error) => ({ success: false as const, error }));
 
-          try {
-            await options.onToolCall?.({
+          // Run callback without blocking the tool call
+          options
+            .onToolCall?.({
               name: toolName,
               success: res.success,
               annotations: tool.annotations,
+            })
+            ?.catch((error) => {
+              console.error('Failed to run tool callback', error);
             });
-          } catch (error) {
-            // Don't fail the tool call if the callback fails
-            console.error('Failed to run tool callback', error);
-          }
 
           // Unwrap result
           if (!res.success) {

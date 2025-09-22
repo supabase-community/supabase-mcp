@@ -129,9 +129,9 @@ describe('tools', () => {
             title: 'Good tool',
             readOnlyHint: true,
           },
-          parameters: z.object({}),
-          execute: async () => {
-            return 'Success';
+          parameters: z.object({ foo: z.string() }),
+          execute: async ({ foo }) => {
+            return `Success: ${foo}`;
           },
         }),
         bad_tool: tool({
@@ -140,9 +140,9 @@ describe('tools', () => {
             title: 'Bad tool',
             readOnlyHint: true,
           },
-          parameters: z.object({}),
-          execute: async () => {
-            throw new Error('Failure');
+          parameters: z.object({ foo: z.string() }),
+          execute: async ({ foo }) => {
+            throw new Error('Failure: ' + foo);
           },
         }),
       },
@@ -152,32 +152,36 @@ describe('tools', () => {
 
     const goodToolPromise = callTool({
       name: 'good_tool',
-      arguments: {},
+      arguments: { foo: 'bar' },
     });
 
-    await expect(goodToolPromise).resolves.toEqual('Success');
+    await expect(goodToolPromise).resolves.toEqual('Success: bar');
     expect(onToolCall).toHaveBeenLastCalledWith({
       name: 'good_tool',
-      success: true,
+      arguments: { foo: 'bar' },
       annotations: {
         title: 'Good tool',
         readOnlyHint: true,
       },
+      success: true,
+      data: 'Success: bar',
     });
 
     const badToolPromise = callTool({
       name: 'bad_tool',
-      arguments: {},
+      arguments: { foo: 'bar' },
     });
 
-    await expect(badToolPromise).rejects.toThrow('Failure');
+    await expect(badToolPromise).rejects.toThrow('Failure: bar');
     expect(onToolCall).toHaveBeenLastCalledWith({
       name: 'bad_tool',
-      success: false,
+      arguments: { foo: 'bar' },
       annotations: {
         title: 'Bad tool',
         readOnlyHint: true,
       },
+      success: false,
+      error: expect.any(Error),
     });
   });
 
@@ -197,9 +201,9 @@ describe('tools', () => {
             title: 'Good tool',
             readOnlyHint: true,
           },
-          parameters: z.object({}),
-          execute: async () => {
-            return 'Success';
+          parameters: z.object({ foo: z.string() }),
+          execute: async ({ foo }) => {
+            return `Success: ${foo}`;
           },
         }),
       },
@@ -209,10 +213,10 @@ describe('tools', () => {
 
     const goodToolPromise = callTool({
       name: 'good_tool',
-      arguments: {},
+      arguments: { foo: 'bar' },
     });
 
-    await expect(goodToolPromise).resolves.toEqual('Success');
+    await expect(goodToolPromise).resolves.toEqual('Success: bar');
     expect(onToolCall.mock.results[0]?.type).toBe('throw');
   });
 });

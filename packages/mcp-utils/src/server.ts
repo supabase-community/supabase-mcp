@@ -175,11 +175,23 @@ export type InitData = {
   clientCapabilities: ClientCapabilities;
 };
 
-export type ToolCallDetails = {
+type ToolCallBaseDetails = {
   name: string;
-  success: boolean;
+  arguments: Record<string, unknown>;
   annotations?: Annotations;
 };
+
+type ToolCallSuccessDetails = ToolCallBaseDetails & {
+  success: true;
+  data: unknown;
+};
+
+type ToolCallErrorDetails = ToolCallBaseDetails & {
+  success: false;
+  error: unknown;
+};
+
+export type ToolCallDetails = ToolCallSuccessDetails | ToolCallErrorDetails;
 
 export type InitCallback = (initData: InitData) => void | Promise<void>;
 export type ToolCallCallback = (details: ToolCallDetails) => void;
@@ -474,8 +486,9 @@ export function createMcpServer(options: McpServerOptions) {
           try {
             options.onToolCall?.({
               name: toolName,
-              success: res.success,
+              arguments: args,
               annotations: tool.annotations,
+              ...res,
             });
           } catch (error) {
             // Don't fail the tool call if the callback fails

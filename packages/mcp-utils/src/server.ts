@@ -182,9 +182,7 @@ export type ToolCallDetails = {
 };
 
 export type InitCallback = (initData: InitData) => void | Promise<void>;
-export type ToolCallCallback = (
-  details: ToolCallDetails
-) => void | Promise<void>;
+export type ToolCallCallback = (details: ToolCallDetails) => void;
 export type PropCallback<T> = () => T | Promise<T>;
 export type Prop<T> = T | PropCallback<T>;
 
@@ -473,16 +471,16 @@ export function createMcpServer(options: McpServerOptions) {
             .then((data: unknown) => ({ success: true as const, data }))
             .catch((error) => ({ success: false as const, error }));
 
-          // Run callback without blocking the tool call
-          options
-            .onToolCall?.({
+          try {
+            options.onToolCall?.({
               name: toolName,
               success: res.success,
               annotations: tool.annotations,
-            })
-            ?.catch((error) => {
-              console.error('Failed to run tool callback', error);
             });
+          } catch (error) {
+            // Don't fail the tool call if the callback fails
+            console.error('Failed to run tool callback', error);
+          }
 
           // Unwrap result
           if (!res.success) {

@@ -6,6 +6,9 @@
 
 The [Model Context Protocol](https://modelcontextprotocol.io/introduction) (MCP) standardizes how Large Language Models (LLMs) talk to external services like Supabase. It connects AI assistants directly with your Supabase project and allows them to perform tasks like managing tables, fetching config, and querying data. See the [full list of tools](#tools).
 
+> [!TIP]
+ > [Klavis AI](https://www.klavis.ai/mcp-servers) has a hosted version of the Supabase MCP server. You can give it a try there for free.
+
 ## Prerequisites
 
 You will need Node.js ([active LTS](https://nodejs.org/en/about/previous-releases) or newer) installed on your machine. You can check this by running:

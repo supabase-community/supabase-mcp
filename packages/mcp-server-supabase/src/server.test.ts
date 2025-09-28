@@ -26,6 +26,8 @@ import { createSupabaseApiPlatform } from './platform/api-platform.js';
 import { BRANCH_COST_HOURLY, PROJECT_COST_MONTHLY } from './pricing.js';
 import { createSupabaseMcpServer } from './server.js';
 import type { SupabasePlatform } from './platform/types.js';
+import { initializeProjectManager, resetProjectManager } from './runtime/project-manager.js';
+import { initializeModeManager, resetModeManager } from './runtime/mode-manager.js';
 
 beforeEach(async () => {
   mockOrgs.clear();
@@ -34,6 +36,10 @@ beforeEach(async () => {
 
   const server = setupServer(...mockContentApi, ...mockManagementApi);
   server.listen({ onUnhandledRequest: 'error' });
+
+  // Reset runtime managers for clean state
+  resetModeManager();
+  resetProjectManager();
 });
 
 type SetupOptions = {
@@ -113,7 +119,7 @@ async function setup(options: SetupOptions = {}) {
     return result;
   }
 
-  return { client, clientTransport, callTool, server, serverTransport };
+  return { client, clientTransport, callTool, server, serverTransport, platform };
 }
 
 describe('tools', () => {
@@ -286,7 +292,10 @@ describe('tools', () => {
   });
 
   test('list projects', async () => {
-    const { callTool } = await setup();
+    const { callTool, platform } = await setup();
+
+    // Initialize project manager for runtime tools
+    initializeProjectManager(platform, undefined, { isClaudeCLI: false });
 
     const org = await createOrganization({
       name: 'My Org',
@@ -311,7 +320,32 @@ describe('tools', () => {
       arguments: {},
     });
 
-    expect(result).toEqual([project1.details, project2.details]);
+    expect(result).toEqual({
+      success: true,
+      projects: [
+        {
+          id: project1.details.id,
+          name: project1.details.name,
+          organization_id: project1.details.organization_id,
+          region: project1.details.region,
+          created_at: project1.details.created_at,
+          status: project1.details.status,
+          is_current: false,
+        },
+        {
+          id: project2.details.id,
+          name: project2.details.name,
+          organization_id: project2.details.organization_id,
+          region: project2.details.region,
+          created_at: project2.details.created_at,
+          status: project2.details.status,
+          is_current: false,
+        },
+      ],
+      total_projects: 2,
+      has_multiple_projects: true,
+      claude_cli_message: 'Use switch_project with project_identifier to change active project.',
+    });
   });
 
   test('get project', async () => {
@@ -1104,7 +1138,7 @@ describe('tools', () => {
       arguments: {},
     });
 
-    await expect(listOrganizationsPromise).rejects.toThrow('Unauthorized.');
+    await expect(listOrganizationsPromise).rejects.toThrow('Unauthorized: Invalid or expired access token.');
   });
 
   test('invalid sql for apply_migration', async () => {
@@ -2676,6 +2710,12 @@ describe('feature groups', () => {
         applyMigration() {
           throw new Error('Not implemented');
         },
+        listSnippets() {
+          throw new Error('Not implemented');
+        },
+        getSnippet() {
+          throw new Error('Not implemented');
+        },
       },
     };
 
@@ -2690,6 +2730,10 @@ describe('feature groups', () => {
       'list_migrations',
       'apply_migration',
       'execute_sql',
+      'toggle_read_only_mode',
+      'get_runtime_mode_status',
+      'set_read_only_mode',
+      'validate_mode_change',
     ]);
   });
 
@@ -2703,6 +2747,12 @@ describe('feature groups', () => {
           throw new Error('Not implemented');
         },
         applyMigration() {
+          throw new Error('Not implemented');
+        },
+        listSnippets() {
+          throw new Error('Not implemented');
+        },
+        getSnippet() {
           throw new Error('Not implemented');
         },
       },

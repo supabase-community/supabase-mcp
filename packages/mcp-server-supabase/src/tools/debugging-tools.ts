@@ -83,5 +83,59 @@ export function getDebuggingTools({
         }
       },
     }),
+    get_project_health: injectableTool({
+      description:
+        'Gets the health status of all services in a Supabase project. This shows which services are running and their current status.',
+      annotations: {
+        title: 'Get project health',
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+      parameters: z.object({
+        project_id: z.string(),
+      }),
+      inject: { project_id },
+      execute: async ({ project_id }) => {
+        return debugging.getProjectHealth(project_id);
+      },
+    }),
+    get_upgrade_status: injectableTool({
+      description:
+        'Gets the current upgrade status of a Supabase project. Use this to check if an upgrade is in progress.',
+      annotations: {
+        title: 'Get upgrade status',
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+      parameters: z.object({
+        project_id: z.string(),
+      }),
+      inject: { project_id },
+      execute: async ({ project_id }) => {
+        return debugging.getUpgradeStatus(project_id);
+      },
+    }),
+    check_upgrade_eligibility: injectableTool({
+      description:
+        'Checks if a Supabase project is eligible for upgrade. This shows available upgrade options.',
+      annotations: {
+        title: 'Check upgrade eligibility',
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+      parameters: z.object({
+        project_id: z.string(),
+      }),
+      inject: { project_id },
+      execute: async ({ project_id }) => {
+        return debugging.checkUpgradeEligibility(project_id);
+      },
+    }),
   };
 }

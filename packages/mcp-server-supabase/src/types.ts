@@ -5,12 +5,20 @@ export const deprecatedFeatureGroupSchema = z.enum(['debug']);
 export const currentFeatureGroupSchema = z.enum([
   'docs',
   'account',
+  'analytics',
+  'auth',
+  'billing',
   'database',
   'debugging',
   'development',
+  'domains',
   'functions',
+  'network',
+  'project',
+  'secrets',
   'branching',
   'storage',
+  'runtime',
 ]);
 
 export const featureGroupSchema = z

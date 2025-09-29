@@ -6,6 +6,8 @@ import type { InitData } from '@supabase/mcp-utils';
 import { relative } from 'node:path/posix';
 import { fileURLToPath } from 'node:url';
 import packageJson from '../../package.json' with { type: 'json' };
+import { detectClientContext, type ClientContext } from '../auth.js';
+import type { ProjectContext } from '../config/project-context.js';
 import { getDeploymentId, normalizeFilename } from '../edge-function.js';
 import {
   assertSuccess,
@@ -37,6 +39,7 @@ import {
   type ResetBranchOptions,
   type StorageConfig,
   type StorageOperations,
+  type SecretsOperations,
   type SupabasePlatform,
 } from './index.js';
 
@@ -52,6 +55,16 @@ export type SupabaseApiPlatformOptions = {
    * The API URL for the Supabase Management API.
    */
   apiUrl?: string;
+
+  /**
+   * Client context for enhanced error handling.
+   */
+  clientContext?: ClientContext;
+
+  /**
+   * Project context for project-specific operations.
+   */
+  projectContext?: ProjectContext;
 };
 
 /**
@@ -60,20 +73,26 @@ export type SupabaseApiPlatformOptions = {
 export function createSupabaseApiPlatform(
   options: SupabaseApiPlatformOptions
 ): SupabasePlatform {
-  const { accessToken, apiUrl } = options;
+  const { accessToken, apiUrl, clientContext, projectContext } = options;
 
   const managementApiUrl = apiUrl ?? 'https://api.supabase.com';
 
   let managementApiClient = createManagementApiClient(
     managementApiUrl,
-    accessToken
+    accessToken,
+    {},
+    clientContext
   );
 
   const account: AccountOperations = {
     async listOrganizations() {
       const response = await managementApiClient.GET('/v1/organizations');
 
-      assertSuccess(response, 'Failed to fetch organizations');
+      assertSuccess(
+        response,
+        'Failed to fetch organizations',
+        managementApiClient
+      );
 
       return response.data;
     },
@@ -89,14 +108,18 @@ export function createSupabaseApiPlatform(
         }
       );
 
-      assertSuccess(response, 'Failed to fetch organization');
+      assertSuccess(
+        response,
+        'Failed to fetch organization',
+        managementApiClient
+      );
 
       return response.data;
     },
     async listProjects() {
       const response = await managementApiClient.GET('/v1/projects');
 
-      assertSuccess(response, 'Failed to fetch projects');
+      assertSuccess(response, 'Failed to fetch projects', managementApiClient);
 
       return response.data;
     },
@@ -163,6 +186,22 @@ export function createSupabaseApiPlatform(
 
       assertSuccess(response, 'Failed to restore project');
     },
+    async listOrganizationMembers(organizationId: string) {
+      const response = await managementApiClient.GET(
+        '/v1/organizations/{slug}/members',
+        {
+          params: {
+            path: {
+              slug: organizationId,
+            },
+          },
+        }
+      );
+
+      assertSuccess(response, 'Failed to list organization members');
+
+      return response.data;
+    },
   };
 
   const database: DatabaseOperations = {
@@ -228,6 +267,32 @@ export function createSupabaseApiPlatform(
       // to avoid prompt injection attacks. If the migration failed,
       // it will throw an error.
     },
+    async listSnippets(projectId?: string) {
+      const response = await managementApiClient.GET('/v1/snippets', {
+        params: {
+          query: {
+            ...(projectId && { project_ref: projectId }),
+          },
+        },
+      });
+
+      assertSuccess(response, 'Failed to list SQL snippets');
+
+      return (response.data.data || []) as any;
+    },
+    async getSnippet(snippetId: string) {
+      const response = await managementApiClient.GET('/v1/snippets/{id}', {
+        params: {
+          path: {
+            id: snippetId,
+          },
+        },
+      });
+
+      assertSuccess(response, 'Failed to get SQL snippet');
+
+      return response.data as any;
+    },
   };
 
   const debugging: DebuggingOperations = {
@@ -287,14 +352,95 @@ export function createSupabaseApiPlatform(
 
       return response.data;
     },
+    async getProjectHealth(projectId: string) {
+      const response = await managementApiClient.GET(
+        '/v1/projects/{ref}/health',
+        {
+          params: {
+            path: {
+              ref: projectId,
+            },
+            query: {
+              services: ['auth', 'db', 'pooler', 'realtime', 'rest', 'storage'],
+            },
+          },
+        }
+      );
+
+      assertSuccess(response, 'Failed to fetch project health');
+
+      return response.data;
+    },
+    async getUpgradeStatus(projectId: string) {
+      const response = await managementApiClient.GET(
+        '/v1/projects/{ref}/upgrade/status',
+        {
+          params: {
+            path: {
+              ref: projectId,
+            },
+          },
+        }
+      );
+
+      assertSuccess(response, 'Failed to fetch upgrade status');
+
+      return response.data;
+    },
+    async checkUpgradeEligibility(projectId: string) {
+      const response = await managementApiClient.GET(
+        '/v1/projects/{ref}/upgrade/eligibility',
+        {
+          params: {
+            path: {
+              ref: projectId,
+            },
+          },
+        }
+      );
+
+      assertSuccess(response, 'Failed to check upgrade eligibility');
+
+      return response.data;
+    },
   };
 
   const development: DevelopmentOperations = {
     async getProjectUrl(projectId: string): Promise<string> {
+      // Use project context URL if available and matches the requested project
+      if (
+        projectContext?.hasProjectConfig &&
+        projectContext.credentials.projectId === projectId &&
+        projectContext.credentials.supabaseUrl
+      ) {
+        if (clientContext?.isClaudeCLI) {
+          console.log(
+            `🎯 Using project URL from local config (${projectContext.configSource})`
+          );
+        }
+        return projectContext.credentials.supabaseUrl;
+      }
+
+      // Fallback to constructing URL from management API domain
       const apiUrl = new URL(managementApiUrl);
       return `https://${projectId}.${getProjectDomain(apiUrl.hostname)}`;
     },
     async getAnonKey(projectId: string): Promise<string> {
+      // Use project context anon key if available and matches the requested project
+      if (
+        projectContext?.hasProjectConfig &&
+        projectContext.credentials.projectId === projectId &&
+        projectContext.credentials.anonKey
+      ) {
+        if (clientContext?.isClaudeCLI) {
+          console.log(
+            `🎯 Using anon key from local config (${projectContext.configSource})`
+          );
+        }
+        return projectContext.credentials.anonKey;
+      }
+
+      // Fallback to fetching from Management API
       const response = await managementApiClient.GET(
         '/v1/projects/{ref}/api-keys',
         {
@@ -725,6 +871,154 @@ export function createSupabaseApiPlatform(
     },
   };
 
+  const secrets: SecretsOperations = {
+    async getServiceRoleKey(projectId: string): Promise<string> {
+      // Use project context service role key if available and matches the requested project
+      if (
+        projectContext?.hasProjectConfig &&
+        projectContext.credentials.projectId === projectId &&
+        projectContext.credentials.serviceRoleKey
+      ) {
+        if (clientContext?.isClaudeCLI) {
+          console.log(
+            `🎯 Using service role key from local config (${projectContext.configSource})`
+          );
+        }
+        return projectContext.credentials.serviceRoleKey;
+      }
+
+      // Fallback to fetching from Management API
+      const response = await managementApiClient.GET(
+        '/v1/projects/{ref}/api-keys',
+        {
+          params: {
+            path: {
+              ref: projectId,
+            },
+            query: {
+              reveal: true, // Need to reveal to get the actual key
+            },
+          },
+        }
+      );
+
+      assertSuccess(response, 'Failed to fetch API keys');
+
+      const serviceRoleKey = response.data?.find((key) => key.name === 'service_role');
+
+      if (!serviceRoleKey?.api_key) {
+        throw new Error('Service role key not found');
+      }
+
+      return serviceRoleKey.api_key;
+    },
+    async listApiKeys(projectId: string, reveal?: boolean) {
+      const response = await managementApiClient.GET(
+        '/v1/projects/{ref}/api-keys',
+        {
+          params: {
+            path: {
+              ref: projectId,
+            },
+            query: {
+              ...(reveal !== undefined && { reveal }),
+            },
+          },
+        }
+      );
+
+      assertSuccess(response, 'Failed to list API keys');
+
+      return response.data as any;
+    },
+    async getApiKey(projectId: string, keyId: string, reveal?: boolean) {
+      const response = await managementApiClient.GET(
+        '/v1/projects/{ref}/api-keys/{id}',
+        {
+          params: {
+            path: {
+              ref: projectId,
+              id: keyId,
+            },
+            query: {
+              ...(reveal !== undefined && { reveal }),
+            },
+          },
+        }
+      );
+
+      assertSuccess(response, 'Failed to get API key');
+
+      return response.data as any;
+    },
+    async createApiKey(projectId: string, options, reveal?: boolean) {
+      const response = await managementApiClient.POST(
+        '/v1/projects/{ref}/api-keys',
+        {
+          params: {
+            path: {
+              ref: projectId,
+            },
+            query: {
+              ...(reveal !== undefined && { reveal }),
+            },
+          },
+          body: options as any,
+        }
+      );
+
+      assertSuccess(response, 'Failed to create API key');
+
+      return response.data as any;
+    },
+    async updateApiKey(
+      projectId: string,
+      keyId: string,
+      options,
+      reveal?: boolean
+    ) {
+      const response = await managementApiClient.PATCH(
+        '/v1/projects/{ref}/api-keys/{id}',
+        {
+          params: {
+            path: {
+              ref: projectId,
+              id: keyId,
+            },
+            query: {
+              ...(reveal !== undefined && { reveal }),
+            },
+          },
+          body: options as any,
+        }
+      );
+
+      assertSuccess(response, 'Failed to update API key');
+
+      return response.data as any;
+    },
+    async deleteApiKey(projectId: string, keyId: string, options = {}) {
+      const response = await managementApiClient.DELETE(
+        '/v1/projects/{ref}/api-keys/{id}',
+        {
+          params: {
+            path: {
+              ref: projectId,
+              id: keyId,
+            },
+            query: {
+              ...options,
+            },
+          },
+        }
+      );
+
+      assertSuccess(response, 'Failed to delete API key');
+
+      return response.data as any;
+    },
+  };
+
   const platform: SupabasePlatform = {
     async init(info: InitData) {
       const { clientInfo } = info;
@@ -732,13 +1026,18 @@ export function createSupabaseApiPlatform(
         throw new Error('Client info is required');
       }
 
-      // Re-initialize the management API client with the user agent
+      // Update client context with actual client info
+      const userAgent = `supabase-mcp/${version} (${clientInfo.name}/${clientInfo.version})`;
+      const updatedClientContext = detectClientContext(clientInfo, userAgent);
+
+      // Re-initialize the management API client with the user agent and updated context
       managementApiClient = createManagementApiClient(
         managementApiUrl,
         accessToken,
         {
-          'User-Agent': `supabase-mcp/${version} (${clientInfo.name}/${clientInfo.version})`,
-        }
+          'User-Agent': userAgent,
+        },
+        updatedClientContext
       );
     },
     account,
@@ -748,6 +1047,7 @@ export function createSupabaseApiPlatform(
     functions,
     branching,
     storage,
+    secrets,
   };
 
   return platform;

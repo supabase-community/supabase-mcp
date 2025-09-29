@@ -1,0 +1,4 @@
+# Should be ignored since .env.local has higher priority
+[api]
+url = "https://ignoredproject.supabase.co"
+anon_key = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.ignored_anon_key"

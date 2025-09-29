@@ -52,7 +52,7 @@
       "environment_variables": [
         {
           "name": "SUPABASE_ACCESS_TOKEN",
-          "description": "Personal access token for Supabase API",
+          "description": "Personal access token for Supabase API (format: sbp_...). Generate at https://supabase.com/dashboard/account/tokens",
           "format": "string",
           "is_required": true,
           "is_secret": true

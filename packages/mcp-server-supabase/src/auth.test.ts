@@ -21,13 +21,13 @@ describe('auth utilities', () => {
       const invalidTokens = [
         '',
         'invalid',
-        'sk_1234567890abcdef',  // Wrong prefix
-        'sbp_',  // Too short
-        'sbp_123',  // Too short
-        'sbp_invalid!@#',  // Invalid characters
+        'sk_1234567890abcdef', // Wrong prefix
+        'sbp_', // Too short
+        'sbp_123', // Too short
+        'sbp_invalid!@#', // Invalid characters
       ];
 
-      invalidTokens.forEach(token => {
+      invalidTokens.forEach((token) => {
         expect(() => supabaseTokenSchema.parse(token)).toThrow();
       });
     });
@@ -56,22 +56,30 @@ describe('auth utilities', () => {
 
       expect(result.isValid).toBe(false);
       expect(result.error).toBe('No access token provided');
-      expect(result.suggestions).toContain('Set the SUPABASE_ACCESS_TOKEN environment variable');
+      expect(result.suggestions).toContain(
+        'Set the SUPABASE_ACCESS_TOKEN environment variable'
+      );
     });
 
     test('provides specific suggestions for invalid tokens', () => {
       const result = validateAndSanitizeToken('invalid_token');
 
       expect(result.isValid).toBe(false);
-      expect(result.suggestions).toContain('Supabase access tokens must start with "sbp_"');
-      expect(result.suggestions).toContain('Generate a new token at https://supabase.com/dashboard/account/tokens');
+      expect(result.suggestions).toContain(
+        'Supabase access tokens must start with "sbp_"'
+      );
+      expect(result.suggestions).toContain(
+        'Generate a new token at https://supabase.com/dashboard/account/tokens'
+      );
     });
 
     test('detects truncated tokens', () => {
       const result = validateAndSanitizeToken('sbp_123');
 
       expect(result.isValid).toBe(false);
-      expect(result.suggestions).toContain('Token appears to be incomplete or truncated');
+      expect(result.suggestions).toContain(
+        'Token appears to be incomplete or truncated'
+      );
     });
   });
 
@@ -114,7 +122,7 @@ describe('auth utilities', () => {
       const clientContext = { isClaudeCLI: true };
       const tokenValidation = {
         error: 'Invalid token format',
-        suggestions: ['Check token format']
+        suggestions: ['Check token format'],
       };
 
       const message = generateAuthErrorMessage(
@@ -124,7 +132,9 @@ describe('auth utilities', () => {
       );
 
       expect(message).toContain('For Claude CLI users:');
-      expect(message).toContain('Restart Claude CLI after setting the environment variable');
+      expect(message).toContain(
+        'Restart Claude CLI after setting the environment variable'
+      );
       expect(message).toContain('Token validation issues:');
       expect(message).toContain('Check token format');
     });
@@ -134,7 +144,9 @@ describe('auth utilities', () => {
       const message = generateAuthErrorMessage('Unauthorized', clientContext);
 
       expect(message).toContain('For MCP client users:');
-      expect(message).toContain('Set SUPABASE_ACCESS_TOKEN in your MCP client configuration');
+      expect(message).toContain(
+        'Set SUPABASE_ACCESS_TOKEN in your MCP client configuration'
+      );
       expect(message).not.toContain('Claude CLI');
     });
 
@@ -143,7 +155,9 @@ describe('auth utilities', () => {
       const message = generateAuthErrorMessage('Unauthorized', clientContext);
 
       expect(message).toContain('General troubleshooting:');
-      expect(message).toContain('Verify the token at https://supabase.com/dashboard/account/tokens');
+      expect(message).toContain(
+        'Verify the token at https://supabase.com/dashboard/account/tokens'
+      );
       expect(message).toContain('Ensure the token has not expired');
     });
   });
@@ -182,7 +196,11 @@ describe('auth utilities', () => {
 
     test('tries multiple config file tokens until valid one found', () => {
       const result = resolveAccessToken({
-        configFileTokens: ['invalid_token', 'sbp_valid_token_1234567890abcdef', 'sbp_another_token'],
+        configFileTokens: [
+          'invalid_token',
+          'sbp_valid_token_1234567890abcdef',
+          'sbp_another_token',
+        ],
       });
 
       expect(result.source).toBe('config');
@@ -198,7 +216,9 @@ describe('auth utilities', () => {
       });
 
       expect(result.source).toBe('config');
-      expect(result.claudeCLIWarnings).toContain('Claude CLI: Using ~/.supabase config file.');
+      expect(result.claudeCLIWarnings).toContain(
+        'Claude CLI: Using ~/.supabase config file.'
+      );
     });
 
     test('provides Claude CLI guidance when using environment variables', () => {
@@ -232,7 +252,9 @@ describe('auth utilities', () => {
       expect(result.source).toBe('cli');
       expect(result.token).toBeUndefined();
       expect(result.validation.isValid).toBe(false);
-      expect(result.validation.error).toContain('Invalid Supabase access token format');
+      expect(result.validation.error).toContain(
+        'Invalid Supabase access token format'
+      );
     });
 
     test('handles invalid config file tokens', () => {
@@ -243,7 +265,9 @@ describe('auth utilities', () => {
       expect(result.source).toBe('config');
       expect(result.token).toBeUndefined();
       expect(result.validation.isValid).toBe(false);
-      expect(result.validation.error).toBe('No valid tokens found in config file');
+      expect(result.validation.error).toBe(
+        'No valid tokens found in config file'
+      );
     });
   });
 
@@ -271,11 +295,15 @@ describe('auth utilities', () => {
       const tokenResolution: TokenResolutionResult = {
         token: 'sbp_valid_token_1234567890abcdef',
         source: 'env' as const,
-        validation: { isValid: true }
+        authMode: 'personal-token',
+        validation: { isValid: true },
       };
       const clientContext = { isClaudeCLI: false };
 
-      const result = validateAuthenticationSetup(tokenResolution, clientContext);
+      const result = validateAuthenticationSetup(
+        tokenResolution,
+        clientContext
+      );
 
       expect(result.isValid).toBe(true);
       expect(result.error).toBeUndefined();
@@ -285,15 +313,19 @@ describe('auth utilities', () => {
       const tokenResolution: TokenResolutionResult = {
         token: undefined,
         source: 'none' as const,
+        authMode: 'none',
         validation: {
           isValid: false,
           error: 'No access token provided',
-          suggestions: ['Set SUPABASE_ACCESS_TOKEN']
-        }
+          suggestions: ['Set SUPABASE_ACCESS_TOKEN'],
+        },
       };
       const clientContext = { isClaudeCLI: true };
 
-      const result = validateAuthenticationSetup(tokenResolution, clientContext);
+      const result = validateAuthenticationSetup(
+        tokenResolution,
+        clientContext
+      );
 
       expect(result.isValid).toBe(false);
       expect(result.error).toContain('No access token provided');
@@ -304,11 +336,15 @@ describe('auth utilities', () => {
       const tokenResolution: TokenResolutionResult = {
         token: 'sbp_valid_token_1234567890abcdef',
         source: 'cli' as const,
-        validation: { isValid: true }
+        authMode: 'personal-token',
+        validation: { isValid: true },
       };
       const clientContext = { isClaudeCLI: true };
 
-      const result = validateAuthenticationSetup(tokenResolution, clientContext);
+      const result = validateAuthenticationSetup(
+        tokenResolution,
+        clientContext
+      );
 
       expect(result.isValid).toBe(true);
       expect(result.warnings).toContain(
@@ -320,31 +356,46 @@ describe('auth utilities', () => {
       const tokenResolution: TokenResolutionResult = {
         token: 'sbp_valid_token_1234567890abcdef',
         source: 'config' as const,
+        authMode: 'personal-token',
         validation: { isValid: true },
-        claudeCLIWarnings: ['Using ~/.supabase config file with Claude CLI']
+        claudeCLIWarnings: ['Using ~/.supabase config file with Claude CLI'],
       };
       const clientContext = { isClaudeCLI: true };
 
-      const result = validateAuthenticationSetup(tokenResolution, clientContext);
+      const result = validateAuthenticationSetup(
+        tokenResolution,
+        clientContext
+      );
 
       expect(result.isValid).toBe(true);
-      expect(result.warnings).toContain('Using ~/.supabase config file with Claude CLI');
-      expect(result.warnings).toContain('Environment variables are recommended for better Claude CLI integration');
+      expect(result.warnings).toContain(
+        'Using ~/.supabase config file with Claude CLI'
+      );
+      expect(result.warnings).toContain(
+        'Environment variables are recommended for better Claude CLI integration'
+      );
     });
 
     test('provides config guidance when no token found', () => {
       const tokenResolution: TokenResolutionResult = {
         token: undefined,
         source: 'none' as const,
+        authMode: 'none',
         validation: {
           isValid: false,
-          error: 'No access token provided'
+          error: 'No access token provided',
         },
-        configGuidance: ['Claude CLI Setup Options:', 'Use environment variables']
+        configGuidance: [
+          'Claude CLI Setup Options:',
+          'Use environment variables',
+        ],
       };
       const clientContext = { isClaudeCLI: true };
 
-      const result = validateAuthenticationSetup(tokenResolution, clientContext);
+      const result = validateAuthenticationSetup(
+        tokenResolution,
+        clientContext
+      );
 
       expect(result.isValid).toBe(false);
       expect(result.claudeCLIGuidance).toContain('Claude CLI Setup Options:');

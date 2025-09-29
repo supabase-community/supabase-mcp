@@ -26,8 +26,14 @@ import { createSupabaseApiPlatform } from './platform/api-platform.js';
 import { BRANCH_COST_HOURLY, PROJECT_COST_MONTHLY } from './pricing.js';
 import { createSupabaseMcpServer } from './server.js';
 import type { SupabasePlatform } from './platform/types.js';
-import { initializeProjectManager, resetProjectManager } from './runtime/project-manager.js';
-import { initializeModeManager, resetModeManager } from './runtime/mode-manager.js';
+import {
+  initializeProjectManager,
+  resetProjectManager,
+} from './runtime/project-manager.js';
+import {
+  initializeModeManager,
+  resetModeManager,
+} from './runtime/mode-manager.js';
 
 beforeEach(async () => {
   mockOrgs.clear();
@@ -119,7 +125,14 @@ async function setup(options: SetupOptions = {}) {
     return result;
   }
 
-  return { client, clientTransport, callTool, server, serverTransport, platform };
+  return {
+    client,
+    clientTransport,
+    callTool,
+    server,
+    serverTransport,
+    platform,
+  };
 }
 
 describe('tools', () => {
@@ -344,7 +357,8 @@ describe('tools', () => {
       ],
       total_projects: 2,
       has_multiple_projects: true,
-      claude_cli_message: 'Use switch_project with project_identifier to change active project.',
+      claude_cli_message:
+        'Use switch_project with project_identifier to change active project.',
     });
   });
 
@@ -1138,7 +1152,9 @@ describe('tools', () => {
       arguments: {},
     });
 
-    await expect(listOrganizationsPromise).rejects.toThrow('Unauthorized: Invalid or expired access token.');
+    await expect(listOrganizationsPromise).rejects.toThrow(
+      'Unauthorized: Invalid or expired access token.'
+    );
   });
 
   test('invalid sql for apply_migration', async () => {

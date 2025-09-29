@@ -8,7 +8,7 @@ import {
   validateModeChangeWithClaudeCLI,
   resetModeManager,
   type RuntimeMode,
-  type ModeChangeResult
+  type ModeChangeResult,
 } from './mode-manager.js';
 import type { ClientContext } from '../auth.js';
 
@@ -79,8 +79,12 @@ describe('Mode Manager', () => {
       const manager = getModeManager();
       const result = manager.toggleReadOnlyMode();
 
-      expect(result.claudeCLIMessage).toContain('🔓 Claude CLI: Switched to write mode');
-      expect(result.warnings).toContain('Write mode allows database modifications');
+      expect(result.claudeCLIMessage).toContain(
+        '🔓 Claude CLI: Switched to write mode'
+      );
+      expect(result.warnings).toContain(
+        'Write mode allows database modifications'
+      );
     });
 
     test('provides Claude CLI specific messaging when toggling to read-only mode', () => {
@@ -90,7 +94,9 @@ describe('Mode Manager', () => {
       const manager = getModeManager();
       const result = manager.toggleReadOnlyMode();
 
-      expect(result.claudeCLIMessage).toContain('🔒 Claude CLI: Switched to read-only mode');
+      expect(result.claudeCLIMessage).toContain(
+        '🔒 Claude CLI: Switched to read-only mode'
+      );
     });
   });
 
@@ -116,8 +122,12 @@ describe('Mode Manager', () => {
 
       expect(result.success).toBe(true);
       expect(result.newMode.readOnly).toBe(false);
-      expect(result.claudeCLIMessage).toContain('🔓 Claude CLI: Write mode enabled');
-      expect(result.warnings).toContain('Write mode allows potentially destructive operations');
+      expect(result.claudeCLIMessage).toContain(
+        '🔓 Claude CLI: Write mode enabled'
+      );
+      expect(result.warnings).toContain(
+        'Write mode allows potentially destructive operations'
+      );
     });
 
     test('handles no-change scenario', () => {
@@ -161,7 +171,9 @@ describe('Mode Manager', () => {
       const manager = getModeManager();
       const validation = manager.validateModeChange(false);
 
-      expect(validation.claudeCLIPrompt).toContain('Claude CLI: Confirm switch to write mode');
+      expect(validation.claudeCLIPrompt).toContain(
+        'Claude CLI: Confirm switch to write mode'
+      );
     });
   });
 
@@ -173,7 +185,9 @@ describe('Mode Manager', () => {
       const manager = getModeManager();
       const status = manager.getClaudeCLIStatusMessage();
 
-      expect(status).toContain('🔒 Claude CLI Status: Currently in read-only mode');
+      expect(status).toContain(
+        '🔒 Claude CLI Status: Currently in read-only mode'
+      );
       expect(status).toContain('Database queries allowed');
       expect(status).toContain('Database modifications blocked');
     });
@@ -197,7 +211,9 @@ describe('Mode Manager', () => {
 
       expect(securityInfo.currentMode).toBe('read-only');
       expect(securityInfo.riskLevel).toBe('low');
-      expect(securityInfo.recommendations).toContain('Read-only mode is safe for production environments');
+      expect(securityInfo.recommendations).toContain(
+        'Read-only mode is safe for production environments'
+      );
     });
 
     test('provides security information for write mode', () => {
@@ -207,7 +223,9 @@ describe('Mode Manager', () => {
 
       expect(securityInfo.currentMode).toBe('write');
       expect(securityInfo.riskLevel).toBe('high');
-      expect(securityInfo.recommendations).toContain('Write mode allows destructive operations');
+      expect(securityInfo.recommendations).toContain(
+        'Write mode allows destructive operations'
+      );
     });
 
     test('includes Claude CLI specific advice in security info', () => {
@@ -217,7 +235,9 @@ describe('Mode Manager', () => {
       const manager = getModeManager();
       const securityInfo = manager.getSecurityInfo();
 
-      expect(securityInfo.claudeCLIAdvice).toContain('Claude CLI: Write mode should be used carefully');
+      expect(securityInfo.claudeCLIAdvice).toContain(
+        'Claude CLI: Write mode should be used carefully'
+      );
     });
   });
 

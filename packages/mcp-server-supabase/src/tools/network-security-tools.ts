@@ -30,7 +30,8 @@ export function getNetworkSecurityTools({
       }),
       inject: { project_id },
       execute: async ({ project_id }) => {
-        const restrictions = await networkSecurity.getNetworkRestrictions(project_id);
+        const restrictions =
+          await networkSecurity.getNetworkRestrictions(project_id);
         return source`
           Network Restrictions:
           ${JSON.stringify(restrictions, null, 2)}
@@ -52,17 +53,20 @@ export function getNetworkSecurityTools({
         project_id: z.string(),
         allowed_ips: z
           .array(z.string())
-          .describe('List of allowed IP addresses or CIDR blocks (e.g., 192.168.1.0/24)'),
-        enabled: z
-          .boolean()
-          .describe('Whether to enable network restrictions'),
+          .describe(
+            'List of allowed IP addresses or CIDR blocks (e.g., 192.168.1.0/24)'
+          ),
+        enabled: z.boolean().describe('Whether to enable network restrictions'),
       }),
       inject: { project_id },
       execute: async ({ project_id, allowed_ips, enabled }) => {
-        const updated = await networkSecurity.updateNetworkRestrictions(project_id, {
-          allowed_ips: allowed_ips,
-          enabled,
-        });
+        const updated = await networkSecurity.updateNetworkRestrictions(
+          project_id,
+          {
+            allowed_ips: allowed_ips,
+            enabled,
+          }
+        );
         return source`
           Network restrictions updated:
           ${JSON.stringify(updated, null, 2)}
@@ -71,8 +75,7 @@ export function getNetworkSecurityTools({
     }),
 
     apply_network_restrictions: injectableTool({
-      description:
-        'Applies pending network restriction changes to a project.',
+      description: 'Applies pending network restriction changes to a project.',
       annotations: {
         title: 'Apply network restrictions',
         readOnlyHint: false,
@@ -93,8 +96,7 @@ export function getNetworkSecurityTools({
     }),
 
     get_ssl_enforcement: injectableTool({
-      description:
-        'Retrieves SSL enforcement configuration for a project.',
+      description: 'Retrieves SSL enforcement configuration for a project.',
       annotations: {
         title: 'Get SSL enforcement',
         readOnlyHint: true,
@@ -149,8 +151,7 @@ export function getNetworkSecurityTools({
     }),
 
     add_network_ban: injectableTool({
-      description:
-        'Adds an IP address or CIDR block to the network ban list.',
+      description: 'Adds an IP address or CIDR block to the network ban list.',
       annotations: {
         title: 'Add network ban',
         readOnlyHint: false,
@@ -160,13 +161,8 @@ export function getNetworkSecurityTools({
       },
       parameters: z.object({
         project_id: z.string(),
-        ip_address: z
-          .string()
-          .describe('IP address or CIDR block to ban'),
-        reason: z
-          .string()
-          .optional()
-          .describe('Reason for the ban'),
+        ip_address: z.string().describe('IP address or CIDR block to ban'),
+        reason: z.string().optional().describe('Reason for the ban'),
         duration: z
           .number()
           .optional()
@@ -198,9 +194,7 @@ export function getNetworkSecurityTools({
       },
       parameters: z.object({
         project_id: z.string(),
-        ip_address: z
-          .string()
-          .describe('IP address or CIDR block to unban'),
+        ip_address: z.string().describe('IP address or CIDR block to unban'),
       }),
       inject: { project_id },
       execute: async ({ project_id, ip_address }) => {
@@ -212,8 +206,7 @@ export function getNetworkSecurityTools({
     }),
 
     configure_read_replicas: injectableTool({
-      description:
-        'Configures read replica settings for a project.',
+      description: 'Configures read replica settings for a project.',
       annotations: {
         title: 'Configure read replicas',
         readOnlyHint: false,
@@ -248,8 +241,7 @@ export function getNetworkSecurityTools({
     }),
 
     setup_read_replica: injectableTool({
-      description:
-        'Sets up a new read replica in a specific region.',
+      description: 'Sets up a new read replica in a specific region.',
       annotations: {
         title: 'Setup read replica',
         readOnlyHint: false,
@@ -259,11 +251,19 @@ export function getNetworkSecurityTools({
       },
       parameters: z.object({
         project_id: z.string(),
-        region: z
-          .string()
-          .describe('Region to deploy the read replica'),
+        region: z.string().describe('Region to deploy the read replica'),
         size: z
-          .enum(['small', 'medium', 'large', 'xlarge', '2xlarge', '4xlarge', '8xlarge', '12xlarge', '16xlarge'])
+          .enum([
+            'small',
+            'medium',
+            'large',
+            'xlarge',
+            '2xlarge',
+            '4xlarge',
+            '8xlarge',
+            '12xlarge',
+            '16xlarge',
+          ])
           .optional()
           .describe('Instance size for the read replica'),
       }),
@@ -281,8 +281,7 @@ export function getNetworkSecurityTools({
     }),
 
     remove_read_replica: injectableTool({
-      description:
-        'Removes a read replica from a project.',
+      description: 'Removes a read replica from a project.',
       annotations: {
         title: 'Remove read replica',
         readOnlyHint: false,
@@ -292,9 +291,7 @@ export function getNetworkSecurityTools({
       },
       parameters: z.object({
         project_id: z.string(),
-        replica_id: z
-          .string()
-          .describe('ID of the read replica to remove'),
+        replica_id: z.string().describe('ID of the read replica to remove'),
       }),
       inject: { project_id },
       execute: async ({ project_id, replica_id }) => {

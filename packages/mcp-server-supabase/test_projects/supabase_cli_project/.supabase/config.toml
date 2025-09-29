@@ -1,0 +1,10 @@
+# Supabase CLI config file
+project_id = "cliproject789"
+
+[api]
+url = "https://cliproject789.supabase.co"
+anon_key = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.example_cli_anon_key"
+service_role_key = "eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.example_cli_service_key"
+
+[database]
+port = 5432

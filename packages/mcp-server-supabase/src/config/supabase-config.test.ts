@@ -10,7 +10,7 @@ import {
   generateClaudeCLIConfigGuidance,
   tryTokensSequentially,
   getSupabaseConfigDir,
-  type SupabaseConfig
+  type SupabaseConfig,
 } from './supabase-config.js';
 import type { ClientContext } from '../auth.js';
 
@@ -109,7 +109,7 @@ describe('Supabase Config Parser', () => {
         SUPABASE_TOKEN: 'sbp_secondary_token',
         ACCESS_TOKEN: 'sbp_tertiary_token',
         TOKEN: 'sbp_quaternary_token',
-        OTHER_VALUE: 'not_a_token'
+        OTHER_VALUE: 'not_a_token',
       };
 
       const tokens = findSupabaseTokens(config);
@@ -118,7 +118,7 @@ describe('Supabase Config Parser', () => {
         'sbp_primary_token',
         'sbp_secondary_token',
         'sbp_tertiary_token',
-        'sbp_quaternary_token'
+        'sbp_quaternary_token',
       ]);
     });
 
@@ -126,21 +126,18 @@ describe('Supabase Config Parser', () => {
       const config: SupabaseConfig = {
         CUSTOM_KEY: 'sbp_custom_token',
         ANOTHER_KEY: 'not_supabase_token',
-        WEIRD_NAME: 'sbp_weird_token'
+        WEIRD_NAME: 'sbp_weird_token',
       };
 
       const tokens = findSupabaseTokens(config);
 
-      expect(tokens).toEqual([
-        'sbp_custom_token',
-        'sbp_weird_token'
-      ]);
+      expect(tokens).toEqual(['sbp_custom_token', 'sbp_weird_token']);
     });
 
     test('returns empty array when no tokens found', () => {
       const config: SupabaseConfig = {
         SOME_KEY: 'some_value',
-        ANOTHER_KEY: 'another_value'
+        ANOTHER_KEY: 'another_value',
       };
 
       const tokens = findSupabaseTokens(config);
@@ -170,22 +167,32 @@ describe('Supabase Config Parser', () => {
 
     test('provides Claude CLI guidance for non-existent directory', () => {
       const clientContext: ClientContext = { isClaudeCLI: true };
-      const result = parseSupabaseConfig('/non/existent/directory', clientContext);
+      const result = parseSupabaseConfig(
+        '/non/existent/directory',
+        clientContext
+      );
 
       expect(result.success).toBe(false);
-      expect(result.claudeCLIGuidance).toContain('For Claude CLI users: Environment variables are recommended over config files');
+      expect(result.claudeCLIGuidance).toContain(
+        'For Claude CLI users: Environment variables are recommended over config files'
+      );
     });
 
     test('provides Claude CLI guidance for existing directory', () => {
       fs.mkdirSync(tempConfigPath);
       const configFile = path.join(tempConfigPath, 'config');
-      fs.writeFileSync(configFile, 'SUPABASE_ACCESS_TOKEN=sbp_test_token_123456789');
+      fs.writeFileSync(
+        configFile,
+        'SUPABASE_ACCESS_TOKEN=sbp_test_token_123456789'
+      );
 
       const clientContext: ClientContext = { isClaudeCLI: true };
       const result = parseSupabaseConfig(tempConfigPath, clientContext);
 
       expect(result.success).toBe(true);
-      expect(result.claudeCLIGuidance).toContain('Claude CLI users: Consider using environment variables instead of config files');
+      expect(result.claudeCLIGuidance).toContain(
+        'Claude CLI users: Consider using environment variables instead of config files'
+      );
     });
 
     test('handles directory with file instead of directory', () => {
@@ -202,25 +209,29 @@ describe('Supabase Config Parser', () => {
   describe('validateConfigForClaudeCLI', () => {
     test('validates config with valid tokens', () => {
       const config: SupabaseConfig = {
-        SUPABASE_ACCESS_TOKEN: 'sbp_valid_token'
+        SUPABASE_ACCESS_TOKEN: 'sbp_valid_token',
       };
 
       const result = validateConfigForClaudeCLI(config);
 
       expect(result.isValid).toBe(true);
       expect(result.warnings).toEqual([]);
-      expect(result.recommendations).toContain('For Claude CLI users, environment variables are preferred:');
+      expect(result.recommendations).toContain(
+        'For Claude CLI users, environment variables are preferred:'
+      );
     });
 
     test('invalidates config without tokens', () => {
       const config: SupabaseConfig = {
-        SOME_KEY: 'some_value'
+        SOME_KEY: 'some_value',
       };
 
       const result = validateConfigForClaudeCLI(config);
 
       expect(result.isValid).toBe(false);
-      expect(result.warnings).toContain('No valid Supabase tokens found in config file');
+      expect(result.warnings).toContain(
+        'No valid Supabase tokens found in config file'
+      );
     });
 
     test('warns about large config files', () => {
@@ -231,7 +242,9 @@ describe('Supabase Config Parser', () => {
 
       const result = validateConfigForClaudeCLI(config);
 
-      expect(result.warnings).toContain('Config file contains many entries - consider using environment variables for Claude CLI');
+      expect(result.warnings).toContain(
+        'Config file contains many entries - consider using environment variables for Claude CLI'
+      );
     });
   });
 
@@ -240,9 +253,15 @@ describe('Supabase Config Parser', () => {
       const guidance = generateClaudeCLIConfigGuidance();
 
       expect(guidance).toContain('🚀 Claude CLI Setup Guidance:');
-      expect(guidance).toContain('1. export SUPABASE_ACCESS_TOKEN="sbp_your_token_here"');
-      expect(guidance).toContain('3. Set permissions: chmod 700 ~/.supabase && chmod 600 ~/.supabase/access-token');
-      expect(guidance).toContain('Get your token at: https://supabase.com/dashboard/account/tokens');
+      expect(guidance).toContain(
+        '1. export SUPABASE_ACCESS_TOKEN="sbp_your_token_here"'
+      );
+      expect(guidance).toContain(
+        '3. Set permissions: chmod 700 ~/.supabase && chmod 600 ~/.supabase/access-token'
+      );
+      expect(guidance).toContain(
+        'Get your token at: https://supabase.com/dashboard/account/tokens'
+      );
     });
   });
 
@@ -273,9 +292,15 @@ describe('Supabase Config Parser', () => {
       const validateFn = async (token: string) => false;
       const clientContext: ClientContext = { isClaudeCLI: true };
 
-      const result = await tryTokensSequentially(tokens, validateFn, clientContext);
+      const result = await tryTokensSequentially(
+        tokens,
+        validateFn,
+        clientContext
+      );
 
-      expect(result.error).toContain('Check https://supabase.com/dashboard/account/tokens');
+      expect(result.error).toContain(
+        'Check https://supabase.com/dashboard/account/tokens'
+      );
     });
 
     test('handles empty token array', async () => {

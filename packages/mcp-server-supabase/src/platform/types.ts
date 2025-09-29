@@ -224,18 +224,20 @@ export const serviceHealthSchema = z.object({
   ]),
   healthy: z.boolean(),
   status: z.enum(['COMING_UP', 'ACTIVE_HEALTHY', 'UNHEALTHY']),
-  info: z.union([
-    z.object({
-      name: z.enum(['GoTrue']),
-      version: z.string(),
-      description: z.string(),
-    }),
-    z.object({
-      healthy: z.boolean(),
-      db_connected: z.boolean(),
-      connected_cluster: z.number(),
-    }),
-  ]).optional(),
+  info: z
+    .union([
+      z.object({
+        name: z.enum(['GoTrue']),
+        version: z.string(),
+        description: z.string(),
+      }),
+      z.object({
+        healthy: z.boolean(),
+        db_connected: z.boolean(),
+        connected_cluster: z.number(),
+      }),
+    ])
+    .optional(),
   error: z.string().optional(),
 });
 
@@ -382,7 +384,9 @@ export type AccountOperations = {
   createProject(options: CreateProjectOptions): Promise<Project>;
   pauseProject(projectId: string): Promise<void>;
   restoreProject(projectId: string): Promise<void>;
-  listOrganizationMembers(organizationId: string): Promise<OrganizationMember[]>;
+  listOrganizationMembers(
+    organizationId: string
+  ): Promise<OrganizationMember[]>;
 };
 
 export type EdgeFunctionsOperations = {
@@ -434,29 +438,67 @@ export type BranchingOperations = {
 
 export type SecretsOperations = {
   listApiKeys(projectId: string, reveal?: boolean): Promise<ApiKey[]>;
-  getApiKey(projectId: string, keyId: string, reveal?: boolean): Promise<ApiKey>;
-  createApiKey(projectId: string, options: CreateApiKeyOptions, reveal?: boolean): Promise<ApiKey>;
-  updateApiKey(projectId: string, keyId: string, options: UpdateApiKeyOptions, reveal?: boolean): Promise<ApiKey>;
-  deleteApiKey(projectId: string, keyId: string, options?: DeleteApiKeyOptions): Promise<ApiKey>;
+  getApiKey(
+    projectId: string,
+    keyId: string,
+    reveal?: boolean
+  ): Promise<ApiKey>;
+  createApiKey(
+    projectId: string,
+    options: CreateApiKeyOptions,
+    reveal?: boolean
+  ): Promise<ApiKey>;
+  updateApiKey(
+    projectId: string,
+    keyId: string,
+    options: UpdateApiKeyOptions,
+    reveal?: boolean
+  ): Promise<ApiKey>;
+  deleteApiKey(
+    projectId: string,
+    keyId: string,
+    options?: DeleteApiKeyOptions
+  ): Promise<ApiKey>;
+  // Direct key access for project-based authentication
+  getServiceRoleKey?(projectId: string): Promise<string>;
   // Legacy API keys
   listLegacyApiKeys?(projectId: string): Promise<ApiKey[]>;
   rotateAnonKey?(projectId: string): Promise<unknown>;
   rotateServiceRoleKey?(projectId: string): Promise<unknown>;
-  setJwtTemplate?(projectId: string, keyId: string, template: unknown): Promise<unknown>;
+  setJwtTemplate?(
+    projectId: string,
+    keyId: string,
+    template: unknown
+  ): Promise<unknown>;
   getProjectClaimToken?(projectId: string): Promise<unknown>;
   // Environment secrets
-  listEnvSecrets?(projectId: string): Promise<Array<{ name: string; value?: string }>>;
+  listEnvSecrets?(
+    projectId: string
+  ): Promise<Array<{ name: string; value?: string }>>;
   getEnvSecret?(projectId: string, key: string): Promise<string>;
   setEnvSecret?(projectId: string, key: string, value: string): Promise<void>;
   deleteEnvSecret?(projectId: string, key: string): Promise<void>;
-  bulkUpdateSecrets?(projectId: string, secrets: Record<string, string>): Promise<void>;
+  bulkUpdateSecrets?(
+    projectId: string,
+    secrets: Record<string, string>
+  ): Promise<void>;
 };
 
 export type AnalyticsOperations = {
-  getApiUsage(projectId: string, timeRange?: { start: string; end: string }): Promise<unknown>;
+  getApiUsage(
+    projectId: string,
+    timeRange?: { start: string; end: string }
+  ): Promise<unknown>;
   getFunctionStats(projectId: string, functionSlug?: string): Promise<unknown>;
-  getAllLogs(projectId: string, options?: { limit?: number; offset?: number; query?: string }): Promise<unknown>;
-  queryLogs(projectId: string, sql: string, timeRange: { start: string; end: string }): Promise<unknown>;
+  getAllLogs(
+    projectId: string,
+    options?: { limit?: number; offset?: number; query?: string }
+  ): Promise<unknown>;
+  queryLogs(
+    projectId: string,
+    sql: string,
+    timeRange: { start: string; end: string }
+  ): Promise<unknown>;
   getNetworkBans(projectId: string): Promise<unknown>;
   getEnrichedBans(projectId: string): Promise<unknown>;
 };
@@ -468,12 +510,20 @@ export type AuthConfigOperations = {
   listThirdPartyAuth(projectId: string): Promise<unknown[]>;
   getThirdPartyAuth(projectId: string, providerId: string): Promise<unknown>;
   createThirdPartyAuth(projectId: string, provider: unknown): Promise<unknown>;
-  updateThirdPartyAuth(projectId: string, providerId: string, config: unknown): Promise<unknown>;
+  updateThirdPartyAuth(
+    projectId: string,
+    providerId: string,
+    config: unknown
+  ): Promise<unknown>;
   deleteThirdPartyAuth(projectId: string, providerId: string): Promise<void>;
   // SSO providers
   listSsoProviders(projectId: string): Promise<unknown[]>;
   createSsoProvider(projectId: string, provider: unknown): Promise<unknown>;
-  updateSsoProvider(projectId: string, providerId: string, config: unknown): Promise<unknown>;
+  updateSsoProvider(
+    projectId: string,
+    providerId: string,
+    config: unknown
+  ): Promise<unknown>;
   deleteSsoProvider(projectId: string, providerId: string): Promise<void>;
   // JWT and signing keys
   rotateJwtSecret(projectId: string): Promise<unknown>;
@@ -483,17 +533,32 @@ export type AuthConfigOperations = {
 export type NetworkSecurityOperations = {
   // Network restrictions
   getNetworkRestrictions(projectId: string): Promise<unknown>;
-  updateNetworkRestrictions(projectId: string, restrictions: { allowed_ips: string[]; enabled: boolean }): Promise<unknown>;
+  updateNetworkRestrictions(
+    projectId: string,
+    restrictions: { allowed_ips: string[]; enabled: boolean }
+  ): Promise<unknown>;
   applyNetworkRestrictions(projectId: string): Promise<void>;
   // SSL enforcement
   getSSLEnforcement(projectId: string): Promise<unknown>;
-  updateSSLEnforcement(projectId: string, config: { enforced: boolean; mode?: string }): Promise<unknown>;
+  updateSSLEnforcement(
+    projectId: string,
+    config: { enforced: boolean; mode?: string }
+  ): Promise<unknown>;
   // Network bans
-  addNetworkBan(projectId: string, ban: { ip_address: string; reason?: string; duration?: number }): Promise<unknown>;
+  addNetworkBan(
+    projectId: string,
+    ban: { ip_address: string; reason?: string; duration?: number }
+  ): Promise<unknown>;
   removeNetworkBan(projectId: string, ipAddress: string): Promise<void>;
   // Read replicas
-  configureReadReplicas(projectId: string, config: { enabled: boolean; regions?: string[]; max_replicas?: number }): Promise<unknown>;
-  setupReadReplica(projectId: string, config: { region: string; size?: string }): Promise<unknown>;
+  configureReadReplicas(
+    projectId: string,
+    config: { enabled: boolean; regions?: string[]; max_replicas?: number }
+  ): Promise<unknown>;
+  setupReadReplica(
+    projectId: string,
+    config: { region: string; size?: string }
+  ): Promise<unknown>;
   removeReadReplica(projectId: string, replicaId: string): Promise<void>;
 };
 
@@ -510,19 +575,44 @@ export type BillingOperations = {
   getBillingSubscription(projectId: string): Promise<unknown>;
   getBillingUsage(projectId: string, billingPeriod?: string): Promise<unknown>;
   getBillingStatus(projectId: string): Promise<unknown>;
-  getUsageMetrics(projectId: string, timeRange?: { start: string; end: string }): Promise<unknown>;
+  getUsageMetrics(
+    projectId: string,
+    timeRange?: { start: string; end: string }
+  ): Promise<unknown>;
   // Add-ons
   listBillingAddons(projectId: string): Promise<unknown[]>;
-  addBillingAddon(projectId: string, addon: { type: string; variant?: string; quantity?: number }): Promise<unknown>;
-  updateBillingAddon(projectId: string, addonType: string, config: unknown): Promise<unknown>;
+  addBillingAddon(
+    projectId: string,
+    addon: { type: string; variant?: string; quantity?: number }
+  ): Promise<unknown>;
+  updateBillingAddon(
+    projectId: string,
+    addonType: string,
+    config: unknown
+  ): Promise<unknown>;
   removeBillingAddon(projectId: string, addonType: string): Promise<void>;
   // Spend caps and credits
   getSpendCap(projectId: string): Promise<unknown>;
-  updateSpendCap(projectId: string, config: { enabled: boolean; monthly_limit?: number; action?: string }): Promise<unknown>;
-  getBillingCredits(options: { project_id?: string; organization_id?: string }): Promise<unknown>;
+  updateSpendCap(
+    projectId: string,
+    config: { enabled: boolean; monthly_limit?: number; action?: string }
+  ): Promise<unknown>;
+  getBillingCredits(options: {
+    project_id?: string;
+    organization_id?: string;
+  }): Promise<unknown>;
   // Invoices and estimates
-  getInvoices(options: { project_id?: string; organization_id?: string; limit?: number; status?: string }): Promise<unknown>;
-  estimateCosts(projectId: string, usageEstimates: unknown, period?: string): Promise<unknown>;
+  getInvoices(options: {
+    project_id?: string;
+    organization_id?: string;
+    limit?: number;
+    status?: string;
+  }): Promise<unknown>;
+  estimateCosts(
+    projectId: string,
+    usageEstimates: unknown,
+    period?: string
+  ): Promise<unknown>;
 };
 
 export type CustomDomainOperations = {
@@ -536,7 +626,10 @@ export type CustomDomainOperations = {
   // Vanity subdomain
   getVanitySubdomain(projectId: string): Promise<unknown>;
   createVanitySubdomain(projectId: string, subdomain: string): Promise<unknown>;
-  checkSubdomainAvailability(projectId: string, subdomain: string): Promise<{ available: boolean }>;
+  checkSubdomainAvailability(
+    projectId: string,
+    subdomain: string
+  ): Promise<{ available: boolean }>;
   activateVanitySubdomain(projectId: string): Promise<unknown>;
   deleteVanitySubdomain(projectId: string): Promise<void>;
 };
@@ -546,22 +639,37 @@ export type ProjectManagementOperations = {
   pauseProject(projectId: string): Promise<void>;
   restoreProject(projectId: string): Promise<void>;
   cancelProjectRestore(projectId: string): Promise<void>;
-  transferProject(projectId: string, targetOrganizationId: string): Promise<unknown>;
+  transferProject(
+    projectId: string,
+    targetOrganizationId: string
+  ): Promise<unknown>;
   // Read-only mode
   setProjectReadonly(projectId: string, readonly: boolean): Promise<void>;
-  disableReadonlyTemporarily(projectId: string, durationMinutes?: number): Promise<unknown>;
+  disableReadonlyTemporarily(
+    projectId: string,
+    durationMinutes?: number
+  ): Promise<unknown>;
   // Upgrades
   upgradeProject(projectId: string, targetTier: string): Promise<unknown>;
   getUpgradeStatus(projectId: string): Promise<unknown>;
-  checkUpgradeEligibility(projectId: string, targetTier?: string): Promise<unknown>;
+  checkUpgradeEligibility(
+    projectId: string,
+    targetTier?: string
+  ): Promise<unknown>;
   // Features and configuration
   enablePgsodium(projectId: string): Promise<void>;
   getProjectContext(projectId: string): Promise<unknown>;
-  enablePostgrest(projectId: string, config?: { max_rows?: number; default_limit?: number }): Promise<unknown>;
+  enablePostgrest(
+    projectId: string,
+    config?: { max_rows?: number; default_limit?: number }
+  ): Promise<unknown>;
   getProjectHealth(projectId: string): Promise<unknown>;
   // Secrets
   getProjectSecrets(projectId: string): Promise<unknown>;
-  updateProjectSecrets(projectId: string, secrets: Record<string, string>): Promise<void>;
+  updateProjectSecrets(
+    projectId: string,
+    secrets: Record<string, string>
+  ): Promise<void>;
 };
 
 export type DatabaseConfigOperations = {
@@ -577,9 +685,18 @@ export type DatabaseConfigOperations = {
   updatePostgrestConfig(projectId: string, config: unknown): Promise<void>;
   // Database features
   enableDatabaseWebhooks(projectId: string): Promise<void>;
-  configurePitr(projectId: string, config: { enabled: boolean; retention_period?: number }): Promise<unknown>;
-  managePgSodium(projectId: string, action: 'enable' | 'disable'): Promise<void>;
-  manageReadReplicas(projectId: string, action: 'setup' | 'remove'): Promise<void>;
+  configurePitr(
+    projectId: string,
+    config: { enabled: boolean; retention_period?: number }
+  ): Promise<unknown>;
+  managePgSodium(
+    projectId: string,
+    action: 'enable' | 'disable'
+  ): Promise<void>;
+  manageReadReplicas(
+    projectId: string,
+    action: 'setup' | 'remove'
+  ): Promise<void>;
 };
 
 export type SupabasePlatform = {

@@ -12,6 +12,19 @@ All notable changes to the Supabase MCP Server will be documented in this file.
   - Startup token validation to catch errors early
   - Context-aware error messages based on detected MCP client
 
+- **Automatic Project Context Detection**
+  - Smart detection of Supabase project configuration from current working directory
+  - Support for `.env`, `.env.local`, `.supabase/config.toml`, and `.supabase/.env` files
+  - Framework-specific environment variable support (Next.js, React, Vite)
+  - Automatic project switching based on detected project credentials
+  - Priority-based configuration resolution system
+
+- **Enhanced Personal Access Token Detection**
+  - Automatic detection from `~/.supabase/access-token` (Supabase CLI integration)
+  - Support for multiple token file formats and locations
+  - Fallback chain: Environment → CLI directory → Config files
+  - Seamless integration with `supabase login` workflow
+
 - **~/.supabase Config File Support**
   - Automatic detection and parsing of ~/.supabase configuration file
   - KEY=value format support with fallback to multiple tokens
@@ -46,6 +59,12 @@ All notable changes to the Supabase MCP Server will be documented in this file.
   - Token resolution tests with multiple source priorities
 
 ### Changed
+- **Authentication Architecture Overhaul**
+  - Dual authentication modes: personal-token vs project-keys
+  - Project-specific API key usage when available
+  - Enhanced fallback chains for token resolution
+  - Automatic context switching based on working directory
+
 - **Claude CLI Integration Priority**
   - Environment variables now preferred over config files for Claude CLI
   - All error messages include Claude CLI-specific guidance when detected
@@ -53,9 +72,10 @@ All notable changes to the Supabase MCP Server will be documented in this file.
   - Tool descriptions and help text tailored for Claude CLI context
 
 - **Token Resolution Priority**
-  - Updated priority: CLI flags → Environment variables → Config file → None
+  - Updated priority: CLI flags → Environment variables → Project context → Config file → None
   - Enhanced validation with detailed error messages and suggestions
   - Multi-token fallback support with sequential validation
+  - Project-specific credential extraction and validation
 
 - **Feature Group System**
   - Added 'runtime' feature group enabled by default

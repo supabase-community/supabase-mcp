@@ -16,8 +16,7 @@ export function getProjectManagementTools({
 
   const projectManagementTools = {
     upgrade_project: injectableTool({
-      description:
-        'Upgrades a project to a higher tier plan.',
+      description: 'Upgrades a project to a higher tier plan.',
       annotations: {
         title: 'Upgrade project',
         readOnlyHint: false,
@@ -33,7 +32,10 @@ export function getProjectManagementTools({
       }),
       inject: { project_id },
       execute: async ({ project_id, target_tier }) => {
-        const result = await projectManagement.upgradeProject(project_id, target_tier);
+        const result = await projectManagement.upgradeProject(
+          project_id,
+          target_tier
+        );
         return source`
           Project upgrade initiated:
           ${JSON.stringify(result, null, 2)}
@@ -72,8 +74,7 @@ export function getProjectManagementTools({
     }),
 
     get_upgrade_status: injectableTool({
-      description:
-        'Gets the current status of an ongoing project upgrade.',
+      description: 'Gets the current status of an ongoing project upgrade.',
       annotations: {
         title: 'Get upgrade status',
         readOnlyHint: true,
@@ -95,8 +96,7 @@ export function getProjectManagementTools({
     }),
 
     transfer_project: injectableTool({
-      description:
-        'Transfers a project to a different organization.',
+      description: 'Transfers a project to a different organization.',
       annotations: {
         title: 'Transfer project',
         readOnlyHint: false,
@@ -224,8 +224,7 @@ export function getProjectManagementTools({
     }),
 
     enable_postgrest: injectableTool({
-      description:
-        'Enables or configures PostgREST API for a project.',
+      description: 'Enables or configures PostgREST API for a project.',
       annotations: {
         title: 'Enable PostgREST',
         readOnlyHint: false,
@@ -258,8 +257,7 @@ export function getProjectManagementTools({
     }),
 
     cancel_project_restore: injectableTool({
-      description:
-        'Cancels an ongoing project restore operation.',
+      description: 'Cancels an ongoing project restore operation.',
       annotations: {
         title: 'Cancel project restore',
         readOnlyHint: false,
@@ -280,8 +278,7 @@ export function getProjectManagementTools({
     }),
 
     get_project_secrets: injectableTool({
-      description:
-        'Retrieves environment secrets configured for a project.',
+      description: 'Retrieves environment secrets configured for a project.',
       annotations: {
         title: 'Get project secrets',
         readOnlyHint: true,
@@ -303,8 +300,7 @@ export function getProjectManagementTools({
     }),
 
     update_project_secrets: injectableTool({
-      description:
-        'Updates environment secrets for a project.',
+      description: 'Updates environment secrets for a project.',
       annotations: {
         title: 'Update project secrets',
         readOnlyHint: false,

@@ -28,3 +28,8 @@ export {
   processResponse,
   RESPONSE_CONFIGS,
 } from './manager.js';
+
+export {
+  limitResponseSize,
+  type SimpleLimiterConfig,
+} from './simple-limiter.js';

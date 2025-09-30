@@ -19,8 +19,6 @@ The Supabase MCP server is hosted at `https://mcp.supabase.com/mcp` and supports
 
 The easiest way to connect your MCP client (such as Cursor) to your project is clicking [Connect](https://supabase.com/dashboard/project/_?showConnect=true&tab=mcp) in the Supabase dashboard and navigating to the MCP tab. There you can choose options such as [feature groups](#feature-groups), and generate one-click installers or config entries for popular clients.
 
-![supabase-mcp-url-builder](https://github.com/user-attachments/assets/f77d4c40-24e2-49e2-aba8-2148b0b1788f)
-
 Most MCP clients store the configuration as JSON in the following format:
 
 ```json

@@ -6,136 +6,54 @@
 
 The [Model Context Protocol](https://modelcontextprotocol.io/introduction) (MCP) standardizes how Large Language Models (LLMs) talk to external services like Supabase. It connects AI assistants directly with your Supabase project and allows them to perform tasks like managing tables, fetching config, and querying data. See the [full list of tools](#tools).
 
-## Prerequisites
-
-You will need Node.js ([active LTS](https://nodejs.org/en/about/previous-releases) or newer) installed on your machine. You can check this by running:
-
-```shell
-node -v
-```
-
-If you don't have Node.js 22+ installed, you can download it from [nodejs.org](https://nodejs.org/).
-
 ## Setup
 
-### 1. Personal access token (PAT)
+### 1. Follow our security best practices
 
-First, go to your [Supabase settings](https://supabase.com/dashboard/account/tokens) and create a personal access token. Give it a name that describes its purpose, like "Cursor MCP Server".
+Before setting up the MCP server, we recommend you read our [security best practices](#security-risks) to understand the risks of connecting an LLM to your Supabase projects and how to mitigate them.
 
-This will be used to authenticate the MCP server with your Supabase account. Make sure to copy the token, as you won't be able to see it again.
 
-### 2. Configure MCP client
+### 2. Configure your MCP client
 
-Next, configure your MCP client (such as Cursor) to use this server. Most MCP clients store the configuration as JSON in the following format:
+The Supabase MCP server is hosted at `https://mcp.supabase.com/mcp` and supports the Streamable HTTP transport with OAuth authentication.
 
-```json
-{
-  "mcpServers": {
-    "supabase": {
-      "command": "npx",
-      "args": [
-        "-y",
-        "@supabase/mcp-server-supabase@latest",
-        "--read-only",
-        "--project-ref=<project-ref>"
-      ],
-      "env": {
-        "SUPABASE_ACCESS_TOKEN": "<personal-access-token>"
-      }
-    }
-  }
-}
-```
+The easiest way to connect your MCP client (such as Cursor) to your project is clicking [Connect](https://supabase.com/dashboard/project/_?showConnect=true&tab=mcp) in the Supabase dashboard and navigating to the MCP tab. There you can choose options such as [feature groups](#feature-groups), and generate one-click installers or config entries for popular clients.
 
-Replace `<personal-access-token>` with the token you created in step 1. Alternatively you can omit `SUPABASE_ACCESS_TOKEN` in this config and instead set it globally on your machine. This allows you to keep your token out of version control if you plan on committing this configuration to a repository.
+![supabase-mcp-url-builder](https://github.com/user-attachments/assets/f77d4c40-24e2-49e2-aba8-2148b0b1788f)
 
-The following options are available:
-
-- `--read-only`: Used to restrict the server to read-only queries and tools. Recommended by default. See [read-only mode](#read-only-mode).
-- `--project-ref`: Used to scope the server to a specific project. Recommended by default. If you omit this, the server will have access to all projects in your Supabase account. See [project scoped mode](#project-scoped-mode).
-- `--features`: Used to specify which tool groups to enable. See [feature groups](#feature-groups).
-
-If you are on Windows, you will need to [prefix the command](#windows). If your MCP client doesn't accept JSON, the direct CLI command is:
-
-```shell
-npx -y @supabase/mcp-server-supabase@latest --read-only --project-ref=<project-ref>
-```
-
-> Note: Do not run this command directly - this is meant to be executed by your MCP client in order to start the server. `npx` automatically downloads the latest version of the MCP server from `npm` and runs it in a single command.
-
-#### Windows
-
-On Windows, you will need to prefix the command with `cmd /c`:
+Most MCP clients store the configuration as JSON in the following format:
 
 ```json
 {
   "mcpServers": {
     "supabase": {
-      "command": "cmd",
-      "args": [
-        "/c",
-        "npx",
-        "-y",
-        "@supabase/mcp-server-supabase@latest",
-        "--read-only",
-        "--project-ref=<project-ref>"
-      ],
-      "env": {
-        "SUPABASE_ACCESS_TOKEN": "<personal-access-token>"
-      }
+      "type": "http",
+      "url": "https://mcp.supabase.com/mcp"
     }
   }
 }
 ```
 
-or with `wsl` if you are running Node.js inside WSL:
+Your MCP client will automatically prompt you to login to Supabase during setup. This will open a browser window where you can login to your Supabase account and grant access to the MCP client. Be sure to choose the organization that contains the project you wish to work with. In the future, we'll offer more fine grain control over these permissions.
 
-```json
-{
-  "mcpServers": {
-    "supabase": {
-      "command": "wsl",
-      "args": [
-        "npx",
-        "-y",
-        "@supabase/mcp-server-supabase@latest",
-        "--read-only",
-        "--project-ref=<project-ref>"
-      ],
-      "env": {
-        "SUPABASE_ACCESS_TOKEN": "<personal-access-token>"
-      }
-    }
-  }
-}
-```
+For more information, visit the [Supabase MCP docs](https://supabase.com/docs/guides/getting-started/mcp).
 
-Make sure Node.js is available in your system `PATH` environment variable. If you are running Node.js natively on Windows, you can set this by running the following commands in your terminal.
+## Options
 
-1. Get the path to `npm`:
+The following options are configurable as URL query parameters:
 
-   ```shell
-   npm config get prefix
-   ```
+- `read_only`: Used to restrict the server to read-only queries and tools. Recommended by default. See [read-only mode](#read-only-mode).
+- `project_ref`: Used to scope the server to a specific project. Recommended by default. If you omit this, the server will have access to all projects in your Supabase account. See [project scoped mode](#project-scoped-mode).
+- `features`: Used to specify which tool groups to enable. See [feature groups](#feature-groups).
 
-2. Add the directory to your PATH:
-
-   ```shell
-   setx PATH "%PATH%;<path-to-dir>"
-   ```
-
-3. Restart your MCP client.
-
-### 3. Follow our security best practices
-
-Before running the MCP server, we recommend you read our [security best practices](#security-risks) to understand the risks of connecting an LLM to your Supabase projects and how to mitigate them.
+When using the URL in the dashboard or docs, these parameters will be populated for you.
 
 ### Project scoped mode
 
-Without project scoping, the MCP server will have access to all organizations and projects in your Supabase account. We recommend you restrict the server to a specific project by setting the `--project-ref` flag on the CLI command:
+Without project scoping, the MCP server will have access to all organizations and projects in your Supabase account. We recommend you restrict the server to a specific project by setting the `project_ref` query parameter in the server URL:
 
-```shell
-npx -y @supabase/mcp-server-supabase@latest --project-ref=<project-ref>
+```
+https://mcp.supabase.com/mcp?project_ref=<project-ref>
 ```
 
 Replace `<project-ref>` with the ID of your project. You can find this under **Project ID** in your Supabase [project settings](https://supabase.com/dashboard/project/_/settings/general).
@@ -144,10 +62,10 @@ After scoping the server to a project, [account-level](#project-management) tool
 
 ### Read-only mode
 
-To restrict the Supabase MCP server to read-only queries, set the `--read-only` flag on the CLI command:
+To restrict the Supabase MCP server to read-only queries, set the `read_only` query parameter in the server URL:
 
-```shell
-npx -y @supabase/mcp-server-supabase@latest --read-only
+```
+https://mcp.supabase.com/mcp?read_only=true
 ```
 
 We recommend enabling this setting by default. This prevents write operations on any of your databases by executing SQL as a read-only Postgres user (via `execute_sql`). All other mutating tools are disabled in read-only mode, including:
@@ -165,15 +83,15 @@ We recommend enabling this setting by default. This prevents write operations on
 
 ### Feature groups
 
-You can enable or disable specific tool groups by passing the `--features` flag to the MCP server. This allows you to customize which tools are available to the LLM. For example, to enable only the [database](#database) and [docs](#knowledge-base) tools, you would run:
+You can enable or disable specific tool groups by passing the `features` query parameter to the MCP server. This allows you to customize which tools are available to the LLM. For example, to enable only the [database](#database) and [docs](#knowledge-base) tools, you would specify the server URL as:
 
-```shell
-npx -y @supabase/mcp-server-supabase@latest --features=database,docs
+```
+https://mcp.supabase.com/mcp?features=database,docs
 ```
 
 Available groups are: [`account`](#account), [`docs`](#knowledge-base), [`database`](#database), [`debugging`](#debugging), [`development`](#development), [`functions`](#edge-functions), [`storage`](#storage), and [`branching`](#branching-experimental-requires-a-paid-plan).
 
-If this flag is not passed, the default feature groups are: `account`, `database`, `debugging`, `development`, `docs`, `functions`, and `branching`.
+If this parameter is not set, the default feature groups are: `account`, `database`, `debugging`, `development`, `docs`, `functions`, and `branching`.
 
 ## Tools
 
@@ -183,7 +101,7 @@ The following Supabase tools are available to the LLM, [grouped by feature](#fea
 
 #### Account
 
-Enabled by default when no `--project-ref` is passed. Use `account` to target this group of tools with the [`--features`](#feature-groups) option.
+Enabled by default when no `project_ref` is set. Use `account` to target this group of tools with the [`features`](#feature-groups) option.
 
 _**Note:** these tools will be unavailable if the server is [scoped to a project](#project-scoped-mode)._
 
@@ -199,13 +117,13 @@ _**Note:** these tools will be unavailable if the server is [scoped to a project
 
 #### Knowledge Base
 
-Enabled by default. Use `docs` to target this group of tools with the [`--features`](#feature-groups) option.
+Enabled by default. Use `docs` to target this group of tools with the [`features`](#feature-groups) option.
 
 - `search_docs`: Searches the Supabase documentation for up-to-date information. LLMs can use this to find answers to questions or learn how to use specific features.
 
 #### Database
 
-Enabled by default. Use `database` to target this group of tools with the [`--features`](#feature-groups) option.
+Enabled by default. Use `database` to target this group of tools with the [`features`](#feature-groups) option.
 
 - `list_tables`: Lists all tables within the specified schemas.
 - `list_extensions`: Lists all extensions in the database.
@@ -215,14 +133,14 @@ Enabled by default. Use `database` to target this group of tools with the [`--fe
 
 #### Debugging
 
-Enabled by default. Use `debugging` to target this group of tools with the [`--features`](#feature-groups) option.
+Enabled by default. Use `debugging` to target this group of tools with the [`features`](#feature-groups) option.
 
 - `get_logs`: Gets logs for a Supabase project by service type (api, postgres, edge functions, auth, storage, realtime). LLMs can use this to help with debugging and monitoring service performance.
 - `get_advisors`: Gets a list of advisory notices for a Supabase project. LLMs can use this to check for security vulnerabilities or performance issues.
 
 #### Development
 
-Enabled by default. Use `development` to target this group of tools with the [`--features`](#feature-groups) option.
+Enabled by default. Use `development` to target this group of tools with the [`features`](#feature-groups) option.
 
 - `get_project_url`: Gets the API URL for a project.
 - `get_anon_key`: Gets the anonymous API key for a project.
@@ -230,7 +148,7 @@ Enabled by default. Use `development` to target this group of tools with the [`-
 
 #### Edge Functions
 
-Enabled by default. Use `functions` to target this group of tools with the [`--features`](#feature-groups) option.
+Enabled by default. Use `functions` to target this group of tools with the [`features`](#feature-groups) option.
 
 - `list_edge_functions`: Lists all Edge Functions in a Supabase project.
 - `get_edge_function`: Retrieves file contents for an Edge Function in a Supabase project.
@@ -238,7 +156,7 @@ Enabled by default. Use `functions` to target this group of tools with the [`--f
 
 #### Branching (Experimental, requires a paid plan)
 
-Enabled by default. Use `branching` to target this group of tools with the [`--features`](#feature-groups) option.
+Enabled by default. Use `branching` to target this group of tools with the [`features`](#feature-groups) option.
 
 - `create_branch`: Creates a development branch with migrations from production branch.
 - `list_branches`: Lists all development branches.
@@ -249,7 +167,7 @@ Enabled by default. Use `branching` to target this group of tools with the [`--f
 
 #### Storage
 
-Disabled by default to reduce tool count. Use `storage` to target this group of tools with the [`--features`](#feature-groups) option.
+Disabled by default to reduce tool count. Use `storage` to target this group of tools with the [`features`](#feature-groups) option.
 
 - `list_storage_buckets`: Lists all storage buckets in a Supabase project.
 - `get_storage_config`: Gets the storage config for a Supabase project.

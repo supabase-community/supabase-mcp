@@ -1,6 +1,5 @@
 #!/usr/bin/env node
 
-import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { createServer, type IncomingMessage, type Server } from 'node:http';
@@ -16,9 +15,6 @@ const { version } = packageJson;
 export const asyncLocalStorage = new AsyncLocalStorage<{
   accessToken: string;
 }>();
-
-// Store SSE transports by session ID for the deprecated SSE protocol
-const sseTransports: Record<string, SSEServerTransport> = {};
 
 const DEFAULT_PORT = 3000;
 
@@ -184,7 +180,7 @@ async function main() {
       }
 
       //=============================================================================
-      // STREAMABLE HTTP TRANSPORT (PROTOCOL VERSION 2025-03-26)
+      // STREAMABLE HTTP TRANSPORT
       //=============================================================================
       
       if (pathname === '/mcp' && req.method === 'POST') {
@@ -264,69 +260,6 @@ async function main() {
       }
 
       //=============================================================================
-      // DEPRECATED HTTP+SSE TRANSPORT (PROTOCOL VERSION 2024-11-05)
-      //=============================================================================
-      
-      if (pathname === '/sse' && req.method === 'GET') {
-        console.warn(
-          'Warning: SSE transport is deprecated. Please use the /mcp endpoint with StreamableHTTP transport.'
-        );
-        
-        const transport = new SSEServerTransport('/messages', res);
-        sseTransports[transport.sessionId] = transport;
-        
-        res.on('close', () => {
-          delete sseTransports[transport.sessionId];
-          transport.close();
-        });
-        
-        await asyncLocalStorage.run({ accessToken }, async () => {
-          const server = createServerInstance(
-            projectId,
-            readOnly,
-            features,
-            apiUrl
-          );
-          
-          await server.connect(transport);
-        });
-        
-        return;
-      }
-
-      if (pathname === '/messages' && req.method === 'POST') {
-        const sessionId = url.searchParams.get('sessionId');
-        
-        if (!sessionId) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(
-            JSON.stringify({
-              error: 'Missing sessionId parameter',
-            })
-          );
-          return;
-        }
-        
-        const transport = sseTransports[sessionId];
-        
-        if (!transport) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(
-            JSON.stringify({
-              error: `No transport found for sessionId: ${sessionId}`,
-            })
-          );
-          return;
-        }
-        
-        await asyncLocalStorage.run({ accessToken }, async () => {
-          await transport.handlePostMessage(req, res);
-        });
-        
-        return;
-      }
-
-      //=============================================================================
       // HEALTH CHECK & INFO ENDPOINTS
       //=============================================================================
       
@@ -349,8 +282,6 @@ async function main() {
           error: 'Not found',
           availableEndpoints: [
             'POST /mcp - StreamableHTTP transport (recommended)',
-            'GET /sse - SSE transport (deprecated)',
-            'POST /messages?sessionId=... - SSE message handler',
             'GET /health - Health check',
           ],
         })
@@ -388,7 +319,6 @@ async function main() {
     httpServer.listen(attemptPort, () => {
       console.error(`Supabase MCP Server v${version} running on HTTP`);
       console.error(`  - StreamableHTTP: http://localhost:${attemptPort}/mcp`);
-      console.error(`  - SSE (deprecated): http://localhost:${attemptPort}/sse`);
       console.error(`  - Health check: http://localhost:${attemptPort}/health`);
       console.error('');
       console.error('Authentication: Provide Supabase access token via:');
@@ -399,7 +329,6 @@ async function main() {
 
   startServer(port);
 
-  // Graceful shutdown
   process.on('SIGINT', () => {
     console.error('\nShutting down server...');
     httpServer.close(() => {

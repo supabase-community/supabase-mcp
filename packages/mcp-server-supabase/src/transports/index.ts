@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js';
-import { SSEServerTransport } from '@modelcontextprotocol/sdk/server/sse.js';
 import { StreamableHTTPServerTransport } from '@modelcontextprotocol/sdk/server/streamableHttp.js';
 import { AsyncLocalStorage } from 'node:async_hooks';
 import { createServer, type IncomingMessage, type Server } from 'node:http';
@@ -17,9 +16,6 @@ const { version } = packageJson;
 const asyncLocalStorage = new AsyncLocalStorage<{
   accessToken: string;
 }>();
-
-// Store SSE transports by session ID for the deprecated SSE protocol
-const sseTransports: Record<string, SSEServerTransport> = {};
 
 const DEFAULT_PORT = 3000;
 const ALLOWED_TRANSPORTS = ['stdio', 'http'] as const;
@@ -96,7 +92,7 @@ function createHttpServerInstance(
 }
 
 /**
- * Start HTTP server with both StreamableHTTP and SSE support
+ * Start HTTP server with StreamableHTTP support
  */
 async function startHttpServer(
   port: number,
@@ -152,7 +148,7 @@ async function startHttpServer(
       }
 
       //=============================================================================
-      // STREAMABLE HTTP TRANSPORT (PROTOCOL VERSION 2025-03-26)
+      // STREAMABLE HTTP TRANSPORT
       //=============================================================================
 
       if (pathname === '/mcp' && req.method === 'POST') {
@@ -232,69 +228,6 @@ async function startHttpServer(
       }
 
       //=============================================================================
-      // DEPRECATED HTTP+SSE TRANSPORT (PROTOCOL VERSION 2024-11-05)
-      //=============================================================================
-
-      if (pathname === '/sse' && req.method === 'GET') {
-        console.warn(
-          'Warning: SSE transport is deprecated. Please use the /mcp endpoint with StreamableHTTP transport.'
-        );
-
-        const transport = new SSEServerTransport('/messages', res);
-        sseTransports[transport.sessionId] = transport;
-
-        res.on('close', () => {
-          delete sseTransports[transport.sessionId];
-          transport.close();
-        });
-
-        await asyncLocalStorage.run({ accessToken }, async () => {
-          const server = createHttpServerInstance(
-            projectId,
-            readOnly,
-            features,
-            apiUrl
-          );
-
-          await server.connect(transport);
-        });
-
-        return;
-      }
-
-      if (pathname === '/messages' && req.method === 'POST') {
-        const sessionId = url.searchParams.get('sessionId');
-
-        if (!sessionId) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(
-            JSON.stringify({
-              error: 'Missing sessionId parameter',
-            })
-          );
-          return;
-        }
-
-        const transport = sseTransports[sessionId];
-
-        if (!transport) {
-          res.writeHead(400, { 'Content-Type': 'application/json' });
-          res.end(
-            JSON.stringify({
-              error: `No transport found for sessionId: ${sessionId}`,
-            })
-          );
-          return;
-        }
-
-        await asyncLocalStorage.run({ accessToken }, async () => {
-          await transport.handlePostMessage(req, res);
-        });
-
-        return;
-      }
-
-      //=============================================================================
       // HEALTH CHECK & INFO ENDPOINTS
       //=============================================================================
 
@@ -317,8 +250,6 @@ async function startHttpServer(
           error: 'Not found',
           availableEndpoints: [
             'POST /mcp - StreamableHTTP transport (recommended)',
-            'GET /sse - SSE transport (deprecated)',
-            'POST /messages?sessionId=... - SSE message handler',
             'GET /health - Health check',
           ],
         })
@@ -358,9 +289,6 @@ async function startHttpServer(
     httpServer.listen(attemptPort, () => {
       console.error(`Supabase MCP Server v${version} running on HTTP`);
       console.error(`  - StreamableHTTP: http://localhost:${attemptPort}/mcp`);
-      console.error(
-        `  - SSE (deprecated): http://localhost:${attemptPort}/sse`
-      );
       console.error(
         `  - Health check: http://localhost:${attemptPort}/health`
       );
@@ -490,8 +418,7 @@ Transport Modes:
   http    - HTTP server transport (stateless, multiple concurrent connections)
             Authentication via headers: Authorization: Bearer <token> or X-Auth-Token: <token>
             Endpoints:
-              - POST /mcp - StreamableHTTP transport (recommended)
-              - GET /sse - SSE transport (deprecated)
+              - POST /mcp - StreamableHTTP transport 
               - GET /health - Health check
 
 Examples:

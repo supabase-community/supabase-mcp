@@ -4,3 +4,5 @@ dist/
 .temp/
 .DS_Store
 .env*
+CLAUDE.md
+.claude/

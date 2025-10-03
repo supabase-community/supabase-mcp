@@ -7,12 +7,20 @@ import packageJson from '../package.json' with { type: 'json' };
 import { createContentApiClient } from './content-api/index.js';
 import type { SupabasePlatform } from './platform/types.js';
 import { getAccountTools } from './tools/account-tools.js';
+import { getAnalyticsTools } from './tools/analytics-tools.js';
+import { getAuthConfigTools } from './tools/auth-config-tools.js';
+import { getBillingTools } from './tools/billing-tools.js';
 import { getBranchingTools } from './tools/branching-tools.js';
 import { getDatabaseTools } from './tools/database-operation-tools.js';
 import { getDebuggingTools } from './tools/debugging-tools.js';
 import { getDevelopmentTools } from './tools/development-tools.js';
 import { getDocsTools } from './tools/docs-tools.js';
+import { getDomainTools } from './tools/domain-tools.js';
 import { getEdgeFunctionTools } from './tools/edge-function-tools.js';
+import { getNetworkSecurityTools } from './tools/network-security-tools.js';
+import { getProjectManagementTools } from './tools/project-management-tools.js';
+import { getRuntimeTools } from './tools/runtime-tools.js';
+import { getSecretsTools } from './tools/secrets-tools.js';
 import { getStorageTools } from './tools/storage-tools.js';
 import type { FeatureGroup } from './types.js';
 import { parseFeatureGroups } from './util.js';
@@ -45,7 +53,9 @@ export type SupabaseMcpServerOptions = {
 
   /**
    * Features to enable.
-   * Options: 'account', 'branching', 'database', 'debugging', 'development', 'docs', 'functions', 'storage'
+   * Options: 'account', 'analytics', 'auth', 'billing', 'branching', 'database',
+   * 'debugging', 'development', 'docs', 'domains', 'functions', 'network',
+   * 'project', 'runtime', 'secrets', 'storage'
    */
   features?: string[];
 
@@ -58,14 +68,22 @@ export type SupabaseMcpServerOptions = {
 const DEFAULT_FEATURES: FeatureGroup[] = [
   'docs',
   'account',
+  'analytics',
+  'auth',
+  'billing',
   'database',
   'debugging',
   'development',
+  'domains',
   'functions',
+  'network',
+  'project',
+  'secrets',
   'branching',
+  'runtime',
 ];
 
-export const PLATFORM_INDEPENDENT_FEATURES: FeatureGroup[] = ['docs'];
+export const PLATFORM_INDEPENDENT_FEATURES: FeatureGroup[] = ['docs', 'runtime'];
 
 /**
  * Creates an MCP server for interacting with Supabase.
@@ -121,12 +139,21 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
 
       const {
         account,
+        analytics,
+        authConfig,
+        backup,
+        billing,
+        branching,
+        customDomain,
         database,
-        functions,
+        databaseConfig,
         debugging,
         development,
+        functions,
+        networkSecurity,
+        projectManagement,
+        secrets,
         storage,
-        branching,
       } = platform;
 
       if (enabledFeatures.has('docs')) {
@@ -137,11 +164,25 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
         Object.assign(tools, getAccountTools({ account, readOnly }));
       }
 
+      if (analytics && enabledFeatures.has('analytics')) {
+        Object.assign(tools, getAnalyticsTools({ analytics, projectId }));
+      }
+
+      if (authConfig && enabledFeatures.has('auth')) {
+        Object.assign(tools, getAuthConfigTools({ authConfig, projectId }));
+      }
+
+      if (billing && enabledFeatures.has('billing')) {
+        Object.assign(tools, getBillingTools({ billing, projectId }));
+      }
+
       if (database && enabledFeatures.has('database')) {
         Object.assign(
           tools,
           getDatabaseTools({
             database,
+            backup,
+            databaseConfig,
             projectId,
             readOnly,
           })
@@ -156,11 +197,27 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
         Object.assign(tools, getDevelopmentTools({ development, projectId }));
       }
 
+      if (customDomain && enabledFeatures.has('domains')) {
+        Object.assign(tools, getDomainTools({ customDomain, projectId }));
+      }
+
       if (functions && enabledFeatures.has('functions')) {
         Object.assign(
           tools,
           getEdgeFunctionTools({ functions, projectId, readOnly })
         );
+      }
+
+      if (networkSecurity && enabledFeatures.has('network')) {
+        Object.assign(tools, getNetworkSecurityTools({ networkSecurity, projectId }));
+      }
+
+      if (projectManagement && enabledFeatures.has('project')) {
+        Object.assign(tools, getProjectManagementTools({ projectManagement, projectId }));
+      }
+
+      if (secrets && enabledFeatures.has('secrets')) {
+        Object.assign(tools, getSecretsTools({ secrets, projectId, readOnly }));
       }
 
       if (branching && enabledFeatures.has('branching')) {
@@ -172,6 +229,29 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
 
       if (storage && enabledFeatures.has('storage')) {
         Object.assign(tools, getStorageTools({ storage, projectId, readOnly }));
+      }
+
+      if (enabledFeatures.has('runtime')) {
+        const runtimeTools = getRuntimeTools();
+
+        // Always include mode management tools
+        const modeTools = {
+          toggle_read_only_mode: runtimeTools.toggle_read_only_mode,
+          get_runtime_mode_status: runtimeTools.get_runtime_mode_status,
+          set_read_only_mode: runtimeTools.set_read_only_mode,
+          validate_mode_change: runtimeTools.validate_mode_change,
+        };
+        Object.assign(tools, modeTools);
+
+        // Only include project tools when account operations are available and not project-scoped
+        if (!projectId && account) {
+          const projectTools = {
+            switch_project: runtimeTools.switch_project,
+            get_current_project: runtimeTools.get_current_project,
+            list_projects: runtimeTools.list_projects,
+          };
+          Object.assign(tools, projectTools);
+        }
       }
 
       return tools;

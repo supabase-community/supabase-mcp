@@ -210,5 +210,24 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
         return await account.restoreProject(project_id);
       },
     }),
+    list_organization_members: tool({
+      description:
+        'Lists all members of an organization. Shows user details, roles, and join dates.',
+      annotations: {
+        title: 'List organization members',
+        readOnlyHint: true,
+        destructiveHint: false,
+        idempotentHint: true,
+        openWorldHint: false,
+      },
+      parameters: z.object({
+        organization_id: z
+          .string()
+          .describe('The organization ID to list members for'),
+      }),
+      execute: async ({ organization_id }) => {
+        return await account.listOrganizationMembers(organization_id);
+      },
+    }),
   };
 }

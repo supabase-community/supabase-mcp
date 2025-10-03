@@ -69,7 +69,10 @@ export function getAnalyticsTools({
       }),
       inject: { project_id },
       execute: async ({ project_id, function_slug }) => {
-        const stats = await analytics.getFunctionStats(project_id, function_slug);
+        const stats = await analytics.getFunctionStats(
+          project_id,
+          function_slug
+        );
         return source`
           Edge Function Statistics${function_slug ? ` for ${function_slug}` : ''}:
           ${JSON.stringify(stats, null, 2)}
@@ -95,10 +98,7 @@ export function getAnalyticsTools({
           .default(100)
           .describe('Maximum number of logs to return'),
         offset: z.number().optional().describe('Offset for pagination'),
-        query: z
-          .string()
-          .optional()
-          .describe('Search query to filter logs'),
+        query: z.string().optional().describe('Search query to filter logs'),
       }),
       inject: { project_id },
       execute: async ({ project_id, limit, offset, query }) => {
@@ -126,9 +126,7 @@ export function getAnalyticsTools({
       },
       parameters: z.object({
         project_id: z.string(),
-        sql: z
-          .string()
-          .describe('SQL query to execute against logs'),
+        sql: z.string().describe('SQL query to execute against logs'),
         start_time: z
           .string()
           .describe('ISO 8601 timestamp for start of time range'),

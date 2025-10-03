@@ -126,9 +126,292 @@ Make sure Node.js is available in your system `PATH` environment variable. If yo
 
 3. Restart your MCP client.
 
-### 3. Follow our security best practices
+### 3. Automatic Project Detection (New)
+
+The MCP server now supports automatic detection of your Supabase project configuration from your current working directory. This feature simplifies setup by automatically detecting project credentials and configuration.
+
+#### How it works
+
+When you start the MCP server, it will automatically scan your current working directory for Supabase configuration in the following priority order:
+
+1. **`.env` file** - Checks for `SUPABASE_URL`, `SUPABASE_ANON_KEY`, `SUPABASE_SERVICE_ROLE_KEY`
+2. **`.env.local` file** - Overrides `.env` values if present
+3. **`.supabase/config.toml`** - Supabase CLI configuration file
+4. **`.supabase/.env`** - Additional environment configuration
+
+The server also supports framework-specific environment variable naming:
+- Next.js: `NEXT_PUBLIC_SUPABASE_URL`, `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+- Vite: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`
+- React: `REACT_APP_SUPABASE_URL`, `REACT_APP_SUPABASE_ANON_KEY`
+
+#### Enhanced Token Detection
+
+The server will automatically detect your personal access token from:
+
+1. **Environment variable**: `SUPABASE_ACCESS_TOKEN`
+2. **Supabase CLI directory**: `~/.supabase/access-token` (automatically created by `supabase login`)
+3. **Alternative token files**: `~/.supabase/token`, `~/.supabase/config.toml`, etc.
+
+#### Usage
+
+With automatic detection, you can simply run:
+
+```shell
+npx -y @supabase/mcp-server-supabase@latest
+```
+
+The server will automatically:
+- Detect your personal access token from `~/.supabase/access-token`
+- Extract project credentials from your working directory
+- Switch to the detected project context
+- Use project-specific API keys when available
+
+#### Benefits
+
+- **Zero configuration** for projects with proper `.env` setup
+- **Framework agnostic** - works with Next.js, React, Vite, and others
+- **Secure** - Uses project-specific keys when available, falls back to personal tokens
+- **CLI integration** - Works seamlessly with `supabase login` and existing workflows
+
+### 4. Follow our security best practices
 
 Before running the MCP server, we recommend you read our [security best practices](#security-risks) to understand the risks of connecting an LLM to your Supabase projects and how to mitigate them.
+
+## Claude CLI Configuration
+
+If you're using this MCP server with Claude CLI specifically, we **strongly recommend using the wrapper script approach** for reliable authentication.
+
+### Recommended Setup (Wrapper Script Method)
+
+This is the most reliable method for Claude CLI integration:
+
+#### 1. Download the Authentication Wrapper Script
+
+Download our pre-configured wrapper script:
+
+```bash
+curl -o supabase-mcp-wrapper.sh https://raw.githubusercontent.com/supabase/supabase-mcp/main/scripts/claude-cli-wrapper.sh
+chmod +x supabase-mcp-wrapper.sh
+```
+
+#### 2. Configure Your Credentials
+
+Edit the wrapper script and replace the placeholder values:
+
+```bash
+# Edit the script with your preferred editor
+nano supabase-mcp-wrapper.sh
+```
+
+Replace these lines:
+```bash
+export SUPABASE_ACCESS_TOKEN="YOUR_TOKEN_HERE"
+PROJECT_REF="YOUR_PROJECT_REF_HERE"
+```
+
+With your actual values:
+```bash
+export SUPABASE_ACCESS_TOKEN="sbp_your_actual_token_here"
+PROJECT_REF="your_actual_project_ref_here"
+```
+
+- **Personal Access Token**: Get from [Supabase Token Settings](https://supabase.com/dashboard/account/tokens)
+- **Project Reference**: Get from [Project Settings](https://supabase.com/dashboard/project/_/settings/general)
+
+#### 3. Add to Claude CLI
+
+```bash
+claude mcp add supabase /path/to/supabase-mcp-wrapper.sh
+```
+
+#### 4. Connect in Claude CLI
+
+Use the `/mcp` command in Claude CLI to connect to the Supabase MCP.
+
+### Why Use the Wrapper Script?
+
+The wrapper script solves common Claude CLI authentication issues:
+
+- **Reliable Token Passing**: Bypasses environment variable issues in Claude CLI
+- **Built-in Validation**: Checks token format and configuration before starting
+- **Error Recovery**: Provides clear error messages for misconfiguration
+- **Cross-Platform**: Works on macOS, Linux, and Windows (with bash)
+
+### Alternative Method (Environment Variables)
+
+If you prefer using environment variables directly:
+
+1. **Set Environment Variable**:
+   ```bash
+   export SUPABASE_ACCESS_TOKEN="sbp_your_token_here"
+   ```
+
+2. **Add to Claude CLI**:
+   ```bash
+   claude mcp add supabase npx @supabase/mcp-server-supabase --project-ref=your_project_ref
+   ```
+
+**Note**: This method may experience authentication issues due to how Claude CLI handles environment variables. If you encounter problems, switch to the wrapper script method.
+
+### Troubleshooting Claude CLI Issues
+
+If you experience authentication errors:
+
+#### "Unauthorized. Please provide a valid access token" Error
+
+This is the most common issue. Follow these steps:
+
+1. **Verify Token Format**: Ensure your token starts with `sbp_`:
+   ```bash
+   echo $SUPABASE_ACCESS_TOKEN | grep "^sbp_"
+   ```
+
+2. **Use Wrapper Script**: If using environment variables isn't working, switch to the wrapper script method (recommended).
+
+3. **Check Token Validity**: Generate a new token at [Supabase Token Settings](https://supabase.com/dashboard/account/tokens).
+
+4. **Restart Claude CLI**: After making changes, restart Claude CLI completely.
+
+#### "Failed to reconnect to supabase" Error
+
+1. **Check MCP Status**:
+   ```bash
+   claude mcp list
+   ```
+
+2. **Remove and Re-add**:
+   ```bash
+   claude mcp remove supabase
+   claude mcp add supabase /path/to/supabase-mcp-wrapper.sh
+   ```
+
+3. **Verify Script Permissions**:
+   ```bash
+   chmod +x /path/to/supabase-mcp-wrapper.sh
+   ```
+
+#### Common Token Issues
+
+**Wrong Token Type**: The most common mistake is using the wrong type of Supabase token:
+
+- ❌ **API Keys** (`sb_publishable_...` or `sb_secret_...`) - These are for client applications
+- ❌ **Environment Variables** (`SUPABASE_ACCESS_TOKEN=sbp_...`) - Don't put the variable name in config files
+- ✅ **Personal Access Token** (`sbp_...`) - Required for Management API operations
+
+**File Configuration Issues**:
+
+1. **Check `~/.supabase/access-token`** should contain only the token:
+   ```bash
+   # Correct - just the token
+   sbp_your_actual_token_here
+
+   # Wrong - contains variable syntax
+   SUPABASE_ACCESS_TOKEN=sbp_your_actual_token_here
+   ```
+
+2. **Verify Environment Variables**:
+   ```bash
+   echo $SUPABASE_ACCESS_TOKEN
+   # Should output your sbp_ token, not empty or undefined
+   ```
+
+#### Environment Setup Issues
+
+**PATH Problems**: If the wrapper script can't find `npx`:
+```bash
+# Add to your shell profile (~/.zshrc, ~/.bashrc)
+export PATH="/usr/local/bin:$HOME/.nvm/versions/node/$(node -v)/bin:$PATH"
+```
+
+**Node.js Version**: Ensure you have Node.js 18+ installed:
+```bash
+node --version  # Should be v18.0.0 or higher
+```
+
+#### Testing Your Configuration
+
+Test the wrapper script directly to isolate issues:
+
+```bash
+# Test tool listing (should return JSON with available tools)
+echo '{"jsonrpc": "2.0", "method": "tools/list", "id": 1}' | ./supabase-mcp-wrapper.sh
+
+# Test with authentication (should work without "Unauthorized" errors)
+echo '{"jsonrpc": "2.0", "method": "tools/call", "params": {"name": "get_project_url"}, "id": 2}' | ./supabase-mcp-wrapper.sh
+```
+
+**If wrapper script works but Claude CLI fails:**
+- Check Claude CLI version: `claude --version`
+- Clear Claude CLI cache: `claude mcp list` then restart Claude CLI
+- Verify MCP configuration: `claude mcp list` should show your supabase entry
+
+**If wrapper script fails:**
+- Check script permissions: `chmod +x /path/to/wrapper/script.sh`
+- Verify token and project ref are set correctly in the script
+- Test npx availability: `npx @supabase/mcp-server-supabase --help`
+
+### Advanced Claude CLI Features
+
+The Supabase MCP server includes several advanced features specifically designed for Claude CLI integration:
+
+#### Token Configuration Options
+
+The server supports multiple token sources with Claude CLI-optimized priority:
+
+1. **Automatic Detection (New & Recommended)**:
+   ```bash
+   # Simply login with Supabase CLI
+   supabase login
+   # Token is automatically stored in ~/.supabase/access-token
+   ```
+
+2. **Environment Variables**:
+   ```bash
+   export SUPABASE_ACCESS_TOKEN="sbp_your_token_here"
+   ```
+
+3. **Config File Support**:
+   Create a `~/.supabase/access-token` file containing just your token:
+   ```
+   sbp_your_token_here
+   ```
+
+   The server will automatically detect and use tokens from the Supabase CLI directory, with fallback support for multiple token file formats.
+
+   **Claude CLI Note**: The automatic detection method works seamlessly with `supabase login` and is the recommended approach.
+
+#### Runtime Mode Management
+
+**Toggle Read-Only Mode**: Use the `toggle_read_only_mode` tool to switch between safe read-only operations and full database write access:
+
+- **Read-Only Mode** 🔒: Safe for production, prevents accidental data modifications
+- **Write Mode** 🔓: Allows full database access, requires confirmation in Claude CLI
+
+**Status Monitoring**: Use `get_runtime_mode_status` to check current mode and security settings.
+
+#### Automatic Project Context Detection (New)
+
+**Smart Project Detection**: The MCP server now automatically detects your current project from your working directory:
+
+1. **Automatic Switching**: When started from a project directory, the server automatically switches to that project
+2. **Framework Support**: Works with Next.js, React, Vite, and other frameworks
+3. **Priority System**: Uses `.env.local` > `.env` > `.supabase/config.toml` configuration priority
+4. **Seamless Integration**: No manual project switching required for local development
+
+**Manual Project Switching**: If you have multiple Supabase projects, use the `switch_project` tool for interactive project selection:
+
+1. Call `switch_project` without parameters to see available projects
+2. Claude CLI users get a formatted project list with status indicators
+3. Select project by ID or name: `switch_project` with `project_identifier`
+
+**Project Status**: Use `get_current_project` to see details about your currently active project.
+
+#### Claude CLI-Specific Features
+
+- **Interactive Confirmations**: All potentially destructive operations require explicit confirmation
+- **Status Indicators**: Clear visual feedback (🔒 read-only, 🔓 write mode, 🎯 current project)
+- **Contextual Guidance**: Step-by-step instructions tailored for Claude CLI workflows
+- **Security Warnings**: Automatic alerts for high-risk operations
 
 ### Project scoped mode
 
@@ -171,9 +454,9 @@ You can enable or disable specific tool groups by passing the `--features` flag 
 npx -y @supabase/mcp-server-supabase@latest --features=database,docs
 ```
 
-Available groups are: [`account`](#account), [`docs`](#knowledge-base), [`database`](#database), [`debugging`](#debugging), [`development`](#development), [`functions`](#edge-functions), [`storage`](#storage), and [`branching`](#branching-experimental-requires-a-paid-plan).
+Available groups are: [`account`](#account), [`docs`](#knowledge-base), [`database`](#database), [`debugging`](#debugging), [`development`](#development), [`functions`](#edge-functions), [`storage`](#storage), [`branching`](#branching-experimental-requires-a-paid-plan), and [`runtime`](#runtime-claude-cli-optimized).
 
-If this flag is not passed, the default feature groups are: `account`, `database`, `debugging`, `development`, `docs`, `functions`, and `branching`.
+If this flag is not passed, the default feature groups are: `account`, `database`, `debugging`, `development`, `docs`, `functions`, `branching`, and `runtime`.
 
 ## Tools
 
@@ -254,6 +537,27 @@ Disabled by default to reduce tool count. Use `storage` to target this group of 
 - `list_storage_buckets`: Lists all storage buckets in a Supabase project.
 - `get_storage_config`: Gets the storage config for a Supabase project.
 - `update_storage_config`: Updates the storage config for a Supabase project (requires a paid plan).
+
+#### Runtime (Claude CLI Optimized)
+
+Enabled by default for enhanced Claude CLI integration. Use `runtime` to target this group of tools with the [`--features`](#feature-groups) option.
+
+**Mode Management:**
+- `toggle_read_only_mode`: Toggle between read-only and write modes with Claude CLI-specific confirmations
+- `get_runtime_mode_status`: Get current mode status with security information and Claude CLI guidance
+- `set_read_only_mode`: Explicitly set read-only or write mode
+- `validate_mode_change`: Check mode change requirements and confirmations needed
+
+**Project Management:**
+- `switch_project`: Interactive project switching with Claude CLI-formatted project lists
+- `get_current_project`: Get details about the currently selected project
+- `list_projects`: List all available projects with Claude CLI-optimized display
+
+**Claude CLI Features:**
+- Interactive confirmations for destructive operations
+- Visual status indicators (🔒 read-only, 🔓 write, 🎯 current project)
+- Context-aware error messages and guidance
+- Security warnings and recommendations
 
 ## Security risks
 

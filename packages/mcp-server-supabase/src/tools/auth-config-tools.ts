@@ -66,7 +66,9 @@ export function getAuthConfigTools({
             refresh_token_rotation_enabled: z.boolean().optional(),
             security_refresh_token_reuse_interval: z.number().optional(),
             security_captcha_enabled: z.boolean().optional(),
-            security_captcha_provider: z.enum(['hcaptcha', 'turnstile']).optional(),
+            security_captcha_provider: z
+              .enum(['hcaptcha', 'turnstile'])
+              .optional(),
             security_captcha_secret: z.string().optional(),
             external_email_enabled: z.boolean().optional(),
             external_phone_enabled: z.boolean().optional(),
@@ -97,7 +99,15 @@ export function getAuthConfigTools({
             smtp_pass: z.string().optional(),
             smtp_sender_name: z.string().optional(),
             smtp_admin_email: z.string().optional(),
-            sms_provider: z.enum(['twilio', 'twilio_verify', 'messagebird', 'textlocal', 'vonage']).optional(),
+            sms_provider: z
+              .enum([
+                'twilio',
+                'twilio_verify',
+                'messagebird',
+                'textlocal',
+                'vonage',
+              ])
+              .optional(),
             sms_twilio_account_sid: z.string().optional(),
             sms_twilio_auth_token: z.string().optional(),
             sms_twilio_message_service_sid: z.string().optional(),
@@ -165,7 +175,10 @@ export function getAuthConfigTools({
       }),
       inject: { project_id },
       execute: async ({ project_id, provider_id }) => {
-        const provider = await authConfig.getThirdPartyAuth(project_id, provider_id);
+        const provider = await authConfig.getThirdPartyAuth(
+          project_id,
+          provider_id
+        );
         return source`
           Third-Party Provider Configuration (${provider_id}):
           ${JSON.stringify(provider, null, 2)}
@@ -188,24 +201,46 @@ export function getAuthConfigTools({
         provider: z
           .object({
             provider: z.enum([
-              'apple', 'azure', 'bitbucket', 'discord', 'facebook',
-              'figma', 'github', 'gitlab', 'google', 'kakao',
-              'keycloak', 'linkedin', 'linkedin_oidc', 'notion',
-              'slack', 'slack_oidc', 'spotify', 'twitch', 'twitter',
-              'workos', 'zoom'
+              'apple',
+              'azure',
+              'bitbucket',
+              'discord',
+              'facebook',
+              'figma',
+              'github',
+              'gitlab',
+              'google',
+              'kakao',
+              'keycloak',
+              'linkedin',
+              'linkedin_oidc',
+              'notion',
+              'slack',
+              'slack_oidc',
+              'spotify',
+              'twitch',
+              'twitter',
+              'workos',
+              'zoom',
             ]),
             enabled: z.boolean(),
             client_id: z.string(),
             client_secret: z.string(),
             redirect_uri: z.string().optional(),
-            url: z.string().optional().describe('For custom providers like Keycloak'),
+            url: z
+              .string()
+              .optional()
+              .describe('For custom providers like Keycloak'),
             skip_nonce_check: z.boolean().optional(),
           })
           .describe('Third-party provider configuration'),
       }),
       inject: { project_id },
       execute: async ({ project_id, provider }) => {
-        const created = await authConfig.createThirdPartyAuth(project_id, provider);
+        const created = await authConfig.createThirdPartyAuth(
+          project_id,
+          provider
+        );
         return source`
           Third-party authentication provider created:
           ${JSON.stringify(created, null, 2)}
@@ -239,7 +274,11 @@ export function getAuthConfigTools({
       }),
       inject: { project_id },
       execute: async ({ project_id, provider_id, config }) => {
-        const updated = await authConfig.updateThirdPartyAuth(project_id, provider_id, config);
+        const updated = await authConfig.updateThirdPartyAuth(
+          project_id,
+          provider_id,
+          config
+        );
         return source`
           Third-party provider updated:
           ${JSON.stringify(updated, null, 2)}
@@ -317,7 +356,10 @@ export function getAuthConfigTools({
       }),
       inject: { project_id },
       execute: async ({ project_id, provider }) => {
-        const created = await authConfig.createSsoProvider(project_id, provider);
+        const created = await authConfig.createSsoProvider(
+          project_id,
+          provider
+        );
         return source`
           SSO provider created:
           ${JSON.stringify(created, null, 2)}
@@ -326,8 +368,7 @@ export function getAuthConfigTools({
     }),
 
     update_sso_provider: injectableTool({
-      description:
-        'Updates configuration for an existing SSO provider.',
+      description: 'Updates configuration for an existing SSO provider.',
       annotations: {
         title: 'Update SSO provider',
         readOnlyHint: false,
@@ -349,7 +390,11 @@ export function getAuthConfigTools({
       }),
       inject: { project_id },
       execute: async ({ project_id, provider_id, config }) => {
-        const updated = await authConfig.updateSsoProvider(project_id, provider_id, config);
+        const updated = await authConfig.updateSsoProvider(
+          project_id,
+          provider_id,
+          config
+        );
         return source`
           SSO provider updated:
           ${JSON.stringify(updated, null, 2)}
@@ -358,8 +403,7 @@ export function getAuthConfigTools({
     }),
 
     delete_sso_provider: injectableTool({
-      description:
-        'Removes an SSO provider from a project.',
+      description: 'Removes an SSO provider from a project.',
       annotations: {
         title: 'Delete SSO provider',
         readOnlyHint: false,
@@ -406,8 +450,7 @@ export function getAuthConfigTools({
     }),
 
     get_signing_keys: injectableTool({
-      description:
-        'Retrieves JWT signing keys for a project.',
+      description: 'Retrieves JWT signing keys for a project.',
       annotations: {
         title: 'Get JWT signing keys',
         readOnlyHint: true,

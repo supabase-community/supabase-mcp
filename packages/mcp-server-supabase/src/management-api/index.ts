@@ -13,7 +13,7 @@ import {
   generateAuthErrorMessage,
   detectClientContext,
   validateAndSanitizeToken,
-  type ClientContext
+  type ClientContext,
 } from '../auth.js';
 import type { paths } from './types.js';
 
@@ -72,11 +72,12 @@ export function assertSuccess<
         headers: Object.fromEntries(response.response.headers.entries()),
         error: response.error,
         timestamp: new Date().toISOString(),
-        clientContext: client?.__clientContext
+        clientContext: client?.__clientContext,
       });
 
       // Get client context for better error messages
-      const clientContext: ClientContext = client?.__clientContext || detectClientContext();
+      const clientContext: ClientContext =
+        client?.__clientContext || detectClientContext();
 
       // Generate context-aware error message
       const authErrorMessage = generateAuthErrorMessage(

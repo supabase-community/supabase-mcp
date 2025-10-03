@@ -19,47 +19,56 @@ export function getSupabaseConfigDir(): string {
   return path.join(os.homedir(), '.supabase');
 }
 
-export function parseSupabaseConfig(configDir?: string, clientContext?: ClientContext): ConfigParseResult {
+export function parseSupabaseConfig(
+  configDir?: string,
+  clientContext?: ClientContext
+): ConfigParseResult {
   const supabaseDir = configDir || getSupabaseConfigDir();
 
   try {
     if (!fs.existsSync(supabaseDir)) {
-      const guidance = clientContext?.isClaudeCLI ? [
-        'For Claude CLI users: Environment variables are recommended over config files',
-        'Set SUPABASE_ACCESS_TOKEN in your environment instead',
-        'Example: export SUPABASE_ACCESS_TOKEN="sbp_your_token_here"'
-      ] : undefined;
+      const guidance = clientContext?.isClaudeCLI
+        ? [
+            'For Claude CLI users: Environment variables are recommended over config files',
+            'Set SUPABASE_ACCESS_TOKEN in your environment instead',
+            'Example: export SUPABASE_ACCESS_TOKEN="sbp_your_token_here"',
+          ]
+        : undefined;
 
       return {
         success: false,
         error: `Supabase config directory not found at ${supabaseDir}`,
-        claudeCLIGuidance: guidance
+        claudeCLIGuidance: guidance,
       };
     }
 
     const stats = fs.statSync(supabaseDir);
 
     if (!stats.isDirectory()) {
-      const guidance = clientContext?.isClaudeCLI ? [
-        'Claude CLI troubleshooting:',
-        '~/.supabase should be a directory, not a file',
-        'Remove the file and let Supabase CLI recreate the directory',
-        'Or use environment variables: export SUPABASE_ACCESS_TOKEN="sbp_your_token_here"'
-      ] : undefined;
+      const guidance = clientContext?.isClaudeCLI
+        ? [
+            'Claude CLI troubleshooting:',
+            '~/.supabase should be a directory, not a file',
+            'Remove the file and let Supabase CLI recreate the directory',
+            'Or use environment variables: export SUPABASE_ACCESS_TOKEN="sbp_your_token_here"',
+          ]
+        : undefined;
 
       return {
         success: false,
         error: `${supabaseDir} exists but is not a directory`,
-        claudeCLIGuidance: guidance
+        claudeCLIGuidance: guidance,
       };
     }
 
-    // Look for common Supabase config files
+    // Look for common Supabase config files (in priority order)
     const configFiles = [
-      'access-token',  // Supabase CLI stores access token here
-      'config.toml',   // Alternative config file format
-      'config',        // Plain config file
-      '.env'           // Environment file
+      'access-token', // Supabase CLI stores personal access token here (highest priority)
+      'token', // Alternative token file name
+      'config.toml', // Supabase CLI config file format
+      'config', // Plain config file
+      '.env', // Environment file
+      'credentials', // Alternative credentials file
     ];
 
     let allTokens: string[] = [];
@@ -72,9 +81,22 @@ export function parseSupabaseConfig(configDir?: string, clientContext?: ClientCo
         try {
           const content = fs.readFileSync(configPath, 'utf-8').trim();
 
-          // If it's just a token (like access-token file), treat it as a token
-          if (configFile === 'access-token' && content.startsWith('sbp_')) {
-            allTokens.push(content);
+          // If it's a direct token file (access-token, token), treat content as token
+          if (configFile === 'access-token' || configFile === 'token') {
+            // Check if it looks like a raw token
+            const trimmedContent = content.trim();
+            if (
+              trimmedContent.startsWith('sbp_') &&
+              !trimmedContent.includes('=')
+            ) {
+              allTokens.push(trimmedContent);
+            } else {
+              // Try to parse as key-value if it contains '='
+              const config = parseKeyValueContent(content);
+              Object.assign(allConfigs, config);
+              const tokens = findSupabaseTokens(config);
+              allTokens.push(...tokens);
+            }
           } else {
             // Parse as KEY=value format
             const config = parseKeyValueContent(content);
@@ -87,13 +109,17 @@ export function parseSupabaseConfig(configDir?: string, clientContext?: ClientCo
           if (clientContext?.isClaudeCLI) {
             const fileStats = fs.statSync(configPath);
             if ((fileStats.mode & 0o077) !== 0) {
-              console.warn(`⚠️  Claude CLI Warning: ${configPath} has overly permissive permissions. Consider setting to 600.`);
+              console.warn(
+                `⚠️  Claude CLI Warning: ${configPath} has overly permissive permissions. Consider setting to 600.`
+              );
             }
           }
         } catch (fileError) {
           // Continue with other files if one fails
           if (clientContext?.isClaudeCLI) {
-            console.warn(`⚠️  Claude CLI Warning: Could not read ${configPath}: ${fileError instanceof Error ? fileError.message : 'Unknown error'}`);
+            console.warn(
+              `⚠️  Claude CLI Warning: Could not read ${configPath}: ${fileError instanceof Error ? fileError.message : 'Unknown error'}`
+            );
           }
         }
       }
@@ -103,37 +129,43 @@ export function parseSupabaseConfig(configDir?: string, clientContext?: ClientCo
     const uniqueTokens = Array.from(new Set(allTokens));
 
     // Claude CLI specific guidance
-    const claudeCLIGuidance = clientContext?.isClaudeCLI ? [
-      'Claude CLI users: Consider using environment variables instead of config files',
-      'Environment variables are more secure and integrate better with Claude CLI',
-      'Run: export SUPABASE_ACCESS_TOKEN="your_token_here"'
-    ] : undefined;
+    const claudeCLIGuidance = clientContext?.isClaudeCLI
+      ? [
+          'Claude CLI users: Consider using environment variables instead of config files',
+          'Environment variables are more secure and integrate better with Claude CLI',
+          'Run: export SUPABASE_ACCESS_TOKEN="your_token_here"',
+        ]
+      : undefined;
 
     return {
       success: true,
       config: allConfigs,
       tokens: uniqueTokens,
-      claudeCLIGuidance
+      claudeCLIGuidance,
     };
-
   } catch (error) {
-    const errorMessage = error instanceof Error ? error.message : 'Unknown error parsing config directory';
+    const errorMessage =
+      error instanceof Error
+        ? error.message
+        : 'Unknown error parsing config directory';
 
-    const claudeCLIGuidance = clientContext?.isClaudeCLI ? [
-      'Claude CLI troubleshooting:',
-      '1. Check directory permissions: chmod 700 ~/.supabase',
-      '2. Check file permissions: chmod 600 ~/.supabase/*',
-      '3. Verify file format: KEY=value (one per line)',
-      '4. Consider using environment variables instead',
-      '5. Example format:',
-      '   SUPABASE_ACCESS_TOKEN=sbp_your_token_here',
-      '   SUPABASE_PROJECT_REF=your_project_ref'
-    ] : undefined;
+    const claudeCLIGuidance = clientContext?.isClaudeCLI
+      ? [
+          'Claude CLI troubleshooting:',
+          '1. Check directory permissions: chmod 700 ~/.supabase',
+          '2. Check file permissions: chmod 600 ~/.supabase/*',
+          '3. Verify file format: KEY=value (one per line)',
+          '4. Consider using environment variables instead',
+          '5. Example format:',
+          '   SUPABASE_ACCESS_TOKEN=sbp_your_token_here',
+          '   SUPABASE_PROJECT_REF=your_project_ref',
+        ]
+      : undefined;
 
     return {
       success: false,
       error: `Failed to parse config directory: ${errorMessage}`,
-      claudeCLIGuidance
+      claudeCLIGuidance,
     };
   }
 }
@@ -160,8 +192,10 @@ export function parseKeyValueContent(content: string): SupabaseConfig {
     let value = trimmedLine.substring(equalIndex + 1).trim();
 
     // Remove quotes if present
-    if ((value.startsWith('"') && value.endsWith('"')) ||
-        (value.startsWith("'") && value.endsWith("'"))) {
+    if (
+      (value.startsWith('"') && value.endsWith('"')) ||
+      (value.startsWith("'") && value.endsWith("'"))
+    ) {
       value = value.slice(1, -1);
     }
 
@@ -183,7 +217,7 @@ export function findSupabaseTokens(config: SupabaseConfig): string[] {
     'ACCESS_TOKEN',
     'TOKEN',
     'SUPABASE_API_KEY', // Less common but possible
-    'API_KEY'
+    'API_KEY',
   ];
 
   // Find tokens in order of preference
@@ -229,13 +263,15 @@ export function validateConfigForClaudeCLI(config: SupabaseConfig): {
   );
 
   if (Object.keys(config).length > 5) {
-    warnings.push('Config file contains many entries - consider using environment variables for Claude CLI');
+    warnings.push(
+      'Config file contains many entries - consider using environment variables for Claude CLI'
+    );
   }
 
   return {
     isValid,
     warnings,
-    recommendations
+    recommendations,
   };
 }
 
@@ -255,7 +291,7 @@ export function generateClaudeCLIConfigGuidance(): string[] {
     '',
     'Get your token at: https://supabase.com/dashboard/account/tokens',
     '',
-    'Need help? The MCP server will guide you through any issues.'
+    'Need help? The MCP server will guide you through any issues.',
   ];
 }
 
@@ -276,30 +312,38 @@ export async function tryTokensSequentially(
     }
 
     if (clientContext?.isClaudeCLI && i > 0) {
-      console.log(`Claude CLI: Trying fallback token ${i + 1}/${tokens.length}...`);
+      console.log(
+        `Claude CLI: Trying fallback token ${i + 1}/${tokens.length}...`
+      );
     }
 
     try {
       const isValid = await validateTokenFn(token);
       if (isValid) {
         if (clientContext?.isClaudeCLI) {
-          console.log(`✅ Claude CLI: Successfully authenticated with token ${i + 1}`);
+          console.log(
+            `✅ Claude CLI: Successfully authenticated with token ${i + 1}`
+          );
           if (i > 0) {
-            console.log('💡 Consider setting the working token as SUPABASE_ACCESS_TOKEN environment variable');
+            console.log(
+              '💡 Consider setting the working token as SUPABASE_ACCESS_TOKEN environment variable'
+            );
           }
         }
         return { token, index: i };
       }
     } catch (error) {
       if (clientContext?.isClaudeCLI) {
-        console.log(`❌ Claude CLI: Token ${i + 1} failed - ${error instanceof Error ? error.message : 'Unknown error'}`);
+        console.log(
+          `❌ Claude CLI: Token ${i + 1} failed - ${error instanceof Error ? error.message : 'Unknown error'}`
+        );
       }
     }
   }
 
-  const guidance = clientContext?.isClaudeCLI ?
-    'All tokens from ~/.supabase file failed. Check https://supabase.com/dashboard/account/tokens for valid tokens.' :
-    'All provided tokens failed validation.';
+  const guidance = clientContext?.isClaudeCLI
+    ? 'All tokens from ~/.supabase file failed. Check https://supabase.com/dashboard/account/tokens for valid tokens.'
+    : 'All provided tokens failed validation.';
 
   return { error: guidance };
 }

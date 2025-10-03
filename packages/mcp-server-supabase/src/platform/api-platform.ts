@@ -7,6 +7,7 @@ import { relative } from 'node:path/posix';
 import { fileURLToPath } from 'node:url';
 import packageJson from '../../package.json' with { type: 'json' };
 import { detectClientContext, type ClientContext } from '../auth.js';
+import type { ProjectContext } from '../config/project-context.js';
 import { getDeploymentId, normalizeFilename } from '../edge-function.js';
 import {
   assertSuccess,
@@ -59,6 +60,11 @@ export type SupabaseApiPlatformOptions = {
    * Client context for enhanced error handling.
    */
   clientContext?: ClientContext;
+
+  /**
+   * Project context for project-specific operations.
+   */
+  projectContext?: ProjectContext;
 };
 
 /**
@@ -67,7 +73,7 @@ export type SupabaseApiPlatformOptions = {
 export function createSupabaseApiPlatform(
   options: SupabaseApiPlatformOptions
 ): SupabasePlatform {
-  const { accessToken, apiUrl, clientContext } = options;
+  const { accessToken, apiUrl, clientContext, projectContext } = options;
 
   const managementApiUrl = apiUrl ?? 'https://api.supabase.com';
 
@@ -82,7 +88,11 @@ export function createSupabaseApiPlatform(
     async listOrganizations() {
       const response = await managementApiClient.GET('/v1/organizations');
 
-      assertSuccess(response, 'Failed to fetch organizations', managementApiClient);
+      assertSuccess(
+        response,
+        'Failed to fetch organizations',
+        managementApiClient
+      );
 
       return response.data;
     },
@@ -98,7 +108,11 @@ export function createSupabaseApiPlatform(
         }
       );
 
-      assertSuccess(response, 'Failed to fetch organization', managementApiClient);
+      assertSuccess(
+        response,
+        'Failed to fetch organization',
+        managementApiClient
+      );
 
       return response.data;
     },
@@ -393,10 +407,40 @@ export function createSupabaseApiPlatform(
 
   const development: DevelopmentOperations = {
     async getProjectUrl(projectId: string): Promise<string> {
+      // Use project context URL if available and matches the requested project
+      if (
+        projectContext?.hasProjectConfig &&
+        projectContext.credentials.projectId === projectId &&
+        projectContext.credentials.supabaseUrl
+      ) {
+        if (clientContext?.isClaudeCLI) {
+          console.log(
+            `🎯 Using project URL from local config (${projectContext.configSource})`
+          );
+        }
+        return projectContext.credentials.supabaseUrl;
+      }
+
+      // Fallback to constructing URL from management API domain
       const apiUrl = new URL(managementApiUrl);
       return `https://${projectId}.${getProjectDomain(apiUrl.hostname)}`;
     },
     async getAnonKey(projectId: string): Promise<string> {
+      // Use project context anon key if available and matches the requested project
+      if (
+        projectContext?.hasProjectConfig &&
+        projectContext.credentials.projectId === projectId &&
+        projectContext.credentials.anonKey
+      ) {
+        if (clientContext?.isClaudeCLI) {
+          console.log(
+            `🎯 Using anon key from local config (${projectContext.configSource})`
+          );
+        }
+        return projectContext.credentials.anonKey;
+      }
+
+      // Fallback to fetching from Management API
       const response = await managementApiClient.GET(
         '/v1/projects/{ref}/api-keys',
         {
@@ -828,6 +872,46 @@ export function createSupabaseApiPlatform(
   };
 
   const secrets: SecretsOperations = {
+    async getServiceRoleKey(projectId: string): Promise<string> {
+      // Use project context service role key if available and matches the requested project
+      if (
+        projectContext?.hasProjectConfig &&
+        projectContext.credentials.projectId === projectId &&
+        projectContext.credentials.serviceRoleKey
+      ) {
+        if (clientContext?.isClaudeCLI) {
+          console.log(
+            `🎯 Using service role key from local config (${projectContext.configSource})`
+          );
+        }
+        return projectContext.credentials.serviceRoleKey;
+      }
+
+      // Fallback to fetching from Management API
+      const response = await managementApiClient.GET(
+        '/v1/projects/{ref}/api-keys',
+        {
+          params: {
+            path: {
+              ref: projectId,
+            },
+            query: {
+              reveal: true, // Need to reveal to get the actual key
+            },
+          },
+        }
+      );
+
+      assertSuccess(response, 'Failed to fetch API keys');
+
+      const serviceRoleKey = response.data?.find((key) => key.name === 'service_role');
+
+      if (!serviceRoleKey?.api_key) {
+        throw new Error('Service role key not found');
+      }
+
+      return serviceRoleKey.api_key;
+    },
     async listApiKeys(projectId: string, reveal?: boolean) {
       const response = await managementApiClient.GET(
         '/v1/projects/{ref}/api-keys',
@@ -887,7 +971,12 @@ export function createSupabaseApiPlatform(
 
       return response.data as any;
     },
-    async updateApiKey(projectId: string, keyId: string, options, reveal?: boolean) {
+    async updateApiKey(
+      projectId: string,
+      keyId: string,
+      options,
+      reveal?: boolean
+    ) {
       const response = await managementApiClient.PATCH(
         '/v1/projects/{ref}/api-keys/{id}',
         {

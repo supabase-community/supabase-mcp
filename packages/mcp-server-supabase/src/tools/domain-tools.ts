@@ -16,8 +16,7 @@ export function getDomainTools({
 
   const domainTools = {
     get_custom_hostname: injectableTool({
-      description:
-        'Retrieves the custom hostname configuration for a project.',
+      description: 'Retrieves the custom hostname configuration for a project.',
       annotations: {
         title: 'Get custom hostname',
         readOnlyHint: true,
@@ -56,7 +55,10 @@ export function getDomainTools({
       }),
       inject: { project_id },
       execute: async ({ project_id, hostname }) => {
-        const created = await customDomain.createCustomHostname(project_id, hostname);
+        const created = await customDomain.createCustomHostname(
+          project_id,
+          hostname
+        );
         return source`
           Custom hostname created:
           ${JSON.stringify(created, null, 2)}
@@ -116,8 +118,7 @@ export function getDomainTools({
     }),
 
     reverify_custom_hostname: injectableTool({
-      description:
-        'Re-verifies DNS configuration for a custom hostname.',
+      description: 'Re-verifies DNS configuration for a custom hostname.',
       annotations: {
         title: 'Reverify custom hostname',
         readOnlyHint: false,
@@ -139,8 +140,7 @@ export function getDomainTools({
     }),
 
     delete_custom_hostname: injectableTool({
-      description:
-        'Removes the custom hostname configuration from a project.',
+      description: 'Removes the custom hostname configuration from a project.',
       annotations: {
         title: 'Delete custom hostname',
         readOnlyHint: false,
@@ -195,13 +195,14 @@ export function getDomainTools({
       },
       parameters: z.object({
         project_id: z.string(),
-        subdomain: z
-          .string()
-          .describe('The vanity subdomain (e.g., myapp)'),
+        subdomain: z.string().describe('The vanity subdomain (e.g., myapp)'),
       }),
       inject: { project_id },
       execute: async ({ project_id, subdomain }) => {
-        const created = await customDomain.createVanitySubdomain(project_id, subdomain);
+        const created = await customDomain.createVanitySubdomain(
+          project_id,
+          subdomain
+        );
         return source`
           Vanity subdomain created:
           ${JSON.stringify(created, null, 2)}
@@ -210,8 +211,7 @@ export function getDomainTools({
     }),
 
     check_subdomain_availability: injectableTool({
-      description:
-        'Checks if a vanity subdomain is available for use.',
+      description: 'Checks if a vanity subdomain is available for use.',
       annotations: {
         title: 'Check subdomain availability',
         readOnlyHint: true,
@@ -221,9 +221,7 @@ export function getDomainTools({
       },
       parameters: z.object({
         project_id: z.string(),
-        subdomain: z
-          .string()
-          .describe('The subdomain to check'),
+        subdomain: z.string().describe('The subdomain to check'),
       }),
       inject: { project_id },
       execute: async ({ project_id, subdomain }) => {
@@ -240,8 +238,7 @@ export function getDomainTools({
     }),
 
     activate_vanity_subdomain: injectableTool({
-      description:
-        'Activates a vanity subdomain after it has been created.',
+      description: 'Activates a vanity subdomain after it has been created.',
       annotations: {
         title: 'Activate vanity subdomain',
         readOnlyHint: false,
@@ -254,7 +251,8 @@ export function getDomainTools({
       }),
       inject: { project_id },
       execute: async ({ project_id }) => {
-        const activated = await customDomain.activateVanitySubdomain(project_id);
+        const activated =
+          await customDomain.activateVanitySubdomain(project_id);
         return source`
           Vanity subdomain activated:
           ${JSON.stringify(activated, null, 2)}
@@ -263,8 +261,7 @@ export function getDomainTools({
     }),
 
     delete_vanity_subdomain: injectableTool({
-      description:
-        'Removes the vanity subdomain from a project.',
+      description: 'Removes the vanity subdomain from a project.',
       annotations: {
         title: 'Delete vanity subdomain',
         readOnlyHint: false,

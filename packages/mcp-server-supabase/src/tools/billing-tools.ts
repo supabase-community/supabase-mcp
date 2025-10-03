@@ -8,10 +8,7 @@ export interface BillingToolsOptions {
   projectId?: string;
 }
 
-export function getBillingTools({
-  billing,
-  projectId,
-}: BillingToolsOptions) {
+export function getBillingTools({ billing, projectId }: BillingToolsOptions) {
   const project_id = projectId;
 
   const billingTools = {
@@ -66,8 +63,7 @@ export function getBillingTools({
     }),
 
     list_billing_addons: injectableTool({
-      description:
-        'Lists all billing add-ons configured for a project.',
+      description: 'Lists all billing add-ons configured for a project.',
       annotations: {
         title: 'List billing add-ons',
         readOnlyHint: true,
@@ -101,16 +97,21 @@ export function getBillingTools({
       parameters: z.object({
         project_id: z.string(),
         addon_type: z
-          .enum(['compute', 'storage', 'bandwidth', 'support', 'ipv4', 'custom_domain', 'pitr'])
+          .enum([
+            'compute',
+            'storage',
+            'bandwidth',
+            'support',
+            'ipv4',
+            'custom_domain',
+            'pitr',
+          ])
           .describe('Type of add-on to add'),
         variant: z
           .string()
           .optional()
           .describe('Variant of the add-on (e.g., small, medium, large)'),
-        quantity: z
-          .number()
-          .optional()
-          .describe('Quantity of the add-on'),
+        quantity: z.number().optional().describe('Quantity of the add-on'),
       }),
       inject: { project_id },
       execute: async ({ project_id, addon_type, variant, quantity }) => {
@@ -127,8 +128,7 @@ export function getBillingTools({
     }),
 
     update_billing_addon: injectableTool({
-      description:
-        'Updates configuration for an existing billing add-on.',
+      description: 'Updates configuration for an existing billing add-on.',
       annotations: {
         title: 'Update billing add-on',
         readOnlyHint: false,
@@ -138,24 +138,20 @@ export function getBillingTools({
       },
       parameters: z.object({
         project_id: z.string(),
-        addon_type: z
-          .string()
-          .describe('Type of add-on to update'),
-        variant: z
-          .string()
-          .optional()
-          .describe('New variant'),
-        quantity: z
-          .number()
-          .optional()
-          .describe('New quantity'),
+        addon_type: z.string().describe('Type of add-on to update'),
+        variant: z.string().optional().describe('New variant'),
+        quantity: z.number().optional().describe('New quantity'),
       }),
       inject: { project_id },
       execute: async ({ project_id, addon_type, variant, quantity }) => {
-        const updated = await billing.updateBillingAddon(project_id, addon_type, {
-          variant,
-          quantity,
-        });
+        const updated = await billing.updateBillingAddon(
+          project_id,
+          addon_type,
+          {
+            variant,
+            quantity,
+          }
+        );
         return source`
           Billing add-on updated:
           ${JSON.stringify(updated, null, 2)}
@@ -164,8 +160,7 @@ export function getBillingTools({
     }),
 
     remove_billing_addon: injectableTool({
-      description:
-        'Removes a billing add-on from a project.',
+      description: 'Removes a billing add-on from a project.',
       annotations: {
         title: 'Remove billing add-on',
         readOnlyHint: false,
@@ -175,9 +170,7 @@ export function getBillingTools({
       },
       parameters: z.object({
         project_id: z.string(),
-        addon_type: z
-          .string()
-          .describe('Type of add-on to remove'),
+        addon_type: z.string().describe('Type of add-on to remove'),
       }),
       inject: { project_id },
       execute: async ({ project_id, addon_type }) => {
@@ -189,8 +182,7 @@ export function getBillingTools({
     }),
 
     get_spend_cap: injectableTool({
-      description:
-        'Retrieves the spend cap configuration for a project.',
+      description: 'Retrieves the spend cap configuration for a project.',
       annotations: {
         title: 'Get spend cap',
         readOnlyHint: true,
@@ -223,9 +215,7 @@ export function getBillingTools({
       },
       parameters: z.object({
         project_id: z.string(),
-        enabled: z
-          .boolean()
-          .describe('Whether to enable spend cap'),
+        enabled: z.boolean().describe('Whether to enable spend cap'),
         monthly_limit: z
           .number()
           .optional()
@@ -250,8 +240,7 @@ export function getBillingTools({
     }),
 
     get_invoices: injectableTool({
-      description:
-        'Retrieves billing invoices for a project or organization.',
+      description: 'Retrieves billing invoices for a project or organization.',
       annotations: {
         title: 'Get invoices',
         readOnlyHint: true,
@@ -262,10 +251,7 @@ export function getBillingTools({
       parameters: z.object({
         project_id: z.string().optional(),
         organization_id: z.string().optional(),
-        limit: z
-          .number()
-          .optional()
-          .describe('Number of invoices to retrieve'),
+        limit: z.number().optional().describe('Number of invoices to retrieve'),
         status: z
           .enum(['paid', 'pending', 'overdue', 'draft'])
           .optional()
@@ -314,8 +300,7 @@ export function getBillingTools({
     }),
 
     estimate_costs: injectableTool({
-      description:
-        'Estimates costs for a project based on projected usage.',
+      description: 'Estimates costs for a project based on projected usage.',
       annotations: {
         title: 'Estimate costs',
         readOnlyHint: true,

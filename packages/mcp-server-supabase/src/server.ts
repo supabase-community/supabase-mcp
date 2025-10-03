@@ -83,7 +83,10 @@ const DEFAULT_FEATURES: FeatureGroup[] = [
   'runtime',
 ];
 
-export const PLATFORM_INDEPENDENT_FEATURES: FeatureGroup[] = ['docs', 'runtime'];
+export const PLATFORM_INDEPENDENT_FEATURES: FeatureGroup[] = [
+  'docs',
+  'runtime',
+];
 
 /**
  * Creates an MCP server for interacting with Supabase.
@@ -209,11 +212,17 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       }
 
       if (networkSecurity && enabledFeatures.has('network')) {
-        Object.assign(tools, getNetworkSecurityTools({ networkSecurity, projectId }));
+        Object.assign(
+          tools,
+          getNetworkSecurityTools({ networkSecurity, projectId })
+        );
       }
 
       if (projectManagement && enabledFeatures.has('project')) {
-        Object.assign(tools, getProjectManagementTools({ projectManagement, projectId }));
+        Object.assign(
+          tools,
+          getProjectManagementTools({ projectManagement, projectId })
+        );
       }
 
       if (secrets && enabledFeatures.has('secrets')) {

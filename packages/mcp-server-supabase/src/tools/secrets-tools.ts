@@ -181,15 +181,15 @@ export function getSecretsTools({
         }
 
         const options: any = {};
-        if (was_compromised !== undefined) options.was_compromised = was_compromised;
+        if (was_compromised !== undefined)
+          options.was_compromised = was_compromised;
         if (reason !== undefined) options.reason = reason;
 
         return await secrets.deleteApiKey(project_id, key_id, options);
       },
     }),
     list_legacy_api_keys: injectableTool({
-      description:
-        'Lists legacy API keys for backward compatibility.',
+      description: 'Lists legacy API keys for backward compatibility.',
       annotations: {
         title: 'List legacy API keys',
         readOnlyHint: true,
@@ -202,7 +202,7 @@ export function getSecretsTools({
       }),
       inject: { project_id },
       execute: async ({ project_id }) => {
-        return await secrets.listLegacyApiKeys?.(project_id) ?? [];
+        return (await secrets.listLegacyApiKeys?.(project_id)) ?? [];
       },
     }),
     rotate_anon_key: injectableTool({
@@ -266,8 +266,13 @@ export function getSecretsTools({
         key_id: z.string().describe('The ID of the API key'),
         template: z
           .object({
-            claims: z.record(z.any()).describe('Custom claims to include in JWT'),
-            expires_in: z.number().optional().describe('Token expiry in seconds'),
+            claims: z
+              .record(z.any())
+              .describe('Custom claims to include in JWT'),
+            expires_in: z
+              .number()
+              .optional()
+              .describe('Token expiry in seconds'),
           })
           .describe('JWT template configuration'),
       }),
@@ -277,7 +282,11 @@ export function getSecretsTools({
           throw new Error('Cannot set JWT template in read-only mode.');
         }
 
-        const result = await secrets.setJwtTemplate?.(project_id, key_id, template);
+        const result = await secrets.setJwtTemplate?.(
+          project_id,
+          key_id,
+          template
+        );
         return result ?? { message: 'JWT template set successfully' };
       },
     }),

@@ -8,7 +8,14 @@
     "source": "github",
     "subfolder": "packages/mcp-server-supabase"
   },
+  "website_url": "https://supabase.com/mcp",
   "version": "0.5.5",
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://mcp.supabase.com/mcp"
+    }
+  ],
   "packages": [
     {
       "registry_type": "npm",

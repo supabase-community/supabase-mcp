@@ -19,7 +19,7 @@ export function getDebuggingTools({
   return {
     get_logs: injectableTool({
       description:
-        'Gets logs for a Supabase project by service type. Use this to help debug problems with your app. This will only return logs within the last minute. If the logs you are looking for are older than 1 minute, re-run your test to reproduce them.',
+        'Gets logs for a Supabase project by service type. Use this to help debug problems with your app. This will return logs within the last 24 hours.',
       annotations: {
         title: 'Get project logs',
         readOnlyHint: true,
@@ -33,17 +33,11 @@ export function getDebuggingTools({
       }),
       inject: { project_id },
       execute: async ({ project_id, service }) => {
-        // Omitting start and end time defaults to the last minute.
-        // But since branch actions are async, we need to wait longer
-        // for jobs to be scheduled and run to completion.
-        const startTimestamp =
-          service === 'branch-action'
-            ? new Date(Date.now() - 5 * 60 * 1000)
-            : undefined;
+        const startTimestamp = new Date(Date.now() - 24 * 60 * 60 * 1000); // Last 24 hours
 
         return debugging.getLogs(project_id, {
           service,
-          iso_timestamp_start: startTimestamp?.toISOString(),
+          iso_timestamp_start: startTimestamp.toISOString(),
         });
       },
     }),

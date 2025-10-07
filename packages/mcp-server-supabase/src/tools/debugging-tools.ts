@@ -1,6 +1,8 @@
 import { z } from 'zod';
-import { getLogQuery } from '../logs.js';
-import type { DebuggingOperations } from '../platform/types.js';
+import {
+  logsServiceSchema,
+  type DebuggingOperations,
+} from '../platform/types.js';
 import { injectableTool } from './util.js';
 
 export type DebuggingToolsOptions = {
@@ -27,17 +29,7 @@ export function getDebuggingTools({
       },
       parameters: z.object({
         project_id: z.string(),
-        service: z
-          .enum([
-            'api',
-            'branch-action',
-            'postgres',
-            'edge-function',
-            'auth',
-            'storage',
-            'realtime',
-          ])
-          .describe('The service to fetch logs for'),
+        service: logsServiceSchema.describe('The service to fetch logs for'),
       }),
       inject: { project_id },
       execute: async ({ project_id, service }) => {
@@ -50,7 +42,7 @@ export function getDebuggingTools({
             : undefined;
 
         return debugging.getLogs(project_id, {
-          sql: getLogQuery(service),
+          service,
           iso_timestamp_start: startTimestamp?.toISOString(),
         });
       },

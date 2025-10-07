@@ -1,16 +1,7 @@
 import { stripIndent } from 'common-tags';
+import type { LogsService } from './platform/types.js';
 
-export function getLogQuery(
-  service:
-    | 'api'
-    | 'branch-action'
-    | 'postgres'
-    | 'edge-function'
-    | 'auth'
-    | 'storage'
-    | 'realtime',
-  limit: number = 100
-) {
+export function getLogQuery(service: LogsService, limit: number = 100) {
   switch (service) {
     case 'api':
       return stripIndent`

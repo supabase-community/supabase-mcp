@@ -3,10 +3,10 @@ import {
   parseMultipartStream,
 } from '@mjackson/multipart-parser';
 import type { InitData } from '@supabase/mcp-utils';
-import { relative } from 'node:path/posix';
 import { fileURLToPath } from 'node:url';
 import packageJson from '../../package.json' with { type: 'json' };
 import { getDeploymentId, normalizeFilename } from '../edge-function.js';
+import { getLogQuery } from '../logs.js';
 import {
   assertSuccess,
   createManagementApiClient,
@@ -232,8 +232,10 @@ export function createSupabaseApiPlatform(
 
   const debugging: DebuggingOperations = {
     async getLogs(projectId: string, options: GetLogsOptions) {
-      const { sql, iso_timestamp_start, iso_timestamp_end } =
+      const { service, iso_timestamp_start, iso_timestamp_end } =
         getLogsOptionsSchema.parse(options);
+
+      const sql = getLogQuery(service);
 
       const response = await managementApiClient.GET(
         '/v1/projects/{ref}/analytics/endpoints/logs.all',

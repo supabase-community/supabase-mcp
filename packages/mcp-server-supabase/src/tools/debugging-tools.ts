@@ -34,10 +34,12 @@ export function getDebuggingTools({
       inject: { project_id },
       execute: async ({ project_id, service }) => {
         const startTimestamp = new Date(Date.now() - 24 * 60 * 60 * 1000); // Last 24 hours
+        const endTimestamp = new Date();
 
         return debugging.getLogs(project_id, {
           service,
           iso_timestamp_start: startTimestamp.toISOString(),
+          iso_timestamp_end: endTimestamp.toISOString(),
         });
       },
     }),

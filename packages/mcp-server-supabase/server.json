@@ -1,14 +1,13 @@
 {
-  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-07-09/server.schema.json",
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-09-29/server.schema.json",
   "name": "com.supabase/mcp",
   "description": "MCP server for interacting with the Supabase platform",
-  "status": "active",
   "repository": {
     "url": "https://github.com/supabase-community/supabase-mcp",
     "source": "github",
     "subfolder": "packages/mcp-server-supabase"
   },
-  "website_url": "https://supabase.com/mcp",
+  "websiteUrl": "https://supabase.com/mcp",
   "version": "0.5.5",
   "remotes": [
     {
@@ -18,51 +17,51 @@
   ],
   "packages": [
     {
-      "registry_type": "npm",
-      "registry_base_url": "https://registry.npmjs.org",
+      "registryType": "npm",
+      "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "@supabase/mcp-server-supabase",
       "version": "0.5.5",
       "transport": {
         "type": "stdio"
       },
-      "runtime_hint": "npx",
-      "runtime_arguments": [
+      "runtimeHint": "npx",
+      "runtimeArguments": [
         {
           "type": "named",
           "name": "--project-ref",
           "description": "Supabase project reference ID",
           "format": "string",
-          "is_required": false
+          "isRequired": false
         },
         {
           "type": "named",
           "name": "--read-only",
           "description": "Enable read-only mode",
           "format": "boolean",
-          "is_required": false
+          "isRequired": false
         },
         {
           "type": "named",
           "name": "--features",
           "description": "Comma-separated list of features to enable",
           "format": "string",
-          "is_required": false
+          "isRequired": false
         },
         {
           "type": "named",
           "name": "--api-url",
           "description": "Custom API URL",
           "format": "string",
-          "is_required": false
+          "isRequired": false
         }
       ],
-      "environment_variables": [
+      "environmentVariables": [
         {
           "name": "SUPABASE_ACCESS_TOKEN",
           "description": "Personal access token for Supabase API",
           "format": "string",
-          "is_required": true,
-          "is_secret": true
+          "isRequired": true,
+          "isSecret": true
         }
       ]
     }

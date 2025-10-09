@@ -36,6 +36,60 @@ Your MCP client will automatically prompt you to login to Supabase during setup.
 
 For more information, visit the [Supabase MCP docs](https://supabase.com/docs/guides/getting-started/mcp).
 
+You can also manually install it on your favourite client.
+
+<details>
+<summary>Cursor</summary>
+
+#### Click the button to install:
+
+[<img src="https://cursor.com/deeplink/mcp-install-dark.svg" alt="Install in Cursor">](https://cursor.com/en/install-mcp?name=Supabase&config=eyJ1cmwiOiJodHRwczovL21jcC5zdXBhYmFzZS5jb20vbWNwIn0%3D)
+
+#### Or install manually:
+
+Go to `Cursor Settings` → `MCP` → `Add new MCP Server`. Name to your liking, use `type: http` and the following config:
+
+```json
+{
+  "mcpServers": {
+    "supabase": {
+      "type": "http",
+      "url": "https://mcp.supabase.com/mcp"
+    }
+  }
+}
+```
+
+For more information, see the [Cursor MCP docs](https://docs.cursor.com/context/mcp).
+
+</details>
+
+<details>
+<summary>VS Code</summary>
+
+#### Click the button to install:
+
+[<img src="https://img.shields.io/badge/VS_Code-VS_Code?style=flat-square&label=Install%20Server&color=0098FF" alt="Install in VS Code">](https://vscode.dev/redirect?url=vscode:mcp/install%3F%7B%22name%22%3A%22Supabase%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fmcp.supabase.com%2Fmcp%22%7D) [<img alt="Install in VS Code Insiders" src="https://img.shields.io/badge/VS_Code_Insiders-VS_Code_Insiders?style=flat-square&label=Install%20Server&color=24bfa5">](https://insiders.vscode.dev/redirect?url=vscode-insiders:mcp/install%3F%7B%22name%22%3A%22Supabase%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fmcp.supabase.com%2Fmcp%22%7D)
+
+#### Or install manually:
+
+Open (or create) your `mcp.json` file and add:
+
+```json
+{
+  "servers": {
+    "supabase": {
+      "type": "http",
+      "url": "https://mcp.supabase.com/mcp"
+    }
+  }
+}
+```
+
+For more information, see the [VS Code MCP docs](https://code.visualstudio.com/docs/copilot/customization/mcp-servers#_add-an-mcp-server).
+
+</details>
+
 ## Options
 
 The following options are configurable as URL query parameters:

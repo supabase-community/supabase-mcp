@@ -123,8 +123,18 @@ export const migrationSchema = z.object({
   name: z.string().optional(),
 });
 
+export const logsServiceSchema = z.enum([
+  'api',
+  'branch-action',
+  'postgres',
+  'edge-function',
+  'auth',
+  'storage',
+  'realtime',
+]);
+
 export const getLogsOptionsSchema = z.object({
-  sql: z.string(),
+  service: logsServiceSchema,
   iso_timestamp_start: z.string().optional(),
   iso_timestamp_end: z.string().optional(),
 });
@@ -259,6 +269,7 @@ export type ApplyMigrationOptions = z.infer<typeof applyMigrationOptionsSchema>;
 export type Migration = z.infer<typeof migrationSchema>;
 export type ListMigrationsResult = z.infer<typeof migrationSchema>;
 
+export type LogsService = z.infer<typeof logsServiceSchema>;
 export type GetLogsOptions = z.infer<typeof getLogsOptionsSchema>;
 export type GenerateTypescriptTypesResult = z.infer<
   typeof generateTypescriptTypesResultSchema

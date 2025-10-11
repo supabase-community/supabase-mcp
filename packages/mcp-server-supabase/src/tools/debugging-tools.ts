@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { getLogQuery } from '../logs.js';
 import type { DebuggingOperations } from '../platform/types.js';
 import { injectableTool } from './util.js';
 import { limitResponseSize } from '../response/index.js';
@@ -18,7 +17,7 @@ export function getDebuggingTools({
   return {
     get_logs: injectableTool({
       description:
-        'Gets logs for a Supabase project by service type with intelligent filtering to manage large log volumes. Use this to help debug problems with your app.',
+        'Gets logs for a Supabase project by service type. Returns logs from the last 24 hours. Use this to help debug problems with your app.',
       annotations: {
         title: 'Get project logs',
         readOnlyHint: true,
@@ -39,143 +38,21 @@ export function getDebuggingTools({
             'realtime',
           ])
           .describe('The service to fetch logs for'),
-        time_window: z
-          .enum(['1min', '5min', '15min', '1hour'])
-          .default('1min')
-          .describe('Time window for logs (1min=last minute, 5min=last 5 minutes, etc.)'),
-        log_level_filter: z
-          .enum(['error', 'warn', 'info', 'debug', 'all'])
-          .default('all')
-          .describe('Filter logs by level (error=errors only, warn=warnings and above, etc.)'),
-        search_pattern: z
-          .string()
-          .optional()
-          .describe('Search for specific text in log messages'),
-        max_entries: z
-          .number()
-          .min(1)
-          .max(500)
-          .default(50)
-          .describe('Maximum number of log entries to return'),
-        response_format: z
-          .enum(['detailed', 'compact', 'errors_only'])
-          .default('detailed')
-          .describe('Format: detailed=full logs, compact=summary, errors_only=just errors and warnings'),
       }),
       inject: { project_id },
-      execute: async ({
-        project_id,
-        service,
-        time_window,
-        log_level_filter,
-        search_pattern,
-        max_entries,
-        response_format
-      }) => {
-        // Calculate time window
-        const timeWindows = {
-          '1min': 1 * 60 * 1000,
-          '5min': 5 * 60 * 1000,
-          '15min': 15 * 60 * 1000,
-          '1hour': 60 * 60 * 1000,
-        };
+      execute: async ({ project_id, service }) => {
+        // Get logs from last 24 hours
+        const startTimestamp = new Date(Date.now() - 24 * 60 * 60 * 1000);
 
-        const startTimestamp = new Date(Date.now() - timeWindows[time_window]);
-
-        // Get logs from API
         const logs = await debugging.getLogs(project_id, {
-          sql: getLogQuery(service),
+          service,
           iso_timestamp_start: startTimestamp.toISOString(),
         });
 
-        // Apply post-processing filters
-        let filteredLogs = Array.isArray(logs) ? logs : [];
-
-        // Filter by log level
-        if (log_level_filter !== 'all' && filteredLogs.length > 0) {
-          const levelPriority = { debug: 0, info: 1, warn: 2, error: 3 };
-          const minLevel = levelPriority[log_level_filter as keyof typeof levelPriority] || 0;
-
-          filteredLogs = filteredLogs.filter(log => {
-            const logLevel = log.level?.toLowerCase() || 'info';
-            const logPriority = levelPriority[logLevel as keyof typeof levelPriority] ?? 1;
-            return logPriority >= minLevel;
-          });
-        }
-
-        // Search pattern filtering
-        if (search_pattern && filteredLogs.length > 0) {
-          const pattern = new RegExp(search_pattern, 'i');
-          filteredLogs = filteredLogs.filter(log =>
-            pattern.test(log.msg || '') ||
-            pattern.test(log.message || '') ||
-            pattern.test(JSON.stringify(log))
-          );
-        }
-
-        // Limit results
-        if (filteredLogs.length > max_entries) {
-          filteredLogs = filteredLogs.slice(0, max_entries);
-        }
-
-        // Apply response format
-        let processedLogs;
-        switch (response_format) {
-          case 'compact':
-            processedLogs = filteredLogs.map(log => ({
-              timestamp: log.timestamp,
-              level: log.level,
-              message: log.msg || log.message || 'No message',
-              service: service,
-            }));
-            break;
-
-          case 'errors_only':
-            processedLogs = filteredLogs
-              .filter(log => {
-                const level = log.level?.toLowerCase() || 'info';
-                return level === 'error' || level === 'warn';
-              })
-              .map(log => ({
-                timestamp: log.timestamp,
-                level: log.level,
-                message: log.msg || log.message,
-                error_details: log.error || log.stack || log.details,
-              }));
-            break;
-
-          default:
-            processedLogs = filteredLogs;
-        }
-
-        // Build context
-        const contextParts = [
-          `${service} service logs`,
-          `(${time_window} window)`,
-          log_level_filter !== 'all' && `(${log_level_filter}+ level)`,
-          search_pattern && `(search: "${search_pattern}")`,
-          `(${processedLogs.length} entries)`
-        ].filter(Boolean);
-
-        // Determine max tokens based on response format
-        let maxTokens: number;
-        switch (response_format) {
-          case 'compact':
-            maxTokens = 8000;
-            break;
-          case 'errors_only':
-            maxTokens = 5000;
-            break;
-          case 'detailed':
-          default:
-            maxTokens = 12000;
-            break;
-        }
-
         return limitResponseSize(
-          processedLogs,
-          contextParts.join(' '),
-          { maxTokens }
+          logs,
+          `${service} service logs (last 24 hours)`,
+          { maxTokens: 12000 }
         );
       },
     }),

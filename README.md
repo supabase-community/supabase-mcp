@@ -51,7 +51,7 @@ Replace `<personal-access-token>` with the token you created in step 1. Alternat
 
 The following options are available:
 
-- `--read-only`: Used to restrict the server to read-only queries and tools. Recommended by default. See [read-only mode](#read-only-mode).
+- `--read-only`: Used to restrict the server to read-only queries and tools. Off by default, but recommended for production use. See [read-only mode](#read-only-mode).
 - `--project-ref`: Used to scope the server to a specific project. Recommended by default. If you omit this, the server will have access to all projects in your Supabase account. See [project scoped mode](#project-scoped-mode).
 - `--features`: Used to specify which tool groups to enable. See [feature groups](#feature-groups).
 
@@ -427,13 +427,13 @@ After scoping the server to a project, [account-level](#project-management) tool
 
 ### Read-only mode
 
-To restrict the Supabase MCP server to read-only queries, set the `--read-only` flag on the CLI command:
+**By default, the MCP server runs in write mode**, allowing full database access. To restrict the server to read-only queries, set the `--read-only` flag on the CLI command:
 
 ```shell
 npx -y @supabase/mcp-server-supabase@latest --read-only
 ```
 
-We recommend enabling this setting by default. This prevents write operations on any of your databases by executing SQL as a read-only Postgres user (via `execute_sql`). All other mutating tools are disabled in read-only mode, including:
+**We recommend enabling read-only mode for production use.** This prevents write operations on any of your databases by executing SQL as a read-only Postgres user (via `execute_sql`). All other mutating tools are disabled in read-only mode, including:
 `apply_migration`
 `create_project`
 `pause_project`

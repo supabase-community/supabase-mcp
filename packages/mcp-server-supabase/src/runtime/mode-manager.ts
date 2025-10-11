@@ -19,7 +19,7 @@ class ModeManager {
   private currentMode: RuntimeMode;
   private clientContext?: ClientContext;
 
-  constructor(initialReadOnly: boolean = true, clientContext?: ClientContext) {
+  constructor(initialReadOnly: boolean = false, clientContext?: ClientContext) {
     this.currentMode = {
       readOnly: initialReadOnly,
       timestamp: new Date(),

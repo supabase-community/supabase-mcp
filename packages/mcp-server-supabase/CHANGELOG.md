@@ -4,6 +4,65 @@ All notable changes to the Supabase MCP Server will be documented in this file.
 
 ## [Unreleased]
 
+### Added - Database Backup & Recovery Tools
+- **New MCP Tools**
+  - `undo_database_restore` - Reverts database to pre-restoration state (destructive operation)
+  - `list_restore_points` - Lists available point-in-time recovery (PITR) restore points
+  - `create_restore_point` - Creates manual database backup/restore point
+
+- **Platform Updates**
+  - Implemented complete `BackupOperations` interface with 7 backup-related methods
+  - Added restore point management API integration
+  - Full point-in-time recovery (PITR) support
+  - Defensive coding for varying API response structures
+
+### Added - Domain & Database Configuration Tools
+- **New MCP Tools**
+  - `get_postgrest_config` - Retrieves PostgREST service configuration
+  - `update_postgrest_config` - Updates PostgREST max_rows, db_schema, and other settings
+  - `get_pgsodium_config` - Retrieves pgsodium encryption configuration
+  - `update_pgsodium_config` - Updates pgsodium encryption keys (destructive - can break existing encrypted data)
+
+- **Platform Updates**
+  - Implemented complete `CustomDomainOperations` interface with 11 domain management methods:
+    - Custom hostname management (create, activate, verify, delete)
+    - Vanity subdomain management (create, check availability, activate, delete)
+    - DNS configuration and verification support
+  - Implemented complete `DatabaseConfigOperations` interface with 13 configuration methods:
+    - PostgreSQL configuration (GET/PUT)
+    - Connection pooler (pgbouncer/supavisor) configuration
+    - PostgREST configuration
+    - pgsodium encryption configuration
+    - Database webhooks enablement
+    - Read replica management
+  - All 11 domain tools in `domain-tools.ts` now fully functional with platform backing
+  - Added pgsodium configuration methods to platform interface
+
+- **Notes**
+  - Domain tools were previously defined but not wired to the platform - now fully operational
+  - Some interface methods (`configurePitr`, `managePgSodium`) throw errors as Management API lacks dedicated endpoints
+  - Read replica setup/removal uses dedicated `/setup` and `/remove` endpoints
+
+### Added - SQL Snippets Management Tools
+- **New MCP Tools**
+  - `list_sql_snippets` - Lists all SQL snippets for the logged-in user, with optional project filtering
+  - `get_sql_snippet` - Retrieves a specific SQL snippet by ID with full content and metadata
+
+- **Features**
+  - Read-only access to user's SQL snippets created in Supabase Studio
+  - Optional project-based filtering for snippet listing
+  - Detailed snippet information including:
+    - SQL content and schema version
+    - Snippet metadata (name, description, visibility, favorite status)
+    - Project and user associations (owner, last updated by)
+    - Timestamps (created, updated)
+  - Response size limiting for large snippet lists (max 100 snippets)
+
+- **Notes**
+  - Snippets are managed through Supabase Studio UI
+  - Management API provides read-only access only (no create/update/delete operations)
+  - Tools are part of the 'database' feature group
+
 ### Added - Claude CLI Optimization Update
 - **Enhanced Authentication System**
   - Comprehensive token format validation with sanitization

@@ -258,7 +258,7 @@ export function getDevelopmentTools({
 
           // Also look for explicit schema markers in the Database interface
           const schemaMatch = line.match(/^\s*(\w+):\s*{/);
-          if (schemaMatch && currentSchemaData && ['public', 'auth'].includes(schemaMatch[1])) {
+          if (schemaMatch && schemaMatch[1] && currentSchemaData && ['public', 'auth'].includes(schemaMatch[1])) {
             if (currentSchemaData.name !== schemaMatch[1]) {
               // Found a new schema, save current and start new
               if (currentSchemaData.tables.length > 0 || currentSchemaData.views.length > 0 || currentSchemaData.enums.length > 0) {

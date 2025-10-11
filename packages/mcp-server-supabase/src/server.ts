@@ -21,6 +21,7 @@ import { getNetworkSecurityTools } from './tools/network-security-tools.js';
 import { getProjectManagementTools } from './tools/project-management-tools.js';
 import { getRuntimeTools } from './tools/runtime-tools.js';
 import { getSecretsTools } from './tools/secrets-tools.js';
+import { getSnippetsTools } from './tools/snippets-tools.js';
 import { getStorageTools } from './tools/storage-tools.js';
 import type { FeatureGroup } from './types.js';
 import { parseFeatureGroups } from './util.js';
@@ -188,6 +189,13 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
             databaseConfig,
             projectId,
             readOnly,
+          })
+        );
+        Object.assign(
+          tools,
+          getSnippetsTools({
+            database,
+            projectId,
           })
         );
       }

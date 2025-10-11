@@ -25,10 +25,13 @@ import {
   resetBranchOptionsSchema,
   type AccountOperations,
   type ApplyMigrationOptions,
+  type BackupOperations,
   type BranchingOperations,
   type CreateBranchOptions,
   type CreateProjectOptions,
+  type CustomDomainOperations,
   type DatabaseOperations,
+  type DatabaseConfigOperations,
   type DebuggingOperations,
   type DeployEdgeFunctionOptions,
   type DevelopmentOperations,
@@ -1022,6 +1025,393 @@ export function createSupabaseApiPlatform(
     },
   };
 
+  const backup: BackupOperations = {
+    async listBackups(projectId: string) {
+      const response = await managementApiClient.GET(
+        '/v1/projects/{ref}/database/backups',
+        {
+          params: {
+            path: {
+              ref: projectId,
+            },
+          },
+        }
+      );
+
+      assertSuccess(response, 'Failed to list backups');
+
+      // The API returns an object with backups array, not a direct array
+      return (response.data as any)?.backups || [];
+    },
+    async createBackup(projectId: string, region?: string) {
+      // Note: The API doesn't have a direct create backup endpoint
+      // This might need to be implemented via creating a restore point
+      throw new Error('Direct backup creation is not supported. Use createRestorePoint instead.');
+    },
+    async restoreBackup(projectId: string, backupId: string) {
+      const response = await managementApiClient.POST(
+        '/v1/projects/{ref}/database/backups/restore-point',
+        {
+          params: {
+            path: {
+              ref: projectId,
+            },
+          },
+          body: {
+            backup_id: backupId,
+          } as any,
+        }
+      );
+
+      assertSuccess(response, 'Failed to restore backup');
+
+      return response.data;
+    },
+    async restoreToPointInTime(projectId: string, timestamp: string) {
+      const response = await managementApiClient.POST(
+        '/v1/projects/{ref}/database/backups/restore-pitr',
+        {
+          params: {
+            path: {
+              ref: projectId,
+            },
+          },
+          body: {
+            recovery_time: timestamp,
+          } as any,
+        }
+      );
+
+      assertSuccess(response, 'Failed to restore to point in time');
+
+      return response.data;
+    },
+    async undoRestore(projectId: string) {
+      const response = await managementApiClient.POST(
+        '/v1/projects/{ref}/database/backups/undo',
+        {
+          params: {
+            path: {
+              ref: projectId,
+            },
+          },
+          body: {} as any,
+        }
+      );
+
+      assertSuccess(response, 'Failed to undo restore');
+    },
+    async listRestorePoints(projectId: string) {
+      const response = await managementApiClient.GET(
+        '/v1/projects/{ref}/database/backups/restore-point',
+        {
+          params: {
+            path: {
+              ref: projectId,
+            },
+          },
+        }
+      );
+
+      assertSuccess(response, 'Failed to list restore points');
+
+      // Return as array - API may return object or array depending on response
+      const data = response.data as any;
+      return Array.isArray(data) ? data : (data?.restore_points || []);
+    },
+    async createRestorePoint(projectId: string) {
+      const response = await managementApiClient.POST(
+        '/v1/projects/{ref}/database/backups/restore-point',
+        {
+          params: {
+            path: {
+              ref: projectId,
+            },
+          },
+          body: {} as any,
+        }
+      );
+
+      assertSuccess(response, 'Failed to create restore point');
+
+      return response.data;
+    },
+  };
+
+  const customDomain: CustomDomainOperations = {
+    async getCustomHostname(projectId: string) {
+      const response = await managementApiClient.GET(
+        '/v1/projects/{ref}/custom-hostname',
+        { params: { path: { ref: projectId } } }
+      );
+      assertSuccess(response, 'Failed to get custom hostname');
+      return response.data;
+    },
+
+    async createCustomHostname(projectId: string, hostname: string) {
+      const response = await managementApiClient.POST(
+        '/v1/projects/{ref}/custom-hostname/initialize',
+        {
+          params: { path: { ref: projectId } },
+          body: { custom_hostname: hostname } as any,
+        }
+      );
+      assertSuccess(response, 'Failed to create custom hostname');
+      return response.data;
+    },
+
+    async initializeCustomHostname(projectId: string) {
+      // Re-initialize/refresh the DNS configuration
+      const response = await managementApiClient.POST(
+        '/v1/projects/{ref}/custom-hostname/initialize',
+        {
+          params: { path: { ref: projectId } },
+          body: {} as any,
+        }
+      );
+      assertSuccess(response, 'Failed to initialize custom hostname');
+      return response.data;
+    },
+
+    async activateCustomHostname(projectId: string) {
+      const response = await managementApiClient.POST(
+        '/v1/projects/{ref}/custom-hostname/activate',
+        {
+          params: { path: { ref: projectId } },
+          body: {} as any,
+        }
+      );
+      assertSuccess(response, 'Failed to activate custom hostname');
+      return response.data;
+    },
+
+    async reverifyCustomHostname(projectId: string) {
+      const response = await managementApiClient.POST(
+        '/v1/projects/{ref}/custom-hostname/reverify',
+        {
+          params: { path: { ref: projectId } },
+          body: {} as any,
+        }
+      );
+      assertSuccess(response, 'Failed to reverify custom hostname');
+      return response.data;
+    },
+
+    async deleteCustomHostname(projectId: string) {
+      const response = await managementApiClient.DELETE(
+        '/v1/projects/{ref}/custom-hostname',
+        { params: { path: { ref: projectId } } }
+      );
+      assertSuccess(response, 'Failed to delete custom hostname');
+    },
+
+    async getVanitySubdomain(projectId: string) {
+      const response = await managementApiClient.GET(
+        '/v1/projects/{ref}/vanity-subdomain',
+        { params: { path: { ref: projectId } } }
+      );
+      assertSuccess(response, 'Failed to get vanity subdomain');
+      return response.data;
+    },
+
+    async createVanitySubdomain(projectId: string, subdomain: string) {
+      // Creating and activating a vanity subdomain is done in one step via the activate endpoint
+      const response = await managementApiClient.POST(
+        '/v1/projects/{ref}/vanity-subdomain/activate',
+        {
+          params: { path: { ref: projectId } },
+          body: { vanity_subdomain: subdomain } as any,
+        }
+      );
+      assertSuccess(response, 'Failed to create vanity subdomain');
+      return response.data;
+    },
+
+    async checkSubdomainAvailability(projectId: string, subdomain: string) {
+      const response = await managementApiClient.POST(
+        '/v1/projects/{ref}/vanity-subdomain/check-availability',
+        {
+          params: { path: { ref: projectId } },
+          body: { vanity_subdomain: subdomain } as any,
+        }
+      );
+      assertSuccess(response, 'Failed to check subdomain availability');
+      return response.data as { available: boolean };
+    },
+
+    async activateVanitySubdomain(projectId: string) {
+      // If the subdomain is already set, this re-activates it
+      // Otherwise, a subdomain must be provided via createVanitySubdomain
+      const response = await managementApiClient.POST(
+        '/v1/projects/{ref}/vanity-subdomain/activate',
+        {
+          params: { path: { ref: projectId } },
+          body: {} as any,
+        }
+      );
+      assertSuccess(response, 'Failed to activate vanity subdomain');
+      return response.data;
+    },
+
+    async deleteVanitySubdomain(projectId: string) {
+      const response = await managementApiClient.DELETE(
+        '/v1/projects/{ref}/vanity-subdomain',
+        { params: { path: { ref: projectId } } }
+      );
+      assertSuccess(response, 'Failed to delete vanity subdomain');
+    },
+  };
+
+  const databaseConfig: DatabaseConfigOperations = {
+    async getPostgresConfig(projectId: string) {
+      const response = await managementApiClient.GET(
+        '/v1/projects/{ref}/config/database/postgres',
+        { params: { path: { ref: projectId } } }
+      );
+      assertSuccess(response, 'Failed to get postgres config');
+      return response.data;
+    },
+
+    async updatePostgresConfig(projectId: string, config: unknown) {
+      const response = await managementApiClient.PUT(
+        '/v1/projects/{ref}/config/database/postgres',
+        {
+          params: { path: { ref: projectId } },
+          body: config as any,
+        }
+      );
+      assertSuccess(response, 'Failed to update postgres config');
+      return response.data;
+    },
+
+    async getPoolerConfig(projectId: string) {
+      const response = await managementApiClient.GET(
+        '/v1/projects/{ref}/config/database/pgbouncer',
+        { params: { path: { ref: projectId } } }
+      );
+      assertSuccess(response, 'Failed to get pooler config');
+      return response.data;
+    },
+
+    async updatePoolerConfig(projectId: string, config: unknown) {
+      const response = await managementApiClient.PATCH(
+        '/v1/projects/{ref}/config/database/pooler',
+        {
+          params: { path: { ref: projectId } },
+          body: config as any,
+        }
+      );
+      assertSuccess(response, 'Failed to update pooler config');
+      return response.data;
+    },
+
+    async configurePgBouncer(projectId: string, settings: unknown) {
+      const response = await managementApiClient.PATCH(
+        '/v1/projects/{ref}/config/database/pooler',
+        {
+          params: { path: { ref: projectId } },
+          body: settings as any,
+        }
+      );
+      assertSuccess(response, 'Failed to configure pgbouncer');
+    },
+
+    async getPostgrestConfig(projectId: string) {
+      const response = await managementApiClient.GET(
+        '/v1/projects/{ref}/postgrest',
+        { params: { path: { ref: projectId } } }
+      );
+      assertSuccess(response, 'Failed to get postgrest config');
+      return response.data;
+    },
+
+    async updatePostgrestConfig(projectId: string, config: unknown) {
+      const response = await managementApiClient.PATCH(
+        '/v1/projects/{ref}/postgrest',
+        {
+          params: { path: { ref: projectId } },
+          body: config as any,
+        }
+      );
+      assertSuccess(response, 'Failed to update postgrest config');
+    },
+
+    async getPgsodiumConfig(projectId: string) {
+      const response = await managementApiClient.GET(
+        '/v1/projects/{ref}/pgsodium',
+        { params: { path: { ref: projectId } } }
+      );
+      assertSuccess(response, 'Failed to get pgsodium config');
+      return response.data;
+    },
+
+    async updatePgsodiumConfig(projectId: string, config: unknown) {
+      const response = await managementApiClient.PUT(
+        '/v1/projects/{ref}/pgsodium',
+        {
+          params: { path: { ref: projectId } },
+          body: config as any,
+        }
+      );
+      assertSuccess(response, 'Failed to update pgsodium config');
+      return response.data;
+    },
+
+    async enableDatabaseWebhooks(projectId: string) {
+      const response = await managementApiClient.POST(
+        '/v1/projects/{ref}/database/webhooks/enable',
+        {
+          params: { path: { ref: projectId } },
+          body: {} as any,
+        }
+      );
+      assertSuccess(response, 'Failed to enable database webhooks');
+    },
+
+    async configurePitr(
+      projectId: string,
+      config: { enabled: boolean; retention_period?: number }
+    ) {
+      // Note: PITR configuration is managed through project addons, not a direct config endpoint
+      // This is a placeholder implementation
+      throw new Error(
+        'PITR configuration is managed through the Supabase dashboard or via project addons API. ' +
+        'This method is not yet implemented in the Management API.'
+      );
+    },
+
+    async managePgSodium(projectId: string, action: 'enable' | 'disable') {
+      // Note: pgsodium enable/disable is managed through updatePgsodiumConfig()
+      // The Management API does not have dedicated enable/disable endpoints
+      throw new Error(
+        `Use updatePgsodiumConfig() to ${action} pgsodium. ` +
+        'Dedicated enable/disable endpoints are not available in the Management API.'
+      );
+    },
+
+    async manageReadReplicas(projectId: string, action: 'setup' | 'remove') {
+      if (action === 'setup') {
+        const response = await managementApiClient.POST(
+          '/v1/projects/{ref}/read-replicas/setup',
+          {
+            params: { path: { ref: projectId } },
+            body: {} as any,
+          }
+        );
+        assertSuccess(response, 'Failed to setup read replicas');
+      } else {
+        const response = await managementApiClient.POST(
+          '/v1/projects/{ref}/read-replicas/remove',
+          {
+            params: { path: { ref: projectId } },
+            body: {} as any,
+          }
+        );
+        assertSuccess(response, 'Failed to remove read replicas');
+      }
+    },
+  };
+
   const platform: SupabasePlatform = {
     async init(info: InitData) {
       const { clientInfo } = info;
@@ -1051,6 +1441,9 @@ export function createSupabaseApiPlatform(
     branching,
     storage,
     secrets,
+    backup,
+    customDomain,
+    databaseConfig,
   };
 
   return platform;

@@ -579,6 +579,8 @@ export type BackupOperations = {
   restoreBackup(projectId: string, backupId: string): Promise<unknown>;
   restoreToPointInTime(projectId: string, timestamp: string): Promise<unknown>;
   undoRestore(projectId: string): Promise<void>;
+  listRestorePoints(projectId: string): Promise<unknown[]>;
+  createRestorePoint(projectId: string): Promise<unknown>;
 };
 
 export type BillingOperations = {
@@ -694,6 +696,9 @@ export type DatabaseConfigOperations = {
   // PostgREST
   getPostgrestConfig(projectId: string): Promise<unknown>;
   updatePostgrestConfig(projectId: string, config: unknown): Promise<void>;
+  // pgsodium
+  getPgsodiumConfig(projectId: string): Promise<unknown>;
+  updatePgsodiumConfig(projectId: string, config: unknown): Promise<unknown>;
   // Database features
   enableDatabaseWebhooks(projectId: string): Promise<void>;
   configurePitr(

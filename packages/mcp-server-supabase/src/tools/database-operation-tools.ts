@@ -572,6 +572,83 @@ export function getDatabaseTools({
           `;
         },
       }),
+
+      undo_database_restore: injectableTool({
+        description:
+          'Undoes the most recent database restoration, reverting to the state before the restore operation.',
+        annotations: {
+          title: 'Undo database restore',
+          readOnlyHint: false,
+          destructiveHint: true,
+          idempotentHint: false,
+          openWorldHint: false,
+        },
+        parameters: z.object({
+          project_id: z.string(),
+        }),
+        inject: { project_id },
+        execute: async ({ project_id }) => {
+          if (readOnly) {
+            throw new Error('Cannot undo restore in read-only mode.');
+          }
+
+          await backup.undoRestore(project_id);
+          return source`
+            Database restore undone successfully.
+            The database has been reverted to its state before the last restore operation.
+          `;
+        },
+      }),
+
+      list_restore_points: injectableTool({
+        description:
+          'Lists available restore points for point-in-time recovery (PITR). Shows timestamps of available recovery points.',
+        annotations: {
+          title: 'List restore points',
+          readOnlyHint: true,
+          destructiveHint: false,
+          idempotentHint: true,
+          openWorldHint: false,
+        },
+        parameters: z.object({
+          project_id: z.string(),
+        }),
+        inject: { project_id },
+        execute: async ({ project_id }) => {
+          const restorePoints = await backup.listRestorePoints(project_id);
+          return source`
+            Available Restore Points:
+            ${JSON.stringify(restorePoints, null, 2)}
+          `;
+        },
+      }),
+
+      create_restore_point: injectableTool({
+        description:
+          'Creates a manual restore point (backup) for the database. This allows you to restore to this exact point later.',
+        annotations: {
+          title: 'Create restore point',
+          readOnlyHint: false,
+          destructiveHint: false,
+          idempotentHint: false,
+          openWorldHint: false,
+        },
+        parameters: z.object({
+          project_id: z.string(),
+        }),
+        inject: { project_id },
+        execute: async ({ project_id }) => {
+          if (readOnly) {
+            throw new Error('Cannot create restore point in read-only mode.');
+          }
+
+          const result = await backup.createRestorePoint(project_id);
+          return source`
+            Restore point created successfully:
+            ${JSON.stringify(result, null, 2)}
+          `;
+        },
+      }),
     });
   }
 
@@ -753,6 +830,111 @@ export function getDatabaseTools({
           return source`
             Point-in-Time Recovery configured:
             ${JSON.stringify(config, null, 2)}
+          `;
+        },
+      }),
+
+      get_postgrest_config: injectableTool({
+        description: 'Retrieves PostgREST service configuration for a project.',
+        annotations: {
+          title: 'Get PostgREST config',
+          readOnlyHint: true,
+          destructiveHint: false,
+          idempotentHint: true,
+          openWorldHint: false,
+        },
+        parameters: z.object({
+          project_id: z.string(),
+        }),
+        inject: { project_id },
+        execute: async ({ project_id }) => {
+          const config = await databaseConfig.getPostgrestConfig(project_id);
+          return source`
+            PostgREST Configuration:
+            ${JSON.stringify(config, null, 2)}
+          `;
+        },
+      }),
+
+      update_postgrest_config: injectableTool({
+        description: 'Updates PostgREST service configuration for a project.',
+        annotations: {
+          title: 'Update PostgREST config',
+          readOnlyHint: false,
+          destructiveHint: false,
+          idempotentHint: true,
+          openWorldHint: false,
+        },
+        parameters: z.object({
+          project_id: z.string(),
+          config: z
+            .object({
+              max_rows: z.number().optional().describe('Maximum rows to return'),
+              db_schema: z.string().optional().describe('Database schema to expose'),
+              db_anon_role: z.string().optional().describe('Anonymous role'),
+              db_extra_search_path: z.string().optional().describe('Extra search path'),
+            })
+            .describe('PostgREST configuration to update'),
+        }),
+        inject: { project_id },
+        execute: async ({ project_id, config }) => {
+          await databaseConfig.updatePostgrestConfig(project_id, config);
+          return source`
+            PostgREST configuration updated successfully.
+          `;
+        },
+      }),
+
+      get_pgsodium_config: injectableTool({
+        description: 'Retrieves pgsodium encryption configuration for a project.',
+        annotations: {
+          title: 'Get pgsodium config',
+          readOnlyHint: true,
+          destructiveHint: false,
+          idempotentHint: true,
+          openWorldHint: false,
+        },
+        parameters: z.object({
+          project_id: z.string(),
+        }),
+        inject: { project_id },
+        execute: async ({ project_id }) => {
+          const config = await databaseConfig.getPgsodiumConfig(project_id);
+          return source`
+            pgsodium Configuration:
+            ${JSON.stringify(config, null, 2)}
+          `;
+        },
+      }),
+
+      update_pgsodium_config: injectableTool({
+        description: 'Updates pgsodium encryption configuration. WARNING: Updating the root_key can cause all data encrypted with the older key to become inaccessible.',
+        annotations: {
+          title: 'Update pgsodium config',
+          readOnlyHint: false,
+          destructiveHint: true,
+          idempotentHint: true,
+          openWorldHint: false,
+        },
+        parameters: z.object({
+          project_id: z.string(),
+          config: z
+            .object({
+              root_key: z.string().optional().describe('New root encryption key (WARNING: destructive)'),
+            })
+            .describe('pgsodium configuration to update'),
+        }),
+        inject: { project_id },
+        execute: async ({ project_id, config }) => {
+          if (readOnly) {
+            throw new Error('Cannot update pgsodium config in read-only mode.');
+          }
+          const updated = await databaseConfig.updatePgsodiumConfig(project_id, config);
+          return source`
+            pgsodium configuration updated:
+            ${JSON.stringify(updated, null, 2)}
+
+            WARNING: If you changed the root_key, any data encrypted with the old key may be inaccessible.
           `;
         },
       }),

@@ -193,6 +193,18 @@ async function main() {
     projectContext
   );
 
+  // Display mode status warning
+  if (!readOnly) {
+    console.warn('⚠️  WRITE MODE ENABLED: Database modifications are allowed');
+    console.warn('   This mode permits DDL operations, migrations, and data changes');
+    if (clientContext.isClaudeCLI) {
+      console.warn('   💡 For production use, consider adding --read-only flag');
+    }
+    console.warn('   Use the toggle_read_only_mode tool to switch modes at runtime');
+  } else {
+    console.log('🔒 Read-only mode enabled - database modifications are restricted');
+  }
+
   const server = createSupabaseMcpServer({
     platform,
     projectId: resolvedProjectId,

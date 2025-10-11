@@ -6,3 +6,13 @@ dist/
 .env*
 CLAUDE.md
 .claude/
+
+# Test artifacts and output
+coverage/
+.nyc_output/
+*.lcov
+junit.xml
+test-results/
+.coverage
+htmlcov/
+*.log

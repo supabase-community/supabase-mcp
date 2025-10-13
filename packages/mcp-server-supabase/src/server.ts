@@ -4,6 +4,7 @@ import {
   type ToolCallCallback,
 } from '@supabase/mcp-utils';
 import packageJson from '../package.json' with { type: 'json' };
+import { ResponseCache } from './cache/index.js';
 import { createContentApiClient } from './content-api/index.js';
 import type { SupabasePlatform } from './platform/types.js';
 import { getAccountTools } from './tools/account-tools.js';
@@ -80,9 +81,23 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
     onToolCall,
   } = options;
 
-  const contentApiClientPromise = createContentApiClient(contentApiUrl, {
-    'User-Agent': `supabase-mcp/${version}`,
+  // Initialize response cache for optimized performance
+  const cache = new ResponseCache({
+    maxSize: 1000,
+    defaultTtl: 300000, // 5 minutes
+    enableStats: true,
   });
+
+  // Lazy load content API client - don't block initialization
+  let contentApiClient: Awaited<ReturnType<typeof createContentApiClient>> | null = null;
+  const getContentApiClient = async () => {
+    if (!contentApiClient) {
+      contentApiClient = await createContentApiClient(contentApiUrl, {
+        'User-Agent': `supabase-mcp/${version}`,
+      });
+    }
+    return contentApiClient;
+  };
 
   // Filter the default features based on the platform's capabilities
   const availableDefaultFeatures = DEFAULT_FEATURES.filter(
@@ -109,14 +124,14 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
 
       await Promise.all([
         platform.init?.(info),
-        contentApiClientPromise.then((client) =>
+        getContentApiClient().then((client) =>
           client.setUserAgent(userAgent)
         ),
       ]);
     },
     onToolCall,
     tools: async () => {
-      const contentApiClient = await contentApiClientPromise;
+      const apiClient = await getContentApiClient();
       const tools: Record<string, Tool> = {};
 
       const {
@@ -130,7 +145,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       } = platform;
 
       if (enabledFeatures.has('docs')) {
-        Object.assign(tools, getDocsTools({ contentApiClient }));
+        Object.assign(tools, getDocsTools({ contentApiClient: apiClient }));
       }
 
       if (!projectId && account && enabledFeatures.has('account')) {
@@ -144,6 +159,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
             database,
             projectId,
             readOnly,
+            cache,
           })
         );
       }

@@ -26,11 +26,27 @@ export async function createContentApiClient(
     },
   });
 
-  const { source } = await graphqlClient.schemaLoaded;
+  // Lazy schema loading - don't wait for schema on initialization
+  // Schema will be loaded when first query is made
+  let schemaSource: string | null = null;
 
   return {
-    schema: source,
+    get schema(): string {
+      // Return empty string if schema not yet loaded
+      // Will be populated after first query
+      return schemaSource ?? '';
+    },
     async query(request: GraphQLRequest) {
+      // Load schema on first query if not already loaded
+      if (schemaSource === null) {
+        try {
+          const { source } = await graphqlClient.schemaLoaded;
+          schemaSource = source;
+        } catch {
+          // If schema loading fails, continue without validation
+          // This allows the server to start even if docs API is down
+        }
+      }
       return graphqlClient.query(request);
     },
     setUserAgent(userAgent: string) {

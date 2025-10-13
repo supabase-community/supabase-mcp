@@ -37,10 +37,27 @@ export function getDatabaseTools({
           .array(z.string())
           .describe('List of schemas to include. Defaults to all schemas.')
           .default(['public']),
+        table_names: z
+          .array(z.string())
+          .describe('Filter by specific table names.')
+          .optional(),
+        limit: z
+          .number()
+          .int()
+          .positive()
+          .max(100)
+          .describe('Maximum number of tables to return (max 100).')
+          .optional(),
+        offset: z
+          .number()
+          .int()
+          .nonnegative()
+          .describe('Number of tables to skip for pagination.')
+          .optional(),
       }),
       inject: { project_id },
-      execute: async ({ project_id, schemas }) => {
-        const query = listTablesSql(schemas);
+      execute: async ({ project_id, schemas, table_names, limit, offset }) => {
+        const query = listTablesSql({ schemas, table_names, limit, offset });
         const data = await database.executeSql(project_id, {
           query,
           read_only: true,

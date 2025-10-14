@@ -36,7 +36,7 @@ Your MCP client will automatically prompt you to login to Supabase during setup.
 
 For more information, visit the [Supabase MCP docs](https://supabase.com/docs/guides/getting-started/mcp).
 
-You can also manually install it on your favourite client.
+You can also manually install it on your favorite client.
 
 <details>
 <summary>Cursor</summary>

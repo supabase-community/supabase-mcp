@@ -40,9 +40,10 @@ export function getDatabaseTools({
       }),
       inject: { project_id },
       execute: async ({ project_id, schemas }) => {
-        const query = listTablesSql(schemas);
+        const { query, parameters } = listTablesSql(schemas);
         const data = await database.executeSql(project_id, {
           query,
+          parameters,
           read_only: true,
         });
         const tables = data

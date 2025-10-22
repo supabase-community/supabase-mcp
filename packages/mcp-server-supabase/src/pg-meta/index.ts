@@ -25,14 +25,19 @@ export function listTablesSql(schemas: string[] = []) {
   `;
 
   sql += '\n';
+  let parameters: any[] = [];
 
   if (schemas.length > 0) {
-    sql += `where schema in (${schemas.map((s) => `'${s}'`).join(',')})`;
+    const placeholders = schemas.map((_, i) => `$${i + 1}`).join(', ');
+    sql += `where schema in (${placeholders})`;
+    parameters = schemas;
   } else {
-    sql += `where schema not in (${SYSTEM_SCHEMAS.map((s) => `'${s}'`).join(',')})`;
+    const placeholders = SYSTEM_SCHEMAS.map((_, i) => `$${i + 1}`).join(', ');
+    sql += `where schema not in (${placeholders})`;
+    parameters = SYSTEM_SCHEMAS;
   }
 
-  return sql;
+  return { query: sql, parameters };
 }
 
 /**

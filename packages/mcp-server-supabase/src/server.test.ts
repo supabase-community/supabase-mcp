@@ -1060,6 +1060,55 @@ describe('tools', () => {
     );
   });
 
+  test('list_tables is not vulnerable to SQL injection via schemas parameter', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'SQLi Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'SQLi Project',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    // Create a table in the public schema
+    await project.db.exec(
+      'create table public.sqli_test (id serial primary key);'
+    );
+
+    // Attempt SQL injection via schemas parameter
+    const maliciousSchema = "public'; DROP TABLE public.sqli_test; --";
+
+    // This should return no results (schema doesn't exist), but should NOT execute the DROP TABLE
+    const maliciousResult = await callTool({
+      name: 'list_tables',
+      arguments: {
+        project_id: project.id,
+        schemas: [maliciousSchema],
+      },
+    });
+
+    // Should return empty array since the literal schema name doesn't exist
+    expect(maliciousResult).toEqual([]);
+
+    // The table should still exist, proving no SQL injection occurred
+    const result = await callTool({
+      name: 'list_tables',
+      arguments: {
+        project_id: project.id,
+        schemas: ['public'],
+      },
+    });
+    expect(result).toEqual(
+      expect.arrayContaining([expect.objectContaining({ name: 'sqli_test' })])
+    );
+  });
+
   test('list extensions', async () => {
     const { callTool } = await setup();
 

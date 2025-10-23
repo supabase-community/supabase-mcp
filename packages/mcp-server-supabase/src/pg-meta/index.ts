@@ -36,6 +36,9 @@ export function listTablesSql(schemas: string[] = []) {
     sql += `where schema not in (${placeholders})`;
     parameters = SYSTEM_SCHEMAS;
   }
+  console.log('Schema', schemas);
+  console.log('Generated SQL:', sql);
+  console.log('With parameters:', parameters);
 
   return { query: sql, parameters };
 }

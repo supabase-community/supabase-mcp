@@ -1076,15 +1076,14 @@ describe('tools', () => {
     });
     project.status = 'ACTIVE_HEALTHY';
 
-    // Create a table in the public schema
-    await project.db.exec(
-      'create table public.sqli_test (id serial primary key);'
-    );
+    // Attempt SQL injection via schemas parameter using payload from HackerOne report
+    // This payload attempts to break out of the string and inject a division by zero expression
+    // Reference: https://linear.app/supabase/issue/AI-139
+    const maliciousSchema = "public') OR (SELECT 1)=1/0--";
 
-    // Attempt SQL injection via schemas parameter
-    const maliciousSchema = "public'; DROP TABLE public.sqli_test; --";
-
-    // This should return no results (schema doesn't exist), but should NOT execute the DROP TABLE
+    // With proper parameterization, this should NOT throw "division by zero" error
+    // The literal schema name doesn't exist, so it should return empty array
+    // WITHOUT parameterization, this would throw: "division by zero" error
     const maliciousResult = await callTool({
       name: 'list_tables',
       arguments: {
@@ -1093,20 +1092,10 @@ describe('tools', () => {
       },
     });
 
-    // Should return empty array since the literal schema name doesn't exist
-    expect(maliciousResult).toEqual([]);
+    console.log('Malicious Result:', maliciousResult);
 
-    // The table should still exist, proving no SQL injection occurred
-    const result = await callTool({
-      name: 'list_tables',
-      arguments: {
-        project_id: project.id,
-        schemas: ['public'],
-      },
-    });
-    expect(result).toEqual(
-      expect.arrayContaining([expect.objectContaining({ name: 'sqli_test' })])
-    );
+    // Should return empty array without errors, proving the SQL injection was prevented
+    expect(maliciousResult).toEqual([]);
   });
 
   test('list extensions', async () => {

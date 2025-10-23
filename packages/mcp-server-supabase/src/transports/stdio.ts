@@ -77,17 +77,6 @@ async function main() {
 
   const transport = new StdioServerTransport();
 
-  transport.onmessage = (message) => {
-    if (isJSONRPCRequest(message)) {
-      console.error(`[MATT] received JSON-RPC request "${message.method}"`);
-    }
-    if (isJSONRPCNotification(message)) {
-      console.error(
-        `[MATT] received JSON-RPC notification "${message.method}"`
-      );
-    }
-  };
-
   await server.connect(transport);
 }
 

@@ -120,8 +120,6 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       const contentApiClient = await contentApiClientPromise;
       const tools: Record<string, Prop<Tool>> = {};
 
-      console.error('[MATT] in tools() callback');
-
       const {
         account,
         database,

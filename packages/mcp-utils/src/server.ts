@@ -293,7 +293,6 @@ export function createMcpServer(options: McpServerOptions) {
   }
 
   async function getTools() {
-    console.error('[MATT] in getTools()');
     if (!options.tools) {
       throw new Error('tools not available');
     }
@@ -304,7 +303,6 @@ export function createMcpServer(options: McpServerOptions) {
   }
 
   async function getTool(name: string) {
-    console.error('[MATT] in getTool()', name);
     const tools = await getTools();
     const toolProp = tools[name];
     if (!toolProp) {

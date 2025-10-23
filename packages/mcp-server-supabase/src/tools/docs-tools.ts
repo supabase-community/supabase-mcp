@@ -9,29 +9,34 @@ export type DocsToolsOptions = {
 
 export function getDocsTools({ contentApiClient }: DocsToolsOptions) {
   return {
-    search_docs: tool({
-      description: source`
-        Search the Supabase documentation using GraphQL. Must be a valid GraphQL query.
+    search_docs: tool(async () => {
+      console.error('[MATT] creating search_docs tool');
+      const schema = await contentApiClient.loadSchema();
 
-        You should default to calling this even if you think you already know the answer, since the documentation is always being updated.
-
-        Below is the GraphQL schema for the Supabase docs endpoint:
-        ${contentApiClient.schema}
-      `,
-      annotations: {
-        title: 'Search docs',
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: true,
-        openWorldHint: false,
-      },
-      parameters: z.object({
-        // Intentionally use a verbose param name for the LLM
-        graphql_query: z.string().describe('GraphQL query string'),
-      }),
-      execute: async ({ graphql_query }) => {
-        return await contentApiClient.query({ query: graphql_query });
-      },
+      return {
+        description: source`
+          Search the Supabase documentation using GraphQL. Must be a valid GraphQL query.
+  
+          You should default to calling this even if you think you already know the answer, since the documentation is always being updated.
+  
+          Below is the GraphQL schema for the Supabase docs endpoint:
+          ${schema}
+        `,
+        annotations: {
+          title: 'Search docs',
+          readOnlyHint: true,
+          destructiveHint: false,
+          idempotentHint: true,
+          openWorldHint: false,
+        },
+        parameters: z.object({
+          // Intentionally use a verbose param name for the LLM
+          graphql_query: z.string().describe('GraphQL query string'),
+        }),
+        execute: async ({ graphql_query }) => {
+          return await contentApiClient.query({ query: graphql_query });
+        },
+      };
     }),
   };
 }

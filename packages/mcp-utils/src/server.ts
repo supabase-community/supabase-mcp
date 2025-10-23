@@ -165,7 +165,7 @@ export function jsonResourceResponse<Uri extends string, Response>(
  * Helper function to define an MCP tool while preserving type information.
  */
 export function tool<Params extends z.ZodObject<any>, Result>(
-  tool: Tool<Params, Result>
+  tool: Prop<Tool<Params, Result>>
 ) {
   return tool;
 }
@@ -251,7 +251,7 @@ export type McpServerOptions = {
    * asks for the list of tools or invokes a tool. This allows for dynamic tools
    * that can change after the server has started.
    */
-  tools?: Prop<Record<string, Tool>>;
+  tools?: Prop<Record<string, Prop<Tool>>>;
 };
 
 /**
@@ -293,6 +293,7 @@ export function createMcpServer(options: McpServerOptions) {
   }
 
   async function getTools() {
+    console.error('[MATT] in getTools()');
     if (!options.tools) {
       throw new Error('tools not available');
     }
@@ -300,6 +301,16 @@ export function createMcpServer(options: McpServerOptions) {
     return typeof options.tools === 'function'
       ? await options.tools()
       : options.tools;
+  }
+
+  async function getTool(name: string) {
+    console.error('[MATT] in getTool()', name);
+    const tools = await getTools();
+    const toolProp = tools[name];
+    if (!toolProp) {
+      throw new Error('tool not found');
+    }
+    return typeof toolProp === 'function' ? await toolProp() : toolProp;
   }
 
   server.oninitialized = async () => {
@@ -436,9 +447,13 @@ export function createMcpServer(options: McpServerOptions) {
       ListToolsRequestSchema,
       async (): Promise<ListToolsResult> => {
         const tools = await getTools();
+
         return {
-          tools: Object.entries(tools).map(
-            ([name, { description, annotations, parameters }]) => {
+          tools: await Promise.all(
+            Object.entries(tools).map(async ([name, toolProp]) => {
+              const tool =
+                typeof toolProp === 'function' ? await toolProp() : toolProp;
+              const { description, annotations, parameters } = tool;
               const inputSchema = zodToJsonSchema(parameters);
 
               if (!('properties' in inputSchema)) {
@@ -451,26 +466,16 @@ export function createMcpServer(options: McpServerOptions) {
                 annotations,
                 inputSchema,
               };
-            }
+            })
           ),
-        };
+        } satisfies ListToolsResult;
       }
     );
 
     server.setRequestHandler(CallToolRequestSchema, async (request) => {
       try {
-        const tools = await getTools();
         const toolName = request.params.name;
-
-        if (!(toolName in tools)) {
-          throw new Error('tool not found');
-        }
-
-        const tool = tools[toolName];
-
-        if (!tool) {
-          throw new Error('tool not found');
-        }
+        const tool = await getTool(toolName);
 
         const args = tool.parameters
           .strict()

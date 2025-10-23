@@ -23,7 +23,6 @@ export async function createContentApiClient(
   return {
     // Content API provides schema string via `schema` query
     loadSchema: async () => {
-      console.error('[MATT] loading graphql schema');
       const response = await graphqlClient.query({ query: '{ schema }' });
       const { schema } = contentApiSchemaResponseSchema.parse(response);
       return schema;

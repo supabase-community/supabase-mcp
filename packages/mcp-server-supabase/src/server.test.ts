@@ -1092,8 +1092,6 @@ describe('tools', () => {
       },
     });
 
-    console.log('Malicious Result:', maliciousResult);
-
     // Should return empty array without errors, proving the SQL injection was prevented
     expect(maliciousResult).toEqual([]);
   });

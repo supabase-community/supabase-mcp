@@ -167,7 +167,8 @@ export function createSupabaseApiPlatform(
 
   const database: DatabaseOperations = {
     async executeSql<T>(projectId: string, options: ExecuteSqlOptions) {
-      const { query, read_only } = executeSqlOptionsSchema.parse(options);
+      const { query, parameters, read_only } =
+        executeSqlOptionsSchema.parse(options);
 
       const response = await managementApiClient.POST(
         '/v1/projects/{ref}/database/query',
@@ -179,6 +180,7 @@ export function createSupabaseApiPlatform(
           },
           body: {
             query,
+            parameters,
             read_only,
           },
         }

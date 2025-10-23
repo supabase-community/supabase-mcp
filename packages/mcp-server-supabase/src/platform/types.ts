@@ -110,6 +110,7 @@ export const deployEdgeFunctionOptionsSchema = z.object({
 
 export const executeSqlOptionsSchema = z.object({
   query: z.string(),
+  parameters: z.array(z.unknown()).optional(),
   read_only: z.boolean().optional(),
 });
 

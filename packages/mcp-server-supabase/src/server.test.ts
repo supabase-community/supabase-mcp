@@ -1060,6 +1060,42 @@ describe('tools', () => {
     );
   });
 
+  test('list_tables is not vulnerable to SQL injection via schemas parameter', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'SQLi Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'SQLi Project',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    // Attempt SQL injection via schemas parameter using payload from HackerOne report
+    // This payload attempts to break out of the string and inject a division by zero expression
+    // Reference: https://linear.app/supabase/issue/AI-139
+    const maliciousSchema = "public') OR (SELECT 1)=1/0--";
+
+    // With proper parameterization, this should NOT throw "division by zero" error
+    // The literal schema name doesn't exist, so it should return empty array
+    // WITHOUT parameterization, this would throw: "division by zero" error
+    const maliciousResult = await callTool({
+      name: 'list_tables',
+      arguments: {
+        project_id: project.id,
+        schemas: [maliciousSchema],
+      },
+    });
+
+    // Should return empty array without errors, proving the SQL injection was prevented
+    expect(maliciousResult).toEqual([]);
+  });
+
   test('list extensions', async () => {
     const { callTool } = await setup();
 

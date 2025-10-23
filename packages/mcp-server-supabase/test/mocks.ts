@@ -258,7 +258,10 @@ export const mockManagementApi = [
   /**
    * Execute a SQL query on a project's database
    */
-  http.post<{ projectId: string }, { query: string; read_only?: boolean }>(
+  http.post<
+    { projectId: string },
+    { query: string; parameters?: unknown[]; read_only?: boolean }
+  >(
     `${API_URL}/v1/projects/:projectId/database/query`,
     async ({ params, request }) => {
       const project = mockProjects.get(params.projectId);
@@ -269,30 +272,46 @@ export const mockManagementApi = [
         );
       }
       const { db } = project;
-      const { query, read_only } = await request.json();
+      const { query, parameters, read_only } = await request.json();
 
-      // Not secure, but good enough for testing
-      const wrappedQuery = `
-        SET ROLE ${read_only ? 'supabase_read_only_role' : 'postgres'};
-        ${query};
-        RESET ROLE;
-      `;
+      try {
+        // Use transaction to prevent race conditions if tests are parallelized
+        const result = await db.transaction(async (tx) => {
+          // Set role before executing query
+          await tx.exec(
+            `SET ROLE ${read_only ? 'supabase_read_only_role' : 'postgres'};`
+          );
 
-      const statementResults = await db.exec(wrappedQuery);
+          // Use query() method with parameters if provided, otherwise use exec()
+          const queryResult =
+            parameters && parameters.length > 0
+              ? await tx.query(query, parameters)
+              : await tx.exec(query);
 
-      // Remove last result, which is for the "RESET ROLE" statement
-      statementResults.pop();
+          // Reset role
+          await tx.exec('RESET ROLE;');
 
-      const lastStatementResults = statementResults.at(-1);
+          return queryResult;
+        });
 
-      if (!lastStatementResults) {
-        return HttpResponse.json(
-          { message: 'Failed to execute query' },
-          { status: 500 }
-        );
+        // Handle different response formats
+        if (Array.isArray(result)) {
+          // exec() returns an array of results
+          const lastStatementResults = result.at(-1);
+          if (!lastStatementResults) {
+            return HttpResponse.json(
+              { message: 'Failed to execute query' },
+              { status: 500 }
+            );
+          }
+          return HttpResponse.json(lastStatementResults.rows);
+        } else {
+          // query() returns a single result object
+          return HttpResponse.json(result.rows);
+        }
+      } catch (error) {
+        throw error;
       }
-
-      return HttpResponse.json(lastStatementResults.rows);
     }
   ),
 

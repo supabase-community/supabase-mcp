@@ -165,7 +165,7 @@ export function jsonResourceResponse<Uri extends string, Response>(
  * Helper function to define an MCP tool while preserving type information.
  */
 export function tool<Params extends z.ZodObject<any>, Result>(
-  tool: Prop<Tool<Params, Result>>
+  tool: Tool<Params, Result>
 ) {
   return tool;
 }
@@ -251,7 +251,7 @@ export type McpServerOptions = {
    * asks for the list of tools or invokes a tool. This allows for dynamic tools
    * that can change after the server has started.
    */
-  tools?: Prop<Record<string, Prop<Tool>>>;
+  tools?: Prop<Record<string, Tool>>;
 };
 
 /**
@@ -300,15 +300,6 @@ export function createMcpServer(options: McpServerOptions) {
     return typeof options.tools === 'function'
       ? await options.tools()
       : options.tools;
-  }
-
-  async function getTool(name: string) {
-    const tools = await getTools();
-    const toolProp = tools[name];
-    if (!toolProp) {
-      throw new Error('tool not found');
-    }
-    return typeof toolProp === 'function' ? await toolProp() : toolProp;
   }
 
   server.oninitialized = async () => {
@@ -448,26 +439,25 @@ export function createMcpServer(options: McpServerOptions) {
 
         return {
           tools: await Promise.all(
-            Object.entries(tools).map(async ([name, toolProp]) => {
-              const tool =
-                typeof toolProp === 'function' ? await toolProp() : toolProp;
-              const { description, annotations, parameters } = tool;
-              const inputSchema = zodToJsonSchema(parameters);
+            Object.entries(tools).map(
+              async ([name, { description, annotations, parameters }]) => {
+                const inputSchema = zodToJsonSchema(parameters);
 
-              if (!('properties' in inputSchema)) {
-                throw new Error('tool parameters must be a ZodObject');
+                if (!('properties' in inputSchema)) {
+                  throw new Error('tool parameters must be a ZodObject');
+                }
+
+                return {
+                  name,
+                  description:
+                    typeof description === 'function'
+                      ? await description()
+                      : description,
+                  annotations,
+                  inputSchema,
+                };
               }
-
-              return {
-                name,
-                description:
-                  typeof description === 'function'
-                    ? await description()
-                    : description,
-                annotations,
-                inputSchema,
-              };
-            })
+            )
           ),
         } satisfies ListToolsResult;
       }
@@ -475,9 +465,18 @@ export function createMcpServer(options: McpServerOptions) {
 
     server.setRequestHandler(CallToolRequestSchema, async (request) => {
       try {
+        const tools = await getTools();
         const toolName = request.params.name;
-        const tool = await getTool(toolName);
 
+        if (!(toolName in tools)) {
+          throw new Error('tool not found');
+        }
+
+        const tool = tools[toolName];
+
+        if (!tool) {
+          throw new Error('tool not found');
+        }
         const args = tool.parameters
           .strict()
           .parse(request.params.arguments ?? {});

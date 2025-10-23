@@ -1,6 +1,5 @@
 import {
   createMcpServer,
-  type Prop,
   type Tool,
   type ToolCallCallback,
 } from '@supabase/mcp-utils';
@@ -118,7 +117,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
     onToolCall,
     tools: async () => {
       const contentApiClient = await contentApiClientPromise;
-      const tools: Record<string, Prop<Tool>> = {};
+      const tools: Record<string, Tool> = {};
 
       const {
         account,

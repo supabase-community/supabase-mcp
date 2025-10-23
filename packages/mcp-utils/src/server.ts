@@ -54,7 +54,7 @@ export type Tool<
   Params extends z.ZodObject<any> = z.ZodObject<any>,
   Result = unknown,
 > = {
-  description: string;
+  description: Prop<string>;
   annotations?: Annotations;
   parameters: Params;
   execute(params: z.infer<Params>): Promise<Result>;
@@ -462,7 +462,10 @@ export function createMcpServer(options: McpServerOptions) {
 
               return {
                 name,
-                description,
+                description:
+                  typeof description === 'function'
+                    ? await description()
+                    : description,
                 annotations,
                 inputSchema,
               };

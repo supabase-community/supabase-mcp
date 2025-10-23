@@ -260,7 +260,7 @@ export const mockManagementApi = [
    */
   http.post<
     { projectId: string },
-    { query: string; parameters?: any[]; read_only?: boolean }
+    { query: string; parameters?: unknown[]; read_only?: boolean }
   >(
     `${API_URL}/v1/projects/:projectId/database/query`,
     async ({ params, request }) => {
@@ -274,20 +274,25 @@ export const mockManagementApi = [
       const { db } = project;
       const { query, parameters, read_only } = await request.json();
 
-      // Set role before executing query
-      await db.exec(
-        `SET ROLE ${read_only ? 'supabase_read_only_role' : 'postgres'};`
-      );
-
       try {
-        // Use query() method with parameters if provided, otherwise use exec()
-        const result =
-          parameters && parameters.length > 0
-            ? await db.query(query, parameters)
-            : await db.exec(query);
+        // Use transaction to prevent race conditions if tests are parallelized
+        const result = await db.transaction(async (tx) => {
+          // Set role before executing query
+          await tx.exec(
+            `SET ROLE ${read_only ? 'supabase_read_only_role' : 'postgres'};`
+          );
 
-        // Reset role
-        await db.exec('RESET ROLE;');
+          // Use query() method with parameters if provided, otherwise use exec()
+          const queryResult =
+            parameters && parameters.length > 0
+              ? await tx.query(query, parameters)
+              : await tx.exec(query);
+
+          // Reset role
+          await tx.exec('RESET ROLE;');
+
+          return queryResult;
+        });
 
         // Handle different response formats
         if (Array.isArray(result)) {
@@ -305,8 +310,6 @@ export const mockManagementApi = [
           return HttpResponse.json(result.rows);
         }
       } catch (error) {
-        // Reset role on error
-        await db.exec('RESET ROLE;');
         throw error;
       }
     }

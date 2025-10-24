@@ -265,6 +265,13 @@ export const mockManagementApi = [
   }),
 
   /**
+   * Check if legacy API keys are enabled
+   */
+  http.get(`${API_URL}/v1/projects/:projectId/api-keys/legacy`, ({ params }) => {
+    return HttpResponse.json({ enabled: true });
+  }),
+
+  /**
    * Execute a SQL query on a project's database
    */
   http.post<

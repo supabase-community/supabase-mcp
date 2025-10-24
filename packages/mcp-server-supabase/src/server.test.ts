@@ -27,13 +27,15 @@ import { BRANCH_COST_HOURLY, PROJECT_COST_MONTHLY } from './pricing.js';
 import { createSupabaseMcpServer } from './server.js';
 import type { SupabasePlatform } from './platform/types.js';
 
+let mswServer: ReturnType<typeof setupServer>;
+
 beforeEach(async () => {
   mockOrgs.clear();
   mockProjects.clear();
   mockBranches.clear();
 
-  const server = setupServer(...mockContentApi, ...mockManagementApi);
-  server.listen({ onUnhandledRequest: 'error' });
+  mswServer = setupServer(...mockContentApi, ...mockManagementApi);
+  mswServer.listen({ onUnhandledRequest: 'error' });
 });
 
 type SetupOptions = {
@@ -643,6 +645,54 @@ describe('tools', () => {
     expect(publishableKey.api_key).toEqual('sb_publishable_dummy_key_1');
     expect(publishableKey.type).toEqual('publishable');
     expect(publishableKey.description).toEqual('Main publishable key');
+  });
+
+  test('get anon or publishable keys marks disabled legacy keys', async () => {
+    const { callTool } = await setup();
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    // Override the legacy keys endpoint to return disabled
+    const { http, HttpResponse } = await import('msw');
+    mswServer.use(
+      http.get(`${API_URL}/v1/projects/:projectId/api-keys/legacy`, () => {
+        return HttpResponse.json({ enabled: false });
+      })
+    );
+
+    const result = await callTool({
+      name: 'get_anon_or_publishable_keys',
+      arguments: {
+        project_id: project.id,
+      },
+    });
+
+    expect(result).toBeInstanceOf(Array);
+    
+    // Both keys should be returned
+    expect(result.length).toBe(2);
+    
+    // Check that legacy anon key is marked as disabled
+    const anonKey = result.find((key: any) => key.name === 'anon');
+    expect(anonKey).toBeDefined();
+    expect(anonKey.disabled).toBe(true);
+    expect(anonKey.type).toEqual('legacy');
+    
+    // Check that publishable key is NOT disabled
+    const publishableKey = result.find((key: any) => key.type === 'publishable');
+    expect(publishableKey).toBeDefined();
+    expect(publishableKey.api_key).toEqual('sb_publishable_dummy_key_1');
+    expect(publishableKey.type).toEqual('publishable');
+    expect(publishableKey.disabled).toBeFalsy();
   });
 
   test('list storage buckets', async () => {

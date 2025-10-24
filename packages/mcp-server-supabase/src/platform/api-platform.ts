@@ -317,6 +317,29 @@ export function createSupabaseApiPlatform(
 
       assertSuccess(response, 'Failed to fetch API keys');
 
+      // Try to check if legacy JWT-based keys are enabled
+      // If this fails, we'll continue without the disabled field
+      let legacyKeysEnabled: boolean | undefined = undefined;
+      try {
+        const legacyKeysResponse = await managementApiClient.GET(
+          '/v1/projects/{ref}/api-keys/legacy',
+          {
+            params: {
+              path: {
+                ref: projectId,
+              },
+            },
+          }
+        );
+
+        if (legacyKeysResponse.response.ok) {
+          legacyKeysEnabled = legacyKeysResponse.data?.enabled ?? true;
+        }
+      } catch (error) {
+        // If we can't fetch legacy key status, continue without it
+        legacyKeysEnabled = undefined;
+      }
+
       // Filter for client-safe keys: legacy 'anon' or publishable type
       const clientKeys = response.data?.filter(
         (key) => key.name === 'anon' || key.type === 'publishable'
@@ -332,6 +355,10 @@ export function createSupabaseApiPlatform(
         api_key: key.api_key!,
         name: key.name,
         type: (key.type === 'publishable' ? 'publishable' : 'legacy') satisfies ApiKeyType,
+        // Only include disabled field if we successfully fetched legacy key status
+        ...(legacyKeysEnabled !== undefined && {
+          disabled: key.type === 'legacy' && !legacyKeysEnabled,
+        }),
         description: key.description ?? undefined,
         id: key.id ?? undefined,
       }));

@@ -217,6 +217,7 @@ export type ApiKey = {
   type: ApiKeyType;
   description?: string;
   id?: string;
+  disabled?: boolean;
 };
 
 export type DevelopmentOperations = {

@@ -11,6 +11,7 @@ import {
   ACCESS_TOKEN,
   API_URL,
   contentApiMockSchema,
+  mockContentApiSchemaLoadCount,
   createOrganization,
   createProject,
   createBranch,
@@ -31,6 +32,7 @@ beforeEach(async () => {
   mockOrgs.clear();
   mockProjects.clear();
   mockBranches.clear();
+  mockContentApiSchemaLoadCount.value = 0;
 
   const server = setupServer(...mockContentApi, ...mockManagementApi);
   server.listen({ onUnhandledRequest: 'error' });
@@ -2942,5 +2944,28 @@ describe('docs tools', () => {
     }
 
     expect(tool.description.includes(contentApiMockSchema)).toBe(true);
+  });
+
+  test('schema is only loaded when listing tools', async () => {
+    const { client, callTool } = await setup();
+
+    expect(mockContentApiSchemaLoadCount.value).toBe(0);
+
+    // "tools/list" requests fetch the schema
+    await client.listTools();
+    expect(mockContentApiSchemaLoadCount.value).toBe(1);
+
+    // "tools/call" should not fetch the schema again
+    await callTool({
+      name: 'search_docs',
+      arguments: {
+        graphql_query: '{ searchDocs(query: "test") { nodes { title } } }',
+      },
+    });
+    expect(mockContentApiSchemaLoadCount.value).toBe(1);
+
+    // Additional "tools/list" requests fetch the schema again
+    await client.listTools();
+    expect(mockContentApiSchemaLoadCount.value).toBe(2);
   });
 });

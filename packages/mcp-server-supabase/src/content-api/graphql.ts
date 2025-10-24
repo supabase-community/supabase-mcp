@@ -121,7 +121,7 @@ export class GraphQLClient {
    */
   async query(
     request: GraphQLRequest,
-    options: QueryOptions = { validateSchema: true }
+    options: QueryOptions = { validateSchema: false }
   ) {
     try {
       // Check that this is a valid GraphQL query

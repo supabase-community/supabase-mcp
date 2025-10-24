@@ -6,7 +6,7 @@ const contentApiSchemaResponseSchema = z.object({
 });
 
 export type ContentApiClient = {
-  schema: string;
+  loadSchema: () => Promise<string>;
   query: QueryFn;
   setUserAgent: (userAgent: string) => void;
 };
@@ -18,18 +18,15 @@ export async function createContentApiClient(
   const graphqlClient = new GraphQLClient({
     url,
     headers,
+  });
+
+  return {
     // Content API provides schema string via `schema` query
-    loadSchema: async ({ query }) => {
-      const response = await query({ query: '{ schema }' });
+    loadSchema: async () => {
+      const response = await graphqlClient.query({ query: '{ schema }' });
       const { schema } = contentApiSchemaResponseSchema.parse(response);
       return schema;
     },
-  });
-
-  const { source } = await graphqlClient.schemaLoaded;
-
-  return {
-    schema: source,
     async query(request: GraphQLRequest) {
       return graphqlClient.query(request);
     },

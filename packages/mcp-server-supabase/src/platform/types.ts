@@ -208,9 +208,21 @@ export type DebuggingOperations = {
   getPerformanceAdvisors(projectId: string): Promise<unknown>;
 };
 
+export const apiKeyTypeSchema = z.enum(['legacy', 'publishable']);
+export type ApiKeyType = z.infer<typeof apiKeyTypeSchema>;
+
+export type ApiKey = {
+  api_key: string;
+  name: string;
+  type: ApiKeyType;
+  description?: string;
+  id?: string;
+  disabled?: boolean;
+};
+
 export type DevelopmentOperations = {
   getProjectUrl(projectId: string): Promise<string>;
-  getAnonKey(projectId: string): Promise<string>;
+  getAnonOrPublishableKeys(projectId: string): Promise<ApiKey[]>;
   generateTypescriptTypes(
     projectId: string
   ): Promise<GenerateTypescriptTypesResult>;

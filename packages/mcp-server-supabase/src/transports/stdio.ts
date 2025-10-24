@@ -6,10 +6,6 @@ import packageJson from '../../package.json' with { type: 'json' };
 import { createSupabaseApiPlatform } from '../platform/api-platform.js';
 import { createSupabaseMcpServer } from '../server.js';
 import { parseList } from './util.js';
-import {
-  isJSONRPCNotification,
-  isJSONRPCRequest,
-} from '@modelcontextprotocol/sdk/types.js';
 
 const { version } = packageJson;
 

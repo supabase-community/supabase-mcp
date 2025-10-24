@@ -251,6 +251,15 @@ export const mockManagementApi = [
       {
         name: 'anon',
         api_key: 'dummy-anon-key',
+        type: 'legacy',
+        id: 'anon-key-id',
+      },
+      {
+        name: 'publishable-key-1',
+        api_key: 'sb_publishable_dummy_key_1',
+        type: 'publishable',
+        id: 'publishable-key-1-id',
+        description: 'Main publishable key',
       },
     ]);
   }),

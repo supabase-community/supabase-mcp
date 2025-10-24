@@ -29,6 +29,7 @@ import {
   type DebuggingOperations,
   type DeployEdgeFunctionOptions,
   type DevelopmentOperations,
+  type SuccessResponse,
   type EdgeFunction,
   type EdgeFunctionsOperations,
   type EdgeFunctionWithBody,
@@ -41,6 +42,8 @@ import {
 } from './index.js';
 
 const { version } = packageJson;
+
+const SUCCESS_RESPONSE: SuccessResponse = { success: true };
 
 export type SupabaseApiPlatformOptions = {
   /**
@@ -148,6 +151,8 @@ export function createSupabaseApiPlatform(
       );
 
       assertSuccess(response, 'Failed to pause project');
+
+      return SUCCESS_RESPONSE;
     },
     async restoreProject(projectId: string) {
       const response = await managementApiClient.POST(
@@ -162,6 +167,8 @@ export function createSupabaseApiPlatform(
       );
 
       assertSuccess(response, 'Failed to restore project');
+
+      return SUCCESS_RESPONSE;
     },
   };
 
@@ -229,6 +236,7 @@ export function createSupabaseApiPlatform(
       // Intentionally don't return the result of the migration
       // to avoid prompt injection attacks. If the migration failed,
       // it will throw an error.
+      return SUCCESS_RESPONSE;
     },
   };
 
@@ -612,6 +620,8 @@ export function createSupabaseApiPlatform(
       );
 
       assertSuccess(response, 'Failed to delete branch');
+
+      return SUCCESS_RESPONSE;
     },
     async mergeBranch(branchId: string) {
       const response = await managementApiClient.POST(
@@ -627,6 +637,8 @@ export function createSupabaseApiPlatform(
       );
 
       assertSuccess(response, 'Failed to merge branch');
+
+      return SUCCESS_RESPONSE;
     },
     async resetBranch(branchId: string, options: ResetBranchOptions) {
       const { migration_version } = resetBranchOptionsSchema.parse(options);
@@ -646,6 +658,8 @@ export function createSupabaseApiPlatform(
       );
 
       assertSuccess(response, 'Failed to reset branch');
+
+      return SUCCESS_RESPONSE;
     },
     async rebaseBranch(branchId: string) {
       const response = await managementApiClient.POST(
@@ -661,6 +675,8 @@ export function createSupabaseApiPlatform(
       );
 
       assertSuccess(response, 'Failed to rebase branch');
+
+      return SUCCESS_RESPONSE;
     },
   };
 
@@ -725,7 +741,7 @@ export function createSupabaseApiPlatform(
 
       assertSuccess(response, 'Failed to update storage config');
 
-      return response.data;
+      return SUCCESS_RESPONSE;
     },
   };
 

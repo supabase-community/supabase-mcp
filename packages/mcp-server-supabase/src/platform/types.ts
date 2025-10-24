@@ -2,6 +2,10 @@ import type { InitData } from '@supabase/mcp-utils';
 import { z } from 'zod';
 import { AWS_REGION_CODES } from '../regions.js';
 
+export type SuccessResponse = {
+  success: true;
+};
+
 export const storageBucketSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -177,7 +181,7 @@ export type DatabaseOperations = {
   applyMigration(
     projectId: string,
     options: ApplyMigrationOptions
-  ): Promise<void>;
+  ): Promise<SuccessResponse>;
 };
 
 export type AccountOperations = {
@@ -186,8 +190,8 @@ export type AccountOperations = {
   listProjects(): Promise<Project[]>;
   getProject(projectId: string): Promise<Project>;
   createProject(options: CreateProjectOptions): Promise<Project>;
-  pauseProject(projectId: string): Promise<void>;
-  restoreProject(projectId: string): Promise<void>;
+  pauseProject(projectId: string): Promise<SuccessResponse>;
+  restoreProject(projectId: string): Promise<SuccessResponse>;
 };
 
 export type EdgeFunctionsOperations = {
@@ -218,7 +222,10 @@ export type DevelopmentOperations = {
 
 export type StorageOperations = {
   getStorageConfig(projectId: string): Promise<StorageConfig>;
-  updateStorageConfig(projectId: string, config: StorageConfig): Promise<void>;
+  updateStorageConfig(
+    projectId: string,
+    config: StorageConfig
+  ): Promise<SuccessResponse>;
   listAllBuckets(projectId: string): Promise<StorageBucket[]>;
 };
 
@@ -228,10 +235,13 @@ export type BranchingOperations = {
     projectId: string,
     options: CreateBranchOptions
   ): Promise<Branch>;
-  deleteBranch(branchId: string): Promise<void>;
-  mergeBranch(branchId: string): Promise<void>;
-  resetBranch(branchId: string, options: ResetBranchOptions): Promise<void>;
-  rebaseBranch(branchId: string): Promise<void>;
+  deleteBranch(branchId: string): Promise<SuccessResponse>;
+  mergeBranch(branchId: string): Promise<SuccessResponse>;
+  resetBranch(
+    branchId: string,
+    options: ResetBranchOptions
+  ): Promise<SuccessResponse>;
+  rebaseBranch(branchId: string): Promise<SuccessResponse>;
 };
 
 export type SupabasePlatform = {

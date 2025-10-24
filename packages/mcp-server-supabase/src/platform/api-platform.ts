@@ -341,9 +341,10 @@ export function createSupabaseApiPlatform(
       }
 
       // Filter for client-safe keys: legacy 'anon' or publishable type
-      const clientKeys = response.data?.filter(
-        (key) => key.name === 'anon' || key.type === 'publishable'
-      ) ?? [];
+      const clientKeys =
+        response.data?.filter(
+          (key) => key.name === 'anon' || key.type === 'publishable'
+        ) ?? [];
 
       if (clientKeys.length === 0) {
         throw new Error(
@@ -354,7 +355,9 @@ export function createSupabaseApiPlatform(
       return clientKeys.map((key) => ({
         api_key: key.api_key!,
         name: key.name,
-        type: (key.type === 'publishable' ? 'publishable' : 'legacy') satisfies ApiKeyType,
+        type: (key.type === 'publishable'
+          ? 'publishable'
+          : 'legacy') satisfies ApiKeyType,
         // Only include disabled field if we successfully fetched legacy key status
         ...(legacyKeysEnabled !== undefined && {
           disabled: key.type === 'legacy' && !legacyKeysEnabled,

@@ -664,7 +664,7 @@ describe('tools', () => {
     // Override the legacy keys endpoint to return disabled
     const { http, HttpResponse } = await import('msw');
     mswServer.use(
-      http.get(`${API_URL}/v1/projects/:projectId/api-keys/legacy`, () => {
+      http.get(`${API_URL}/v1/projects/:ref/api-keys/legacy`, () => {
         return HttpResponse.json({ enabled: false });
       })
     );

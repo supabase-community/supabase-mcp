@@ -84,6 +84,8 @@ export const mockOrgs = new Map<string, Organization>();
 export const mockProjects = new Map<string, MockProject>();
 export const mockBranches = new Map<string, MockBranch>();
 
+export const mockContentApiSchemaLoadCount = { value: 0 };
+
 export const mockContentApi = [
   http.post(CONTENT_API_URL, async ({ request }) => {
     const json = await request.json();
@@ -96,6 +98,7 @@ export const mockContentApi = [
     const [queryName] = getQueryFields(document);
 
     if (queryName === 'schema') {
+      mockContentApiSchemaLoadCount.value++;
       return HttpResponse.json({
         data: {
           schema: contentApiMockSchema,

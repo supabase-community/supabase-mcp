@@ -54,7 +54,7 @@ export type Tool<
   Params extends z.ZodObject<any> = z.ZodObject<any>,
   Result = unknown,
 > = {
-  description: string;
+  description: Prop<string>;
   annotations?: Annotations;
   parameters: Params;
   execute(params: z.infer<Params>): Promise<Result>;
@@ -436,24 +436,30 @@ export function createMcpServer(options: McpServerOptions) {
       ListToolsRequestSchema,
       async (): Promise<ListToolsResult> => {
         const tools = await getTools();
+
         return {
-          tools: Object.entries(tools).map(
-            ([name, { description, annotations, parameters }]) => {
-              const inputSchema = zodToJsonSchema(parameters);
+          tools: await Promise.all(
+            Object.entries(tools).map(
+              async ([name, { description, annotations, parameters }]) => {
+                const inputSchema = zodToJsonSchema(parameters);
 
-              if (!('properties' in inputSchema)) {
-                throw new Error('tool parameters must be a ZodObject');
+                if (!('properties' in inputSchema)) {
+                  throw new Error('tool parameters must be a ZodObject');
+                }
+
+                return {
+                  name,
+                  description:
+                    typeof description === 'function'
+                      ? await description()
+                      : description,
+                  annotations,
+                  inputSchema,
+                };
               }
-
-              return {
-                name,
-                description,
-                annotations,
-                inputSchema,
-              };
-            }
+            )
           ),
-        };
+        } satisfies ListToolsResult;
       }
     );
 
@@ -471,7 +477,6 @@ export function createMcpServer(options: McpServerOptions) {
         if (!tool) {
           throw new Error('tool not found');
         }
-
         const args = tool.parameters
           .strict()
           .parse(request.params.arguments ?? {});

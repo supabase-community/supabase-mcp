@@ -144,6 +144,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
             database,
             projectId,
             readOnly,
+            server,
           })
         );
       }

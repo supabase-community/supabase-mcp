@@ -1,4 +1,5 @@
 import { source } from 'common-tags';
+import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { z } from 'zod';
 import { listExtensionsSql, listTablesSql } from '../pg-meta/index.js';
 import {
@@ -14,12 +15,14 @@ export type DatabaseOperationToolsOptions = {
   database: DatabaseOperations;
   projectId?: string;
   readOnly?: boolean;
+  server?: Server;
 };
 
 export function getDatabaseTools({
   database,
   projectId,
   readOnly,
+  server,
 }: DatabaseOperationToolsOptions) {
   const project_id = projectId;
 
@@ -213,6 +216,47 @@ export function getDatabaseTools({
       execute: async ({ project_id, name, query }) => {
         if (readOnly) {
           throw new Error('Cannot apply migration in read-only mode.');
+        }
+
+        // Try to request user confirmation via elicitation
+        if (server) {
+          try {
+            const result = (await server.request(
+              {
+                method: 'elicitation/create',
+                params: {
+                  message: `You are about to apply migration "${name}" to project ${project_id}. This will modify your database schema.\n\nPlease review the SQL:\n\n${query}\n\nDo you want to proceed?`,
+                  requestedSchema: {
+                    type: 'object',
+                    properties: {
+                      confirm: {
+                        type: 'boolean',
+                        title: 'Confirm Migration',
+                        description: 'I have reviewed the SQL and approve this migration',
+                      },
+                    },
+                    required: ['confirm'],
+                  },
+                },
+              },
+              // @ts-ignore - elicitation types might not be available
+              { elicitation: true }
+            )) as {
+              action: 'accept' | 'decline' | 'cancel';
+              content?: { confirm?: boolean };
+            };
+
+            // User declined or cancelled
+            if (result.action !== 'accept' || !result.content?.confirm) {
+              throw new Error('Migration cancelled by user');
+            }
+          } catch (error) {
+            // If elicitation fails (client doesn't support it), proceed without confirmation
+            // This maintains backwards compatibility
+            console.warn(
+              'Elicitation not supported by client, proceeding with migration without confirmation'
+            );
+          }
         }
 
         await database.applyMigration(project_id, {

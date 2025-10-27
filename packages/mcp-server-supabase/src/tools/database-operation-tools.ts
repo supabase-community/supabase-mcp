@@ -8,6 +8,8 @@ import {
 import type { DatabaseOperations } from '../platform/types.js';
 import { injectableTool } from './util.js';
 
+const SUCCESS_RESPONSE = { success: true };
+
 export type DatabaseOperationToolsOptions = {
   database: DatabaseOperations;
   projectId?: string;
@@ -218,7 +220,7 @@ export function getDatabaseTools({
           query,
         });
 
-        return { success: true };
+        return SUCCESS_RESPONSE;
       },
     }),
     execute_sql: injectableTool({

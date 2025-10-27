@@ -181,7 +181,7 @@ export type DatabaseOperations = {
   applyMigration(
     projectId: string,
     options: ApplyMigrationOptions
-  ): Promise<SuccessResponse>;
+  ): Promise<void>;
 };
 
 export type AccountOperations = {
@@ -190,8 +190,8 @@ export type AccountOperations = {
   listProjects(): Promise<Project[]>;
   getProject(projectId: string): Promise<Project>;
   createProject(options: CreateProjectOptions): Promise<Project>;
-  pauseProject(projectId: string): Promise<SuccessResponse>;
-  restoreProject(projectId: string): Promise<SuccessResponse>;
+  pauseProject(projectId: string): Promise<void>;
+  restoreProject(projectId: string): Promise<void>;
 };
 
 export type EdgeFunctionsOperations = {
@@ -225,7 +225,7 @@ export type StorageOperations = {
   updateStorageConfig(
     projectId: string,
     config: StorageConfig
-  ): Promise<SuccessResponse>;
+  ): Promise<void>;
   listAllBuckets(projectId: string): Promise<StorageBucket[]>;
 };
 
@@ -235,13 +235,13 @@ export type BranchingOperations = {
     projectId: string,
     options: CreateBranchOptions
   ): Promise<Branch>;
-  deleteBranch(branchId: string): Promise<SuccessResponse>;
-  mergeBranch(branchId: string): Promise<SuccessResponse>;
+  deleteBranch(branchId: string): Promise<void>;
+  mergeBranch(branchId: string): Promise<void>;
   resetBranch(
     branchId: string,
     options: ResetBranchOptions
-  ): Promise<SuccessResponse>;
-  rebaseBranch(branchId: string): Promise<SuccessResponse>;
+  ): Promise<void>;
+  rebaseBranch(branchId: string): Promise<void>;
 };
 
 export type SupabasePlatform = {

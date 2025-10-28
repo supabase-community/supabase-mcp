@@ -300,7 +300,7 @@ export function createSupabaseApiPlatform(
       const apiUrl = new URL(managementApiUrl);
       return `https://${projectId}.${getProjectDomain(apiUrl.hostname)}`;
     },
-    async getAnonOrPublishableKeys(projectId: string): Promise<ApiKey[]> {
+    async getPublishableKeys(projectId: string): Promise<ApiKey[]> {
       const response = await managementApiClient.GET(
         '/v1/projects/{ref}/api-keys',
         {

@@ -222,7 +222,7 @@ export type ApiKey = {
 
 export type DevelopmentOperations = {
   getProjectUrl(projectId: string): Promise<string>;
-  getAnonOrPublishableKeys(projectId: string): Promise<ApiKey[]>;
+  getPublishableKeys(projectId: string): Promise<ApiKey[]>;
   generateTypescriptTypes(
     projectId: string
   ): Promise<GenerateTypescriptTypesResult>;

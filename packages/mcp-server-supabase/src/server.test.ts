@@ -621,7 +621,7 @@ describe('tools', () => {
     project.status = 'ACTIVE_HEALTHY';
 
     const result = await callTool({
-      name: 'get_anon_or_publishable_keys',
+      name: 'get_publishable_keys',
       arguments: {
         project_id: project.id,
       },
@@ -2626,7 +2626,7 @@ describe('feature groups', () => {
 
     expect(toolNames).toEqual([
       'get_project_url',
-      'get_anon_or_publishable_keys',
+      'get_publishable_keys',
       'generate_typescript_types',
     ]);
   });

@@ -29,6 +29,7 @@ import {
   type DebuggingOperations,
   type DeployEdgeFunctionOptions,
   type DevelopmentOperations,
+  type SuccessResponse,
   type EdgeFunction,
   type EdgeFunctionsOperations,
   type EdgeFunctionWithBody,
@@ -41,6 +42,8 @@ import {
 } from './index.js';
 
 const { version } = packageJson;
+
+const SUCCESS_RESPONSE: SuccessResponse = { success: true };
 
 export type SupabaseApiPlatformOptions = {
   /**
@@ -724,8 +727,6 @@ export function createSupabaseApiPlatform(
       );
 
       assertSuccess(response, 'Failed to update storage config');
-
-      return response.data;
     },
   };
 

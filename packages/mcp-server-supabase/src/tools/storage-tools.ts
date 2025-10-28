@@ -2,6 +2,8 @@ import { z } from 'zod';
 import type { StorageOperations } from '../platform/types.js';
 import { injectableTool } from './util.js';
 
+const SUCCESS_RESPONSE = { success: true };
+
 export type StorageToolsOptions = {
   storage: StorageOperations;
   projectId?: string;
@@ -76,7 +78,7 @@ export function getStorageTools({
         }
 
         await storage.updateStorageConfig(project_id, config);
-        return { success: true };
+        return SUCCESS_RESPONSE;
       },
     }),
   };

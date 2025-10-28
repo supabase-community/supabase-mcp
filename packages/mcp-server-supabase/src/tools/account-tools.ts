@@ -5,6 +5,8 @@ import { type Cost, getBranchCost, getNextProjectCost } from '../pricing.js';
 import { AWS_REGION_CODES } from '../regions.js';
 import { hashObject } from '../util.js';
 
+const SUCCESS_RESPONSE = { success: true };
+
 export type AccountToolsOptions = {
   account: AccountOperations;
   readOnly?: boolean;
@@ -187,7 +189,8 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
           throw new Error('Cannot pause a project in read-only mode.');
         }
 
-        return await account.pauseProject(project_id);
+        await account.pauseProject(project_id);
+        return SUCCESS_RESPONSE;
       },
     }),
     restore_project: tool({
@@ -207,7 +210,8 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
           throw new Error('Cannot restore a project in read-only mode.');
         }
 
-        return await account.restoreProject(project_id);
+        await account.restoreProject(project_id);
+        return SUCCESS_RESPONSE;
       },
     }),
   };

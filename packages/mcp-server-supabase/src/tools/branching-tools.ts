@@ -5,6 +5,8 @@ import { getBranchCost } from '../pricing.js';
 import { hashObject } from '../util.js';
 import { injectableTool } from './util.js';
 
+const SUCCESS_RESPONSE = { success: true };
+
 export type BranchingToolsOptions = {
   branching: BranchingOperations;
   projectId?: string;
@@ -93,7 +95,8 @@ export function getBranchingTools({
           throw new Error('Cannot delete a branch in read-only mode.');
         }
 
-        return await branching.deleteBranch(branch_id);
+        await branching.deleteBranch(branch_id);
+        return SUCCESS_RESPONSE;
       },
     }),
     merge_branch: tool({
@@ -114,7 +117,8 @@ export function getBranchingTools({
           throw new Error('Cannot merge a branch in read-only mode.');
         }
 
-        return await branching.mergeBranch(branch_id);
+        await branching.mergeBranch(branch_id);
+        return SUCCESS_RESPONSE;
       },
     }),
     reset_branch: tool({
@@ -141,9 +145,10 @@ export function getBranchingTools({
           throw new Error('Cannot reset a branch in read-only mode.');
         }
 
-        return await branching.resetBranch(branch_id, {
+        await branching.resetBranch(branch_id, {
           migration_version,
         });
+        return SUCCESS_RESPONSE;
       },
     }),
     rebase_branch: tool({
@@ -164,7 +169,8 @@ export function getBranchingTools({
           throw new Error('Cannot rebase a branch in read-only mode.');
         }
 
-        return await branching.rebaseBranch(branch_id);
+        await branching.rebaseBranch(branch_id);
+        return SUCCESS_RESPONSE;
       },
     }),
   };

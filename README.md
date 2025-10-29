@@ -15,7 +15,9 @@ Before setting up the MCP server, we recommend you read our [security best pract
 
 ### 2. Configure your MCP client
 
-The Supabase MCP server is hosted at `https://mcp.supabase.com/mcp` and supports the Streamable HTTP transport with OAuth authentication. If you're running Supabase locally with [Supabase CLI](https://supabase.com/docs/guides/local-development/cli/getting-started), you can access the MCP server at `http://localhost:54321/mcp` with a subset of tools.
+The Supabase MCP server is hosted at `https://mcp.supabase.com/mcp` and supports the Streamable HTTP transport with Dynamic Client Registration OAuth 2.1 authentication.
+
+If you're running Supabase locally with [Supabase CLI](https://supabase.com/docs/guides/local-development/cli/getting-started), you can access the MCP server at `http://localhost:54321/mcp`. For [self-hosted Supabase](https://supabase.com/docs/guides/self-hosting/docker), check the [Enabling MCP server](https://supabase.com/docs/guides/self-hosting/enable-mcp) page. Currently, the MCP Server in CLI and self-hosted environments offer a limited subset of tools and no OAuth 2.1.
 
 The easiest way to connect your MCP client (such as Cursor) to your project is clicking [Connect](https://supabase.com/dashboard/project/_?showConnect=true&tab=mcp) in the Supabase dashboard and navigating to the MCP tab. There you can choose options such as [feature groups](#feature-groups), and generate one-click installers or config entries for popular clients.
 
@@ -102,7 +104,7 @@ When using the URL in the dashboard or docs, these parameters will be populated 
 
 ### Project scoped mode
 
-Without project scoping, the MCP server will have access to all organizations and projects in your Supabase account. We recommend you restrict the server to a specific project by setting the `project_ref` query parameter in the server URL:
+Without project scoping, the MCP server will have access to all projects in your Supabase organization. We recommend you restrict the server to a specific project by setting the `project_ref` query parameter in the server URL:
 
 ```
 https://mcp.supabase.com/mcp?project_ref=<project-ref>

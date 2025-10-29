@@ -20,7 +20,7 @@ When creating a migration that inserts static data, it is important to ask the L
 
 When creating a destructive migration like dropping a column, you must review the generated SQL statements and the current state of your database to confirm that the data loss is expected and acceptable.
 
-After successfully applying a migration, you can test your database changes by connecting your app to the development branch. The branch project URL and API keys can be fetched using `get_project_url` and `get_anon_key` tools respectively. Save them in your `.env` file to avoid repeating this in the future.
+After successfully applying a migration, you can test your database changes by connecting your app to the development branch. The branch project URL and API keys can be fetched using `get_project_url` and `get_publishable_keys` tools respectively. Save them in your `.env` file to avoid repeating this in the future.
 
 ### Revert a migration
 

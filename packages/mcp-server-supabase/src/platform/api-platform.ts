@@ -21,6 +21,8 @@ import {
   getLogsOptionsSchema,
   resetBranchOptionsSchema,
   type AccountOperations,
+  type ApiKey,
+  type ApiKeyType,
   type ApplyMigrationOptions,
   type BranchingOperations,
   type CreateBranchOptions,
@@ -301,7 +303,7 @@ export function createSupabaseApiPlatform(
       const apiUrl = new URL(managementApiUrl);
       return `https://${projectId}.${getProjectDomain(apiUrl.hostname)}`;
     },
-    async getAnonKey(projectId: string): Promise<string> {
+    async getPublishableKeys(projectId: string): Promise<ApiKey[]> {
       const response = await managementApiClient.GET(
         '/v1/projects/{ref}/api-keys',
         {
@@ -318,13 +320,54 @@ export function createSupabaseApiPlatform(
 
       assertSuccess(response, 'Failed to fetch API keys');
 
-      const anonKey = response.data?.find((key) => key.name === 'anon');
+      // Try to check if legacy JWT-based keys are enabled
+      // If this fails, we'll continue without the disabled field
+      let legacyKeysEnabled: boolean | undefined = undefined;
+      try {
+        const legacyKeysResponse = await managementApiClient.GET(
+          '/v1/projects/{ref}/api-keys/legacy',
+          {
+            params: {
+              path: {
+                ref: projectId,
+              },
+            },
+          }
+        );
 
-      if (!anonKey?.api_key) {
-        throw new Error('Anonymous key not found');
+        if (legacyKeysResponse.response.ok) {
+          legacyKeysEnabled = legacyKeysResponse.data?.enabled ?? true;
+        }
+      } catch (error) {
+        // If we can't fetch legacy key status, continue without it
+        legacyKeysEnabled = undefined;
       }
 
-      return anonKey.api_key;
+      // Filter for client-safe keys: legacy 'anon' or publishable type
+      const clientKeys =
+        response.data?.filter(
+          (key) => key.name === 'anon' || key.type === 'publishable'
+        ) ?? [];
+
+      if (clientKeys.length === 0) {
+        throw new Error(
+          'No client-safe API keys (anon or publishable) found. Please create a publishable key in your project settings.'
+        );
+      }
+
+      return clientKeys.map((key) => ({
+        api_key: key.api_key!,
+        name: key.name,
+        type: (key.type === 'publishable'
+          ? 'publishable'
+          : 'legacy') satisfies ApiKeyType,
+        // Only include disabled field if we successfully fetched legacy key status
+        ...(legacyKeysEnabled !== undefined && {
+          disabled: key.type === 'legacy' && !legacyKeysEnabled,
+        }),
+        description: key.description ?? undefined,
+        id: key.id ?? undefined,
+      }));
     },
     async generateTypescriptTypes(projectId: string) {
       const response = await managementApiClient.GET(

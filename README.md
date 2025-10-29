@@ -195,7 +195,7 @@ Enabled by default. Use `debugging` to target this group of tools with the [`fea
 Enabled by default. Use `development` to target this group of tools with the [`features`](#feature-groups) option.
 
 - `get_project_url`: Gets the API URL for a project.
-- `get_anon_key`: Gets the anonymous API key for a project.
+- `get_anon_or_publishable_keys`: Gets the anonymous API keys for a project. Returns an array of client-safe API keys including legacy anon keys and modern publishable keys. Publishable keys are recommended for new applications.
 - `generate_typescript_types`: Generates TypeScript types based on the database schema. LLMs can save this to a file and use it in their code.
 
 #### Edge Functions

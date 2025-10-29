@@ -31,10 +31,11 @@ export function getDevelopmentTools({
         return development.getProjectUrl(project_id);
       },
     }),
-    get_anon_key: injectableTool({
-      description: 'Gets the anonymous API key for a project.',
+    get_publishable_keys: injectableTool({
+      description:
+        'Gets all publishable API keys for a project, including legacy anon keys (JWT-based) and modern publishable keys (format: sb_publishable_...). Publishable keys are recommended for new applications due to better security and independent rotation. Legacy anon keys are included for compatibility, as many LLMs are pretrained on them. Disabled keys are indicated by the "disabled" field; only use keys where disabled is false or undefined.',
       annotations: {
-        title: 'Get anon key',
+        title: 'Get publishable keys',
         readOnlyHint: true,
         destructiveHint: false,
         idempotentHint: true,
@@ -45,7 +46,7 @@ export function getDevelopmentTools({
       }),
       inject: { project_id },
       execute: async ({ project_id }) => {
-        return development.getAnonKey(project_id);
+        return development.getPublishableKeys(project_id);
       },
     }),
     generate_typescript_types: injectableTool({

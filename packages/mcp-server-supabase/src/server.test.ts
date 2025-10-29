@@ -608,7 +608,7 @@ describe('tools', () => {
     expect(result).toEqual(`https://${project.id}.supabase.co`);
   });
 
-  test('get anon key', async () => {
+  test('get anon or publishable keys', async () => {
     const { callTool } = await setup();
     const org = await createOrganization({
       name: 'My Org',
@@ -623,12 +623,31 @@ describe('tools', () => {
     project.status = 'ACTIVE_HEALTHY';
 
     const result = await callTool({
-      name: 'get_anon_key',
+      name: 'get_publishable_keys',
       arguments: {
         project_id: project.id,
       },
     });
-    expect(result).toEqual('dummy-anon-key');
+
+    expect(result).toBeInstanceOf(Array);
+    expect(result.length).toBe(2);
+
+    // Check legacy anon key
+    const anonKey = result.find((key: any) => key.name === 'anon');
+    expect(anonKey).toBeDefined();
+    expect(anonKey.api_key).toEqual('dummy-anon-key');
+    expect(anonKey.type).toEqual('legacy');
+    expect(anonKey.id).toEqual('anon-key-id');
+    expect(anonKey.disabled).toBe(true);
+
+    // Check publishable key
+    const publishableKey = result.find(
+      (key: any) => key.type === 'publishable'
+    );
+    expect(publishableKey).toBeDefined();
+    expect(publishableKey.api_key).toEqual('sb_publishable_dummy_key_1');
+    expect(publishableKey.type).toEqual('publishable');
+    expect(publishableKey.description).toEqual('Main publishable key');
   });
 
   test('list storage buckets', async () => {
@@ -2609,7 +2628,7 @@ describe('feature groups', () => {
 
     expect(toolNames).toEqual([
       'get_project_url',
-      'get_anon_key',
+      'get_publishable_keys',
       'generate_typescript_types',
     ]);
   });

@@ -254,9 +254,28 @@ export const mockManagementApi = [
       {
         name: 'anon',
         api_key: 'dummy-anon-key',
+        type: 'legacy',
+        id: 'anon-key-id',
+      },
+      {
+        name: 'publishable-key-1',
+        api_key: 'sb_publishable_dummy_key_1',
+        type: 'publishable',
+        id: 'publishable-key-1-id',
+        description: 'Main publishable key',
       },
     ]);
   }),
+
+  /**
+   * Check if legacy API keys are enabled
+   */
+  http.get(
+    `${API_URL}/v1/projects/:projectId/api-keys/legacy`,
+    ({ params }) => {
+      return HttpResponse.json({ enabled: false });
+    }
+  ),
 
   /**
    * Execute a SQL query on a project's database

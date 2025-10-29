@@ -8,7 +8,7 @@
     "subfolder": "packages/mcp-server-supabase"
   },
   "websiteUrl": "https://supabase.com/mcp",
-  "version": "0.5.8",
+  "version": "0.5.9",
   "remotes": [
     {
       "type": "streamable-http",
@@ -20,7 +20,7 @@
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "@supabase/mcp-server-supabase",
-      "version": "0.5.8",
+      "version": "0.5.9",
       "transport": {
         "type": "stdio"
       },

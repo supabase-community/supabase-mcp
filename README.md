@@ -34,7 +34,7 @@ Most MCP clients store the configuration as JSON in the following format:
 }
 ```
 
-Your MCP client will automatically prompt you to login to Supabase during setup. This will open a browser window where you can login to your Supabase account and grant access to the MCP client. Be sure to choose the organization that contains the project you wish to work with. In the future, we'll offer more fine grain control over these permissions.
+Your MCP client will automatically prompt you to log in to Supabase during setup. This will open a browser window where you can log in to your Supabase account and grant access to the MCP client. Be sure to choose the organization that contains the project you wish to work with. In the future, we'll offer more fine grain control over these permissions.
 
 For more information, visit the [Supabase MCP docs](https://supabase.com/docs/guides/getting-started/mcp).
 

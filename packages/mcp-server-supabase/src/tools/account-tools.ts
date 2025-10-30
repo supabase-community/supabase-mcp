@@ -126,6 +126,7 @@ export function getAccountTools({
         idempotentHint: true,
         openWorldHint: false,
       },
+      isSupported: (clientCapabilities) => !clientCapabilities?.elicitation,
       parameters: z.object({
         type: z.enum(['project', 'branch']),
         recurrence: z.enum(['hourly', 'monthly']),

@@ -61,6 +61,17 @@ export type Tool<
   description: Prop<string>;
   annotations?: Annotations;
   parameters: Params;
+  /**
+   * Optional predicate to determine if this tool should be listed/usable for the
+   * connected client based on its declared capabilities. If omitted, the tool
+   * is assumed to be supported by all clients.
+   *
+   * Example: Only show when the client supports elicitation
+   *  isSupported: (caps) => Boolean(caps?.elicitation)
+   */
+  isSupported?: (
+    clientCapabilities: ClientCapabilities | undefined
+  ) => boolean | Promise<boolean>;
   execute(
     params: z.infer<Params>,
     context?: ToolExecuteContext
@@ -443,28 +454,41 @@ export function createMcpServer(options: McpServerOptions) {
       ListToolsRequestSchema,
       async (): Promise<ListToolsResult> => {
         const tools = await getTools();
+        const clientCapabilities = server.getClientCapabilities();
+
+        // Filter tools based on client capabilities when a predicate is provided
+        const supportedToolEntries = (
+          await Promise.all(
+            Object.entries(tools).map(async ([name, tool]) => {
+              const ok =
+                typeof tool.isSupported === 'function'
+                  ? await tool.isSupported(clientCapabilities)
+                  : true;
+              return ok ? ([name, tool] as const) : null;
+            })
+          )
+        ).filter(Boolean) as Array<readonly [string, Tool]>;
 
         return {
           tools: await Promise.all(
-            Object.entries(tools).map(
-              async ([name, { description, annotations, parameters }]) => {
-                const inputSchema = zodToJsonSchema(parameters);
+            supportedToolEntries.map(async ([name, tool]) => {
+              const { description, annotations, parameters } = tool;
+              const inputSchema = zodToJsonSchema(parameters);
 
-                if (!('properties' in inputSchema)) {
-                  throw new Error('tool parameters must be a ZodObject');
-                }
-
-                return {
-                  name,
-                  description:
-                    typeof description === 'function'
-                      ? await description()
-                      : description,
-                  annotations,
-                  inputSchema,
-                };
+              if (!('properties' in inputSchema)) {
+                throw new Error('tool parameters must be a ZodObject');
               }
-            )
+
+              return {
+                name,
+                description:
+                  typeof description === 'function'
+                    ? await description()
+                    : description,
+                annotations,
+                inputSchema,
+              };
+            })
           ),
         } satisfies ListToolsResult;
       }

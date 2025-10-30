@@ -1,4 +1,5 @@
-import { tool } from '@supabase/mcp-utils';
+import { tool, type ToolExecuteContext } from '@supabase/mcp-utils';
+import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
 import { z } from 'zod';
 import type { AccountOperations } from '../platform/types.js';
 import { type Cost, getBranchCost, getNextProjectCost } from '../pricing.js';
@@ -10,9 +11,14 @@ const SUCCESS_RESPONSE = { success: true };
 export type AccountToolsOptions = {
   account: AccountOperations;
   readOnly?: boolean;
+  server?: Server;
 };
 
-export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
+export function getAccountTools({
+  account,
+  readOnly,
+  server,
+}: AccountToolsOptions) {
   return {
     list_organizations: tool({
       description: 'Lists all organizations that the user is a member of.',
@@ -131,7 +137,7 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
     }),
     create_project: tool({
       description:
-        'Creates a new Supabase project. Always ask the user which organization to create the project in. The project can take a few minutes to initialize - use `get_project` to check the status.',
+        'Creates a new Supabase project. Always ask the user which organization to create the project in. If there is a cost involved, the user will be asked to confirm before creation. The project can take a few minutes to initialize - use `get_project` to check the status.',
       annotations: {
         title: 'Create project',
         readOnlyHint: false,
@@ -145,31 +151,63 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
           .enum(AWS_REGION_CODES)
           .describe('The region to create the project in.'),
         organization_id: z.string(),
-        confirm_cost_id: z
-          .string({
-            required_error:
-              'User must confirm understanding of costs before creating a project.',
-          })
-          .describe('The cost confirmation ID. Call `confirm_cost` first.'),
       }),
-      execute: async ({ name, region, organization_id, confirm_cost_id }) => {
+      execute: async ({ name, region, organization_id }, context) => {
         if (readOnly) {
           throw new Error('Cannot create a project in read-only mode.');
         }
 
+        // Calculate cost inline
         const cost = await getNextProjectCost(account, organization_id);
-        const costHash = await hashObject(cost);
-        if (costHash !== confirm_cost_id) {
-          throw new Error(
-            'Cost confirmation ID does not match the expected cost of creating a project.'
-          );
+
+        // Only request confirmation if there's a cost AND server supports elicitation
+        if (cost.amount > 0 && context?.server?.elicitInput) {
+          const costMessage = `$${cost.amount} per ${cost.recurrence}`;
+
+          const result = await context.server.elicitInput({
+            message: `You are about to create project "${name}" in region ${region}.\n\n💰 Cost: ${costMessage}\n\nDo you want to proceed with this billable project?`,
+            requestedSchema: {
+              type: 'object',
+              properties: {
+                confirm: {
+                  type: 'boolean',
+                  title: 'Confirm billable project creation',
+                  description: `I understand this will cost ${costMessage} and want to proceed`,
+                },
+              },
+              required: ['confirm'],
+            },
+          });
+
+          // Handle user response
+          if (result.action === 'decline' || result.action === 'cancel') {
+            throw new Error('Project creation cancelled by user.');
+          }
+
+          if (result.action === 'accept' && !result.content?.confirm) {
+            throw new Error(
+              'You must confirm understanding of the cost to create a billable project.'
+            );
+          }
         }
 
-        return await account.createProject({
+        // Create the project (either free or confirmed)
+        const project = await account.createProject({
           name,
           region,
           organization_id,
         });
+
+        // Return appropriate message based on cost
+        const costInfo =
+          cost.amount > 0
+            ? `Cost: $${cost.amount}/${cost.recurrence}`
+            : 'Cost: Free';
+
+        return {
+          ...project,
+          message: `Project "${name}" created successfully. ${costInfo}`,
+        };
       },
     }),
     pause_project: tool({

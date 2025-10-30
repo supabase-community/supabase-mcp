@@ -50,6 +50,10 @@ export type ResourceTemplate<Uri extends string = string, Result = unknown> = {
   ): Promise<Result>;
 };
 
+export type ToolExecuteContext = {
+  server?: Server;
+};
+
 export type Tool<
   Params extends z.ZodObject<any> = z.ZodObject<any>,
   Result = unknown,
@@ -57,7 +61,10 @@ export type Tool<
   description: Prop<string>;
   annotations?: Annotations;
   parameters: Params;
-  execute(params: z.infer<Params>): Promise<Result>;
+  execute(
+    params: z.infer<Params>,
+    context?: ToolExecuteContext
+  ): Promise<Result>;
 };
 
 /**
@@ -484,7 +491,7 @@ export function createMcpServer(options: McpServerOptions) {
         const executeWithCallback = async (tool: Tool) => {
           // Wrap success or error in a result value
           const res = await tool
-            .execute(args)
+            .execute(args, { server })
             .then((data: unknown) => ({ success: true as const, data }))
             .catch((error) => ({ success: false as const, error }));
 

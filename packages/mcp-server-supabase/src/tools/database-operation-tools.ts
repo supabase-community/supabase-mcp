@@ -232,7 +232,8 @@ export function getDatabaseTools({
                       confirm: {
                         type: 'boolean',
                         title: 'Confirm Migration',
-                        description: 'I have reviewed the SQL and approve this migration',
+                        description:
+                          'I have reviewed the SQL and approve this migration',
                       },
                     },
                     required: ['confirm'],

@@ -1,5 +1,6 @@
 import { source } from 'common-tags';
 import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { ElicitResultSchema } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import { listExtensionsSql, listTablesSql } from '../pg-meta/index.js';
 import {
@@ -221,7 +222,7 @@ export function getDatabaseTools({
         // Try to request user confirmation via elicitation
         if (server) {
           try {
-            const result = (await server.request(
+            const result = await server.request(
               {
                 method: 'elicitation/create',
                 params: {
@@ -240,12 +241,8 @@ export function getDatabaseTools({
                   },
                 },
               },
-              // @ts-ignore - elicitation types might not be available
-              { elicitation: true }
-            )) as {
-              action: 'accept' | 'decline' | 'cancel';
-              content?: { confirm?: boolean };
-            };
+              ElicitResultSchema
+            );
 
             // User declined or cancelled
             if (result.action !== 'accept' || !result.content?.confirm) {

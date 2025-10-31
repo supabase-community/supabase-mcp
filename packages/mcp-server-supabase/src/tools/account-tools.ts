@@ -1,5 +1,6 @@
 import { tool, type ToolExecuteContext } from '@supabase/mcp-utils';
 import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
+import { ElicitResultSchema } from '@modelcontextprotocol/sdk/types.js';
 import { z } from 'zod';
 import type { AccountOperations } from '../platform/types.js';
 import { type Cost, getBranchCost, getNextProjectCost } from '../pricing.js';
@@ -82,11 +83,16 @@ export function getAccountTools({
         return await account.getProject(id);
       },
     }),
-    get_cost: tool({
-      description:
-        'Gets the cost of creating a new project or branch. Never assume organization as costs can be different for each.',
+    get_and_confirm_cost: tool({
+      description: async () => {
+        const clientCapabilities = server?.getClientCapabilities();
+        if (clientCapabilities?.elicitation) {
+          return 'Gets the cost of creating a new project or branch and requests user confirmation. Returns a unique ID for this confirmation which must be passed to `create_project` or `create_branch`. Never assume organization as costs can be different for each.';
+        }
+        return 'Gets the cost of creating a new project or branch. You must repeat the cost to the user and confirm their understanding before calling `create_project` or `create_branch`. Returns a unique ID for this confirmation which must be passed to `create_project` or `create_branch`. Never assume organization as costs can be different for each.';
+      },
       annotations: {
-        title: 'Get cost of new resources',
+        title: 'Get and confirm cost',
         readOnlyHint: true,
         destructiveHint: false,
         idempotentHint: true,
@@ -96,49 +102,94 @@ export function getAccountTools({
         type: z.enum(['project', 'branch']),
         organization_id: z
           .string()
-          .describe('The organization ID. Always ask the user.'),
+          .describe('The organization ID. Always ask the user.')
+          .optional(),
       }),
       execute: async ({ type, organization_id }) => {
-        function generateResponse(cost: Cost) {
-          return `The new ${type} will cost $${cost.amount} ${cost.recurrence}. You must repeat this to the user and confirm their understanding.`;
-        }
+        // Get the cost
+        let cost: Cost;
         switch (type) {
           case 'project': {
-            const cost = await getNextProjectCost(account, organization_id);
-            return generateResponse(cost);
+            if (!organization_id) {
+              throw new Error(
+                'organization_id is required for project cost calculation'
+              );
+            }
+            cost = await getNextProjectCost(account, organization_id);
+            break;
           }
           case 'branch': {
-            const cost = getBranchCost();
-            return generateResponse(cost);
+            cost = getBranchCost();
+            break;
           }
           default:
             throw new Error(`Unknown cost type: ${type}`);
         }
-      },
-    }),
-    confirm_cost: tool({
-      description:
-        'Ask the user to confirm their understanding of the cost of creating a new project or branch. Call `get_cost` first. Returns a unique ID for this confirmation which should be passed to `create_project` or `create_branch`.',
-      annotations: {
-        title: 'Confirm cost understanding',
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: true,
-        openWorldHint: false,
-      },
-      isSupported: (clientCapabilities) => !clientCapabilities?.elicitation,
-      parameters: z.object({
-        type: z.enum(['project', 'branch']),
-        recurrence: z.enum(['hourly', 'monthly']),
-        amount: z.number(),
-      }),
-      execute: async (cost) => {
-        return await hashObject(cost);
+
+        let userDeclinedCost = false;
+
+        // Request confirmation via elicitation if supported
+        const clientCapabilities = server?.getClientCapabilities();
+        if (server && clientCapabilities?.elicitation) {
+          try {
+            const costMessage =
+              cost.amount > 0 ? `$${cost.amount} ${cost.recurrence}` : 'Free';
+
+            const result = await server.request(
+              {
+                method: 'elicitation/create',
+                params: {
+                  message: `You are about to create a new ${type}.\n\nCost: ${costMessage}\n\nDo you want to proceed?`,
+                  requestedSchema: {
+                    type: 'object',
+                    properties: {
+                      confirm: {
+                        type: 'boolean',
+                        title: 'Confirm Cost',
+                        description: `I understand the cost and want to create the ${type}`,
+                      },
+                    },
+                    required: ['confirm'],
+                  },
+                },
+              },
+              ElicitResultSchema
+            );
+
+            if (result.action !== 'accept' || !result.content?.confirm) {
+              userDeclinedCost = true;
+            }
+          } catch (error) {
+            // If elicitation fails (client doesn't support it), return cost info for manual confirmation
+            console.warn(
+              'Elicitation not supported by client, returning cost for manual confirmation'
+            );
+            console.warn(error);
+          }
+        }
+
+        if (userDeclinedCost) {
+          throw new Error(
+            'The user declined to confirm the cost. Ask the user to confirm if they want to proceed with the operation or do something else.'
+          );
+        }
+
+        // Generate and return confirmation ID
+        const confirmationId = await hashObject(cost);
+
+        return {
+          ...cost,
+          confirm_cost_id: confirmationId,
+          message:
+            cost.amount > 0
+              ? `The new ${type} will cost $${cost.amount} ${cost.recurrence}. ${clientCapabilities?.elicitation ? 'User has confirmed.' : 'You must confirm this cost with the user before proceeding.'}`
+              : `The new ${type} is free. ${clientCapabilities?.elicitation ? 'User has confirmed.' : 'You may proceed with creation.'}`,
+        };
       },
     }),
     create_project: tool({
       description:
-        'Creates a new Supabase project. Always ask the user which organization to create the project in. If there is a cost involved, the user will be asked to confirm before creation. The project can take a few minutes to initialize - use `get_project` to check the status.',
+        'Creates a new Supabase project. Always ask the user which organization to create the project in. Call `get_and_confirm_cost` first to verify the cost and get user confirmation. The project can take a few minutes to initialize - use `get_project` to check the status.',
       annotations: {
         title: 'Create project',
         readOnlyHint: false,
@@ -152,47 +203,30 @@ export function getAccountTools({
           .enum(AWS_REGION_CODES)
           .describe('The region to create the project in.'),
         organization_id: z.string(),
+        confirm_cost_id: z
+          .string({
+            required_error:
+              'User must confirm understanding of costs before creating a project.',
+          })
+          .describe(
+            'The cost confirmation ID. Call `get_and_confirm_cost` first.'
+          ),
       }),
-      execute: async ({ name, region, organization_id }, context) => {
+      execute: async ({ name, region, organization_id, confirm_cost_id }) => {
         if (readOnly) {
           throw new Error('Cannot create a project in read-only mode.');
         }
 
-        // Calculate cost inline
+        // Verify the confirmation ID matches the expected cost
         const cost = await getNextProjectCost(account, organization_id);
-
-        // Only request confirmation if there's a cost AND server supports elicitation
-        if (cost.amount > 0 && context?.server?.elicitInput) {
-          const costMessage = `$${cost.amount} per ${cost.recurrence}`;
-
-          const result = await context.server.elicitInput({
-            message: `You are about to create project "${name}" in region ${region}.\n\n💰 Cost: ${costMessage}\n\nDo you want to proceed with this billable project?`,
-            requestedSchema: {
-              type: 'object',
-              properties: {
-                confirm: {
-                  type: 'boolean',
-                  title: 'Confirm billable project creation',
-                  description: `I understand this will cost ${costMessage} and want to proceed`,
-                },
-              },
-              required: ['confirm'],
-            },
-          });
-
-          // Handle user response
-          if (result.action === 'decline' || result.action === 'cancel') {
-            throw new Error('Project creation cancelled by user.');
-          }
-
-          if (result.action === 'accept' && !result.content?.confirm) {
-            throw new Error(
-              'You must confirm understanding of the cost to create a billable project.'
-            );
-          }
+        const costHash = await hashObject(cost);
+        if (costHash !== confirm_cost_id) {
+          throw new Error(
+            'Cost confirmation ID does not match the expected cost of creating a project.'
+          );
         }
 
-        // Create the project (either free or confirmed)
+        // Create the project
         const project = await account.createProject({
           name,
           region,

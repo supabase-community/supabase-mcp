@@ -23,7 +23,7 @@ export function getBranchingTools({
   return {
     create_branch: injectableTool({
       description:
-        'Creates a development branch on a Supabase project. This will apply all migrations from the main project to a fresh branch database. Note that production data will not carry over. The branch will get its own project_id via the resulting project_ref. Use this ID to execute queries and migrations on the branch.',
+        'Creates a development branch on a Supabase project. Call `get_and_confirm_cost` first to verify the cost and get user confirmation. This will apply all migrations from the main project to a fresh branch database. Note that production data will not carry over. The branch will get its own project_id via the resulting project_ref. Use this ID to execute queries and migrations on the branch.',
       annotations: {
         title: 'Create branch',
         readOnlyHint: false,
@@ -37,73 +37,27 @@ export function getBranchingTools({
           .string()
           .default('develop')
           .describe('Name of the branch to create'),
-        // When the client supports elicitation, we will ask the user to confirm the
-        // branch cost interactively and this parameter is not required. For clients
-        // without elicitation support, this confirmation ID is required.
         confirm_cost_id: z
-          .string()
-          .optional()
+          .string({
+            required_error:
+              'User must confirm understanding of costs before creating a branch.',
+          })
           .describe(
-            'The cost confirmation ID. Call `confirm_cost` first if elicitation is not supported.'
+            'The cost confirmation ID. Call `get_and_confirm_cost` first.'
           ),
       }),
       inject: { project_id },
-      execute: async ({ project_id, name, confirm_cost_id }, context) => {
+      execute: async ({ project_id, name, confirm_cost_id }) => {
         if (readOnly) {
           throw new Error('Cannot create a branch in read-only mode.');
         }
 
         const cost = getBranchCost();
-
-        // If the server and client support elicitation, request explicit confirmation
-        const caps = context?.server?.getClientCapabilities?.();
-        const supportsElicitation = Boolean(caps && (caps as any).elicitation);
-
-        if (
-          cost.amount > 0 &&
-          supportsElicitation &&
-          context?.server?.elicitInput
-        ) {
-          const costMessage = `$${cost.amount} per ${cost.recurrence}`;
-
-          const result = await context.server.elicitInput({
-            message: `You are about to create branch "${name}" on project ${project_id}.\n\n💰 Cost: ${costMessage}\n\nDo you want to proceed with this billable branch?`,
-            requestedSchema: {
-              type: 'object',
-              properties: {
-                confirm: {
-                  type: 'boolean',
-                  title: 'Confirm billable branch creation',
-                  description: `I understand this will cost ${costMessage} and want to proceed`,
-                },
-              },
-              required: ['confirm'],
-            },
-          });
-
-          if (result.action === 'decline' || result.action === 'cancel') {
-            throw new Error('Branch creation cancelled by user.');
-          }
-
-          if (result.action === 'accept' && !result.content?.confirm) {
-            throw new Error(
-              'You must confirm understanding of the cost to create a billable branch.'
-            );
-          }
-        } else {
-          // Fallback path (no elicitation support): require confirm_cost_id
-          if (!confirm_cost_id) {
-            throw new Error(
-              'User must confirm understanding of costs before creating a branch.'
-            );
-          }
-
-          const costHash = await hashObject(cost);
-          if (costHash !== confirm_cost_id) {
-            throw new Error(
-              'Cost confirmation ID does not match the expected cost of creating a branch.'
-            );
-          }
+        const costHash = await hashObject(cost);
+        if (costHash !== confirm_cost_id) {
+          throw new Error(
+            'Cost confirmation ID does not match the expected cost of creating a branch.'
+          );
         }
         return await branching.createBranch(project_id, { name });
       },

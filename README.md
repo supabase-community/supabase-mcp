@@ -1,4 +1,5 @@
 # Supabase MCP Server
+[![Trust Score](https://archestra.ai/mcp-catalog/api/badge/quality/supabase-community/supabase-mcp)](https://archestra.ai/mcp-catalog/supabase-community__supabase-mcp)
 
 > Connect your Supabase projects to Cursor, Claude, Windsurf, and other AI assistants.
 

@@ -121,6 +121,11 @@ export const executeSqlOptionsSchema = z.object({
 export const applyMigrationOptionsSchema = z.object({
   name: z.string(),
   query: z.string(),
+  rollback: z.string(),
+});
+
+export const rollbackMigrationOptionsSchema = z.object({
+  version: z.string(),
 });
 
 export const migrationSchema = z.object({
@@ -163,6 +168,9 @@ export type DeployEdgeFunctionOptions = z.infer<
 
 export type ExecuteSqlOptions = z.infer<typeof executeSqlOptionsSchema>;
 export type ApplyMigrationOptions = z.infer<typeof applyMigrationOptionsSchema>;
+export type RollbackMigrationOptions = z.infer<
+  typeof rollbackMigrationOptionsSchema
+>;
 export type Migration = z.infer<typeof migrationSchema>;
 export type ListMigrationsResult = z.infer<typeof migrationSchema>;
 
@@ -181,6 +189,10 @@ export type DatabaseOperations = {
   applyMigration(
     projectId: string,
     options: ApplyMigrationOptions
+  ): Promise<void>;
+  rollbackMigration(
+    projectId: string,
+    options: RollbackMigrationOptions
   ): Promise<void>;
 };
 
@@ -234,10 +246,7 @@ export type DevelopmentOperations = {
 
 export type StorageOperations = {
   getStorageConfig(projectId: string): Promise<StorageConfig>;
-  updateStorageConfig(
-    projectId: string,
-    config: StorageConfig
-  ): Promise<void>;
+  updateStorageConfig(projectId: string, config: StorageConfig): Promise<void>;
   listAllBuckets(projectId: string): Promise<StorageBucket[]>;
 };
 
@@ -249,10 +258,7 @@ export type BranchingOperations = {
   ): Promise<Branch>;
   deleteBranch(branchId: string): Promise<void>;
   mergeBranch(branchId: string): Promise<void>;
-  resetBranch(
-    branchId: string,
-    options: ResetBranchOptions
-  ): Promise<void>;
+  resetBranch(branchId: string, options: ResetBranchOptions): Promise<void>;
   rebaseBranch(branchId: string): Promise<void>;
 };
 

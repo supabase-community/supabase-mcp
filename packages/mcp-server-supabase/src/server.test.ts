@@ -2734,6 +2734,9 @@ describe('feature groups', () => {
         applyMigration() {
           throw new Error('Not implemented');
         },
+        rollbackMigration() {
+          throw new Error('Not implemented');
+        },
       },
     };
 
@@ -2761,6 +2764,9 @@ describe('feature groups', () => {
           throw new Error('Not implemented');
         },
         applyMigration() {
+          throw new Error('Not implemented');
+        },
+        rollbackMigration() {
           throw new Error('Not implemented');
         },
       },

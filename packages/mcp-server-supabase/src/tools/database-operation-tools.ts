@@ -208,9 +208,10 @@ export function getDatabaseTools({
         project_id: z.string(),
         name: z.string().describe('The name of the migration in snake_case'),
         query: z.string().describe('The SQL query to apply'),
+        rollback: z.string().describe('The SQL query to rollback'),
       }),
       inject: { project_id },
-      execute: async ({ project_id, name, query }) => {
+      execute: async ({ project_id, name, query, rollback }) => {
         if (readOnly) {
           throw new Error('Cannot apply migration in read-only mode.');
         }
@@ -218,6 +219,36 @@ export function getDatabaseTools({
         await database.applyMigration(project_id, {
           name,
           query,
+          rollback,
+        });
+
+        return SUCCESS_RESPONSE;
+      },
+    }),
+    rollback_migration: injectableTool({
+      description:
+        'Rollback migrations on a development branch greater or equal to the specified version.',
+      annotations: {
+        title: 'Rollback migration',
+        readOnlyHint: false,
+        destructiveHint: true,
+        idempotentHint: false,
+        openWorldHint: true,
+      },
+      parameters: z.object({
+        project_id: z.string(),
+        version: z
+          .string()
+          .describe('The target migration version to rollback'),
+      }),
+      inject: { project_id },
+      execute: async ({ project_id, version }) => {
+        if (readOnly) {
+          throw new Error('Cannot apply migration in read-only mode.');
+        }
+
+        await database.rollbackMigration(project_id, {
+          version,
         });
 
         return SUCCESS_RESPONSE;

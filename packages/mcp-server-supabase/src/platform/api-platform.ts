@@ -41,6 +41,8 @@ import {
   type StorageConfig,
   type StorageOperations,
   type SupabasePlatform,
+  type RollbackMigrationOptions,
+  rollbackMigrationOptionsSchema,
 } from './index.js';
 
 const { version } = packageJson;
@@ -212,7 +214,8 @@ export function createSupabaseApiPlatform(
       return response.data;
     },
     async applyMigration(projectId: string, options: ApplyMigrationOptions) {
-      const { name, query } = applyMigrationOptionsSchema.parse(options);
+      const { name, query, rollback } =
+        applyMigrationOptionsSchema.parse(options);
 
       const response = await managementApiClient.POST(
         '/v1/projects/{ref}/database/migrations',
@@ -225,6 +228,7 @@ export function createSupabaseApiPlatform(
           body: {
             name,
             query,
+            rollback,
           },
         }
       );
@@ -234,6 +238,30 @@ export function createSupabaseApiPlatform(
       // Intentionally don't return the result of the migration
       // to avoid prompt injection attacks. If the migration failed,
       // it will throw an error.
+    },
+    async rollbackMigration(
+      projectId: string,
+      options: RollbackMigrationOptions
+    ) {
+      const { version } = rollbackMigrationOptionsSchema.parse(options);
+
+      const response = await managementApiClient.DELETE(
+        '/v1/projects/{ref}/database/migrations',
+        {
+          params: {
+            path: {
+              ref: projectId,
+            },
+            query: {
+              gte: version,
+            },
+          },
+        }
+      );
+
+      assertSuccess(response, 'Failed to rollback migration');
+
+      return response.data;
     },
   };
 

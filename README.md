@@ -92,6 +92,34 @@ For more information, see the [VS Code MCP docs](https://code.visualstudio.com/d
 
 </details>
 
+<details>
+<summary>Factory</summary>
+
+#### Install via command line:
+
+```bash
+droid mcp add supabase https://mcp.supabase.com/mcp --type http
+```
+
+#### Or install manually:
+
+Open (or create) your `~/.factory/mcp.json` file and add:
+
+```json
+{
+  "supabase": {
+    "type": "http",
+    "url": "https://mcp.supabase.com/mcp"
+  }
+}
+```
+
+After adding the server, restart Factory or type `/mcp` within droid to complete the OAuth authentication flow.
+
+For more information, see the [Factory MCP docs](https://docs.factory.ai/cli/configuration/mcp.md).
+
+</details>
+
 ## Options
 
 The following options are configurable as URL query parameters:

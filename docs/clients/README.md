@@ -4,7 +4,7 @@ This directory contains the automated documentation system for MCP client instal
 
 ## Files
 
-- **`clients.json`** - Source of truth containing metadata for all MCP clients
+- **`constants.ts`** - TypeScript source of truth containing metadata for all MCP clients
 - **`_template.md`** - Handlebars-style template used to generate client documentation
 - **`*.md`** (generated, gitignored) - Individual client markdown files generated from the template
 
@@ -12,17 +12,39 @@ This directory contains the automated documentation system for MCP client instal
 
 ### Adding a New Client
 
-Use the interactive CLI to add a new client:
+To add a new client, edit `docs/clients/constants.ts`:
 
-```bash
-npm run docs:add-client
+1. Open `docs/clients/constants.ts`
+2. Add a new client object to the `clients` array following the `Client` interface
+3. Run `npm run docs:generate-clients` to generate documentation
+4. Review the generated output
+5. Commit `constants.ts` and the updated `README.md`
+
+Example client object:
+
+```typescript
+{
+  id: 'my-client',
+  name: 'My Client',
+  description: 'A great MCP client',
+  officialDocs: 'https://example.com/docs',
+  installation: {
+    deeplink: {
+      url: 'myapp://install-mcp?url=...',
+      buttonImage: 'https://example.com/badge.svg',
+      buttonAlt: 'Install in My Client'
+    },
+    manual: {
+      configFilePath: '~/.myapp/mcp.json',
+      configFormat: 'mcpServers'
+    }
+  },
+  registry: {
+    listed: true,
+    listingUrl: 'https://registry.example.com/supabase'
+  }
+}
 ```
-
-This will prompt you for:
-- Client ID and name
-- Installation methods (deeplink, CLI command, manual)
-- Configuration details
-- Official documentation URL
 
 ### Generating Documentation
 
@@ -33,23 +55,18 @@ npm run docs:generate-clients
 ```
 
 This will:
-1. Read `clients.json`
-2. Generate individual `{client-id}.md` files from the template
-3. Update the client documentation section in `README.md`
-
-### Manual Editing
-
-To manually add or edit a client:
-
-1. Edit `docs/clients/clients.json` directly
-2. Run `npm run docs:generate-clients`
-3. Review the generated output
-4. Commit `clients.json` and the updated `README.md`
+1. Read `constants.ts`
+2. Type-check the TypeScript file
+3. Generate individual `{client-id}.md` files from the template
+4. Update the client documentation section in `README.md`
+5. Format all files with Biome
 
 ## Client Data Schema
 
+The schema is defined as TypeScript interfaces in `constants.ts`:
+
 ```typescript
-{
+interface Client {
   id: string;                    // Unique identifier (lowercase-kebab-case)
   name: string;                  // Display name
   description?: string;          // Short description
@@ -75,6 +92,8 @@ To manually add or edit a client:
   };
 }
 ```
+
+TypeScript provides compile-time validation, so any schema errors will be caught before generating documentation.
 
 ## Template Syntax
 

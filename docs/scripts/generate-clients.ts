@@ -1,8 +1,8 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { execSync } from 'node:child_process';
-import type { Client, ClientsData } from './types';
-import { validateClientsData } from './types';
+import type { Client } from '../clients/constants';
+import { clients } from '../clients/constants';
 
 /**
  * Simple Handlebars-style template parser
@@ -396,19 +396,6 @@ function updateReadme(clients: Client[], generatedDocs: string[]): void {
 function main() {
   console.log('Generating MCP client documentation...\n');
 
-  // Load clients data
-  const clientsPath = join(process.cwd(), 'docs/clients/clients.json');
-  const rawData: unknown = JSON.parse(readFileSync(clientsPath, 'utf-8'));
-
-  // Validate data
-  if (!validateClientsData(rawData)) {
-    console.error('Invalid clients.json data');
-    process.exit(1);
-  }
-
-  // Type assertion is safe here because validateClientsData confirms the structure
-  const clientsData = rawData as ClientsData;
-
   // Load template
   const templatePath = join(process.cwd(), 'docs/clients/_template.md');
   const template = readFileSync(templatePath, 'utf-8');
@@ -416,7 +403,7 @@ function main() {
   // Generate documentation for each client
   const generatedDocs: string[] = [];
 
-  for (const client of clientsData.clients) {
+  for (const client of clients) {
     console.log(`Generating documentation for ${client.name}...`);
     const { content } = generateClientMarkdown(client, template);
     generatedDocs.push(content.trim());
@@ -433,7 +420,7 @@ function main() {
 
   // Update README.md
   console.log('\nUpdating README.md...');
-  updateReadme(clientsData.clients, generatedDocs);
+  updateReadme(clients, generatedDocs);
 
   // Format all generated files with Biome
   console.log('\nFormatting files with Biome...');
@@ -445,7 +432,7 @@ function main() {
   }
 
   console.log(
-    `\n✨ Successfully generated documentation for ${clientsData.clients.length} clients!`
+    `\n✨ Successfully generated documentation for ${clients.length} clients!`
   );
 }
 

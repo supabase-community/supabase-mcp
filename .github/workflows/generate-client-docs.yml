@@ -3,7 +3,7 @@ name: Generate Client Documentation
 on:
   pull_request:
     paths:
-      - 'docs/clients/clients.json'
+      - 'docs/clients/constants.ts'
       - 'docs/clients/_template.md'
       - 'docs/scripts/**'
 
@@ -35,26 +35,10 @@ jobs:
       - name: Install dependencies
         run: pnpm install --ignore-scripts
 
-      - name: Validate clients.json schema
+      - name: Type check TypeScript files
         run: |
-          echo "Validating clients.json schema with Zod..."
-          pnpm exec tsx -e "
-          import { readFileSync } from 'node:fs';
-          import { join } from 'node:path';
-          import { parseClientsData } from './docs/scripts/types.ts';
-          
-          const clientsPath = join(process.cwd(), 'docs/clients/clients.json');
-          const rawData = JSON.parse(readFileSync(clientsPath, 'utf-8'));
-          
-          try {
-            parseClientsData(rawData);
-            console.log('✅ clients.json schema is valid');
-          } catch (error) {
-            console.error('❌ clients.json schema validation failed:');
-            console.error(error);
-            process.exit(1);
-          }
-          "
+          echo "Type checking TypeScript files..."
+          pnpm exec tsc --noEmit docs/clients/constants.ts docs/scripts/generate-clients.ts
 
       - name: Generate client documentation
         run: npm run docs:generate-clients

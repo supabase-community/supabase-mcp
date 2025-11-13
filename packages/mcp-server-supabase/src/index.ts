@@ -19,5 +19,5 @@ export {
   type CommandConfig,
   type ManualConfig,
   type RegistryConfig,
-} from '../docs/clients.js';
+} from './clients.js';
 export const version = packageJson.version;

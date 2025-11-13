@@ -43,6 +43,11 @@
       "types": "./dist/platform/api-platform.d.ts",
       "import": "./dist/platform/api-platform.js",
       "default": "./dist/platform/api-platform.cjs"
+    },
+    "./clients": {
+      "types": "./dist/clients.d.ts",
+      "import": "./dist/clients.js",
+      "default": "./dist/clients.cjs"
     }
   },
   "dependencies": {

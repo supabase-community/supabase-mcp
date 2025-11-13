@@ -3,7 +3,7 @@ name: Generate Client Documentation
 on:
   pull_request:
     paths:
-      - 'packages/mcp-server-supabase/src/clients.ts'
+      - 'packages/mcp-server-supabase/docs/clients.ts'
       - 'docs/clients/_template.md'
       - 'docs/scripts/**'
 

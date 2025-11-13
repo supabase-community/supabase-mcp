@@ -19,9 +19,7 @@ export const CommandConfigSchema = z.object({
 export const ManualConfigSchema = z.object({
   configFilePath: z.string().min(1, 'Config file path is required'),
   configFormat: z.enum(['mcpServers', 'servers', 'custom']),
-  instructions: z.string().optional(),
 });
-
 export const RegistryConfigSchema = z.object({
   listed: z.boolean(),
   listingUrl: z.string().url('Invalid listing URL').optional(),

@@ -192,11 +192,6 @@ async function main() {
       { value: 'custom', title: 'custom (flat object)' },
     ]);
 
-    const manualInstructions = await prompter.text(
-      'Manual installation instructions (optional, will use default if empty)',
-      ''
-    );
-
     // Build the new client object
     const newClient: Client = {
       id,
@@ -211,8 +206,7 @@ async function main() {
         ...(commandConfig && { command: commandConfig }),
         manual: {
           configFilePath,
-          configFormat: configFormat as 'mcpServers' | 'servers',
-          ...(manualInstructions && { instructions: manualInstructions }),
+          configFormat: configFormat as 'mcpServers' | 'servers' | 'custom',
         },
       },
     };

@@ -23,11 +23,7 @@
 {{/if}}
 #### Or install manually:
 
-{{#if installation.manual.instructions}}
-{{installation.manual.instructions}}
-{{else}}
 Open (or create) your `{{installation.manual.configFilePath}}` file and add:
-{{/if}}
 
 ```json
 {{#if (eq installation.manual.configFormat "mcpServers")}}

@@ -54,9 +54,7 @@ You can also manually install it on your favorite client.
 
 #### Or install manually:
 
-
-Go to `Cursor Settings` → `MCP` → `Add new MCP Server`. Name to your liking, use `type: http` and the following config:
-
+Open (or create) your `.cursor/mcp.json` file and add:
 
 ```json
 
@@ -93,9 +91,7 @@ For more information, see the [Cursor MCP docs](https://docs.cursor.com/context/
 
 #### Or install manually:
 
-
 Open (or create) your `mcp.json` file and add:
-
 
 ```json
 
@@ -134,9 +130,7 @@ After adding the server, restart Factory or type `/mcp` within droid to complete
 
 #### Or install manually:
 
-
 Open (or create) your `~/.factory/mcp.json` file and add:
-
 
 ```json
 

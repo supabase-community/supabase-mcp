@@ -13,8 +13,7 @@
         },
         "manual": {
           "configFilePath": ".cursor/mcp.json",
-          "configFormat": "mcpServers",
-          "instructions": "Go to `Cursor Settings` → `MCP` → `Add new MCP Server`. Name to your liking, use `type: http` and the following config:"
+          "configFormat": "mcpServers"
         }
       }
     },
@@ -38,8 +37,7 @@
         ],
         "manual": {
           "configFilePath": "mcp.json",
-          "configFormat": "servers",
-          "instructions": "Open (or create) your `mcp.json` file and add:"
+          "configFormat": "servers"
         }
       }
     },
@@ -55,8 +53,7 @@
         },
         "manual": {
           "configFilePath": "~/.factory/mcp.json",
-          "configFormat": "mcpServers",
-          "instructions": "Open (or create) your `~/.factory/mcp.json` file and add:"
+          "configFormat": "mcpServers"
         }
       }
     }

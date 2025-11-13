@@ -66,8 +66,7 @@ To manually add or edit a client:
     };
     manual: {                    // Manual config (always required)
       configFilePath: string;
-      configFormat: "mcpServers" | "servers" | "custom";
-      instructions?: string;
+      configFormat: "mcpServers" | "servers";
     };
   };
   registry?: {                   // Registry listing info

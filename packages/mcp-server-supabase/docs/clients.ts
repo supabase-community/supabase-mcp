@@ -16,7 +16,7 @@ export interface CommandConfig {
 
 export interface ManualConfig {
   configFilePath: string;
-  configFormat: 'mcpServers' | 'servers' | 'custom';
+  configFormat: 'mcpServers' | 'servers';
 }
 
 export interface RegistryConfig {

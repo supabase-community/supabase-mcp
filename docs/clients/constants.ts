@@ -10,6 +10,6 @@ export type {
   CommandConfig,
   ManualConfig,
   RegistryConfig,
-} from '../../packages/mcp-server-supabase/src/clients.js';
+} from '../../packages/mcp-server-supabase/docs/clients.js';
 
-export { clients } from '../../packages/mcp-server-supabase/src/clients.js';
+export { clients } from '../../packages/mcp-server-supabase/docs/clients.js';

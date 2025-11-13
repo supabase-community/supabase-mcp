@@ -1,6 +1,6 @@
 /**
  * MCP Client definitions for documentation generation
- * Re-exported from @supabase/mcp-server-supabase/integrations
+ * Re-exported from the source package
  */
 
 export type {
@@ -10,6 +10,6 @@ export type {
   CommandConfig,
   ManualConfig,
   RegistryConfig,
-} from '@supabase/mcp-server-supabase/integrations';
+} from '../../packages/mcp-server-supabase/src/integrations/clients.js';
 
-export { clients } from '@supabase/mcp-server-supabase/integrations';
+export { clients } from '../../packages/mcp-server-supabase/src/integrations/clients.js';

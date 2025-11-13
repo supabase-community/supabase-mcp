@@ -1,3 +1,5 @@
+[![MseeP.ai Security Assessment Badge](https://mseep.net/pr/supabase-community-supabase-mcp-badge.png)](https://mseep.ai/app/supabase-community-supabase-mcp)
+
 # Supabase MCP Server
 
 > Connect your Supabase projects to Cursor, Claude, Windsurf, and other AI assistants.

@@ -12,9 +12,9 @@
           "buttonAlt": "Install in Cursor"
         },
         "manual": {
-          "configFilePath": "Cursor Settings → MCP → Add new MCP Server",
+          "configFilePath": ".cursor/mcp.json",
           "configFormat": "mcpServers",
-          "instructions": "Name to your liking, use `type: http` and the following config:"
+          "instructions": "Go to `Cursor Settings` → `MCP` → `Add new MCP Server`. Name to your liking, use `type: http` and the following config:"
         }
       }
     },

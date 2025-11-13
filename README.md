@@ -55,7 +55,7 @@ You can also manually install it on your favorite client.
 #### Or install manually:
 
 
-Name to your liking, use `type: http` and the following config:
+Go to `Cursor Settings` → `MCP` → `Add new MCP Server`. Name to your liking, use `type: http` and the following config:
 
 
 ```json

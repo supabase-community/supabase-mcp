@@ -20,6 +20,9 @@ importers:
       tsx:
         specifier: ^4.20.4
         version: 4.20.4
+      zod:
+        specifier: ^3.25.76
+        version: 3.25.76
 
   packages/mcp-server-postgrest:
     dependencies:

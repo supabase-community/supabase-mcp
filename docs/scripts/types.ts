@@ -1,115 +1,114 @@
 /**
- * TypeScript type definitions for MCP client documentation system
+ * Zod schema definitions for MCP client documentation system
  */
 
-export interface DeeplinkConfig {
-	url: string;
-	buttonImage: string;
-	buttonAlt: string;
-}
+import { z } from 'zod';
 
-export interface CommandConfig {
-	command: string;
-	description?: string;
-}
+// Zod schemas
+export const DeeplinkConfigSchema = z.object({
+  url: z.string().url('Invalid deeplink URL'),
+  buttonImage: z.string().url('Invalid button image URL'),
+  buttonAlt: z.string().min(1, 'Button alt text is required'),
+});
 
-export interface ManualConfig {
-	configFilePath: string;
-	configFormat: 'mcpServers' | 'servers';
-	instructions?: string;
-}
+export const CommandConfigSchema = z.object({
+  command: z.string().min(1, 'Command is required'),
+  description: z.string().optional(),
+});
 
-export interface RegistryConfig {
-	listed: boolean;
-	listingUrl?: string;
-}
+export const ManualConfigSchema = z.object({
+  configFilePath: z.string().min(1, 'Config file path is required'),
+  configFormat: z.enum(['mcpServers', 'servers', 'custom']),
+  instructions: z.string().optional(),
+});
 
-export interface ClientInstallation {
-	deeplink?: DeeplinkConfig | DeeplinkConfig[];
-	command?: CommandConfig;
-	manual: ManualConfig;
-}
+export const RegistryConfigSchema = z.object({
+  listed: z.boolean(),
+  listingUrl: z.string().url('Invalid listing URL').optional(),
+});
 
-export interface Client {
-	id: string;
-	name: string;
-	description?: string;
-	officialDocs?: string;
-	installation: ClientInstallation;
-	registry?: RegistryConfig;
-}
+export const ClientInstallationSchema = z.object({
+  deeplink: z
+    .union([DeeplinkConfigSchema, z.array(DeeplinkConfigSchema)])
+    .optional(),
+  command: CommandConfigSchema.optional(),
+  manual: ManualConfigSchema,
+});
 
-export interface ClientsData {
-	clients: Client[];
-}
+export const ClientSchema = z.object({
+  id: z
+    .string()
+    .min(1, 'Client ID is required')
+    .regex(
+      /^[a-z0-9-]+$/,
+      'Client ID must be lowercase alphanumeric with hyphens'
+    ),
+  name: z.string().min(1, 'Client name is required'),
+  description: z.string().optional(),
+  officialDocs: z.string().url('Invalid official docs URL').optional(),
+  installation: ClientInstallationSchema,
+  registry: RegistryConfigSchema.optional(),
+});
+
+export const ClientsDataSchema = z.object({
+  clients: z.array(ClientSchema),
+});
+
+// TypeScript types inferred from Zod schemas
+export type DeeplinkConfig = z.infer<typeof DeeplinkConfigSchema>;
+export type CommandConfig = z.infer<typeof CommandConfigSchema>;
+export type ManualConfig = z.infer<typeof ManualConfigSchema>;
+export type RegistryConfig = z.infer<typeof RegistryConfigSchema>;
+export type ClientInstallation = z.infer<typeof ClientInstallationSchema>;
+export type Client = z.infer<typeof ClientSchema>;
+export type ClientsData = z.infer<typeof ClientsDataSchema>;
 
 /**
- * Validates that a client object has all required fields
+ * Validates that a client object has all required fields using Zod
  */
 export function validateClient(client: unknown): client is Client {
-	if (typeof client !== 'object' || client === null) {
-		return false;
-	}
-
-	const c = client as Partial<Client>;
-
-	// Check required fields
-	if (!c.id || typeof c.id !== 'string') {
-		console.error(`Client missing required field: id`);
-		return false;
-	}
-
-	if (!c.name || typeof c.name !== 'string') {
-		console.error(`Client ${c.id} missing required field: name`);
-		return false;
-	}
-
-	if (!c.installation || typeof c.installation !== 'object') {
-		console.error(`Client ${c.id} missing required field: installation`);
-		return false;
-	}
-
-	if (!c.installation.manual || typeof c.installation.manual !== 'object') {
-		console.error(
-			`Client ${c.id} missing required field: installation.manual`,
-		);
-		return false;
-	}
-
-	// Validate manual config
-	const manual = c.installation.manual;
-	if (!manual.configFilePath || typeof manual.configFilePath !== 'string') {
-		console.error(
-			`Client ${c.id} missing required field: installation.manual.configFilePath`,
-		);
-		return false;
-	}
-
-	if (!manual.configFormat || typeof manual.configFormat !== 'string') {
-		console.error(
-			`Client ${c.id} missing required field: installation.manual.configFormat`,
-		);
-		return false;
-	}
-
-	return true;
+  try {
+    ClientSchema.parse(client);
+    return true;
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      console.error('Client validation error:');
+      for (const issue of error.issues) {
+        console.error(`  - ${issue.path.join('.')}: ${issue.message}`);
+      }
+    }
+    return false;
+  }
 }
 
 /**
- * Validates the entire clients.json data structure
+ * Validates the entire clients.json data structure using Zod
  */
 export function validateClientsData(data: unknown): data is ClientsData {
-	if (typeof data !== 'object' || data === null) {
-		console.error('Invalid clients data: not an object');
-		return false;
-	}
+  try {
+    ClientsDataSchema.parse(data);
+    return true;
+  } catch (error) {
+    if (error instanceof z.ZodError) {
+      console.error('Clients data validation error:');
+      for (const issue of error.issues) {
+        console.error(`  - ${issue.path.join('.')}: ${issue.message}`);
+      }
+    }
+    return false;
+  }
+}
 
-	const d = data as Partial<ClientsData>;
+/**
+ * Parses and validates clients data, throwing an error if invalid
+ */
+export function parseClientsData(data: unknown): ClientsData {
+  return ClientsDataSchema.parse(data);
+}
 
-	if (!Array.isArray(d.clients)) {
-		console.error('Invalid clients data: clients is not an array');
-		return false;
-	}
-
-	return d.clients.every(validateClient);
+/**
+ * Parses and validates a single client, throwing an error if invalid
+ */
+export function parseClient(data: unknown): Client {
+  return ClientSchema.parse(data);
 }

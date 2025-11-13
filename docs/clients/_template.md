@@ -40,7 +40,8 @@ Open (or create) your `{{installation.manual.configFilePath}}` file and add:
 }
 ```
 {{/if}}
-{{else if (eq installation.manual.configFormat "mcpServers")}}
+{{else}}
+{{#if (eq installation.manual.configFormat "mcpServers")}}
 ```json
 {
   "mcpServers": {
@@ -51,7 +52,8 @@ Open (or create) your `{{installation.manual.configFilePath}}` file and add:
   }
 }
 ```
-{{else if (eq installation.manual.configFormat "servers")}}
+{{else}}
+{{#if (eq installation.manual.configFormat "servers")}}
 ```json
 {
   "servers": {
@@ -71,6 +73,8 @@ Open (or create) your `{{installation.manual.configFilePath}}` file and add:
   }
 }
 ```
+{{/if}}
+{{/if}}
 {{/if}}
 
 {{#if officialDocs}}

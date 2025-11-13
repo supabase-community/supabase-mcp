@@ -16,7 +16,7 @@ export interface CommandConfig {
 
 export interface ManualConfig {
   configFilePath: string;
-  configFormat: 'mcpServers' | 'servers' | 'custom';
+  configFormat?: 'mcpServers' | 'servers' | 'custom';
   /** Optional raw snippet to show for manual configuration (e.g. YAML) */
   manualSnippet?: string;
 }
@@ -68,11 +68,13 @@ export const clients: Client[] = [
     description: 'AI-powered code editor',
     officialDocs: 'https://docs.cursor.com/context/mcp',
     installation: {
-      deeplink: {
-        url: 'https://cursor.com/en/install-mcp?name=Supabase&config=eyJ1cmwiOiJodHRwczovL21jcC5zdXBhYmFzZS5jb20vbWNwIn0%3D',
-        buttonImage: 'https://cursor.com/deeplink/mcp-install-dark.svg',
-        buttonAlt: 'Install in Cursor',
-      },
+      deeplink: [
+        {
+          url: 'https://cursor.com/en/install-mcp?name=Supabase&config=eyJ1cmwiOiJodHRwczovL21jcC5zdXBhYmFzZS5jb20vbWNwIn0%3D',
+          buttonImage: 'https://cursor.com/deeplink/mcp-install-dark.svg',
+          buttonAlt: 'Install in Cursor',
+        },
+      ],
       manual: {
         configFilePath: '.cursor/mcp.json',
         configFormat: 'mcpServers',
@@ -111,12 +113,14 @@ export const clients: Client[] = [
     name: 'Goose',
     officialDocs: 'https://block.github.io/goose/docs/category/getting-started',
     installation: {
-      deeplink: {
-        url: 'goose://extension?type=streamable_http&url=https%3A%2F%2Fmcp.supabase.com%2Fmcp&id=supabase&name=Supabase&description=Connect%20your%20Supabase%20projects%20to%20AI%20assistants.%20Manage%20tables%2C%20query%20data%2C%20deploy%20Edge%20Functions%2C%20and%20interact%20with%20your%20Supabase%20backend%20directly%20from%20your%20MCP%20client.',
-        buttonImage:
-          'https://block.github.io/goose/img/extension-install-dark.svg',
-        buttonAlt: 'Install in Goose',
-      },
+      deeplink: [
+        {
+          url: 'goose://extension?type=streamable_http&url=https%3A%2F%2Fmcp.supabase.com%2Fmcp&id=supabase&name=Supabase&description=Connect%20your%20Supabase%20projects%20to%20AI%20assistants.%20Manage%20tables%2C%20query%20data%2C%20deploy%20Edge%20Functions%2C%20and%20interact%20with%20your%20Supabase%20backend%20directly%20from%20your%20MCP%20client.',
+          buttonImage:
+            'https://block.github.io/goose/img/extension-install-dark.svg',
+          buttonAlt: 'Install in Goose',
+        },
+      ],
       command: {
         command:
           'goose session --with-streamable-http-extension "https://mcp.supabase.com/mcp"',

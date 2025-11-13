@@ -10,19 +10,19 @@ This directory contains the automated documentation system for MCP client instal
 
 ## Architecture
 
-The client metadata is defined in `packages/mcp-server-supabase/src/clients.ts` and exported from the `@supabase/mcp-server-supabase` package. This allows:
+The client metadata is defined in `packages/mcp-server-supabase/src/integrations/clients.ts` and exported from the `@supabase/mcp-server-supabase/integrations` subpath. This allows:
 
 - **Documentation generation**: This repo's scripts import the data to generate docs
-- **External integrations**: Other Node.js projects can import client metadata from the published package
+- **External integrations**: Other Node.js projects can import client metadata from the published package using `import { clients } from '@supabase/mcp-server-supabase/integrations'`
 - **Single source of truth**: One place to maintain client configurations
 
 ## Usage
 
 ### Adding a New Client
 
-To add a new client, edit `packages/mcp-server-supabase/src/clients.ts`:
+To add a new client, edit `packages/mcp-server-supabase/src/integrations/clients.ts`:
 
-1. Open `packages/mcp-server-supabase/src/clients.ts`
+1. Open `packages/mcp-server-supabase/src/integrations/clients.ts`
 2. Add a new client object to the `clients` array following the `Client` interface
 3. Run `npm run docs:generate-clients` to generate documentation
 4. Review the generated output

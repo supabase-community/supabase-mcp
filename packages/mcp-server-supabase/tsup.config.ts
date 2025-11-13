@@ -7,7 +7,7 @@ export default defineConfig([
       'src/transports/stdio.ts',
       'src/platform/index.ts',
       'src/platform/api-platform.ts',
-      'src/clients.ts',
+      'src/integrations/index.ts',
     ],
     format: ['cjs', 'esm'],
     outDir: 'dist',

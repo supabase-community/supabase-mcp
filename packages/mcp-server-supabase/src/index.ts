@@ -19,5 +19,5 @@ export {
   type CommandConfig,
   type ManualConfig,
   type RegistryConfig,
-} from './clients.js';
+} from './integrations/index.js';
 export const version = packageJson.version;

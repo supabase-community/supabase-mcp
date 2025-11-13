@@ -41,6 +41,45 @@ For more information, visit the [Supabase MCP docs](https://supabase.com/docs/gu
 You can also manually install it on your favorite client.
 
 <details>
+<summary>Claude Code</summary>
+
+
+
+#### Install via command line:
+
+```bash
+claude mcp add --transport http supabase https://mcp.supabase.com/mcp
+```
+
+
+After adding the server, type `/mcp` in Claude Code and follow the instructions to complete the OAuth authentication flow.
+
+
+
+#### Or install manually:
+
+Open (or create) your `.mcp.json` file and add:
+
+```json
+
+{
+  "mcpServers": {
+    "supabase": {
+      "type": "http",
+      "url": "https://mcp.supabase.com/mcp"
+    }
+  }
+}
+
+```
+
+
+For more information, see the [Claude Code MCP docs](https://code.claude.com/docs/en/mcp).
+
+
+</details>
+
+<details>
 <summary>Cursor</summary>
 
 

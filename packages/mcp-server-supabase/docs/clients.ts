@@ -44,6 +44,23 @@ export interface Client {
  */
 export const clients: Client[] = [
   {
+    id: 'claude-code',
+    name: 'Claude Code',
+    officialDocs: 'https://code.claude.com/docs/en/mcp',
+    installation: {
+      command: {
+        command:
+          'claude mcp add --transport http supabase https://mcp.supabase.com/mcp',
+        description:
+          'After adding the server, type `/mcp` in Claude Code and follow the instructions to complete the OAuth authentication flow.',
+      },
+      manual: {
+        configFilePath: '.mcp.json',
+        configFormat: 'mcpServers',
+      },
+    },
+  },
+  {
     id: 'cursor',
     name: 'Cursor',
     description: 'AI-powered code editor',

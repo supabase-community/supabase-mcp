@@ -25,8 +25,23 @@
 
 Open (or create) your `{{installation.manual.configFilePath}}` file and add:
 
+{{#if (eq installation.manual.configFormat "custom")}}
+{{#if installation.manual.manualSnippet}}
+```yaml
+{{installation.manual.manualSnippet}}
+```
+{{else}}
 ```json
-{{#if (eq installation.manual.configFormat "mcpServers")}}
+{
+  "supabase": {
+    "type": "http",
+    "url": "https://mcp.supabase.com/mcp"
+  }
+}
+```
+{{/if}}
+{{else if (eq installation.manual.configFormat "mcpServers")}}
+```json
 {
   "mcpServers": {
     "supabase": {
@@ -35,7 +50,9 @@ Open (or create) your `{{installation.manual.configFilePath}}` file and add:
     }
   }
 }
+```
 {{else if (eq installation.manual.configFormat "servers")}}
+```json
 {
   "servers": {
     "supabase": {
@@ -44,15 +61,17 @@ Open (or create) your `{{installation.manual.configFilePath}}` file and add:
     }
   }
 }
+```
 {{else}}
+```json
 {
   "supabase": {
     "type": "http",
     "url": "https://mcp.supabase.com/mcp"
   }
 }
-{{/if}}
 ```
+{{/if}}
 
 {{#if officialDocs}}
 For more information, see the [{{name}} MCP docs]({{officialDocs}}).

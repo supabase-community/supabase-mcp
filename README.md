@@ -41,50 +41,6 @@ For more information, visit the [Supabase MCP docs](https://supabase.com/docs/gu
 You can also manually install it on your favorite client.
 
 <details>
-<summary>Goose</summary>
-
-
-#### Click the button to install:
-
-
-[<img src="https://img.shields.io/badge/Goose-Goose?style=flat-square&label=Install%20Extension&color=F59E0B" alt="Install in Goose">](ggoose://extension?type=streamable_http&url=https%3A%2F%2Fmcp.supabase.com%2Fmcp&id=supabase&name=Supabase&description=Connect%20your%20Supabase%20projects%20to%20AI%20assistants.%20Manage%20tables%2C%20query%20data%2C%20deploy%20Edge%20Functions%2C%20and%20interact%20with%20your%20Supabase%20backend%20directly%20from%20your%20MCP%20client.)
-
-
-
-
-#### Install via command line:
-
-```bash
-goose session --with-streamable-http-extension "https://mcp.supabase.com/mcp"
-```
-
-
-If using the desktop app, see Using Extensions: https://block.github.io/goose/docs/getting-started/using-extensions
-
-
-
-#### Or install manually:
-
-Open (or create) your `~/.config/goose/config.yaml` file and add:
-
-```json
-
-{
-  "supabase": {
-    "type": "http",
-    "url": "https://mcp.supabase.com/mcp"
-  }
-}
-
-```
-
-
-For more information, see the [Goose MCP docs](https://block.github.io/goose/docs/category/getting-started).
-
-
-</details>
-
-<details>
 <summary>Claude Code</summary>
 
 
@@ -104,8 +60,8 @@ After adding the server, type `/mcp` in Claude Code and follow the instructions 
 
 Open (or create) your `.mcp.json` file and add:
 
-```json
 
+```json
 {
   "mcpServers": {
     "supabase": {
@@ -114,8 +70,8 @@ Open (or create) your `.mcp.json` file and add:
     }
   }
 }
-
 ```
+
 
 
 For more information, see the [Claude Code MCP docs](https://code.claude.com/docs/en/mcp).
@@ -139,8 +95,8 @@ For more information, see the [Claude Code MCP docs](https://code.claude.com/doc
 
 Open (or create) your `.cursor/mcp.json` file and add:
 
-```json
 
+```json
 {
   "mcpServers": {
     "supabase": {
@@ -149,8 +105,8 @@ Open (or create) your `.cursor/mcp.json` file and add:
     }
   }
 }
-
 ```
+
 
 
 For more information, see the [Cursor MCP docs](https://docs.cursor.com/context/mcp).
@@ -176,8 +132,8 @@ For more information, see the [Cursor MCP docs](https://docs.cursor.com/context/
 
 Open (or create) your `mcp.json` file and add:
 
-```json
 
+```json
 {
   "servers": {
     "supabase": {
@@ -186,11 +142,64 @@ Open (or create) your `mcp.json` file and add:
     }
   }
 }
-
 ```
 
 
+
 For more information, see the [VS Code MCP docs](https://code.visualstudio.com/docs/copilot/customization/mcp-servers#_add-an-mcp-server).
+
+
+</details>
+
+<details>
+<summary>Goose</summary>
+
+
+#### Click the button to install:
+
+
+[<img src="https://block.github.io/goose/img/extension-install-dark.svg" alt="Install in Goose">](goose://extension?type=streamable_http&url=https%3A%2F%2Fmcp.supabase.com%2Fmcp&id=supabase&name=Supabase&description=Connect%20your%20Supabase%20projects%20to%20AI%20assistants.%20Manage%20tables%2C%20query%20data%2C%20deploy%20Edge%20Functions%2C%20and%20interact%20with%20your%20Supabase%20backend%20directly%20from%20your%20MCP%20client.)
+
+
+
+
+#### Install via command line:
+
+```bash
+goose session --with-streamable-http-extension "https://mcp.supabase.com/mcp"
+```
+
+
+If using the desktop app, see Using Extensions: https://block.github.io/goose/docs/getting-started/using-extensions
+
+
+
+#### Or install manually:
+
+Open (or create) your `~/.config/goose/config.yaml` file and add:
+
+
+
+```yaml
+extensions:
+  supabase:
+    available_tools: []
+    bundled: null
+    description: Connect your Supabase projects to AI assistants. Manage tables, query data, deploy Edge Functions, and interact with your Supabase backend directly from your MCP client.
+    enabled: true
+    env_keys: []
+    envs: {}
+    headers: {}
+    name: Supabase
+    timeout: 300
+    type: streamable_http
+    uri: https://mcp.supabase.com/mcp
+```
+
+
+
+
+For more information, see the [Goose MCP docs](https://block.github.io/goose/docs/category/getting-started).
 
 
 </details>
@@ -215,8 +224,8 @@ After adding the server, restart Factory or type `/mcp` within droid to complete
 
 Open (or create) your `~/.factory/mcp.json` file and add:
 
-```json
 
+```json
 {
   "mcpServers": {
     "supabase": {
@@ -225,8 +234,8 @@ Open (or create) your `~/.factory/mcp.json` file and add:
     }
   }
 }
-
 ```
+
 
 
 For more information, see the [Factory MCP docs](https://docs.factory.ai/cli/configuration/mcp.md).

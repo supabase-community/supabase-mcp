@@ -17,6 +17,8 @@ export interface CommandConfig {
 export interface ManualConfig {
   configFilePath: string;
   configFormat: 'mcpServers' | 'servers' | 'custom';
+  /** Optional raw snippet to show for manual configuration (e.g. YAML) */
+  manualSnippet?: string;
 }
 
 export interface RegistryConfig {
@@ -43,29 +45,6 @@ export interface Client {
  * List of all MCP clients that support the Supabase MCP server
  */
 export const clients: Client[] = [
-  {
-    id: 'goose',
-    name: 'Goose',
-    officialDocs: 'https://block.github.io/goose/docs/category/getting-started',
-    installation: {
-      deeplink: {
-        url: 'ggoose://extension?type=streamable_http&url=https%3A%2F%2Fmcp.supabase.com%2Fmcp&id=supabase&name=Supabase&description=Connect%20your%20Supabase%20projects%20to%20AI%20assistants.%20Manage%20tables%2C%20query%20data%2C%20deploy%20Edge%20Functions%2C%20and%20interact%20with%20your%20Supabase%20backend%20directly%20from%20your%20MCP%20client.',
-        buttonImage:
-          'https://img.shields.io/badge/Goose-Goose?style=flat-square&label=Install%20Extension&color=F59E0B',
-        buttonAlt: 'Install in Goose',
-      },
-      command: {
-        command:
-          'goose session --with-streamable-http-extension "https://mcp.supabase.com/mcp"',
-        description:
-          'If using the desktop app, see Using Extensions: https://block.github.io/goose/docs/getting-started/using-extensions',
-      },
-      manual: {
-        configFilePath: '~/.config/goose/config.yaml',
-        configFormat: 'custom',
-      },
-    },
-  },
   {
     id: 'claude-code',
     name: 'Claude Code',
@@ -124,6 +103,30 @@ export const clients: Client[] = [
       manual: {
         configFilePath: 'mcp.json',
         configFormat: 'servers',
+      },
+    },
+  },
+  {
+    id: 'goose',
+    name: 'Goose',
+    officialDocs: 'https://block.github.io/goose/docs/category/getting-started',
+    installation: {
+      deeplink: {
+        url: 'goose://extension?type=streamable_http&url=https%3A%2F%2Fmcp.supabase.com%2Fmcp&id=supabase&name=Supabase&description=Connect%20your%20Supabase%20projects%20to%20AI%20assistants.%20Manage%20tables%2C%20query%20data%2C%20deploy%20Edge%20Functions%2C%20and%20interact%20with%20your%20Supabase%20backend%20directly%20from%20your%20MCP%20client.',
+        buttonImage:
+          'https://block.github.io/goose/img/extension-install-dark.svg',
+        buttonAlt: 'Install in Goose',
+      },
+      command: {
+        command:
+          'goose session --with-streamable-http-extension "https://mcp.supabase.com/mcp"',
+        description:
+          'If using the desktop app, see Using Extensions: https://block.github.io/goose/docs/getting-started/using-extensions',
+      },
+      manual: {
+        configFilePath: '~/.config/goose/config.yaml',
+        configFormat: 'custom',
+        manualSnippet: `extensions:\n  supabase:\n    available_tools: []\n    bundled: null\n    description: Connect your Supabase projects to AI assistants. Manage tables, query data, deploy Edge Functions, and interact with your Supabase backend directly from your MCP client.\n    enabled: true\n    env_keys: []\n    envs: {}\n    headers: {}\n    name: Supabase\n    timeout: 300\n    type: streamable_http\n    uri: https://mcp.supabase.com/mcp`,
       },
     },
   },

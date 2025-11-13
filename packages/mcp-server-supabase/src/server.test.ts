@@ -173,16 +173,20 @@ describe('tools', () => {
     });
 
     const result = await callTool({
-      name: 'get_cost',
+      name: 'get_and_confirm_cost',
       arguments: {
         type: 'project',
         organization_id: freeOrg.id,
       },
     });
 
-    expect(result).toEqual(
-      'The new project will cost $0 monthly. You must repeat this to the user and confirm their understanding.'
-    );
+    expect(result).toMatchObject({
+      type: 'project',
+      recurrence: 'monthly',
+      amount: 0,
+      confirm_cost_id: expect.any(String),
+      message: expect.stringContaining('The new project is free'),
+    });
   });
 
   test('get next project cost for paid org with 0 projects', async () => {
@@ -195,16 +199,20 @@ describe('tools', () => {
     });
 
     const result = await callTool({
-      name: 'get_cost',
+      name: 'get_and_confirm_cost',
       arguments: {
         type: 'project',
         organization_id: paidOrg.id,
       },
     });
 
-    expect(result).toEqual(
-      'The new project will cost $0 monthly. You must repeat this to the user and confirm their understanding.'
-    );
+    expect(result).toMatchObject({
+      type: 'project',
+      recurrence: 'monthly',
+      amount: 0,
+      confirm_cost_id: expect.any(String),
+      message: expect.stringContaining('The new project is free'),
+    });
   });
 
   test('get next project cost for paid org with > 0 active projects', async () => {
@@ -224,16 +232,20 @@ describe('tools', () => {
     priorProject.status = 'ACTIVE_HEALTHY';
 
     const result = await callTool({
-      name: 'get_cost',
+      name: 'get_and_confirm_cost',
       arguments: {
         type: 'project',
         organization_id: paidOrg.id,
       },
     });
 
-    expect(result).toEqual(
-      `The new project will cost $${PROJECT_COST_MONTHLY} monthly. You must repeat this to the user and confirm their understanding.`
-    );
+    expect(result).toMatchObject({
+      type: 'project',
+      recurrence: 'monthly',
+      amount: PROJECT_COST_MONTHLY,
+      confirm_cost_id: expect.any(String),
+      message: expect.stringContaining(`The new project will cost $${PROJECT_COST_MONTHLY} monthly`),
+    });
   });
 
   test('get next project cost for paid org with > 0 inactive projects', async () => {
@@ -253,38 +265,39 @@ describe('tools', () => {
     priorProject.status = 'INACTIVE';
 
     const result = await callTool({
-      name: 'get_cost',
+      name: 'get_and_confirm_cost',
       arguments: {
         type: 'project',
         organization_id: paidOrg.id,
       },
     });
 
-    expect(result).toEqual(
-      `The new project will cost $0 monthly. You must repeat this to the user and confirm their understanding.`
-    );
+    expect(result).toMatchObject({
+      type: 'project',
+      recurrence: 'monthly',
+      amount: 0,
+      confirm_cost_id: expect.any(String),
+      message: expect.stringContaining('The new project is free'),
+    });
   });
 
   test('get branch cost', async () => {
     const { callTool } = await setup();
 
-    const paidOrg = await createOrganization({
-      name: 'Paid Org',
-      plan: 'pro',
-      allowed_release_channels: ['ga'],
-    });
-
     const result = await callTool({
-      name: 'get_cost',
+      name: 'get_and_confirm_cost',
       arguments: {
         type: 'branch',
-        organization_id: paidOrg.id,
       },
     });
 
-    expect(result).toEqual(
-      `The new branch will cost $${BRANCH_COST_HOURLY} hourly. You must repeat this to the user and confirm their understanding.`
-    );
+    expect(result).toMatchObject({
+      type: 'branch',
+      recurrence: 'hourly',
+      amount: BRANCH_COST_HOURLY,
+      confirm_cost_id: expect.any(String),
+      message: expect.stringContaining(`The new branch will cost $${BRANCH_COST_HOURLY} hourly`),
+    });
   });
 
   test('list projects', async () => {
@@ -350,12 +363,11 @@ describe('tools', () => {
       allowed_release_channels: ['ga'],
     });
 
-    const confirm_cost_id = await callTool({
-      name: 'confirm_cost',
+    const costResult = await callTool({
+      name: 'get_and_confirm_cost',
       arguments: {
         type: 'project',
-        recurrence: 'monthly',
-        amount: 0,
+        organization_id: freeOrg.id,
       },
     });
 
@@ -363,7 +375,7 @@ describe('tools', () => {
       name: 'New Project',
       region: 'us-east-1',
       organization_id: freeOrg.id,
-      confirm_cost_id,
+      confirm_cost_id: costResult.confirm_cost_id,
     };
 
     const result = await callTool({
@@ -376,6 +388,7 @@ describe('tools', () => {
     expect(result).toEqual({
       ...projectInfo,
       id: expect.stringMatching(/^.+$/),
+      message: `Project \"${newProject.name}\" created successfully. Cost: Free`,
       created_at: expect.stringMatching(
         /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
       ),
@@ -392,12 +405,11 @@ describe('tools', () => {
       allowed_release_channels: ['ga'],
     });
 
-    const confirm_cost_id = await callTool({
-      name: 'confirm_cost',
+    const costResult = await callTool({
+      name: 'get_and_confirm_cost',
       arguments: {
         type: 'project',
-        recurrence: 'monthly',
-        amount: 0,
+        organization_id: freeOrg.id,
       },
     });
 
@@ -405,7 +417,7 @@ describe('tools', () => {
       name: 'New Project',
       region: 'us-east-1',
       organization_id: freeOrg.id,
-      confirm_cost_id,
+      confirm_cost_id: costResult.confirm_cost_id,
     };
 
     const result = callTool({
@@ -427,19 +439,18 @@ describe('tools', () => {
       allowed_release_channels: ['ga'],
     });
 
-    const confirm_cost_id = await callTool({
-      name: 'confirm_cost',
+    const costResult = await callTool({
+      name: 'get_and_confirm_cost',
       arguments: {
         type: 'project',
-        recurrence: 'monthly',
-        amount: 0,
+        organization_id: freeOrg.id,
       },
     });
 
     const newProject = {
       name: 'New Project',
       organization_id: freeOrg.id,
-      confirm_cost_id,
+      confirm_cost_id: costResult.confirm_cost_id,
     };
 
     const createProjectPromise = callTool({
@@ -1833,12 +1844,10 @@ describe('tools', () => {
     });
     project.status = 'ACTIVE_HEALTHY';
 
-    const confirm_cost_id = await callTool({
-      name: 'confirm_cost',
+    const costResult = await callTool({
+      name: 'get_and_confirm_cost',
       arguments: {
         type: 'branch',
-        recurrence: 'hourly',
-        amount: BRANCH_COST_HOURLY,
       },
     });
 
@@ -1848,7 +1857,7 @@ describe('tools', () => {
       arguments: {
         project_id: project.id,
         name: branchName,
-        confirm_cost_id,
+        confirm_cost_id: costResult.confirm_cost_id,
       },
     });
 
@@ -1888,12 +1897,10 @@ describe('tools', () => {
     });
     project.status = 'ACTIVE_HEALTHY';
 
-    const confirm_cost_id = await callTool({
-      name: 'confirm_cost',
+    const costResult = await callTool({
+      name: 'get_and_confirm_cost',
       arguments: {
         type: 'branch',
-        recurrence: 'hourly',
-        amount: BRANCH_COST_HOURLY,
       },
     });
 
@@ -1903,7 +1910,7 @@ describe('tools', () => {
       arguments: {
         project_id: project.id,
         name: branchName,
-        confirm_cost_id,
+        confirm_cost_id: costResult.confirm_cost_id,
       },
     });
 
@@ -1960,12 +1967,10 @@ describe('tools', () => {
     });
     project.status = 'ACTIVE_HEALTHY';
 
-    const confirm_cost_id = await callTool({
-      name: 'confirm_cost',
+    const costResult = await callTool({
+      name: 'get_and_confirm_cost',
       arguments: {
         type: 'branch',
-        recurrence: 'hourly',
-        amount: BRANCH_COST_HOURLY,
       },
     });
 
@@ -1974,7 +1979,7 @@ describe('tools', () => {
       arguments: {
         project_id: project.id,
         name: 'test-branch',
-        confirm_cost_id,
+        confirm_cost_id: costResult.confirm_cost_id,
       },
     });
 
@@ -2115,12 +2120,10 @@ describe('tools', () => {
     });
     project.status = 'ACTIVE_HEALTHY';
 
-    const confirm_cost_id = await callTool({
-      name: 'confirm_cost',
+    const costResult = await callTool({
+      name: 'get_and_confirm_cost',
       arguments: {
         type: 'branch',
-        recurrence: 'hourly',
-        amount: BRANCH_COST_HOURLY,
       },
     });
 
@@ -2129,7 +2132,7 @@ describe('tools', () => {
       arguments: {
         project_id: project.id,
         name: 'test-branch',
-        confirm_cost_id,
+        confirm_cost_id: costResult.confirm_cost_id,
       },
     });
 
@@ -2220,12 +2223,10 @@ describe('tools', () => {
     });
     project.status = 'ACTIVE_HEALTHY';
 
-    const confirm_cost_id = await callTool({
-      name: 'confirm_cost',
+    const costResult = await callTool({
+      name: 'get_and_confirm_cost',
       arguments: {
         type: 'branch',
-        recurrence: 'hourly',
-        amount: BRANCH_COST_HOURLY,
       },
     });
 
@@ -2234,7 +2235,7 @@ describe('tools', () => {
       arguments: {
         project_id: project.id,
         name: 'test-branch',
-        confirm_cost_id,
+        confirm_cost_id: costResult.confirm_cost_id,
       },
     });
 
@@ -2334,12 +2335,10 @@ describe('tools', () => {
     });
     project.status = 'ACTIVE_HEALTHY';
 
-    const confirm_cost_id = await callTool({
-      name: 'confirm_cost',
+    const costResult = await callTool({
+      name: 'get_and_confirm_cost',
       arguments: {
         type: 'branch',
-        recurrence: 'hourly',
-        amount: BRANCH_COST_HOURLY,
       },
     });
 
@@ -2348,7 +2347,7 @@ describe('tools', () => {
       arguments: {
         project_id: project.id,
         name: 'test-branch',
-        confirm_cost_id,
+        confirm_cost_id: costResult.confirm_cost_id,
       },
     });
 
@@ -2436,12 +2435,10 @@ describe('tools', () => {
     });
     project.status = 'ACTIVE_HEALTHY';
 
-    const confirm_cost_id = await callTool({
-      name: 'confirm_cost',
+    const costResult = await callTool({
+      name: 'get_and_confirm_cost',
       arguments: {
         type: 'branch',
-        recurrence: 'hourly',
-        amount: BRANCH_COST_HOURLY,
       },
     });
 
@@ -2450,7 +2447,7 @@ describe('tools', () => {
       arguments: {
         project_id: project.id,
         name: 'test-branch',
-        confirm_cost_id,
+        confirm_cost_id: costResult.confirm_cost_id,
       },
     });
 
@@ -2582,8 +2579,7 @@ describe('feature groups', () => {
       'get_organization',
       'list_projects',
       'get_project',
-      'get_cost',
-      'confirm_cost',
+      'get_and_confirm_cost',
       'create_project',
       'pause_project',
       'restore_project',
@@ -2713,8 +2709,7 @@ describe('feature groups', () => {
       'get_organization',
       'list_projects',
       'get_project',
-      'get_cost',
-      'confirm_cost',
+      'get_and_confirm_cost',
       'create_project',
       'pause_project',
       'restore_project',

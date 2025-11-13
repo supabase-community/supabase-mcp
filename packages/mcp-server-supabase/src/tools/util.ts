@@ -64,6 +64,6 @@ export function injectableTool<
     description,
     annotations,
     parameters: parameters.omit(mask),
-    execute: (args) => execute({ ...args, ...inject }),
+    execute: (args, context) => execute({ ...args, ...inject }, context),
   }) as Tool<z.ZodObject<any, any, any, CleanParams>, Result>;
 }

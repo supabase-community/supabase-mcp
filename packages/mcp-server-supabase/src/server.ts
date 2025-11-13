@@ -134,7 +134,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       }
 
       if (!projectId && account && enabledFeatures.has('account')) {
-        Object.assign(tools, getAccountTools({ account, readOnly }));
+        Object.assign(tools, getAccountTools({ account, readOnly, server }));
       }
 
       if (database && enabledFeatures.has('database')) {
@@ -144,6 +144,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
             database,
             projectId,
             readOnly,
+            server,
           })
         );
       }

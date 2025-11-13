@@ -1,7 +1,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { execSync } from 'node:child_process';
-import Handlebars from 'handlebars';
+import * as Handlebars from 'handlebars';
 import type { Client } from '../clients/constants';
 import { clients } from '../clients/constants';
 

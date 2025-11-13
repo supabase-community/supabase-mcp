@@ -415,7 +415,7 @@ function main() {
       `${client.id}.md`
     );
     writeFileSync(clientDocPath, content, 'utf-8');
-    console.log(`   ✓ Wrote ${client.id}.md`);
+    console.log(`   Wrote ${client.id}.md`);
   }
 
   // Update README.md
@@ -426,13 +426,13 @@ function main() {
   console.log('\nFormatting files with Biome...');
   try {
     execSync('pnpm format', { cwd: process.cwd(), stdio: 'inherit' });
-    console.log('✓ Files formatted successfully');
+    console.log('Files formatted successfully');
   } catch (error) {
-    console.warn('⚠ Warning: Failed to format files with Biome');
+    console.warn('Warning: Failed to format files with Biome');
   }
 
   console.log(
-    `\n✨ Successfully generated documentation for ${clients.length} clients!`
+    `\nSuccessfully generated documentation for ${clients.length} clients!`
   );
 }
 

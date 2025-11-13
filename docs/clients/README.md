@@ -4,21 +4,29 @@ This directory contains the automated documentation system for MCP client instal
 
 ## Files
 
-- **`constants.ts`** - TypeScript source of truth containing metadata for all MCP clients
+- **`constants.ts`** - Re-exports client metadata from `@supabase/mcp-server-supabase` package
 - **`_template.md`** - Handlebars-style template used to generate client documentation
 - **`*.md`** (generated, gitignored) - Individual client markdown files generated from the template
+
+## Architecture
+
+The client metadata is defined in `packages/mcp-server-supabase/src/clients.ts` and exported from the `@supabase/mcp-server-supabase` package. This allows:
+
+- **Documentation generation**: This repo's scripts import the data to generate docs
+- **External integrations**: Other Node.js projects can import client metadata from the published package
+- **Single source of truth**: One place to maintain client configurations
 
 ## Usage
 
 ### Adding a New Client
 
-To add a new client, edit `docs/clients/constants.ts`:
+To add a new client, edit `packages/mcp-server-supabase/src/clients.ts`:
 
-1. Open `docs/clients/constants.ts`
+1. Open `packages/mcp-server-supabase/src/clients.ts`
 2. Add a new client object to the `clients` array following the `Client` interface
 3. Run `npm run docs:generate-clients` to generate documentation
 4. Review the generated output
-5. Commit `constants.ts` and the updated `README.md`
+5. Commit the changes to both `clients.ts` and the updated `README.md`
 
 Example client object:
 

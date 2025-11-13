@@ -3,7 +3,7 @@ name: Generate Client Documentation
 on:
   pull_request:
     paths:
-      - 'docs/clients/constants.ts'
+      - 'packages/mcp-server-supabase/src/clients.ts'
       - 'docs/clients/_template.md'
       - 'docs/scripts/**'
 
@@ -38,6 +38,7 @@ jobs:
       - name: Type check TypeScript files
         run: |
           echo "Type checking TypeScript files..."
+          pnpm exec tsc --noEmit packages/mcp-server-supabase/src/clients.ts docs/scripts/generate-clients.ts
           pnpm exec tsc --noEmit docs/clients/constants.ts docs/scripts/generate-clients.ts
 
       - name: Generate client documentation

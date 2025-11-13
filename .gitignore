@@ -4,3 +4,8 @@ dist/
 .temp/
 .DS_Store
 .env*
+
+# Generated client documentation (keep _template.md and clients.json)
+docs/clients/*.md
+!docs/clients/_template.md
+!docs/clients/README.md

@@ -11,9 +11,15 @@ importers:
       '@biomejs/biome':
         specifier: 1.9.4
         version: 1.9.4
+      '@types/node':
+        specifier: ^22.17.2
+        version: 22.17.2
       supabase:
         specifier: ^2.1.1
         version: 2.34.3
+      tsx:
+        specifier: ^4.20.4
+        version: 4.20.4
 
   packages/mcp-server-postgrest:
     dependencies:

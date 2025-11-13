@@ -43,15 +43,23 @@ You can also manually install it on your favorite client.
 <details>
 <summary>Cursor</summary>
 
+
 #### Click the button to install:
+
 
 [<img src="https://cursor.com/deeplink/mcp-install-dark.svg" alt="Install in Cursor">](https://cursor.com/en/install-mcp?name=Supabase&config=eyJ1cmwiOiJodHRwczovL21jcC5zdXBhYmFzZS5jb20vbWNwIn0%3D)
 
+
+
+
 #### Or install manually:
 
-Go to `Cursor Settings` → `MCP` → `Add new MCP Server`. Name to your liking, use `type: http` and the following config:
+
+Name to your liking, use `type: http` and the following config:
+
 
 ```json
+
 {
   "mcpServers": {
     "supabase": {
@@ -60,24 +68,37 @@ Go to `Cursor Settings` → `MCP` → `Add new MCP Server`. Name to your liking,
     }
   }
 }
+
 ```
 
+
 For more information, see the [Cursor MCP docs](https://docs.cursor.com/context/mcp).
+
 
 </details>
 
 <details>
 <summary>VS Code</summary>
 
+
 #### Click the button to install:
 
-[<img src="https://img.shields.io/badge/VS_Code-VS_Code?style=flat-square&label=Install%20Server&color=0098FF" alt="Install in VS Code">](https://vscode.dev/redirect?url=vscode:mcp/install%3F%7B%22name%22%3A%22Supabase%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fmcp.supabase.com%2Fmcp%22%7D) [<img alt="Install in VS Code Insiders" src="https://img.shields.io/badge/VS_Code_Insiders-VS_Code_Insiders?style=flat-square&label=Install%20Server&color=24bfa5">](https://insiders.vscode.dev/redirect?url=vscode-insiders:mcp/install%3F%7B%22name%22%3A%22Supabase%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fmcp.supabase.com%2Fmcp%22%7D)
+
+[<img src="https://img.shields.io/badge/VS_Code-VS_Code?style=flat-square&label=Install%20Server&color=0098FF" alt="Install in VS Code">](https://vscode.dev/redirect?url=vscode:mcp/install%3F%7B%22name%22%3A%22Supabase%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fmcp.supabase.com%2Fmcp%22%7D) 
+
+[<img src="https://img.shields.io/badge/VS_Code_Insiders-VS_Code_Insiders?style=flat-square&label=Install%20Server&color=24bfa5" alt="Install in VS Code Insiders">](https://insiders.vscode.dev/redirect?url=vscode-insiders:mcp/install%3F%7B%22name%22%3A%22Supabase%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fmcp.supabase.com%2Fmcp%22%7D)
+
+
+
 
 #### Or install manually:
 
+
 Open (or create) your `mcp.json` file and add:
 
+
 ```json
+
 {
   "servers": {
     "supabase": {
@@ -86,14 +107,19 @@ Open (or create) your `mcp.json` file and add:
     }
   }
 }
+
 ```
 
+
 For more information, see the [VS Code MCP docs](https://code.visualstudio.com/docs/copilot/customization/mcp-servers#_add-an-mcp-server).
+
 
 </details>
 
 <details>
 <summary>Factory</summary>
+
+
 
 #### Install via command line:
 
@@ -101,22 +127,33 @@ For more information, see the [VS Code MCP docs](https://code.visualstudio.com/d
 droid mcp add supabase https://mcp.supabase.com/mcp --type http
 ```
 
-#### Or install manually:
-
-Open (or create) your `~/.factory/mcp.json` file and add:
-
-```json
-{
-  "supabase": {
-    "type": "http",
-    "url": "https://mcp.supabase.com/mcp"
-  }
-}
-```
 
 After adding the server, restart Factory or type `/mcp` within droid to complete the OAuth authentication flow.
 
+
+
+#### Or install manually:
+
+
+Open (or create) your `~/.factory/mcp.json` file and add:
+
+
+```json
+
+{
+  "mcpServers": {
+    "supabase": {
+      "type": "http",
+      "url": "https://mcp.supabase.com/mcp"
+    }
+  }
+}
+
+```
+
+
 For more information, see the [Factory MCP docs](https://docs.factory.ai/cli/configuration/mcp.md).
+
 
 </details>
 

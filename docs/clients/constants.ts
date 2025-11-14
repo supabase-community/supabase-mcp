@@ -1,15 +1,14 @@
 /**
  * MCP Client definitions for documentation generation
- * Re-exported from the source package
+ * Re-exported for convenience
  */
 
 export type {
   Client,
-  ClientInstallation,
   DeeplinkConfig,
-  CommandConfig,
+  CommandInstructions,
   ManualConfig,
   RegistryConfig,
-} from '../../packages/mcp-server-supabase/src/integrations/clients.js';
+} from './clients.js';
 
-export { clients } from '../../packages/mcp-server-supabase/src/integrations/clients.js';
+export { clients } from './clients.js';

@@ -9,7 +9,9 @@
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
+    "@types/common-tags": "^1.8.4",
     "@types/node": "^22.17.2",
+    "common-tags": "^1.8.2",
     "handlebars": "^4.7.8",
     "supabase": "^2.1.1",
     "tsx": "^4.20.4"

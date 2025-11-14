@@ -1,84 +1,42 @@
 <details>
-<summary>{{name}}</summary>
+<summary>{{label}}</summary>
 
-{{#if installation.deeplink}}
+{{#if deeplinks}}
 #### Click the button to install:
 
-{{#each installation.deeplink}}
+{{#each deeplinks}}
 [<img src="{{buttonImage}}" alt="{{buttonAlt}}">]({{url}}){{#unless @last}} {{/unless}}
 {{/each}}
 
 {{/if}}
-{{#if installation.command}}
+{{#if commandInstructions}}
 #### Install via command line:
 
-```bash
-{{installation.command.command}}
-```
-
-{{#if installation.command.description}}
-{{installation.command.description}}
+{{#if commandInstructions.prerequisite}}
+{{{commandInstructions.prerequisite}}}
 
 {{/if}}
+{{{commandInstructions.command}}}
+
+{{#if commandInstructions.followUp}}
+{{#each commandInstructions.followUp}}
+{{{this}}}
+
+{{/each}}
 {{/if}}
+{{/if}}
+{{#if manualConfig}}
 #### Or install manually:
 
-Open (or create) your `{{installation.manual.configFilePath}}` file and add:
+Open (or create) your `{{manualConfig.configFilePath}}` file and add:
 
-{{#if (eq installation.manual.configFormat "custom")}}
-{{#if installation.manual.manualSnippet}}
-```yaml
-{{installation.manual.manualSnippet}}
+```{{#if (eq configFormat "yaml-goose")}}yaml{{else}}json{{/if}}
+{{{manualConfig.snippet}}}
 ```
-{{else}}
-```json
-{
-  "supabase": {
-    "type": "http",
-    "url": "https://mcp.supabase.com/mcp"
-  }
-}
-```
-{{/if}}
-{{else}}
-{{#if (eq installation.manual.configFormat "mcpServers")}}
-```json
-{
-  "mcpServers": {
-    "supabase": {
-      "type": "http",
-      "url": "https://mcp.supabase.com/mcp"
-    }
-  }
-}
-```
-{{else}}
-{{#if (eq installation.manual.configFormat "servers")}}
-```json
-{
-  "servers": {
-    "supabase": {
-      "type": "http",
-      "url": "https://mcp.supabase.com/mcp"
-    }
-  }
-}
-```
-{{else}}
-```json
-{
-  "supabase": {
-    "type": "http",
-    "url": "https://mcp.supabase.com/mcp"
-  }
-}
-```
-{{/if}}
-{{/if}}
-{{/if}}
 
-{{#if officialDocs}}
-For more information, see the [{{name}} MCP docs]({{officialDocs}}).
+{{/if}}
+{{#if officialDocsUrl}}
+For more information, see the [{{label}} MCP docs]({{officialDocsUrl}}).
 {{/if}}
 
 </details>

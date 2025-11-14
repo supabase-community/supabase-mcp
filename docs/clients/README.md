@@ -4,53 +4,86 @@ This directory contains the automated documentation system for MCP client instal
 
 ## Files
 
-- **`constants.ts`** - Re-exports client metadata from `@supabase/mcp-server-supabase` package
+- **`clients.ts`** - Client metadata with functions to generate installation instructions
+- **`constants.ts`** - Re-exports client metadata for documentation scripts
 - **`_template.md`** - Handlebars-style template used to generate client documentation
 - **`*.md`** (generated, gitignored) - Individual client markdown files generated from the template
 
 ## Architecture
 
-The client metadata is defined in `packages/mcp-server-supabase/src/integrations/clients.ts` and exported from the `@supabase/mcp-server-supabase/integrations` subpath. This allows:
+The client metadata is defined in `docs/clients/clients.ts` using a function-based approach. Each client has functions that generate:
 
-- **Documentation generation**: This repo's scripts import the data to generate docs
-- **External integrations**: Other Node.js projects can import client metadata from the published package using `import { clients } from '@supabase/mcp-server-supabase/integrations'`
+- **Deeplink URLs**: Dynamic generation of installation buttons
+- **Command instructions**: Markdown-formatted CLI installation steps with prerequisites and follow-ups
+- **Manual configuration**: JSON/YAML snippets for manual setup
+
+This function-based approach allows:
+
+- **Flexible formatting**: Generate Markdown with proper formatting (code blocks, links, etc.)
+- **Dynamic content**: Adapt instructions based on server URL or other parameters
+- **Type safety**: TypeScript ensures all functions return correct structures
 - **Single source of truth**: One place to maintain client configurations
 
 ## Usage
 
 ### Adding a New Client
 
-To add a new client, edit `packages/mcp-server-supabase/src/integrations/clients.ts`:
+To add a new client, edit `docs/clients/clients.ts`:
 
-1. Open `packages/mcp-server-supabase/src/integrations/clients.ts`
+1. Open `docs/clients/clients.ts`
 2. Add a new client object to the `clients` array following the `Client` interface
-3. Run `npm run docs:generate-clients` to generate documentation
-4. Review the generated output
-5. Commit the changes to both `clients.ts` and the updated `README.md`
+3. Implement the generator functions for your installation methods
+4. Run `npm run docs:generate-clients` to generate documentation
+5. Review the generated output
+6. Commit the changes to both `clients.ts` and the updated `README.md`
 
 Example client object:
 
 ```typescript
 {
-  id: 'my-client',
-  name: 'My Client',
+  key: 'my-client',
+  label: 'My Client',
   description: 'A great MCP client',
-  officialDocs: 'https://example.com/docs',
-  installation: {
-    deeplink: {
-      url: 'myapp://install-mcp?url=...',
+  officialDocsUrl: 'https://example.com/docs',
+  configFile: '~/.myapp/mcp.json',
+  
+  generateDeeplinks: (serverUrl) => [
+    {
+      url: `myapp://install-mcp?url=${encodeURIComponent(serverUrl)}`,
       buttonImage: 'https://example.com/badge.svg',
-      buttonAlt: 'Install in My Client'
+      buttonAlt: 'Install in My Client',
     },
-    manual: {
-      configFilePath: '~/.myapp/mcp.json',
-      configFormat: 'mcpServers'
-    }
-  },
+  ],
+  
+  generateCommandInstructions: () => ({
+    prerequisite: 'Install the CLI tool first: `npm install -g myapp-cli`',
+    command: `Add the Supabase MCP server:
+
+\`\`\`bash
+myapp mcp add supabase ${serverUrl}
+\`\`\``,
+    followUp: [
+      'Restart the app to complete setup.',
+      'See the [official docs](https://example.com/docs) for more info.',
+    ],
+  }),
+  
+  generateManualConfig: () => ({
+    configFilePath: '~/.myapp/mcp.json',
+    snippet: JSON.stringify({
+      mcpServers: {
+        supabase: {
+          type: 'http',
+          url: serverUrl,
+        },
+      },
+    }, null, 2),
+  }),
+  
   registry: {
     listed: true,
-    listingUrl: 'https://registry.example.com/supabase'
-  }
+    listingUrl: 'https://registry.example.com/supabase',
+  },
 }
 ```
 
@@ -71,35 +104,44 @@ This will:
 
 ## Client Data Schema
 
-The schema is defined as TypeScript interfaces in `constants.ts`:
+The schema is defined as TypeScript interfaces in `clients.ts`:
 
 ```typescript
 interface Client {
-  id: string;                    // Unique identifier (lowercase-kebab-case)
-  name: string;                  // Display name
-  description?: string;          // Short description
-  officialDocs?: string;         // URL to official MCP documentation
-  installation: {
-    deeplink?: {                 // One-click installation button
-      url: string;
-      buttonImage: string;
-      buttonAlt: string;
-    } | Array<...>;              // Can be single or array for multiple buttons
-    command?: {                  // CLI installation
-      command: string;
-      description?: string;
-    };
-    manual: {                    // Manual config (always required)
-      configFilePath: string;
-      configFormat: "mcpServers" | "servers";
-    };
+  key: string;                       // Unique identifier (lowercase-kebab-case)
+  label: string;                     // Display name
+  description?: string;              // Short description
+  officialDocsUrl?: string;          // URL to official MCP documentation
+  configFile?: string;               // Config file path for manual installation
+  
+  // Generate deeplink buttons (can return multiple)
+  generateDeeplinks?: (serverUrl: string) => DeeplinkConfig[];
+  
+  // Generate command installation instructions as Markdown
+  generateCommandInstructions?: () => {
+    prerequisite?: string;           // Optional pre-step (Markdown)
+    command: string;                 // Main command (Markdown)
+    followUp?: string[];             // Optional post-steps (Markdown)
   };
-  registry?: {                   // Registry listing info
+  
+  // Generate manual config snippet
+  generateManualConfig?: () => {
+    configFilePath: string;
+    snippet: string;                 // Raw JSON/YAML/etc
+  };
+  
+  registry?: {                       // Registry listing info
     listed: boolean;
     listingUrl?: string;
   };
 }
 ```
+
+All instruction text is Markdown-formatted, allowing for:
+- Inline code: `` `code` ``
+- Code blocks: `` ```bash\ncommand\n``` ``
+- Links: `[text](url)`
+- Bold/italic: `**bold**`, `*italic*`
 
 TypeScript provides compile-time validation, so any schema errors will be caught before generating documentation.
 
@@ -109,25 +151,26 @@ The `_template.md` file uses Handlebars-style syntax:
 
 - `{{variable}}` - Variable substitution
 - `{{#if condition}}...{{/if}}` - Conditional blocks
-- `{{#if condition}}...{{else if condition2}}...{{else}}...{{/if}}` - Else-if chains
+- `{{#if condition}}...{{else}}...{{/if}}` - If-else blocks
 - `{{#each array}}...{{/each}}` - Loop over arrays
 - `{{#unless condition}}...{{/unless}}` - Negative conditional
 - `{{@last}}` - Special variable in loops (true for last item)
 - `(eq a b)` - Helper function for equality comparison
 
+When rendering, the generation script calls the client's generator functions to produce the actual content.
+
 ## Standard Configuration
 
-All clients use the same HTTP configuration:
+All clients use the same HTTP server URL:
 
-```json
-{
-  "type": "http",
-  "url": "https://mcp.supabase.com/mcp"
-}
+```
+https://mcp.supabase.com/mcp
 ```
 
-The template automatically wraps this in the appropriate config format (`mcpServers`, `servers`, or flat) based on the client's `configFormat` setting.
+Each client's `generateManualConfig()` function returns the appropriate configuration format for that client.
 
 ## Future Enhancements
 
-This data structure can be published as an npm package (e.g., `@supabase/mcp-clients-registry`) to share client metadata with the Supabase documentation website and other tools.
+- Add more MCP clients as they add support
+- Enhance generator functions to support more dynamic scenarios
+- Add validation for generated content (e.g., ensure valid URLs, markdown syntax)

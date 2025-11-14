@@ -11,13 +11,4 @@ export {
   currentFeatureGroupSchema,
   type FeatureGroup,
 } from './types.js';
-export {
-  clients,
-  type Client,
-  type ClientInstallation,
-  type DeeplinkConfig,
-  type CommandConfig,
-  type ManualConfig,
-  type RegistryConfig,
-} from './integrations/index.js';
 export const version = packageJson.version;

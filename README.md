@@ -47,11 +47,13 @@ You can also manually install it on your favorite client.
 
 #### Install via command line:
 
+Add the Supabase MCP server to Claude Code:
+
 ```bash
 claude mcp add --transport http supabase https://mcp.supabase.com/mcp
 ```
 
-After adding the server, type &#x60;/mcp&#x60; in Claude Code and follow the instructions to complete the OAuth authentication flow.
+Type `/mcp` in Claude Code and follow the instructions to complete the OAuth authentication flow.
 
 #### Or install manually:
 
@@ -134,11 +136,13 @@ For more information, see the [VS Code MCP docs](https://code.visualstudio.com/d
 
 #### Install via command line:
 
+Start a Goose session with the Supabase extension:
+
 ```bash
-goose session --with-streamable-http-extension &quot;https://mcp.supabase.com/mcp&quot;
+goose session --with-streamable-http-extension "https://mcp.supabase.com/mcp"
 ```
 
-If using the desktop app, see Using Extensions: https://block.github.io/goose/docs/getting-started/using-extensions
+If using the desktop app, see [Using Extensions](https://block.github.io/goose/docs/getting-started/using-extensions).
 
 #### Or install manually:
 
@@ -169,11 +173,13 @@ For more information, see the [Goose MCP docs](https://block.github.io/goose/doc
 
 #### Install via command line:
 
+Add the Supabase MCP server to Factory:
+
 ```bash
 droid mcp add supabase https://mcp.supabase.com/mcp --type http
 ```
 
-After adding the server, restart Factory or type &#x60;/mcp&#x60; within droid to complete the OAuth authentication flow.
+Restart Factory or type `/mcp` within droid to complete the OAuth authentication flow.
 
 #### Or install manually:
 

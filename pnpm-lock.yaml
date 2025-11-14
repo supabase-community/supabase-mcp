@@ -11,9 +11,15 @@ importers:
       '@biomejs/biome':
         specifier: 1.9.4
         version: 1.9.4
+      '@types/common-tags':
+        specifier: ^1.8.4
+        version: 1.8.4
       '@types/node':
         specifier: ^22.17.2
         version: 22.17.2
+      common-tags:
+        specifier: ^1.8.2
+        version: 1.8.2
       handlebars:
         specifier: ^4.7.8
         version: 4.7.8

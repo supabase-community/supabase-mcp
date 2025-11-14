@@ -8,6 +8,28 @@ import { clients } from '../clients/constants';
 // Register the 'eq' helper for Handlebars
 Handlebars.registerHelper('eq', (a, b) => a === b);
 
+const SERVER_URL = 'https://mcp.supabase.com/mcp';
+
+/**
+ * Prepare client data for template rendering by calling generator functions
+ */
+function prepareClientData(client: Client) {
+  return {
+    key: client.key,
+    label: client.label,
+    description: client.description,
+    officialDocsUrl: client.officialDocsUrl,
+    configFile: client.configFile,
+    configFormat: client.configFormat,
+    serverUrl: SERVER_URL,
+    registry: client.registry,
+    // Call generator functions to get actual content
+    deeplinks: client.generateDeeplinks?.(SERVER_URL),
+    commandInstructions: client.generateCommandInstructions?.(),
+    manualConfig: client.generateManualConfig?.(),
+  };
+}
+
 /**
  * Generate markdown documentation for a single client
  */
@@ -16,10 +38,11 @@ function generateClientMarkdown(
   template: string
 ): { filename: string; content: string } {
   const compiledTemplate = Handlebars.compile(template);
-  const content = compiledTemplate(client);
+  const preparedData = prepareClientData(client);
+  const content = compiledTemplate(preparedData);
 
   return {
-    filename: `${client.id}.md`,
+    filename: `${client.key}.md`,
     content,
   };
 }
@@ -75,7 +98,7 @@ function main() {
   const generatedDocs: string[] = [];
 
   for (const client of clients) {
-    console.log(`Generating documentation for ${client.name}...`);
+    console.log(`Generating documentation for ${client.label}...`);
     const { content } = generateClientMarkdown(client, template);
     generatedDocs.push(content.trim());
 
@@ -83,10 +106,10 @@ function main() {
     const clientDocPath = join(
       process.cwd(),
       'docs/clients',
-      `${client.id}.md`
+      `${client.key}.md`
     );
     writeFileSync(clientDocPath, content, 'utf-8');
-    console.log(`   Wrote ${client.id}.md`);
+    console.log(`   Wrote ${client.key}.md`);
   }
 
   // Update README.md

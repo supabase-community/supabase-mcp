@@ -40,16 +40,50 @@ For more information, visit the [Supabase MCP docs](https://supabase.com/docs/gu
 
 You can also manually install it on your favorite client.
 
+<!-- BEGIN GENERATED:clients -->
+
+<details>
+<summary>Claude Code</summary>
+
+#### Install via command line:
+
+Add the Supabase MCP server to Claude Code:
+
+```bash
+claude mcp add --transport http supabase https://mcp.supabase.com/mcp
+```
+
+Type `/mcp` in Claude Code and follow the instructions to complete the OAuth authentication flow.
+
+#### Or install manually:
+
+Open (or create) your `.mcp.json` file and add:
+
+```json
+{
+  "mcpServers": {
+    "supabase": {
+      "type": "http",
+      "url": "https://mcp.supabase.com/mcp"
+    }
+  }
+}
+```
+
+For more information, see the [Claude Code MCP docs](https://code.claude.com/docs/en/mcp).
+
+</details>
+
 <details>
 <summary>Cursor</summary>
 
 #### Click the button to install:
 
-[<img src="https://cursor.com/deeplink/mcp-install-dark.svg" alt="Install in Cursor">](https://cursor.com/en/install-mcp?name=Supabase&config=eyJ1cmwiOiJodHRwczovL21jcC5zdXBhYmFzZS5jb20vbWNwIn0%3D)
+[<img src="https://cursor.com/deeplink/mcp-install-dark.svg" alt="Install in Cursor">](https://cursor.com/en/install-mcp?name&#x3D;Supabase&amp;config&#x3D;eyJ1cmwiOiJodHRwczovL21jcC5zdXBhYmFzZS5jb20vbWNwIn0%3D)
 
 #### Or install manually:
 
-Go to `Cursor Settings` → `MCP` → `Add new MCP Server`. Name to your liking, use `type: http` and the following config:
+Open (or create) your `.cursor/mcp.json` file and add:
 
 ```json
 {
@@ -71,7 +105,8 @@ For more information, see the [Cursor MCP docs](https://docs.cursor.com/context/
 
 #### Click the button to install:
 
-[<img src="https://img.shields.io/badge/VS_Code-VS_Code?style=flat-square&label=Install%20Server&color=0098FF" alt="Install in VS Code">](https://vscode.dev/redirect?url=vscode:mcp/install%3F%7B%22name%22%3A%22Supabase%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fmcp.supabase.com%2Fmcp%22%7D) [<img alt="Install in VS Code Insiders" src="https://img.shields.io/badge/VS_Code_Insiders-VS_Code_Insiders?style=flat-square&label=Install%20Server&color=24bfa5">](https://insiders.vscode.dev/redirect?url=vscode-insiders:mcp/install%3F%7B%22name%22%3A%22Supabase%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fmcp.supabase.com%2Fmcp%22%7D)
+[<img src="https://img.shields.io/badge/VS_Code-VS_Code?style&#x3D;flat-square&amp;label&#x3D;Install%20Server&amp;color&#x3D;0098FF" alt="Install in VS Code">](https://vscode.dev/redirect?url&#x3D;vscode:mcp/install%3F%7B%22name%22%3A%22Supabase%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fmcp.supabase.com%2Fmcp%22%7D) 
+[<img src="https://img.shields.io/badge/VS_Code_Insiders-VS_Code_Insiders?style&#x3D;flat-square&amp;label&#x3D;Install%20Server&amp;color&#x3D;24bfa5" alt="Install in VS Code Insiders">](https://insiders.vscode.dev/redirect?url&#x3D;vscode-insiders:mcp/install%3F%7B%22name%22%3A%22Supabase%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fmcp.supabase.com%2Fmcp%22%7D)
 
 #### Or install manually:
 
@@ -93,13 +128,58 @@ For more information, see the [VS Code MCP docs](https://code.visualstudio.com/d
 </details>
 
 <details>
+<summary>Goose</summary>
+
+#### Click the button to install:
+
+[<img src="https://block.github.io/goose/img/extension-install-dark.svg" alt="Install in Goose">](goose://extension?type&#x3D;streamable_http&amp;url&#x3D;https%3A%2F%2Fmcp.supabase.com%2Fmcp&amp;id&#x3D;supabase&amp;name&#x3D;Supabase&amp;description&#x3D;Connect%20your%20Supabase%20projects%20to%20AI%20assistants.%20Manage%20tables%2C%20query%20data%2C%20deploy%20Edge%20Functions%2C%20and%20interact%20with%20your%20Supabase%20backend%20directly%20from%20your%20MCP%20client.)
+
+#### Install via command line:
+
+Start a Goose session with the Supabase extension:
+
+```bash
+goose session --with-streamable-http-extension "https://mcp.supabase.com/mcp"
+```
+
+If using the desktop app, see [Using Extensions](https://block.github.io/goose/docs/getting-started/using-extensions).
+
+#### Or install manually:
+
+Open (or create) your `~/.config/goose/config.yaml` file and add:
+
+```yaml
+extensions:
+  supabase:
+    available_tools: []
+    bundled: null
+    description: Connect your Supabase projects to AI assistants. Manage tables, query data, deploy Edge Functions, and interact with your Supabase backend directly from your MCP client.
+    enabled: true
+    env_keys: []
+    envs: {}
+    headers: {}
+    name: Supabase
+    timeout: 300
+    type: streamable_http
+    uri: https://mcp.supabase.com/mcp
+```
+
+For more information, see the [Goose MCP docs](https://block.github.io/goose/docs/category/getting-started).
+
+</details>
+
+<details>
 <summary>Factory</summary>
 
 #### Install via command line:
 
+Add the Supabase MCP server to Factory:
+
 ```bash
 droid mcp add supabase https://mcp.supabase.com/mcp --type http
 ```
+
+Restart Factory or type `/mcp` within droid to complete the OAuth authentication flow.
 
 #### Or install manually:
 
@@ -107,18 +187,20 @@ Open (or create) your `~/.factory/mcp.json` file and add:
 
 ```json
 {
-  "supabase": {
-    "type": "http",
-    "url": "https://mcp.supabase.com/mcp"
+  "mcpServers": {
+    "supabase": {
+      "type": "http",
+      "url": "https://mcp.supabase.com/mcp"
+    }
   }
 }
 ```
 
-After adding the server, restart Factory or type `/mcp` within droid to complete the OAuth authentication flow.
-
 For more information, see the [Factory MCP docs](https://docs.factory.ai/cli/configuration/mcp.md).
 
 </details>
+
+<!-- END GENERATED:clients -->
 
 ## Options
 

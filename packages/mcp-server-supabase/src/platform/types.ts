@@ -234,10 +234,7 @@ export type DevelopmentOperations = {
 
 export type StorageOperations = {
   getStorageConfig(projectId: string): Promise<StorageConfig>;
-  updateStorageConfig(
-    projectId: string,
-    config: StorageConfig
-  ): Promise<void>;
+  updateStorageConfig(projectId: string, config: StorageConfig): Promise<void>;
   listAllBuckets(projectId: string): Promise<StorageBucket[]>;
 };
 
@@ -249,10 +246,7 @@ export type BranchingOperations = {
   ): Promise<Branch>;
   deleteBranch(branchId: string): Promise<void>;
   mergeBranch(branchId: string): Promise<void>;
-  resetBranch(
-    branchId: string,
-    options: ResetBranchOptions
-  ): Promise<void>;
+  resetBranch(branchId: string, options: ResetBranchOptions): Promise<void>;
   rebaseBranch(branchId: string): Promise<void>;
 };
 

@@ -15,41 +15,13 @@ Before setting up the MCP server, we recommend you read our [security best pract
 
 ### 2. Configure your MCP client
 
-The Supabase MCP server is hosted at `https://mcp.supabase.com/mcp` and supports the Streamable HTTP transport with Dynamic Client Registration OAuth 2.1 authentication.
+To configure the Supabase MCP server on your client, visit our [setup documentation](https://supabase.com/docs/guides/getting-started/mcp#step-2-configure-your-ai-tool).
 
-If you're running Supabase locally with [Supabase CLI](https://supabase.com/docs/guides/local-development/cli/getting-started), you can access the MCP server at `http://localhost:54321/mcp`. For [self-hosted Supabase](https://supabase.com/docs/guides/self-hosting/docker), check the [Enabling MCP server](https://supabase.com/docs/guides/self-hosting/enable-mcp) page. Currently, the MCP Server in CLI and self-hosted environments offer a limited subset of tools and no OAuth 2.1.
+Your MCP client will automatically prompt you to log in to Supabase during setup. Be sure to choose the organization that contains the project you wish to work with.
 
-The easiest way to connect your MCP client (such as Cursor) to your project is clicking [Connect](https://supabase.com/dashboard/project/_?showConnect=true&tab=mcp) in the Supabase dashboard and navigating to the MCP tab. There you can choose options such as [feature groups](#feature-groups), and generate one-click installers or config entries for popular clients.
+#### Other clients
 
-Most MCP clients store the configuration as JSON in the following format:
-
-```json
-{
-  "mcpServers": {
-    "supabase": {
-      "type": "http",
-      "url": "https://mcp.supabase.com/mcp"
-    }
-  }
-}
-```
-
-Your MCP client will automatically prompt you to log in to Supabase during setup. This will open a browser window where you can log in to your Supabase account and grant access to the MCP client. Be sure to choose the organization that contains the project you wish to work with. In the future, we'll offer more fine grain control over these permissions.
-
-For more information, visit the [Supabase MCP docs](https://supabase.com/docs/guides/getting-started/mcp).
-
-You can also manually install it on your favorite client.
-
-<details>
-<summary>Cursor</summary>
-
-#### Click the button to install:
-
-[<img src="https://cursor.com/deeplink/mcp-install-dark.svg" alt="Install in Cursor">](https://cursor.com/en/install-mcp?name=Supabase&config=eyJ1cmwiOiJodHRwczovL21jcC5zdXBhYmFzZS5jb20vbWNwIn0%3D)
-
-#### Or install manually:
-
-Go to `Cursor Settings` → `MCP` → `Add new MCP Server`. Name to your liking, use `type: http` and the following config:
+Most MCP clients require the following information:
 
 ```json
 {
@@ -62,63 +34,15 @@ Go to `Cursor Settings` → `MCP` → `Add new MCP Server`. Name to your liking,
 }
 ```
 
-For more information, see the [Cursor MCP docs](https://docs.cursor.com/context/mcp).
+If your MCP client is not currently on our documentation, search for your client's configuration file (for example `mcp.json`) and add the following information in the correct format (json, yaml, etc...).
 
-</details>
+#### CLI
 
-<details>
-<summary>VS Code</summary>
+If you're running Supabase locally with [Supabase CLI](https://supabase.com/docs/guides/local-development/cli/getting-started), you can access the MCP server at `http://localhost:54321/mcp`. Currently, the MCP Server in CLI environments offers a limited subset of tools and no OAuth 2.1.
 
-#### Click the button to install:
+#### Self-hosted
 
-[<img src="https://img.shields.io/badge/VS_Code-VS_Code?style=flat-square&label=Install%20Server&color=0098FF" alt="Install in VS Code">](https://vscode.dev/redirect?url=vscode:mcp/install%3F%7B%22name%22%3A%22Supabase%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fmcp.supabase.com%2Fmcp%22%7D) [<img alt="Install in VS Code Insiders" src="https://img.shields.io/badge/VS_Code_Insiders-VS_Code_Insiders?style=flat-square&label=Install%20Server&color=24bfa5">](https://insiders.vscode.dev/redirect?url=vscode-insiders:mcp/install%3F%7B%22name%22%3A%22Supabase%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fmcp.supabase.com%2Fmcp%22%7D)
-
-#### Or install manually:
-
-Open (or create) your `mcp.json` file and add:
-
-```json
-{
-  "servers": {
-    "supabase": {
-      "type": "http",
-      "url": "https://mcp.supabase.com/mcp"
-    }
-  }
-}
-```
-
-For more information, see the [VS Code MCP docs](https://code.visualstudio.com/docs/copilot/customization/mcp-servers#_add-an-mcp-server).
-
-</details>
-
-<details>
-<summary>Factory</summary>
-
-#### Install via command line:
-
-```bash
-droid mcp add supabase https://mcp.supabase.com/mcp --type http
-```
-
-#### Or install manually:
-
-Open (or create) your `~/.factory/mcp.json` file and add:
-
-```json
-{
-  "supabase": {
-    "type": "http",
-    "url": "https://mcp.supabase.com/mcp"
-  }
-}
-```
-
-After adding the server, restart Factory or type `/mcp` within droid to complete the OAuth authentication flow.
-
-For more information, see the [Factory MCP docs](https://docs.factory.ai/cli/configuration/mcp.md).
-
-</details>
+For [self-hosted Supabase](https://supabase.com/docs/guides/self-hosting/docker), check the [Enabling MCP server](https://supabase.com/docs/guides/self-hosting/enable-mcp) page. Currently, the MCP Server in self-hosted environments offers a limited subset of tools and no OAuth 2.1.
 
 ## Options
 

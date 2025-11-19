@@ -19,8 +19,6 @@ To configure the Supabase MCP server on your client, visit our [setup documentat
 
 Your MCP client will automatically prompt you to log in to Supabase during setup. Be sure to choose the organization that contains the project you wish to work with.
 
-#### Other clients
-
 Most MCP clients require the following information:
 
 ```json

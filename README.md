@@ -34,7 +34,7 @@ Most MCP clients require the following information:
 }
 ```
 
-If your MCP client is not currently on our documentation, search for your client's configuration file (for example `mcp.json`) and add the following information in the correct format (json, yaml, etc...).
+If you don't see your MCP client listed in our documentation, check your client's MCP documentation and copy the above MCP information into their expected format (json, yaml, etc).
 
 #### CLI
 

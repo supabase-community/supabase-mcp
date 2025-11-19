@@ -92,32 +92,6 @@ For more information, see the [VS Code MCP docs](https://code.visualstudio.com/d
 
 </details>
 
-<details>
-<summary>Gemini CLI</summary>
-
-#### Install via command line:
-
-```bash
-gemini mcp add -t http supabase https://mcp.supabase.com/mcp
-```
-
-#### Install using Supabase extension for Gemini CLI:
-
-The Supabase extension for Gemini CLI bundles the MCP server with a context
-file and custom commands, teaching Gemini how to better use all tools.
-
-Use the following command to install the extension:
-
-```bash
-gemini extensions install https://github.com/supabase-community/supabase-mcp
-```
-
-After adding the server or extension, start Gemini CLI and run `/mcp auth supabase` to authenticate.
-
-For more information, see the [Gemini CLI MCP docs](https://geminicli.com/docs/tools/mcp-server/).
-
-</details>
-
 ## Options
 
 The following options are configurable as URL query parameters:

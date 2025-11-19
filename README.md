@@ -15,7 +15,7 @@ Before setting up the MCP server, we recommend you read our [security best pract
 
 ### 2. Configure your MCP client
 
-To configure the Supabase MCP server on your client, visit our [setup documentation](https://supabase.com/docs/guides/getting-started/mcp#step-2-configure-your-ai-tool).
+To configure the Supabase MCP server on your client, visit our [setup documentation](https://supabase.com/docs/guides/getting-started/mcp#step-2-configure-your-ai-tool). You can also generate a custom MCP URL for your project by visiting the [MCP connection tab](https://supabase.com/dashboard/project/_?showConnect=true&connectTab=mcp) in the Supabase dashboard.
 
 Your MCP client will automatically prompt you to log in to Supabase during setup. Be sure to choose the organization that contains the project you wish to work with.
 

@@ -50,6 +50,7 @@
     "@modelcontextprotocol/sdk": "^1.18.0",
     "@supabase/mcp-utils": "workspace:^",
     "common-tags": "^1.8.2",
+    "gqlmin": "^0.3.1",
     "graphql": "^16.11.0",
     "openapi-fetch": "^0.13.5",
     "zod": "^3.24.1"

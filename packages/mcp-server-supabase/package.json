@@ -62,7 +62,7 @@
     "@types/common-tags": "^1.8.4",
     "@types/node": "^22.8.6",
     "@vitest/coverage-v8": "^2.1.9",
-    "ai": "^4.3.4",
+    "ai": "^5.0.52",
     "date-fns": "^4.1.0",
     "dotenv": "^16.5.0",
     "msw": "^2.7.3",

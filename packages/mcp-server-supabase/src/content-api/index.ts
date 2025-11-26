@@ -1,3 +1,4 @@
+import gqlmin from 'gqlmin';
 import { z } from 'zod';
 import { GraphQLClient, type GraphQLRequest, type QueryFn } from './graphql.js';
 
@@ -25,7 +26,8 @@ export async function createContentApiClient(
     loadSchema: async () => {
       const response = await graphqlClient.query({ query: '{ schema }' });
       const { schema } = contentApiSchemaResponseSchema.parse(response);
-      return schema;
+      const minifiedSchema = gqlmin(schema);
+      return minifiedSchema;
     },
     async query(request: GraphQLRequest) {
       return graphqlClient.query(request);

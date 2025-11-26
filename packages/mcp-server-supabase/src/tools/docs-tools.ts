@@ -16,7 +16,9 @@ export function getDocsTools({ contentApiClient }: DocsToolsOptions) {
         return source`
           Search the Supabase documentation using GraphQL. Must be a valid GraphQL query.
           You should default to calling this even if you think you already know the answer, since the documentation is always being updated.
-          Below is the GraphQL schema for the Supabase docs endpoint:
+
+          Below is the GraphQL schema for this tool:
+
           ${schema}
         `;
       },

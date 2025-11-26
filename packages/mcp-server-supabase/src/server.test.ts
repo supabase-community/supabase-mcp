@@ -5,6 +5,7 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { StreamTransport } from '@supabase/mcp-utils';
 import { codeBlock, stripIndent } from 'common-tags';
+import gqlmin from 'gqlmin';
 import { setupServer } from 'msw/node';
 import { beforeEach, describe, expect, test } from 'vitest';
 import {
@@ -2962,7 +2963,8 @@ describe('docs tools', () => {
       throw new Error('tool description not found');
     }
 
-    expect(tool.description.includes(contentApiMockSchema)).toBe(true);
+    const minifiedSchema = gqlmin(contentApiMockSchema);
+    expect(tool.description.includes(minifiedSchema)).toBe(true);
   });
 
   test('schema is only loaded when listing tools', async () => {

@@ -73,6 +73,12 @@ export function getEdgeFunctionTools({
           .string()
           .describe('The import map for the function.')
           .optional(),
+        verify_jwt: z
+          .boolean()
+          .describe(
+            'Whether to require a valid JWT in the Authorization header. Set to false for functions that implement custom authentication (e.g., API keys, webhooks). Defaults to true.'
+          )
+          .optional(),
         files: z
           .array(
             z.object({
@@ -90,6 +96,7 @@ export function getEdgeFunctionTools({
         name,
         entrypoint_path,
         import_map_path,
+        verify_jwt,
         files,
       }) => {
         if (readOnly) {
@@ -100,6 +107,7 @@ export function getEdgeFunctionTools({
           name,
           entrypoint_path,
           import_map_path,
+          verify_jwt,
           files,
         });
       },

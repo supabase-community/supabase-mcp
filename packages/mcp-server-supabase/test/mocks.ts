@@ -1280,6 +1280,7 @@ export class MockBranch {
       status: this.status,
       created_at: this.created_at.toISOString(),
       updated_at: this.updated_at.toISOString(),
+      with_data: false,
     };
   }
 

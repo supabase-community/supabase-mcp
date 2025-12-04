@@ -23,7 +23,7 @@ export function getBranchingTools({
   return {
     create_branch: injectableTool({
       description:
-        'Creates a development branch on a Supabase project. This will apply all migrations from the main project to a fresh branch database. Note that production data will not carry over. The branch will get its own project_id via the resulting project_ref. Use this ID to execute queries and migrations on the branch.',
+        'Creates a development branch on a Supabase project. Call `get_and_confirm_cost` first to verify the cost and get user confirmation. This will apply all migrations from the main project to a fresh branch database. Note that production data will not carry over. The branch will get its own project_id via the resulting project_ref. Use this ID to execute queries and migrations on the branch.',
       annotations: {
         title: 'Create branch',
         readOnlyHint: false,
@@ -42,7 +42,9 @@ export function getBranchingTools({
             required_error:
               'User must confirm understanding of costs before creating a branch.',
           })
-          .describe('The cost confirmation ID. Call `confirm_cost` first.'),
+          .describe(
+            'The cost confirmation ID. Call `get_and_confirm_cost` first.'
+          ),
       }),
       inject: { project_id },
       execute: async ({ project_id, name, confirm_cost_id }) => {

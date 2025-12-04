@@ -104,6 +104,7 @@ export const deployEdgeFunctionOptionsSchema = z.object({
   name: z.string(),
   entrypoint_path: z.string(),
   import_map_path: z.string().optional(),
+  verify_jwt: z.boolean().optional(),
   files: z.array(
     z.object({
       name: z.string(),

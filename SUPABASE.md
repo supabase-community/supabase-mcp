@@ -6,12 +6,31 @@ This extension allows you to access your Supabase projects and perform tasks lik
 
 **Key capabilities**: Execute SQL, manage migrations, deploy functions, generate TypeScript types, access logs, and search documentation.
 
+Tools executing using this server affect the hosted Supabase project(s), and changes can be synced to the filesystem using Supabase CLI. Assume the hosted database is the source of truth for migration history, and use CLI to sync changes to the local workspace.
+
 ## Best Practices
 
+**Project identification**
+
+The user will likely have linked their Supabase CLI to a development project. You can find the linked project ref in `supabase/.temp/project-ref`, use this as the `project_id` in MCP tool calls.
+
 **Schema management**
+
+To update tables:
+
+1. Call MCP `list_tables` to inspect the current schema
+2. Call `apply_migration` with desired changes
+3. Call MCP `get_advisors` to find and fix "security" and "performance" issues as needed with further migrations
+4. Sync new migration(s) to `supabase/migrations/` locally with `supabase migration fetch --yes`
+5. Generate updated types and review codebase to align usage
+
 - Use `apply_migration` for schema changes (CREATE/ALTER/DROP tables) - these are tracked
 - Use `execute_sql` for queries and data operations (SELECT/INSERT/UPDATE/DELETE) - these are not tracked
 - Always specify schemas explicitly: `public.users` instead of `users`
+
+**Type generation**
+
+While iterating on the schema, you should generate updated types with `supabase gen types --linked`. This outputs to stdio, so use `>` to redirect to a file.
 
 ## Troubleshooting
 
@@ -20,9 +39,16 @@ This extension allows you to access your Supabase projects and perform tasks lik
 - "relation does not exist": Use `list_tables` to verify table names and schemas
 - "Not authenticated": Restart MCP connection and verify organization access
 - Migration conflicts: Check `list_migrations` history before applying new migrations
+- Frontend error `Could not find the '<column>' column of '<table>' in the schema cache`: Update types + implementation to ensure code matches current schema
+- No project ref: Run `supabase link` to link the workspace to a hosted development project
+- Data not appearing in app: Run `supabase db diff --linked`. If schema drift exists run `supabase db pull <migration_name> --yes` to store changes in a new local migration and repair remote migration history. Then proceed to update types and usage.
 
 **Using logs for debugging**
 - Use `get_logs` to view service logs when certain action fails
 - Available log types: `api`, `branch-action`, `postgres`, `edge-function`, `auth`, `storage`, `realtime`
 - Check Postgres logs to see slow queries, errors, or connection issues
 - Review API logs to debug PostgREST endpoint failures or RLS policy issues
+
+**Further resources**
+- For MCP configuration help: https://supabase.com/mcp
+- For Supabase CLI troubleshooting: https://supabase.com/docs/guides/cli/getting-started

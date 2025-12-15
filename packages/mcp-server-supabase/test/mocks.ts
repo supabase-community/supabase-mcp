@@ -1068,7 +1068,12 @@ export class MockEdgeFunction {
 
   constructor(
     projectId: string,
-    { name, entrypoint_path, import_map_path, verify_jwt }: MockEdgeFunctionOptions
+    {
+      name,
+      entrypoint_path,
+      import_map_path,
+      verify_jwt,
+    }: MockEdgeFunctionOptions
   ) {
     this.projectId = projectId;
     this.id = crypto.randomUUID();
@@ -1086,7 +1091,12 @@ export class MockEdgeFunction {
     this.updated_at = new Date();
   }
 
-  update({ name, entrypoint_path, import_map_path, verify_jwt }: MockEdgeFunctionOptions) {
+  update({
+    name,
+    entrypoint_path,
+    import_map_path,
+    verify_jwt,
+  }: MockEdgeFunctionOptions) {
     this.name = name;
     this.version += 1;
     this.entrypoint_path = `file://${join(this.pathPrefix, entrypoint_path)}`;

@@ -14,7 +14,7 @@
     "typecheck": "tsc --noEmit",
     "prebuild": "pnpm typecheck",
     "prepublishOnly": "pnpm build",
-    "registry:update": "tsx scripts/registry/update-version.ts",
+    "registry:update": "tsx scripts/registry/update-version.ts && biome format --write server.json",
     "registry:login": "scripts/registry/login.sh",
     "registry:publish": "mcp-publisher publish",
     "test": "vitest",

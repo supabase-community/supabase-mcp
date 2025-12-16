@@ -1,0 +1,8 @@
+[settings]
+experimental = true
+lockfile = true
+
+[tools]
+node = "lts"
+pnpm = "latest"
+"github:modelcontextprotocol/registry" = "latest"

@@ -1,0 +1,26 @@
+[[tools."github:modelcontextprotocol/registry"]]
+version = "1.4.0"
+backend = "github:modelcontextprotocol/registry"
+"platforms.linux-arm64" = { checksum = "sha256:ba5d486f86b2cef48ea506e8314d901a5169dcd56a5d6e9daf18d41244316235", url = "https://github.com/modelcontextprotocol/registry/releases/download/v1.4.0/mcp-publisher_linux_arm64.tar.gz", url_api = "https://api.github.com/repos/modelcontextprotocol/registry/releases/assets/329312426"}
+"platforms.linux-x64" = { checksum = "sha256:c4b402b43a85166c3f840641ca1c9e6de5bfa1cf533c22576d663ccbda0711bb", url = "https://github.com/modelcontextprotocol/registry/releases/download/v1.4.0/mcp-publisher_linux_amd64.tar.gz", url_api = "https://api.github.com/repos/modelcontextprotocol/registry/releases/assets/329312422"}
+"platforms.macos-arm64" = { checksum = "sha256:9eddbbb95efd54b9503f6c0668f43bab3f04c856946d3c7164f6daead232402f", url = "https://github.com/modelcontextprotocol/registry/releases/download/v1.4.0/mcp-publisher_darwin_arm64.tar.gz", url_api = "https://api.github.com/repos/modelcontextprotocol/registry/releases/assets/329312430"}
+"platforms.macos-x64" = { checksum = "sha256:eb5f89b76fc45a97070fa481eb03977584a78e3dff2781402d43482f114e4d6a", url = "https://github.com/modelcontextprotocol/registry/releases/download/v1.4.0/mcp-publisher_darwin_amd64.tar.gz", url_api = "https://api.github.com/repos/modelcontextprotocol/registry/releases/assets/329312428"}
+"platforms.windows-x64" = { checksum = "sha256:59ee8c4a997f94794db8db13f8809666631686a70a8d89a9f0fea993f9aede0f", url = "https://github.com/modelcontextprotocol/registry/releases/download/v1.4.0/mcp-publisher_windows_amd64.tar.gz", url_api = "https://api.github.com/repos/modelcontextprotocol/registry/releases/assets/329312423"}
+
+[[tools.node]]
+version = "24.11.1"
+backend = "core:node"
+"platforms.linux-arm64" = { checksum = "sha256:0dc93ec5c798b0d347f068db6d205d03dea9a71765e6a53922b682b91265d71f", url = "https://nodejs.org/dist/v24.11.1/node-v24.11.1-linux-arm64.tar.gz"}
+"platforms.linux-x64" = { checksum = "sha256:58a5ff5cc8f2200e458bea22e329d5c1994aa1b111d499ca46ec2411d58239ca", url = "https://nodejs.org/dist/v24.11.1/node-v24.11.1-linux-x64.tar.gz"}
+"platforms.macos-arm64" = { checksum = "sha256:b05aa3a66efe680023f930bd5af3fdbbd542794da5644ca2ad711d68cbd4dc35", url = "https://nodejs.org/dist/v24.11.1/node-v24.11.1-darwin-arm64.tar.gz"}
+"platforms.macos-x64" = { checksum = "sha256:096081b6d6fcdd3f5ba0f5f1d44a47e83037ad2e78eada26671c252fe64dd111", url = "https://nodejs.org/dist/v24.11.1/node-v24.11.1-darwin-x64.tar.gz"}
+"platforms.windows-x64" = { checksum = "sha256:5355ae6d7c49eddcfde7d34ac3486820600a831bf81dc3bdca5c8db6a9bb0e76", url = "https://nodejs.org/dist/v24.11.1/node-v24.11.1-win-x64.zip"}
+
+[[tools.pnpm]]
+version = "10.25.0"
+backend = "aqua:pnpm/pnpm"
+"platforms.linux-arm64" = { checksum = "sha256:2bbbc1be51ca359e8ce36d5ea04cb6150d3ff91c869946e8a17120d8b4510a4d", url = "https://github.com/pnpm/pnpm/releases/download/v10.25.0/pnpm-linux-arm64"}
+"platforms.linux-x64" = { checksum = "sha256:856b2d764a362d667f8b3fe28632c7ff1870557e5b92a9ed4ba1fdca35924a1d", url = "https://github.com/pnpm/pnpm/releases/download/v10.25.0/pnpm-linux-x64"}
+"platforms.macos-arm64" = { checksum = "sha256:81533f4a222939681eaac5a5cb4673416a434c16eeeaa9441e699363173063c4", url = "https://github.com/pnpm/pnpm/releases/download/v10.25.0/pnpm-macos-arm64"}
+"platforms.macos-x64" = { checksum = "sha256:458adb599dff0e6b98ba1cd5c38b81d415ed132250b9c29d5532563b2a0f0c32", url = "https://github.com/pnpm/pnpm/releases/download/v10.25.0/pnpm-macos-x64"}
+"platforms.windows-x64" = { checksum = "sha256:f028fe36e71ddeb034d113800221ea27934bb84717bace0388069f896c55474f", url = "https://github.com/pnpm/pnpm/releases/download/v10.25.0/pnpm-win-x64.exe"}

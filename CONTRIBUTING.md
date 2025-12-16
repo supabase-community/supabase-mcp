@@ -7,6 +7,7 @@ This repo uses pnpm for package management and the active LTS version of Node.js
 Clone the repo and run:
 
 ```bash
+mise install
 pnpm install
 ```
 

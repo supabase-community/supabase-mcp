@@ -2,11 +2,14 @@
 
 ## Development setup
 
-This repo uses pnpm for package management and the active LTS version of Node.js (see versions pinned in `.nvmrc` and `"packageManager"` in `package.json`).
+This repo uses pnpm for package management and the active LTS version of Node.js. Node.js and pnpm versions are managed via [mise](https://mise.jdx.dev/) (see `mise.toml`).
+
+> **Why mise?** We use mise to ensure all contributors use consistent versions of tools, reducing instances where code behaves differently on different machines. This is useful not only for managing Node.js and pnpm versions, but also binaries published outside of the npm ecosystem such as the [MCP Publisher CLI](https://modelcontextprotocol.info/tools/registry/publishing/).
 
 Clone the repo and run:
 
 ```bash
+mise install
 pnpm install
 ```
 

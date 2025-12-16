@@ -2,7 +2,7 @@
 
 ## Development setup
 
-This repo uses pnpm for package management and the active LTS version of Node.js (see versions pinned in `.nvmrc` and `"packageManager"` in `package.json`).
+This repo uses pnpm for package management and the active LTS version of Node.js. Node.js and pnpm versions are managed via [mise](https://mise.jdx.dev/) (see `mise.toml`).
 
 Clone the repo and run:
 

@@ -164,17 +164,19 @@ export class GraphQLClient {
   async #query(request: GraphQLRequest) {
     const { query, variables } = request;
 
-    const response = await fetch(this.#url, {
-      method: 'POST',
+    const url = new URL(this.#url);
+
+    url.searchParams.set('query', query);
+    if (variables !== undefined) {
+      url.searchParams.set('variables', JSON.stringify(variables));
+    }
+
+    const response = await fetch(url, {
+      method: 'GET',
       headers: {
         ...this.#headers,
-        'Content-Type': 'application/json',
         Accept: 'application/json',
       },
-      body: JSON.stringify({
-        query,
-        variables,
-      }),
     });
 
     if (!response.ok) {

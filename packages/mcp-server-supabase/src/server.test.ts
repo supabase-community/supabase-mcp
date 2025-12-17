@@ -7,7 +7,7 @@ import { StreamTransport } from '@supabase/mcp-utils';
 import { codeBlock, stripIndent } from 'common-tags';
 import gqlmin from 'gqlmin';
 import { setupServer } from 'msw/node';
-import { beforeEach, describe, expect, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import {
   ACCESS_TOKEN,
   API_URL,
@@ -29,14 +29,20 @@ import { BRANCH_COST_HOURLY, PROJECT_COST_MONTHLY } from './pricing.js';
 import { createSupabaseMcpServer } from './server.js';
 import type { SupabasePlatform } from './platform/types.js';
 
+let mockServer: ReturnType<typeof setupServer> | undefined;
+
 beforeEach(async () => {
   mockOrgs.clear();
   mockProjects.clear();
   mockBranches.clear();
   mockContentApiSchemaLoadCount.value = 0;
 
-  const server = setupServer(...mockContentApi, ...mockManagementApi);
-  server.listen({ onUnhandledRequest: 'error' });
+  mockServer = setupServer(...mockContentApi, ...mockManagementApi);
+  mockServer.listen({ onUnhandledRequest: 'error' });
+});
+
+afterEach(() => {
+  mockServer?.close();
 });
 
 type SetupOptions = {

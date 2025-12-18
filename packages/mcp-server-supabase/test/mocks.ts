@@ -87,9 +87,24 @@ export const mockBranches = new Map<string, MockBranch>();
 export const mockContentApiSchemaLoadCount = { value: 0 };
 
 export const mockContentApi = [
-  http.post(CONTENT_API_URL, async ({ request }) => {
-    const json = await request.json();
-    const { query } = graphqlRequestSchema.parse(json);
+  http.get(CONTENT_API_URL, async ({ request }) => {
+    const requestUrl = new URL(request.url);
+    const queryParam = requestUrl.searchParams.get('query') ?? '';
+    const variablesParam = requestUrl.searchParams.get('variables');
+
+    let variables: Record<string, unknown> | undefined;
+    if (variablesParam) {
+      try {
+        variables = JSON.parse(variablesParam);
+      } catch {
+        throw Error('Invalid query made to Content API');
+      }
+    }
+
+    const { query } = graphqlRequestSchema.parse({
+      query: queryParam,
+      variables,
+    });
 
     const schema = buildSchema(contentApiMockSchema);
     const document = parse(query);

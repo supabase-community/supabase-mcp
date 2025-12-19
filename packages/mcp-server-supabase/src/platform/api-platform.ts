@@ -649,11 +649,11 @@ export function createSupabaseApiPlatform(
     },
     async deleteBranch(branchId: string) {
       const response = await managementApiClient.DELETE(
-        '/v1/branches/{branch_id}',
+        '/v1/branches/{branch_id_or_ref}',
         {
           params: {
             path: {
-              branch_id: branchId,
+              branch_id_or_ref: branchId,
             },
           },
         }
@@ -663,11 +663,11 @@ export function createSupabaseApiPlatform(
     },
     async mergeBranch(branchId: string) {
       const response = await managementApiClient.POST(
-        '/v1/branches/{branch_id}/merge',
+        '/v1/branches/{branch_id_or_ref}/merge',
         {
           params: {
             path: {
-              branch_id: branchId,
+              branch_id_or_ref: branchId,
             },
           },
           body: {},
@@ -680,11 +680,11 @@ export function createSupabaseApiPlatform(
       const { migration_version } = resetBranchOptionsSchema.parse(options);
 
       const response = await managementApiClient.POST(
-        '/v1/branches/{branch_id}/reset',
+        '/v1/branches/{branch_id_or_ref}/reset',
         {
           params: {
             path: {
-              branch_id: branchId,
+              branch_id_or_ref: branchId,
             },
           },
           body: {
@@ -697,11 +697,11 @@ export function createSupabaseApiPlatform(
     },
     async rebaseBranch(branchId: string) {
       const response = await managementApiClient.POST(
-        '/v1/branches/{branch_id}/push',
+        '/v1/branches/{branch_id_or_ref}/push',
         {
           params: {
             path: {
-              branch_id: branchId,
+              branch_id_or_ref: branchId,
             },
           },
           body: {},

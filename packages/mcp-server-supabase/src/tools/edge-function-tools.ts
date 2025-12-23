@@ -87,7 +87,7 @@ export function getEdgeFunctionTools({
             })
           )
           .describe(
-            'The files to upload. This should include the entrypoint and any relative dependencies.'
+            'The files to upload. This should include the entrypoint, deno.json, and any relative dependencies. Always include a deno.json file to configure the Deno runtime (e.g., compiler options, imports).'
           ),
       }),
       inject: { project_id },

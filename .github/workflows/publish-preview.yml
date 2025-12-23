@@ -1,0 +1,37 @@
+name: Publish preview
+
+permissions:
+  pull-requests: write
+
+on:
+  pull_request:
+    types: [opened, synchronize, labeled]
+
+jobs:
+  preview:
+    if: >
+      github.repository == 'supabase-community/supabase-mcp' &&
+      github.event_name == 'pull_request' &&
+      contains(github.event.pull_request.labels.*.name, 'publish-preview')
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          filter: tree:0
+          fetch-depth: 0
+
+      - name: Setup Node.js and pnpm
+        uses: jdx/mise-action@v3
+        with:
+          install: true
+          cache: true
+
+      - name: Install dependencies
+        run: pnpm install --ignore-scripts
+
+      - name: Build packages
+        run: pnpm build
+
+      - name: Publish preview packages
+        run: pnpm dlx pkg-pr-new@latest publish --compact './packages/mcp-utils' './packages/mcp-server-supabase'

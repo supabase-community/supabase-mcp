@@ -8,3 +8,9 @@ ignoredBuiltDependencies:
 
 onlyBuiltDependencies:
   - supabase
+
+catalog:
+  '@ai-sdk/anthropic': ^2.0.0
+  '@modelcontextprotocol/sdk': ^1.23.0
+  ai: ^5.0.52
+  zod: ^4.2.1

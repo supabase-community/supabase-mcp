@@ -51,22 +51,24 @@
   },
   "dependencies": {
     "@mjackson/multipart-parser": "^0.10.1",
-    "@modelcontextprotocol/sdk": "^1.18.0",
+    "@modelcontextprotocol/sdk": "catalog:",
     "@supabase/mcp-utils": "workspace:^",
     "common-tags": "^1.8.2",
     "gqlmin": "^0.3.1",
     "graphql": "^16.11.0",
-    "openapi-fetch": "^0.13.5",
-    "zod": "^3.24.1"
+    "openapi-fetch": "^0.13.5"
+  },
+  "peerDependencies": {
+    "zod": "^3.25.0 || ^4.0.0"
   },
   "devDependencies": {
-    "@ai-sdk/anthropic": "^1.2.9",
+    "@ai-sdk/anthropic": "catalog:",
     "@electric-sql/pglite": "^0.2.17",
     "@total-typescript/tsconfig": "^1.0.4",
     "@types/common-tags": "^1.8.4",
     "@types/node": "^22.8.6",
     "@vitest/coverage-v8": "^2.1.9",
-    "ai": "^4.3.4",
+    "ai": "catalog:",
     "date-fns": "^4.1.0",
     "dotenv": "^16.5.0",
     "msw": "^2.7.3",
@@ -78,6 +80,7 @@
     "tsx": "^4.19.2",
     "typescript": "^5.6.3",
     "vite": "^5.4.19",
-    "vitest": "^2.1.9"
+    "vitest": "^2.1.9",
+    "zod": "catalog:"
   }
 }

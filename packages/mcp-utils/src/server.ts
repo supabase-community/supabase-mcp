@@ -12,9 +12,9 @@ import {
   type ReadResourceResult,
   type ServerCapabilities,
   type ListToolsResult,
+  type Tool as McpTool,
 } from '@modelcontextprotocol/sdk/types.js';
-import type { z } from 'zod';
-import zodToJsonSchema from 'zod-to-json-schema';
+import { z } from 'zod/v4';
 import type {
   ExpandRecursively,
   ExtractNotification,
@@ -441,11 +441,7 @@ export function createMcpServer(options: McpServerOptions) {
           tools: await Promise.all(
             Object.entries(tools).map(
               async ([name, { description, annotations, parameters }]) => {
-                const inputSchema = zodToJsonSchema(parameters);
-
-                if (!('properties' in inputSchema)) {
-                  throw new Error('tool parameters must be a ZodObject');
-                }
+                const inputSchema = z.toJSONSchema(parameters);
 
                 return {
                   name,
@@ -454,7 +450,9 @@ export function createMcpServer(options: McpServerOptions) {
                       ? await description()
                       : description,
                   annotations,
-                  inputSchema,
+                  // Casting the same as the SDK does:
+                  // https://github.com/modelcontextprotocol/typescript-sdk/blob/fb07af810b51003c338dc4885a9e42f54519f9af/src/server/mcp.ts#L154
+                  inputSchema: inputSchema as McpTool['inputSchema'],
                 };
               }
             )

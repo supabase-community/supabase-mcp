@@ -6,7 +6,7 @@ import {
   tool,
 } from '@supabase/mcp-utils';
 import { processSql, renderHttp } from '@supabase/sql-to-rest';
-import { z } from 'zod';
+import { z } from 'zod/v4';
 import { version } from '../package.json';
 import { ensureNoTrailingSlash, ensureTrailingSlash } from './util.js';
 

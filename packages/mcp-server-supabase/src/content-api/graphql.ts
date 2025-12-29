@@ -6,7 +6,7 @@ import {
   validate,
   type DocumentNode,
 } from 'graphql';
-import { z } from 'zod';
+import { z } from 'zod/v4';
 
 export const graphqlRequestSchema = z.object({
   query: z.string(),

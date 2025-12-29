@@ -1,5 +1,5 @@
 import type { InitData } from '@supabase/mcp-utils';
-import { z } from 'zod';
+import { z } from 'zod/v4';
 import { AWS_REGION_CODES } from '../regions.js';
 
 export type SuccessResponse = {

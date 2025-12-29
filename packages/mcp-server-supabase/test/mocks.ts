@@ -6,7 +6,7 @@ import { http, HttpResponse } from 'msw';
 import { customAlphabet } from 'nanoid';
 import { join } from 'node:path/posix';
 import { expect } from 'vitest';
-import { z } from 'zod';
+import { z } from 'zod/v4';
 import packageJson from '../package.json' with { type: 'json' };
 import {
   getQueryFields,

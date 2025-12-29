@@ -2846,7 +2846,7 @@ describe('feature groups', () => {
       features: ['my-invalid-group'],
     });
 
-    await expect(setupPromise).rejects.toThrow('Invalid enum value');
+    await expect(setupPromise).rejects.toThrow('Invalid input');
   });
 
   test('duplicate group behaves like single group', async () => {

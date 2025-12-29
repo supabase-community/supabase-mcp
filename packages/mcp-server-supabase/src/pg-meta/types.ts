@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v4';
 
 export const postgresPrimaryKeySchema = z.object({
   schema: z.string(),

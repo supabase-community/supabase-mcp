@@ -1,5 +1,5 @@
 import { source } from 'common-tags';
-import { z } from 'zod';
+import { z } from 'zod/v4';
 import { listExtensionsSql, listTablesSql } from '../pg-meta/index.js';
 import {
   postgresExtensionSchema,

@@ -1,6 +1,11 @@
 /// <reference types="../extensions.d.ts" />
 
-import { generateText, type ToolCallUnion, type ToolSet } from 'ai';
+import {
+  generateText,
+  type TypedToolCall,
+  type ToolSet,
+  stepCountIs,
+} from 'ai';
 import { codeBlock } from 'common-tags';
 import { describe, expect, test } from 'vitest';
 import { createOrganization, createProject } from '../mocks.js';
@@ -24,7 +29,7 @@ describe('edge function e2e tests', () => {
       organization_id: org.id,
     });
 
-    const toolCalls: ToolCallUnion<ToolSet>[] = [];
+    const toolCalls: TypedToolCall<ToolSet>[] = [];
     const tools = await client.tools();
 
     const { text } = await generateText({
@@ -41,7 +46,7 @@ describe('edge function e2e tests', () => {
           content: `Deploy an edge function to project with ref ${project.id} that returns the current time in UTC.`,
         },
       ],
-      maxSteps: 3,
+      stopWhen: stepCountIs(3),
       async onStepFinish({ toolCalls: tools }) {
         toolCalls.push(...tools);
       },
@@ -90,7 +95,7 @@ describe('edge function e2e tests', () => {
       ]
     );
 
-    const toolCalls: ToolCallUnion<ToolSet>[] = [];
+    const toolCalls: TypedToolCall<ToolSet>[] = [];
     const tools = await client.tools();
 
     const { text } = await generateText({
@@ -107,7 +112,7 @@ describe('edge function e2e tests', () => {
           content: `Change my edge function (project id ${project.id}) to replace "world" with "Earth".`,
         },
       ],
-      maxSteps: 4,
+      stopWhen: stepCountIs(4),
       async onStepFinish({ toolCalls: tools }) {
         toolCalls.push(...tools);
       },

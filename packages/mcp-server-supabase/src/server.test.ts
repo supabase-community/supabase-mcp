@@ -1352,7 +1352,7 @@ describe('tools', () => {
         service: invalidService,
       },
     });
-    await expect(getLogsPromise).rejects.toThrow('Invalid enum value');
+    await expect(getLogsPromise).rejects.toThrow('Invalid option');
   });
 
   test('list edge functions', async () => {

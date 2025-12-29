@@ -1,6 +1,11 @@
 /// <reference types="../extensions.d.ts" />
 
-import { generateText, type ToolCallUnion, type ToolSet } from 'ai';
+import {
+  generateText,
+  type TypedToolCall,
+  type ToolSet,
+  stepCountIs,
+} from 'ai';
 import { describe, expect, test } from 'vitest';
 import { createOrganization, createProject } from '../mocks.js';
 import { getTestModel, setup } from './utils.js';
@@ -32,7 +37,7 @@ describe('project management e2e tests', () => {
     await inventoryProject.db
       .sql`create table inventory (id serial, name text)`;
 
-    const toolCalls: ToolCallUnion<ToolSet>[] = [];
+    const toolCalls: TypedToolCall<ToolSet>[] = [];
     const tools = await client.tools();
 
     const { text } = await generateText({
@@ -49,7 +54,7 @@ describe('project management e2e tests', () => {
           content: 'What tables do I have?',
         },
       ],
-      maxSteps: 3,
+      stopWhen: stepCountIs(3),
       async onStepFinish({ toolCalls: tools }) {
         toolCalls.push(...tools);
       },
@@ -86,7 +91,7 @@ describe('project management e2e tests', () => {
     const { client } = await setup({ projectId: project.id });
     const model = getTestModel();
 
-    const toolCalls: ToolCallUnion<ToolSet>[] = [];
+    const toolCalls: TypedToolCall<ToolSet>[] = [];
     const tools = await client.tools();
 
     const { text } = await generateText({
@@ -103,7 +108,7 @@ describe('project management e2e tests', () => {
           content: `What tables do I have?`,
         },
       ],
-      maxSteps: 2,
+      stopWhen: stepCountIs(2),
       async onStepFinish({ toolCalls: tools }) {
         toolCalls.push(...tools);
       },

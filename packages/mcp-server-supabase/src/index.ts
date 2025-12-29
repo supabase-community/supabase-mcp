@@ -7,8 +7,7 @@ export {
   type SupabaseMcpServerOptions,
 } from './server.js';
 export {
-  featureGroupSchema,
-  currentFeatureGroupSchema,
+  CURRENT_FEATURE_GROUPS,
   type FeatureGroup,
 } from './types.js';
 export const version = packageJson.version;

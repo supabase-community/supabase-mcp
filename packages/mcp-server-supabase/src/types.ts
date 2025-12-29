@@ -1,8 +1,6 @@
 import { z } from 'zod/v4';
 
-export const deprecatedFeatureGroupSchema = z.enum(['debug']);
-
-export const currentFeatureGroupSchema = z.enum([
+export const CURRENT_FEATURE_GROUPS = [
   'docs',
   'account',
   'database',
@@ -11,7 +9,11 @@ export const currentFeatureGroupSchema = z.enum([
   'functions',
   'branching',
   'storage',
-]);
+] as const;
+
+export const deprecatedFeatureGroupSchema = z.enum(['debug']);
+
+export const currentFeatureGroupSchema = z.enum(CURRENT_FEATURE_GROUPS);
 
 export const featureGroupSchema = z
   .union([deprecatedFeatureGroupSchema, currentFeatureGroupSchema])

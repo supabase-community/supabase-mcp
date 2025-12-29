@@ -1,21 +1,31 @@
-# AGENTS Guidelines for This Package
+# AGENTS.md
 
-This package (`@supabase/mcp-server-supabase`) is the main Supabase MCP server implementation.
-When working on this package interactively with an agent, please follow the guidelines below.
+This file provides guidance for AI agents working on this package.
 
-## 1. Use Development Mode, **not** Production Builds
+> See also: [Root AGENTS.md](../../AGENTS.md) for repository-wide guidelines.
 
-* **Always use `pnpm dev`** while iterating on the package. This starts tsup in watch mode
-  with hot-reload enabled, automatically rebuilding on file changes.
+## Package Overview
 
-* **Do _not_ run `pnpm build` inside the agent session.** Running the production build
-  command is slow and unnecessary during development. The `prebuild` hook runs
-  `typecheck` automatically, so type errors will fail builds anyway. If a production
-  build is required, do it outside of the interactive agent workflow.
+`@supabase/mcp-server-supabase` - Main MCP server for Supabase platform. Provides tools for database operations, edge functions, storage, branching, and more.
 
-## 2. Testing the Package Locally
+## Development Environment
 
-To test the local build with an MCP client (e.g., Cursor):
+### Setup
+
+From repository root:
+```bash
+mise install
+pnpm install
+```
+
+### Development Mode
+
+```bash
+cd packages/mcp-server-supabase
+pnpm dev        # Watch mode with auto-rebuild
+```
+
+### Testing Locally with MCP Client
 
 ```json
 {
@@ -36,71 +46,81 @@ To test the local build with an MCP client (e.g., Cursor):
 }
 ```
 
-* Use absolute path for `file:` protocol
-* Restart MCP client after rebuilding
-* Optional: Use `--api-url` to point at different Supabase instance
+## Commands Reference
 
-## 3. Running Tests
+### Build
 
-* **Unit tests:** `pnpm test:unit` - Fast tests, 30s timeout
-* **E2E tests:** `pnpm test:e2e` - Requires `SUPABASE_ACCESS_TOKEN`, 60s timeout, uses MSW mocks
-* **Integration tests:** `pnpm test:integration` - 30s timeout
-* **All tests:** `pnpm test` - Runs all test projects
-* **Coverage:** `pnpm test:coverage` - Generates coverage report in `test/coverage/`
+| Command | Description |
+|---------|-------------|
+| `pnpm build` | Production build |
+| `pnpm dev` | Watch mode with auto-rebuild |
+| `pnpm typecheck` | Type check without emitting |
 
-## 4. Code Generation
+### Test
 
-* **Management API types:** Run `pnpm generate:management-api-types` to regenerate types
-  from Supabase OpenAPI spec. Do NOT edit `src/management-api/types.ts` manually.
+| Command | Description |
+|---------|-------------|
+| `pnpm test` | Run all tests |
+| `pnpm test:unit` | Unit tests only |
+| `pnpm test:e2e` | E2E tests (requires `SUPABASE_ACCESS_TOKEN`) |
+| `pnpm test:integration` | Integration tests only |
+| `pnpm test:coverage` | Tests with coverage report |
 
-## 5. Publishing to MCP Registry
+### Code Generation
 
-When publishing a new version:
+| Command | Description |
+|---------|-------------|
+| `pnpm generate:management-api-types` | Regenerate Management API types from OpenAPI |
 
-1. Update version in `package.json` (follow semver)
-2. Run `pnpm registry:update` to sync version to `server.json`
-3. Ensure `domain-verification-key.pem` is in package directory
-4. Run `pnpm registry:login` to authenticate
-5. Run `pnpm registry:publish` to publish metadata
+## Code Style Guidelines
 
-**⚠️ Important:** Do NOT edit `server.json` manually - use `registry:update` script.
+See [Root AGENTS.md](../../AGENTS.md#code-style-guidelines).
 
-## 6. Useful Commands
+## Testing Patterns
 
-| Command | Purpose |
-|---------|---------|
-| `pnpm dev` | **Start dev server with watch mode** |
-| `pnpm typecheck` | Type check without emitting files |
-| `pnpm test` | Run all test projects |
-| `pnpm test:unit` | Run unit tests only |
-| `pnpm test:e2e` | Run e2e tests only |
-| `pnpm test:integration` | Run integration tests only |
-| `pnpm format` | Format files (run from repo root) |
-| `pnpm build` | **Production build – _do not run during agent sessions_** |
+### File Naming
+- Unit tests: `*.test.ts` (co-located in `src/`)
+- E2E tests: `*.e2e.ts` (in `test/e2e/`)
+- Integration tests: `*.integration.ts`
 
-## 7. Package Structure
+### Test Infrastructure
+- **HTTP mocking**: MSW (Mock Service Worker) in `test/mocks.ts`
+- **Database**: PGlite (in-memory PostgreSQL)
+- **AI testing**: Custom `toMatchCriteria()` matcher using Claude API
 
-* `src/tools/` - MCP tool implementations
-* `src/transports/` - Transport layer (stdio)
-* `src/platform/` - Platform-specific implementations
-* `src/pg-meta/` - PostgreSQL metadata queries (SQL files)
-* `src/management-api/` - Supabase Management API client (types auto-generated)
-* `src/content-api/` - Content API (GraphQL) client
-* `test/e2e/` - End-to-end tests
-* `test/` - Integration tests and utilities
+### Environment Variables for Tests
 
-## 8. What NOT to Commit
+| Variable | Required For | Description |
+|----------|--------------|-------------|
+| `SUPABASE_ACCESS_TOKEN` | E2E tests | Personal access token |
+| `ANTHROPIC_API_KEY` | AI matcher | Used by `toMatchCriteria()` |
 
-* Do NOT commit `dist/` files (they're gitignored)
-* Do NOT commit `.env.local` or coverage files
-* Do NOT manually edit `src/management-api/types.ts` (it's auto-generated)
-* Do NOT manually edit `server.json` (use `registry:update` script)
+### Source Structure
 
----
+```
+src/
+├── tools/                  # MCP tool implementations
+├── management-api/         # Supabase Management API client
+│   └── types.ts            # AUTO-GENERATED - do not edit
+├── content-api/            # Documentation API
+├── pg-meta/                # Database introspection
+├── platform/               # Platform abstractions
+├── transports/             # IPC transports (stdio)
+└── server.ts               # Main MCP server
+```
 
-**Tech Stack:** TypeScript, Vitest (unit/e2e/integration), tsup, MCP SDK, GraphQL/PostgREST/OpenAPI Fetch
+## Do NOT
 
-**Build Outputs:** Multiple entry points (index, stdio transport, platform exports) to `dist/` with CJS, ESM, types, and sourcemaps.
+- Edit `src/management-api/types.ts` - regenerate with `pnpm generate:management-api-types`
+- Edit `server.json` manually - use `pnpm registry:update`
+- Commit `.env.local` or access tokens
+- Skip mocking HTTP calls in unit tests - use MSW
+- Run `pnpm build` during development - use `pnpm dev` instead
 
-Following these practices ensures that the agent-assisted development workflow stays fast and
-dependable. When in doubt, restart the dev server rather than running the production build.
+## Keeping AGENTS.md Up to Date
+
+Update this file when you change:
+- Package scripts in `package.json`
+- Test configuration in `vitest.config.ts` or `vitest.workspace.ts`
+- Source structure (new directories or major reorganization)
+- Environment variable requirements

@@ -32,7 +32,9 @@ export function getDebuggingTools({
         service: logsServiceSchema.describe('The service to fetch logs for'),
       }),
       inject: { project_id },
-      outputSchema: z.record(z.string(), z.unknown()),
+      outputSchema: z.object({
+        result: z.unknown(),
+      }),
       execute: async ({ project_id, service }) => {
         const startTimestamp = new Date(Date.now() - 24 * 60 * 60 * 1000); // Last 24 hours
         const endTimestamp = new Date();
@@ -42,7 +44,7 @@ export function getDebuggingTools({
           iso_timestamp_start: startTimestamp.toISOString(),
           iso_timestamp_end: endTimestamp.toISOString(),
         });
-        return result as Record<string, unknown>;
+        return { result };
       },
     }),
     get_advisors: injectableTool({
@@ -62,7 +64,9 @@ export function getDebuggingTools({
           .describe('The type of advisors to fetch'),
       }),
       inject: { project_id },
-      outputSchema: z.record(z.string(), z.unknown()),
+      outputSchema: z.object({
+        result: z.unknown(),
+      }),
       execute: async ({ project_id, type }) => {
         let result: unknown;
         switch (type) {
@@ -75,7 +79,7 @@ export function getDebuggingTools({
           default:
             throw new Error(`Unknown advisor type: ${type}`);
         }
-        return result as Record<string, unknown>;
+        return { result };
       },
     }),
   };

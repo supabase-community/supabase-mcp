@@ -5,11 +5,9 @@ type RequireKeys<Injected, Params> = {
   [K in keyof Injected]: K extends keyof Params ? Injected[K] : never;
 };
 
-type RecordSchema = z.ZodObject<any> | z.ZodRecord<any, any>;
-
 export type InjectableTool<
   Params extends z.ZodObject,
-  OutputSchema extends RecordSchema = RecordSchema,
+  OutputSchema extends z.ZodObject,
   Injected extends Partial<z.infer<Params>> = {},
 > = Tool<Params, OutputSchema> & {
   /**
@@ -24,7 +22,7 @@ export type InjectableTool<
 
 export function injectableTool<
   Params extends z.ZodObject,
-  OutputSchema extends RecordSchema,
+  OutputSchema extends z.ZodObject,
   Injected extends Partial<z.infer<Params>>,
 >({
   description,

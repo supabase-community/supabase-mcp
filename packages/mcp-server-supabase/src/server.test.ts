@@ -640,11 +640,11 @@ describe('tools', () => {
       },
     });
 
-    expect(result).toBeInstanceOf(Array);
-    expect(result.length).toBe(2);
+    expect(result.keys).toBeInstanceOf(Array);
+    expect(result.keys.length).toBe(2);
 
     // Check legacy anon key
-    const anonKey = result.find((key: any) => key.name === 'anon');
+    const anonKey = result.keys.find((key: any) => key.name === 'anon');
     expect(anonKey).toBeDefined();
     expect(anonKey.api_key).toEqual('dummy-anon-key');
     expect(anonKey.type).toEqual('legacy');
@@ -652,7 +652,7 @@ describe('tools', () => {
     expect(anonKey.disabled).toBe(true);
 
     // Check publishable key
-    const publishableKey = result.find(
+    const publishableKey = result.keys.find(
       (key: any) => key.type === 'publishable'
     );
     expect(publishableKey).toBeDefined();
@@ -687,9 +687,9 @@ describe('tools', () => {
       },
     });
 
-    expect(Array.isArray(result)).toBe(true);
-    expect(result.length).toBe(2);
-    expect(result[0]).toEqual(
+    expect(Array.isArray(result.buckets)).toBe(true);
+    expect(result.buckets.length).toBe(2);
+    expect(result.buckets[0]).toEqual(
       expect.objectContaining({
         name: 'bucket1',
         public: true,
@@ -697,7 +697,7 @@ describe('tools', () => {
         updated_at: expect.any(String),
       })
     );
-    expect(result[1]).toEqual(
+    expect(result.buckets[1]).toEqual(
       expect.objectContaining({
         name: 'bucket2',
         public: false,
@@ -953,7 +953,7 @@ describe('tools', () => {
       },
     });
 
-    expect(listMigrationsResult).toEqual([
+    expect(listMigrationsResult.migrations).toEqual([
       {
         name,
         version: expect.stringMatching(/^\d{14}$/),
@@ -968,7 +968,7 @@ describe('tools', () => {
       },
     });
 
-    expect(listTablesResult).toEqual([
+    expect(listTablesResult.tables).toEqual([
       {
         schema: 'public',
         name: 'test',
@@ -1052,10 +1052,10 @@ describe('tools', () => {
       },
     });
 
-    expect(result).toEqual(
+    expect(result.tables).toEqual(
       expect.arrayContaining([expect.objectContaining({ name: 'test_2' })])
     );
-    expect(result).not.toEqual(
+    expect(result.tables).not.toEqual(
       expect.arrayContaining([expect.objectContaining({ name: 'test_1' })])
     );
   });
@@ -1133,7 +1133,7 @@ describe('tools', () => {
     });
 
     // Should return empty array without errors, proving the SQL injection was prevented
-    expect(maliciousResult).toEqual([]);
+    expect(maliciousResult.tables).toEqual([]);
   });
 
   test('list extensions', async () => {
@@ -1159,7 +1159,7 @@ describe('tools', () => {
       },
     });
 
-    expect(result).toMatchInlineSnapshot(`
+    expect(result.extensions).toMatchInlineSnapshot(`
       [
         {
           "comment": "PL/pgSQL procedural language",
@@ -1274,7 +1274,7 @@ describe('tools', () => {
     ] as const;
 
     for (const service of services) {
-      const result = await callTool({
+      const { result } = await callTool({
         name: 'get_logs',
         arguments: {
           project_id: project.id,
@@ -1302,7 +1302,7 @@ describe('tools', () => {
     });
     project.status = 'ACTIVE_HEALTHY';
 
-    const result = await callTool({
+    const { result } = await callTool({
       name: 'get_advisors',
       arguments: {
         project_id: project.id,
@@ -1329,7 +1329,7 @@ describe('tools', () => {
     });
     project.status = 'ACTIVE_HEALTHY';
 
-    const result = await callTool({
+    const { result } = await callTool({
       name: 'get_advisors',
       arguments: {
         project_id: project.id,
@@ -1408,7 +1408,7 @@ describe('tools', () => {
       },
     });
 
-    expect(result).toEqual([
+    expect(result.functions).toEqual([
       {
         id: edgeFunction.id,
         slug: edgeFunction.slug,
@@ -2146,10 +2146,10 @@ describe('tools', () => {
       },
     });
 
-    expect(listBranchesResult).toContainEqual(
+    expect(listBranchesResult.branches).toContainEqual(
       expect.objectContaining({ id: branch.id })
     );
-    expect(listBranchesResult).toHaveLength(2);
+    expect(listBranchesResult.branches).toHaveLength(2);
 
     await callTool({
       name: 'delete_branch',
@@ -2165,12 +2165,12 @@ describe('tools', () => {
       },
     });
 
-    expect(listBranchesResultAfterDelete).not.toContainEqual(
+    expect(listBranchesResultAfterDelete.branches).not.toContainEqual(
       expect.objectContaining({ id: branch.id })
     );
-    expect(listBranchesResultAfterDelete).toHaveLength(1);
+    expect(listBranchesResultAfterDelete.branches).toHaveLength(1);
 
-    const mainBranch = listBranchesResultAfterDelete[0];
+    const mainBranch = listBranchesResultAfterDelete.branches[0];
 
     const deleteBranchPromise = callTool({
       name: 'delete_branch',
@@ -2215,8 +2215,8 @@ describe('tools', () => {
       },
     });
 
-    expect(listBranchesResult).toHaveLength(1);
-    expect(listBranchesResult).toContainEqual(
+    expect(listBranchesResult.branches).toHaveLength(1);
+    expect(listBranchesResult.branches).toContainEqual(
       expect.objectContaining({ id: branch.id })
     );
 
@@ -2255,7 +2255,7 @@ describe('tools', () => {
       },
     });
 
-    expect(result).toStrictEqual([]);
+    expect(result.branches).toStrictEqual([]);
   });
 
   test('merge branch', async () => {
@@ -2321,7 +2321,7 @@ describe('tools', () => {
       },
     });
 
-    expect(listResult).toContainEqual({
+    expect(listResult.migrations).toContainEqual({
       name: migrationName,
       version: expect.stringMatching(/^\d{14}$/),
     });
@@ -2417,7 +2417,7 @@ describe('tools', () => {
       },
     });
 
-    expect(firstTablesResult).toContainEqual(
+    expect(firstTablesResult.tables).toContainEqual(
       expect.objectContaining({ name: 'test_untracked' })
     );
 
@@ -2436,7 +2436,7 @@ describe('tools', () => {
     });
 
     // Expect the untracked table to be removed after reset
-    expect(secondTablesResult).not.toContainEqual(
+    expect(secondTablesResult.tables).not.toContainEqual(
       expect.objectContaining({ name: 'test_untracked' })
     );
   });
@@ -2533,7 +2533,7 @@ describe('tools', () => {
       },
     });
 
-    expect(firstListResult).toContainEqual({
+    expect(firstListResult.migrations).toContainEqual({
       name: migrationName,
       version: expect.stringMatching(/^\d{14}$/),
     });
@@ -2545,7 +2545,7 @@ describe('tools', () => {
       },
     });
 
-    expect(firstTablesResult).toContainEqual(
+    expect(firstTablesResult.tables).toContainEqual(
       expect.objectContaining({ name: 'sample' })
     );
 
@@ -2565,7 +2565,7 @@ describe('tools', () => {
       },
     });
 
-    expect(secondListResult).toStrictEqual([]);
+    expect(secondListResult.migrations).toStrictEqual([]);
 
     const secondTablesResult = await callTool({
       name: 'list_tables',
@@ -2574,7 +2574,7 @@ describe('tools', () => {
       },
     });
 
-    expect(secondTablesResult).not.toContainEqual(
+    expect(secondTablesResult.tables).not.toContainEqual(
       expect.objectContaining({ name: 'sample' })
     );
   });
@@ -2642,7 +2642,7 @@ describe('tools', () => {
       },
     });
 
-    expect(listResult).toContainEqual({
+    expect(listResult.migrations).toContainEqual({
       name: migrationName,
       version: expect.stringMatching(/^\d{14}$/),
     });
@@ -2740,7 +2740,20 @@ describe('tools', () => {
   });
 
   test('structuredContent matches JSON stringified content', async () => {
-    const { client } = await setup();
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const { client } = await setup({ projectId: project.id });
     const resultUntyped = await client.callTool({
       name: 'list_tables',
       arguments: { schemas: ['public'] },
@@ -3099,7 +3112,7 @@ describe('project scoped tools', () => {
       },
     });
 
-    expect(result).toEqual([
+    expect(result.tables).toEqual([
       expect.objectContaining({
         name: 'test',
         schema: 'public',

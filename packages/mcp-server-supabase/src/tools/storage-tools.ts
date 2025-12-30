@@ -1,5 +1,6 @@
 import { z } from 'zod/v4';
 import type { StorageOperations } from '../platform/types.js';
+import { storageBucketSchema, storageConfigSchema } from '../platform/types.js';
 import { injectableTool } from './util.js';
 
 const SUCCESS_RESPONSE = { success: true };
@@ -31,8 +32,11 @@ export function getStorageTools({
         project_id: z.string(),
       }),
       inject: { project_id },
+      outputSchema: z.object({
+        buckets: z.array(storageBucketSchema),
+      }),
       execute: async ({ project_id }) => {
-        return await storage.listAllBuckets(project_id);
+        return { buckets: await storage.listAllBuckets(project_id) };
       },
     }),
     get_storage_config: injectableTool({
@@ -48,6 +52,7 @@ export function getStorageTools({
         project_id: z.string(),
       }),
       inject: { project_id },
+      outputSchema: storageConfigSchema,
       execute: async ({ project_id }) => {
         return await storage.getStorageConfig(project_id);
       },
@@ -72,6 +77,9 @@ export function getStorageTools({
         }),
       }),
       inject: { project_id },
+      outputSchema: z.object({
+        success: z.boolean(),
+      }),
       execute: async ({ project_id, config }) => {
         if (readOnly) {
           throw new Error('Cannot update storage config in read-only mode.');

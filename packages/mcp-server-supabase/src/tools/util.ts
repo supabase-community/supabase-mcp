@@ -5,11 +5,13 @@ type RequireKeys<Injected, Params> = {
   [K in keyof Injected]: K extends keyof Params ? Injected[K] : never;
 };
 
+type RecordSchema = z.ZodObject<any> | z.ZodRecord<any, any>;
+
 export type InjectableTool<
   Params extends z.ZodObject,
-  Result = unknown,
+  OutputSchema extends RecordSchema = RecordSchema,
   Injected extends Partial<z.infer<Params>> = {},
-> = Tool<Params, Result> & {
+> = Tool<Params, OutputSchema> & {
   /**
    * Optionally injects static parameter values into the tool's
    * execute function and removes them from the parameter schema.
@@ -22,21 +24,23 @@ export type InjectableTool<
 
 export function injectableTool<
   Params extends z.ZodObject,
-  Result,
+  OutputSchema extends RecordSchema,
   Injected extends Partial<z.infer<Params>>,
 >({
   description,
   annotations,
   parameters,
+  outputSchema,
   inject,
   execute,
-}: InjectableTool<Params, Result, Injected>) {
+}: InjectableTool<Params, OutputSchema, Injected>) {
   // If all injected parameters are undefined, return the original tool
   if (!inject || Object.values(inject).every((value) => value === undefined)) {
     return tool({
       description,
       annotations,
       parameters,
+      outputSchema,
       execute,
     });
   }
@@ -62,6 +66,7 @@ export function injectableTool<
     description,
     annotations,
     parameters: cleanParametersSchema,
+    outputSchema,
     execute: executeWithInjection,
   });
 }

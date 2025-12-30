@@ -1,6 +1,7 @@
 import { tool } from '@supabase/mcp-utils';
 import { z } from 'zod/v4';
 import type { AccountOperations } from '../platform/types.js';
+import { organizationSchema, projectSchema } from '../platform/types.js';
 import { type Cost, getBranchCost, getNextProjectCost } from '../pricing.js';
 import { AWS_REGION_CODES } from '../regions.js';
 import { hashObject } from '../util.js';
@@ -24,8 +25,16 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
         openWorldHint: false,
       },
       parameters: z.object({}),
+      outputSchema: z.object({
+        organizations: z.array(
+          z.object({
+            id: z.string(),
+            name: z.string(),
+          })
+        ),
+      }),
       execute: async () => {
-        return await account.listOrganizations();
+        return { organizations: await account.listOrganizations() };
       },
     }),
     get_organization: tool({
@@ -41,6 +50,7 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
       parameters: z.object({
         id: z.string().describe('The organization ID'),
       }),
+      outputSchema: organizationSchema,
       execute: async ({ id: organizationId }) => {
         return await account.getOrganization(organizationId);
       },
@@ -56,8 +66,11 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
         openWorldHint: false,
       },
       parameters: z.object({}),
+      outputSchema: z.object({
+        projects: z.array(projectSchema),
+      }),
       execute: async () => {
-        return await account.listProjects();
+        return { projects: await account.listProjects() };
       },
     }),
     get_project: tool({
@@ -72,6 +85,7 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
       parameters: z.object({
         id: z.string().describe('The project ID'),
       }),
+      outputSchema: projectSchema,
       execute: async ({ id }) => {
         return await account.getProject(id);
       },
@@ -92,6 +106,9 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
           .string()
           .describe('The organization ID. Always ask the user.'),
       }),
+      outputSchema: z.object({
+        message: z.string(),
+      }),
       execute: async ({ type, organization_id }) => {
         function generateResponse(cost: Cost) {
           return `The new ${type} will cost $${cost.amount} ${cost.recurrence}. You must repeat this to the user and confirm their understanding.`;
@@ -99,11 +116,11 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
         switch (type) {
           case 'project': {
             const cost = await getNextProjectCost(account, organization_id);
-            return generateResponse(cost);
+            return { message: generateResponse(cost) };
           }
           case 'branch': {
             const cost = getBranchCost();
-            return generateResponse(cost);
+            return { message: generateResponse(cost) };
           }
           default:
             throw new Error(`Unknown cost type: ${type}`);
@@ -125,8 +142,11 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
         recurrence: z.enum(['hourly', 'monthly']),
         amount: z.number(),
       }),
+      outputSchema: z.object({
+        confirmation_id: z.string(),
+      }),
       execute: async (cost) => {
-        return await hashObject(cost);
+        return { confirmation_id: await hashObject(cost) };
       },
     }),
     create_project: tool({
@@ -154,6 +174,7 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
           })
           .describe('The cost confirmation ID. Call `confirm_cost` first.'),
       }),
+      outputSchema: projectSchema,
       execute: async ({ name, region, organization_id, confirm_cost_id }) => {
         if (readOnly) {
           throw new Error('Cannot create a project in read-only mode.');
@@ -186,6 +207,9 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
       parameters: z.object({
         project_id: z.string(),
       }),
+      outputSchema: z.object({
+        success: z.boolean(),
+      }),
       execute: async ({ project_id }) => {
         if (readOnly) {
           throw new Error('Cannot pause a project in read-only mode.');
@@ -206,6 +230,9 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
       },
       parameters: z.object({
         project_id: z.string(),
+      }),
+      outputSchema: z.object({
+        success: z.boolean(),
       }),
       execute: async ({ project_id }) => {
         if (readOnly) {

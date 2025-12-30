@@ -145,10 +145,12 @@ describe('tools', () => {
       arguments: {},
     });
 
-    expect(result).toEqual([
-      { id: org1.id, name: org1.name },
-      { id: org2.id, name: org2.name },
-    ]);
+    expect(result).toEqual({
+      organizations: [
+        { id: org1.id, name: org1.name },
+        { id: org2.id, name: org2.name },
+      ],
+    });
   });
 
   test('get organization', async () => {
@@ -187,9 +189,10 @@ describe('tools', () => {
       },
     });
 
-    expect(result).toEqual(
-      'The new project will cost $0 monthly. You must repeat this to the user and confirm their understanding.'
-    );
+    expect(result).toEqual({
+      message:
+        'The new project will cost $0 monthly. You must repeat this to the user and confirm their understanding.',
+    });
   });
 
   test('get next project cost for paid org with 0 projects', async () => {
@@ -209,9 +212,10 @@ describe('tools', () => {
       },
     });
 
-    expect(result).toEqual(
-      'The new project will cost $0 monthly. You must repeat this to the user and confirm their understanding.'
-    );
+    expect(result).toEqual({
+      message:
+        'The new project will cost $0 monthly. You must repeat this to the user and confirm their understanding.',
+    });
   });
 
   test('get next project cost for paid org with > 0 active projects', async () => {
@@ -238,9 +242,9 @@ describe('tools', () => {
       },
     });
 
-    expect(result).toEqual(
-      `The new project will cost $${PROJECT_COST_MONTHLY} monthly. You must repeat this to the user and confirm their understanding.`
-    );
+    expect(result).toEqual({
+      message: `The new project will cost $${PROJECT_COST_MONTHLY} monthly. You must repeat this to the user and confirm their understanding.`,
+    });
   });
 
   test('get next project cost for paid org with > 0 inactive projects', async () => {
@@ -267,9 +271,9 @@ describe('tools', () => {
       },
     });
 
-    expect(result).toEqual(
-      `The new project will cost $0 monthly. You must repeat this to the user and confirm their understanding.`
-    );
+    expect(result).toEqual({
+      message: `The new project will cost $0 monthly. You must repeat this to the user and confirm their understanding.`,
+    });
   });
 
   test('get branch cost', async () => {
@@ -289,9 +293,9 @@ describe('tools', () => {
       },
     });
 
-    expect(result).toEqual(
-      `The new branch will cost $${BRANCH_COST_HOURLY} hourly. You must repeat this to the user and confirm their understanding.`
-    );
+    expect(result).toEqual({
+      message: `The new branch will cost $${BRANCH_COST_HOURLY} hourly. You must repeat this to the user and confirm their understanding.`,
+    });
   });
 
   test('list projects', async () => {
@@ -320,7 +324,7 @@ describe('tools', () => {
       arguments: {},
     });
 
-    expect(result).toEqual([project1.details, project2.details]);
+    expect(result).toEqual({ projects: [project1.details, project2.details] });
   });
 
   test('get project', async () => {
@@ -357,7 +361,7 @@ describe('tools', () => {
       allowed_release_channels: ['ga'],
     });
 
-    const confirm_cost_id = await callTool({
+    const confirm_cost_id_result = await callTool({
       name: 'confirm_cost',
       arguments: {
         type: 'project',
@@ -370,7 +374,7 @@ describe('tools', () => {
       name: 'New Project',
       region: 'us-east-1',
       organization_id: freeOrg.id,
-      confirm_cost_id,
+      confirm_cost_id: confirm_cost_id_result.confirmation_id,
     };
 
     const result = await callTool({
@@ -399,7 +403,7 @@ describe('tools', () => {
       allowed_release_channels: ['ga'],
     });
 
-    const confirm_cost_id = await callTool({
+    const confirm_cost_id_result = await callTool({
       name: 'confirm_cost',
       arguments: {
         type: 'project',
@@ -412,7 +416,7 @@ describe('tools', () => {
       name: 'New Project',
       region: 'us-east-1',
       organization_id: freeOrg.id,
-      confirm_cost_id,
+      confirm_cost_id: confirm_cost_id_result.confirmation_id,
     };
 
     const result = callTool({
@@ -434,7 +438,7 @@ describe('tools', () => {
       allowed_release_channels: ['ga'],
     });
 
-    const confirm_cost_id = await callTool({
+    const confirm_cost_id_result = await callTool({
       name: 'confirm_cost',
       arguments: {
         type: 'project',
@@ -446,7 +450,7 @@ describe('tools', () => {
     const newProject = {
       name: 'New Project',
       organization_id: freeOrg.id,
-      confirm_cost_id,
+      confirm_cost_id: confirm_cost_id_result.confirmation_id,
     };
 
     const createProjectPromise = callTool({
@@ -612,7 +616,7 @@ describe('tools', () => {
         project_id: project.id,
       },
     });
-    expect(result).toEqual(`https://${project.id}.supabase.co`);
+    expect(result).toEqual({ url: `https://${project.id}.supabase.co` });
   });
 
   test('get anon or publishable keys', async () => {
@@ -833,10 +837,14 @@ describe('tools', () => {
       },
     });
 
-    expect(result).toContain('untrusted user data');
-    expect(result).toMatch(/<untrusted-data-\w{8}-\w{4}-\w{4}-\w{4}-\w{12}>/);
-    expect(result).toContain(JSON.stringify([{ sum: 2 }]));
-    expect(result).toMatch(/<\/untrusted-data-\w{8}-\w{4}-\w{4}-\w{4}-\w{12}>/);
+    expect(result.result).toContain('untrusted user data');
+    expect(result.result).toMatch(
+      /<untrusted-data-\w{8}-\w{4}-\w{4}-\w{4}-\w{12}>/
+    );
+    expect(result.result).toContain(JSON.stringify([{ sum: 2 }]));
+    expect(result.result).toMatch(
+      /<\/untrusted-data-\w{8}-\w{4}-\w{4}-\w{4}-\w{12}>/
+    );
   });
 
   test('can run read queries in read-only mode', async () => {
@@ -865,10 +873,14 @@ describe('tools', () => {
       },
     });
 
-    expect(result).toContain('untrusted user data');
-    expect(result).toMatch(/<untrusted-data-\w{8}-\w{4}-\w{4}-\w{4}-\w{12}>/);
-    expect(result).toContain(JSON.stringify([{ sum: 2 }]));
-    expect(result).toMatch(/<\/untrusted-data-\w{8}-\w{4}-\w{4}-\w{4}-\w{12}>/);
+    expect(result.result).toContain('untrusted user data');
+    expect(result.result).toMatch(
+      /<untrusted-data-\w{8}-\w{4}-\w{4}-\w{4}-\w{12}>/
+    );
+    expect(result.result).toContain(JSON.stringify([{ sum: 2 }]));
+    expect(result.result).toMatch(
+      /<\/untrusted-data-\w{8}-\w{4}-\w{4}-\w{4}-\w{12}>/
+    );
   });
 
   test('cannot run write queries in read-only mode', async () => {
@@ -1982,7 +1994,7 @@ describe('tools', () => {
     });
     project.status = 'ACTIVE_HEALTHY';
 
-    const confirm_cost_id = await callTool({
+    const confirm_cost_id_result = await callTool({
       name: 'confirm_cost',
       arguments: {
         type: 'branch',
@@ -1997,7 +2009,7 @@ describe('tools', () => {
       arguments: {
         project_id: project.id,
         name: branchName,
-        confirm_cost_id,
+        confirm_cost_id: confirm_cost_id_result.confirmation_id,
       },
     });
 
@@ -2037,7 +2049,7 @@ describe('tools', () => {
     });
     project.status = 'ACTIVE_HEALTHY';
 
-    const confirm_cost_id = await callTool({
+    const confirm_cost_id_result = await callTool({
       name: 'confirm_cost',
       arguments: {
         type: 'branch',
@@ -2052,7 +2064,7 @@ describe('tools', () => {
       arguments: {
         project_id: project.id,
         name: branchName,
-        confirm_cost_id,
+        confirm_cost_id: confirm_cost_id_result.confirmation_id,
       },
     });
 
@@ -2109,7 +2121,7 @@ describe('tools', () => {
     });
     project.status = 'ACTIVE_HEALTHY';
 
-    const confirm_cost_id = await callTool({
+    const confirm_cost_id_result = await callTool({
       name: 'confirm_cost',
       arguments: {
         type: 'branch',
@@ -2123,7 +2135,7 @@ describe('tools', () => {
       arguments: {
         project_id: project.id,
         name: 'test-branch',
-        confirm_cost_id,
+        confirm_cost_id: confirm_cost_id_result.confirmation_id,
       },
     });
 
@@ -2264,7 +2276,7 @@ describe('tools', () => {
     });
     project.status = 'ACTIVE_HEALTHY';
 
-    const confirm_cost_id = await callTool({
+    const confirm_cost_id_result = await callTool({
       name: 'confirm_cost',
       arguments: {
         type: 'branch',
@@ -2278,7 +2290,7 @@ describe('tools', () => {
       arguments: {
         project_id: project.id,
         name: 'test-branch',
-        confirm_cost_id,
+        confirm_cost_id: confirm_cost_id_result.confirmation_id,
       },
     });
 
@@ -2369,7 +2381,7 @@ describe('tools', () => {
     });
     project.status = 'ACTIVE_HEALTHY';
 
-    const confirm_cost_id = await callTool({
+    const confirm_cost_id_result = await callTool({
       name: 'confirm_cost',
       arguments: {
         type: 'branch',
@@ -2383,7 +2395,7 @@ describe('tools', () => {
       arguments: {
         project_id: project.id,
         name: 'test-branch',
-        confirm_cost_id,
+        confirm_cost_id: confirm_cost_id_result.confirmation_id,
       },
     });
 
@@ -2483,7 +2495,7 @@ describe('tools', () => {
     });
     project.status = 'ACTIVE_HEALTHY';
 
-    const confirm_cost_id = await callTool({
+    const confirm_cost_id_result = await callTool({
       name: 'confirm_cost',
       arguments: {
         type: 'branch',
@@ -2497,7 +2509,7 @@ describe('tools', () => {
       arguments: {
         project_id: project.id,
         name: 'test-branch',
-        confirm_cost_id,
+        confirm_cost_id: confirm_cost_id_result.confirmation_id,
       },
     });
 
@@ -2585,7 +2597,7 @@ describe('tools', () => {
     });
     project.status = 'ACTIVE_HEALTHY';
 
-    const confirm_cost_id = await callTool({
+    const confirm_cost_id_result = await callTool({
       name: 'confirm_cost',
       arguments: {
         type: 'branch',
@@ -2599,7 +2611,7 @@ describe('tools', () => {
       arguments: {
         project_id: project.id,
         name: 'test-branch',
-        confirm_cost_id,
+        confirm_cost_id: confirm_cost_id_result.confirmation_id,
       },
     });
 
@@ -2714,6 +2726,36 @@ describe('tools', () => {
         `${tool.name} tool`
       ).toBeDefined();
     }
+  });
+
+  test('all tools have outputSchema defined', async () => {
+    const { client } = await setup();
+    const tools = await client.listTools();
+
+    const toolsWithoutOutputSchema = tools.tools.filter(
+      (tool) => !tool.outputSchema
+    );
+
+    expect(toolsWithoutOutputSchema).toEqual([]);
+  });
+
+  test('structuredContent matches JSON stringified content', async () => {
+    const { client } = await setup();
+    const resultUntyped = await client.callTool({
+      name: 'list_tables',
+      arguments: { schemas: ['public'] },
+    });
+
+    const result = CallToolResultSchema.parse(resultUntyped);
+    const firstContent = result.content.at(0);
+    if (!firstContent) {
+      throw new Error('Expected content in tool response');
+    }
+    if (firstContent.type !== 'text') {
+      throw new Error('Expected text content in tool response');
+    }
+    const parsedContent = JSON.parse(firstContent.text);
+    expect(result.structuredContent).toEqual(parsedContent);
   });
 });
 

@@ -1,5 +1,6 @@
 import { z } from 'zod/v4';
 import type { DevelopmentOperations } from '../platform/types.js';
+import { generateTypescriptTypesResultSchema } from '../platform/types.js';
 import { injectableTool } from './util.js';
 
 export type DevelopmentToolsOptions = {
@@ -27,8 +28,11 @@ export function getDevelopmentTools({
         project_id: z.string(),
       }),
       inject: { project_id },
+      outputSchema: z.object({
+        url: z.string(),
+      }),
       execute: async ({ project_id }) => {
-        return development.getProjectUrl(project_id);
+        return { url: await development.getProjectUrl(project_id) };
       },
     }),
     get_publishable_keys: injectableTool({
@@ -45,8 +49,20 @@ export function getDevelopmentTools({
         project_id: z.string(),
       }),
       inject: { project_id },
+      outputSchema: z.object({
+        keys: z.array(
+          z.object({
+            api_key: z.string(),
+            name: z.string(),
+            type: z.enum(['legacy', 'publishable']),
+            description: z.string().optional(),
+            id: z.string().optional(),
+            disabled: z.boolean().optional(),
+          })
+        ),
+      }),
       execute: async ({ project_id }) => {
-        return development.getPublishableKeys(project_id);
+        return { keys: await development.getPublishableKeys(project_id) };
       },
     }),
     generate_typescript_types: injectableTool({
@@ -62,6 +78,7 @@ export function getDevelopmentTools({
         project_id: z.string(),
       }),
       inject: { project_id },
+      outputSchema: generateTypescriptTypesResultSchema,
       execute: async ({ project_id }) => {
         return development.generateTypescriptTypes(project_id);
       },

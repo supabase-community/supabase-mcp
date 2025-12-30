@@ -1,6 +1,7 @@
 import { tool } from '@supabase/mcp-utils';
 import { z } from 'zod/v4';
 import type { BranchingOperations } from '../platform/types.js';
+import { branchSchema } from '../platform/types.js';
 import { getBranchCost } from '../pricing.js';
 import { hashObject } from '../util.js';
 import { injectableTool } from './util.js';
@@ -47,6 +48,7 @@ export function getBranchingTools({
           .describe('The cost confirmation ID. Call `confirm_cost` first.'),
       }),
       inject: { project_id },
+      outputSchema: branchSchema,
       execute: async ({ project_id, name, confirm_cost_id }) => {
         if (readOnly) {
           throw new Error('Cannot create a branch in read-only mode.');
@@ -76,8 +78,11 @@ export function getBranchingTools({
         project_id: z.string(),
       }),
       inject: { project_id },
+      outputSchema: z.object({
+        branches: z.array(branchSchema),
+      }),
       execute: async ({ project_id }) => {
-        return await branching.listBranches(project_id);
+        return { branches: await branching.listBranches(project_id) };
       },
     }),
     delete_branch: tool({
@@ -91,6 +96,9 @@ export function getBranchingTools({
       },
       parameters: z.object({
         branch_id: z.string(),
+      }),
+      outputSchema: z.object({
+        success: z.boolean(),
       }),
       execute: async ({ branch_id }) => {
         if (readOnly) {
@@ -113,6 +121,9 @@ export function getBranchingTools({
       },
       parameters: z.object({
         branch_id: z.string(),
+      }),
+      outputSchema: z.object({
+        success: z.boolean(),
       }),
       execute: async ({ branch_id }) => {
         if (readOnly) {
@@ -142,6 +153,9 @@ export function getBranchingTools({
             'Reset your development branch to a specific migration version.'
           ),
       }),
+      outputSchema: z.object({
+        success: z.boolean(),
+      }),
       execute: async ({ branch_id, migration_version }) => {
         if (readOnly) {
           throw new Error('Cannot reset a branch in read-only mode.');
@@ -165,6 +179,9 @@ export function getBranchingTools({
       },
       parameters: z.object({
         branch_id: z.string(),
+      }),
+      outputSchema: z.object({
+        success: z.boolean(),
       }),
       execute: async ({ branch_id }) => {
         if (readOnly) {

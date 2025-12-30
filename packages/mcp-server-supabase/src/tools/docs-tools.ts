@@ -33,8 +33,10 @@ export function getDocsTools({ contentApiClient }: DocsToolsOptions) {
         // Intentionally use a verbose param name for the LLM
         graphql_query: z.string().describe('GraphQL query string'),
       }),
+      outputSchema: z.record(z.string(), z.unknown()),
       execute: async ({ graphql_query }) => {
-        return await contentApiClient.query({ query: graphql_query });
+        const result = await contentApiClient.query({ query: graphql_query });
+        return result as Record<string, unknown>;
       },
     }),
   };

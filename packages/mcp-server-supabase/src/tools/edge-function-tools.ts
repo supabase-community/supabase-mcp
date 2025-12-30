@@ -1,6 +1,10 @@
 import { z } from 'zod/v4';
 import { edgeFunctionExample } from '../edge-function.js';
 import type { EdgeFunctionsOperations } from '../platform/types.js';
+import {
+  edgeFunctionSchema,
+  edgeFunctionWithBodySchema,
+} from '../platform/types.js';
 import { injectableTool } from './util.js';
 
 export type EdgeFunctionToolsOptions = {
@@ -30,8 +34,11 @@ export function getEdgeFunctionTools({
         project_id: z.string(),
       }),
       inject: { project_id },
+      outputSchema: z.object({
+        functions: z.array(edgeFunctionSchema),
+      }),
       execute: async ({ project_id }) => {
-        return await functions.listEdgeFunctions(project_id);
+        return { functions: await functions.listEdgeFunctions(project_id) };
       },
     }),
     get_edge_function: injectableTool({
@@ -49,6 +56,7 @@ export function getEdgeFunctionTools({
         function_slug: z.string(),
       }),
       inject: { project_id },
+      outputSchema: edgeFunctionWithBodySchema,
       execute: async ({ project_id, function_slug }) => {
         return await functions.getEdgeFunction(project_id, function_slug);
       },
@@ -91,6 +99,7 @@ export function getEdgeFunctionTools({
           ),
       }),
       inject: { project_id },
+      outputSchema: edgeFunctionSchema,
       execute: async ({
         project_id,
         name,

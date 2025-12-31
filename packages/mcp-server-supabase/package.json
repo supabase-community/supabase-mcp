@@ -59,7 +59,7 @@
     "openapi-fetch": "^0.13.5"
   },
   "peerDependencies": {
-    "zod": "^3.25.0 || ^4.0.0"
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@ai-sdk/anthropic": "catalog:",

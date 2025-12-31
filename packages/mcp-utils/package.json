@@ -32,7 +32,7 @@
     "@modelcontextprotocol/sdk": "catalog:"
   },
   "peerDependencies": {
-    "zod": "^3.25.0 || ^4.0.0"
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@total-typescript/tsconfig": "^1.0.4",

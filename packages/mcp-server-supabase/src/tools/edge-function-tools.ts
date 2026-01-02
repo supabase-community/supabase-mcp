@@ -7,6 +7,61 @@ import {
 } from '../platform/types.js';
 import { injectableTool } from './util.js';
 
+export const listEdgeFunctionsInputSchema = z.object({
+  project_id: z.string(),
+});
+
+export const listEdgeFunctionsOutputSchema = z.object({
+  functions: z.array(edgeFunctionSchema),
+});
+
+export type ListEdgeFunctionsInput = z.infer<typeof listEdgeFunctionsInputSchema>;
+export type ListEdgeFunctionsOutput = z.infer<typeof listEdgeFunctionsOutputSchema>;
+
+export const getEdgeFunctionInputSchema = z.object({
+  project_id: z.string(),
+  function_slug: z.string(),
+});
+
+export const getEdgeFunctionOutputSchema = edgeFunctionWithBodySchema;
+
+export type GetEdgeFunctionInput = z.infer<typeof getEdgeFunctionInputSchema>;
+export type GetEdgeFunctionOutput = z.infer<typeof getEdgeFunctionOutputSchema>;
+
+export const deployEdgeFunctionInputSchema = z.object({
+  project_id: z.string(),
+  name: z.string().describe('The name of the function'),
+  entrypoint_path: z
+    .string()
+    .default('index.ts')
+    .describe('The entrypoint of the function'),
+  import_map_path: z
+    .string()
+    .describe('The import map for the function.')
+    .optional(),
+  verify_jwt: z
+    .boolean()
+    .default(true)
+    .describe(
+      "Whether to require a valid JWT in the Authorization header. You SHOULD ALWAYS enable this to ensure authorized access. ONLY disable if the function previously had it disabled OR you've confirmed the function body implements custom authentication (e.g., API keys, webhooks) OR the user explicitly requested it be disabled."
+    ),
+  files: z
+    .array(
+      z.object({
+        name: z.string(),
+        content: z.string(),
+      })
+    )
+    .describe(
+      'The files to upload. This should include the entrypoint, deno.json, and any relative dependencies. Always include a deno.json file to configure the Deno runtime (e.g., compiler options, imports) UNLESS it was previously deployed without deno.json.'
+    ),
+});
+
+export const deployEdgeFunctionOutputSchema = edgeFunctionSchema;
+
+export type DeployEdgeFunctionInput = z.infer<typeof deployEdgeFunctionInputSchema>;
+export type DeployEdgeFunctionOutput = z.infer<typeof deployEdgeFunctionOutputSchema>;
+
 export type EdgeFunctionToolsOptions = {
   functions: EdgeFunctionsOperations;
   projectId?: string;
@@ -30,13 +85,9 @@ export function getEdgeFunctionTools({
         idempotentHint: true,
         openWorldHint: false,
       },
-      parameters: z.object({
-        project_id: z.string(),
-      }),
+      parameters: listEdgeFunctionsInputSchema,
       inject: { project_id },
-      outputSchema: z.object({
-        functions: z.array(edgeFunctionSchema),
-      }),
+      outputSchema: listEdgeFunctionsOutputSchema,
       execute: async ({ project_id }) => {
         return { functions: await functions.listEdgeFunctions(project_id) };
       },
@@ -51,12 +102,9 @@ export function getEdgeFunctionTools({
         idempotentHint: true,
         openWorldHint: false,
       },
-      parameters: z.object({
-        project_id: z.string(),
-        function_slug: z.string(),
-      }),
+      parameters: getEdgeFunctionInputSchema,
       inject: { project_id },
-      outputSchema: edgeFunctionWithBodySchema,
+      outputSchema: getEdgeFunctionOutputSchema,
       execute: async ({ project_id, function_slug }) => {
         return await functions.getEdgeFunction(project_id, function_slug);
       },
@@ -70,36 +118,9 @@ export function getEdgeFunctionTools({
         idempotentHint: false,
         openWorldHint: false,
       },
-      parameters: z.object({
-        project_id: z.string(),
-        name: z.string().describe('The name of the function'),
-        entrypoint_path: z
-          .string()
-          .default('index.ts')
-          .describe('The entrypoint of the function'),
-        import_map_path: z
-          .string()
-          .describe('The import map for the function.')
-          .optional(),
-        verify_jwt: z
-          .boolean()
-          .default(true)
-          .describe(
-            "Whether to require a valid JWT in the Authorization header. You SHOULD ALWAYS enable this to ensure authorized access. ONLY disable if the function previously had it disabled OR you've confirmed the function body implements custom authentication (e.g., API keys, webhooks) OR the user explicitly requested it be disabled."
-          ),
-        files: z
-          .array(
-            z.object({
-              name: z.string(),
-              content: z.string(),
-            })
-          )
-          .describe(
-            'The files to upload. This should include the entrypoint, deno.json, and any relative dependencies. Always include a deno.json file to configure the Deno runtime (e.g., compiler options, imports) UNLESS it was previously deployed without deno.json.'
-          ),
-      }),
+      parameters: deployEdgeFunctionInputSchema,
       inject: { project_id },
-      outputSchema: edgeFunctionSchema,
+      outputSchema: deployEdgeFunctionOutputSchema,
       execute: async ({
         project_id,
         name,

@@ -6,6 +6,121 @@ import { type Cost, getBranchCost, getNextProjectCost } from '../pricing.js';
 import { AWS_REGION_CODES } from '../regions.js';
 import { hashObject } from '../util.js';
 
+export const listOrganizationsInputSchema = z.object({});
+
+export const listOrganizationsOutputSchema = z.object({
+  organizations: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+    })
+  ),
+});
+
+export type ListOrganizationsInput = z.infer<
+  typeof listOrganizationsInputSchema
+>;
+export type ListOrganizationsOutput = z.infer<
+  typeof listOrganizationsOutputSchema
+>;
+
+export const getOrganizationInputSchema = z.object({
+  id: z.string().describe('The organization ID'),
+});
+
+export const getOrganizationOutputSchema = organizationSchema;
+
+export type GetOrganizationInput = z.infer<typeof getOrganizationInputSchema>;
+export type GetOrganizationOutput = z.infer<typeof getOrganizationOutputSchema>;
+
+export const listProjectsInputSchema = z.object({});
+
+export const listProjectsOutputSchema = z.object({
+  projects: z.array(projectSchema),
+});
+
+export type ListProjectsInput = z.infer<typeof listProjectsInputSchema>;
+export type ListProjectsOutput = z.infer<typeof listProjectsOutputSchema>;
+
+export const getProjectInputSchema = z.object({
+  id: z.string().describe('The project ID'),
+});
+
+export const getProjectOutputSchema = projectSchema;
+
+export type GetProjectInput = z.infer<typeof getProjectInputSchema>;
+export type GetProjectOutput = z.infer<typeof getProjectOutputSchema>;
+
+export const getCostInputSchema = z.object({
+  type: z.enum(['project', 'branch']),
+  organization_id: z
+    .string()
+    .describe('The organization ID. Always ask the user.'),
+});
+
+export const getCostOutputSchema = z.object({
+  message: z.string(),
+});
+
+export type GetCostInput = z.infer<typeof getCostInputSchema>;
+export type GetCostOutput = z.infer<typeof getCostOutputSchema>;
+
+export const confirmCostInputSchema = z.object({
+  type: z.enum(['project', 'branch']),
+  recurrence: z.enum(['hourly', 'monthly']),
+  amount: z.number(),
+});
+
+export const confirmCostOutputSchema = z.object({
+  confirmation_id: z.string(),
+});
+
+export type ConfirmCostInput = z.infer<typeof confirmCostInputSchema>;
+export type ConfirmCostOutput = z.infer<typeof confirmCostOutputSchema>;
+
+export const createProjectInputSchema = z.object({
+  name: z.string().describe('The name of the project'),
+  region: z
+    .enum(AWS_REGION_CODES)
+    .describe('The region to create the project in.'),
+  organization_id: z.string(),
+  confirm_cost_id: z
+    .string({
+      error: (issue) =>
+        issue.input === undefined
+          ? 'User must confirm understanding of costs before creating a project.'
+          : undefined,
+    })
+    .describe('The cost confirmation ID. Call `confirm_cost` first.'),
+});
+
+export const createProjectOutputSchema = projectSchema;
+
+export type CreateProjectInput = z.infer<typeof createProjectInputSchema>;
+export type CreateProjectOutput = z.infer<typeof createProjectOutputSchema>;
+
+export const pauseProjectInputSchema = z.object({
+  project_id: z.string(),
+});
+
+export const pauseProjectOutputSchema = z.object({
+  success: z.boolean(),
+});
+
+export type PauseProjectInput = z.infer<typeof pauseProjectInputSchema>;
+export type PauseProjectOutput = z.infer<typeof pauseProjectOutputSchema>;
+
+export const restoreProjectInputSchema = z.object({
+  project_id: z.string(),
+});
+
+export const restoreProjectOutputSchema = z.object({
+  success: z.boolean(),
+});
+
+export type RestoreProjectInput = z.infer<typeof restoreProjectInputSchema>;
+export type RestoreProjectOutput = z.infer<typeof restoreProjectOutputSchema>;
+
 const SUCCESS_RESPONSE = { success: true };
 
 export type AccountToolsOptions = {
@@ -24,15 +139,8 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
         idempotentHint: true,
         openWorldHint: false,
       },
-      parameters: z.object({}),
-      outputSchema: z.object({
-        organizations: z.array(
-          z.object({
-            id: z.string(),
-            name: z.string(),
-          })
-        ),
-      }),
+      parameters: listOrganizationsInputSchema,
+      outputSchema: listOrganizationsOutputSchema,
       execute: async () => {
         return { organizations: await account.listOrganizations() };
       },
@@ -47,10 +155,8 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
         idempotentHint: true,
         openWorldHint: false,
       },
-      parameters: z.object({
-        id: z.string().describe('The organization ID'),
-      }),
-      outputSchema: organizationSchema,
+      parameters: getOrganizationInputSchema,
+      outputSchema: getOrganizationOutputSchema,
       execute: async ({ id: organizationId }) => {
         return await account.getOrganization(organizationId);
       },
@@ -65,10 +171,8 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
         idempotentHint: true,
         openWorldHint: false,
       },
-      parameters: z.object({}),
-      outputSchema: z.object({
-        projects: z.array(projectSchema),
-      }),
+      parameters: listProjectsInputSchema,
+      outputSchema: listProjectsOutputSchema,
       execute: async () => {
         return { projects: await account.listProjects() };
       },
@@ -82,10 +186,8 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
         idempotentHint: true,
         openWorldHint: false,
       },
-      parameters: z.object({
-        id: z.string().describe('The project ID'),
-      }),
-      outputSchema: projectSchema,
+      parameters: getProjectInputSchema,
+      outputSchema: getProjectOutputSchema,
       execute: async ({ id }) => {
         return await account.getProject(id);
       },
@@ -100,15 +202,8 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
         idempotentHint: true,
         openWorldHint: false,
       },
-      parameters: z.object({
-        type: z.enum(['project', 'branch']),
-        organization_id: z
-          .string()
-          .describe('The organization ID. Always ask the user.'),
-      }),
-      outputSchema: z.object({
-        message: z.string(),
-      }),
+      parameters: getCostInputSchema,
+      outputSchema: getCostOutputSchema,
       execute: async ({ type, organization_id }) => {
         function generateResponse(cost: Cost) {
           return `The new ${type} will cost $${cost.amount} ${cost.recurrence}. You must repeat this to the user and confirm their understanding.`;
@@ -137,14 +232,8 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
         idempotentHint: true,
         openWorldHint: false,
       },
-      parameters: z.object({
-        type: z.enum(['project', 'branch']),
-        recurrence: z.enum(['hourly', 'monthly']),
-        amount: z.number(),
-      }),
-      outputSchema: z.object({
-        confirmation_id: z.string(),
-      }),
+      parameters: confirmCostInputSchema,
+      outputSchema: confirmCostOutputSchema,
       execute: async (cost) => {
         return { confirmation_id: await hashObject(cost) };
       },
@@ -159,22 +248,8 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
         idempotentHint: false,
         openWorldHint: false,
       },
-      parameters: z.object({
-        name: z.string().describe('The name of the project'),
-        region: z
-          .enum(AWS_REGION_CODES)
-          .describe('The region to create the project in.'),
-        organization_id: z.string(),
-        confirm_cost_id: z
-          .string({
-            error: (issue) =>
-              issue.input === undefined
-                ? 'User must confirm understanding of costs before creating a project.'
-                : undefined,
-          })
-          .describe('The cost confirmation ID. Call `confirm_cost` first.'),
-      }),
-      outputSchema: projectSchema,
+      parameters: createProjectInputSchema,
+      outputSchema: createProjectOutputSchema,
       execute: async ({ name, region, organization_id, confirm_cost_id }) => {
         if (readOnly) {
           throw new Error('Cannot create a project in read-only mode.');
@@ -204,12 +279,8 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
         idempotentHint: false,
         openWorldHint: false,
       },
-      parameters: z.object({
-        project_id: z.string(),
-      }),
-      outputSchema: z.object({
-        success: z.boolean(),
-      }),
+      parameters: pauseProjectInputSchema,
+      outputSchema: pauseProjectOutputSchema,
       execute: async ({ project_id }) => {
         if (readOnly) {
           throw new Error('Cannot pause a project in read-only mode.');
@@ -228,12 +299,8 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
         idempotentHint: false,
         openWorldHint: false,
       },
-      parameters: z.object({
-        project_id: z.string(),
-      }),
-      outputSchema: z.object({
-        success: z.boolean(),
-      }),
+      parameters: restoreProjectInputSchema,
+      outputSchema: restoreProjectOutputSchema,
       execute: async ({ project_id }) => {
         if (readOnly) {
           throw new Error('Cannot restore a project in read-only mode.');

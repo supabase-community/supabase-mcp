@@ -3,6 +3,15 @@ import { source } from 'common-tags';
 import { z } from 'zod/v4';
 import type { ContentApiClient } from '../content-api/index.js';
 
+export const searchDocsInputSchema = z.object({
+  graphql_query: z.string().describe('GraphQL query string'),
+});
+
+export const searchDocsOutputSchema = z.record(z.string(), z.unknown());
+
+export type SearchDocsInput = z.infer<typeof searchDocsInputSchema>;
+export type SearchDocsOutput = z.infer<typeof searchDocsOutputSchema>;
+
 export type DocsToolsOptions = {
   contentApiClient: ContentApiClient;
 };
@@ -29,11 +38,8 @@ export function getDocsTools({ contentApiClient }: DocsToolsOptions) {
         idempotentHint: true,
         openWorldHint: false,
       },
-      parameters: z.object({
-        // Intentionally use a verbose param name for the LLM
-        graphql_query: z.string().describe('GraphQL query string'),
-      }),
-      outputSchema: z.record(z.string(), z.unknown()),
+      parameters: searchDocsInputSchema,
+      outputSchema: searchDocsOutputSchema,
       execute: async ({ graphql_query }) => {
         const result = await contentApiClient.query({ query: graphql_query });
         return result as Record<string, unknown>;

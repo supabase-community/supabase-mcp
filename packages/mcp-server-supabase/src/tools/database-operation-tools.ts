@@ -9,6 +9,101 @@ import type { DatabaseOperations } from '../platform/types.js';
 import { migrationSchema } from '../platform/types.js';
 import { injectableTool } from './util.js';
 
+export const listTablesInputSchema = z.object({
+  project_id: z.string(),
+  schemas: z
+    .array(z.string())
+    .describe('List of schemas to include. Defaults to all schemas.')
+    .default(['public']),
+});
+
+export const listTablesOutputSchema = z.object({
+  tables: z.array(
+    z.object({
+      schema: z.string(),
+      name: z.string(),
+      rls_enabled: z.boolean(),
+      rows: z.number().nullable(),
+      columns: z
+        .array(
+          z.object({
+            name: z.string(),
+            data_type: z.string(),
+            format: z.string(),
+            options: z.array(z.string()),
+            default_value: z.any().optional(),
+            identity_generation: z.union([z.string(), z.null()]).optional(),
+            enums: z.array(z.string()).optional(),
+            check: z.union([z.string(), z.null()]).optional(),
+            comment: z.union([z.string(), z.null()]).optional(),
+          })
+        )
+        .nullable(),
+      primary_keys: z.array(z.string()).nullable(),
+      comment: z.string().nullable().optional(),
+      foreign_key_constraints: z
+        .array(
+          z.object({
+            name: z.string(),
+            source: z.string(),
+            target: z.string(),
+          })
+        )
+        .optional(),
+    })
+  ),
+});
+
+export type ListTablesInput = z.infer<typeof listTablesInputSchema>;
+export type ListTablesOutput = z.infer<typeof listTablesOutputSchema>;
+
+export const listExtensionsInputSchema = z.object({
+  project_id: z.string(),
+});
+
+export const listExtensionsOutputSchema = z.object({
+  extensions: z.array(postgresExtensionSchema),
+});
+
+export type ListExtensionsInput = z.infer<typeof listExtensionsInputSchema>;
+export type ListExtensionsOutput = z.infer<typeof listExtensionsOutputSchema>;
+
+export const listMigrationsInputSchema = z.object({
+  project_id: z.string(),
+});
+
+export const listMigrationsOutputSchema = z.object({
+  migrations: z.array(migrationSchema),
+});
+
+export type ListMigrationsInput = z.infer<typeof listMigrationsInputSchema>;
+export type ListMigrationsOutput = z.infer<typeof listMigrationsOutputSchema>;
+
+export const applyMigrationInputSchema = z.object({
+  project_id: z.string(),
+  name: z.string().describe('The name of the migration in snake_case'),
+  query: z.string().describe('The SQL query to apply'),
+});
+
+export const applyMigrationOutputSchema = z.object({
+  success: z.boolean(),
+});
+
+export type ApplyMigrationInput = z.infer<typeof applyMigrationInputSchema>;
+export type ApplyMigrationOutput = z.infer<typeof applyMigrationOutputSchema>;
+
+export const executeSqlInputSchema = z.object({
+  project_id: z.string(),
+  query: z.string().describe('The SQL query to execute'),
+});
+
+export const executeSqlOutputSchema = z.object({
+  result: z.string(),
+});
+
+export type ExecuteSqlInput = z.infer<typeof executeSqlInputSchema>;
+export type ExecuteSqlOutput = z.infer<typeof executeSqlOutputSchema>;
+
 const SUCCESS_RESPONSE = { success: true };
 
 export type DatabaseOperationToolsOptions = {
@@ -34,52 +129,9 @@ export function getDatabaseTools({
         idempotentHint: true,
         openWorldHint: false,
       },
-      parameters: z.object({
-        project_id: z.string(),
-        schemas: z
-          .array(z.string())
-          .describe('List of schemas to include. Defaults to all schemas.')
-          .default(['public']),
-      }),
+      parameters: listTablesInputSchema,
       inject: { project_id },
-      outputSchema: z.object({
-        tables: z.array(
-          z.object({
-            schema: z.string(),
-            name: z.string(),
-            rls_enabled: z.boolean(),
-            rows: z.number().nullable(),
-            columns: z
-              .array(
-                z.object({
-                  name: z.string(),
-                  data_type: z.string(),
-                  format: z.string(),
-                  options: z.array(z.string()),
-                  default_value: z.any().optional(),
-                  identity_generation: z
-                    .union([z.string(), z.null()])
-                    .optional(),
-                  enums: z.array(z.string()).optional(),
-                  check: z.union([z.string(), z.null()]).optional(),
-                  comment: z.union([z.string(), z.null()]).optional(),
-                })
-              )
-              .nullable(),
-            primary_keys: z.array(z.string()).nullable(),
-            comment: z.string().nullable().optional(),
-            foreign_key_constraints: z
-              .array(
-                z.object({
-                  name: z.string(),
-                  source: z.string(),
-                  target: z.string(),
-                })
-              )
-              .optional(),
-          })
-        ),
-      }),
+      outputSchema: listTablesOutputSchema,
       execute: async ({ project_id, schemas }) => {
         const { query, parameters } = listTablesSql(schemas);
         const data = await database.executeSql(project_id, {
@@ -204,13 +256,9 @@ export function getDatabaseTools({
         idempotentHint: true,
         openWorldHint: false,
       },
-      parameters: z.object({
-        project_id: z.string(),
-      }),
+      parameters: listExtensionsInputSchema,
       inject: { project_id },
-      outputSchema: z.object({
-        extensions: z.array(postgresExtensionSchema),
-      }),
+      outputSchema: listExtensionsOutputSchema,
       execute: async ({ project_id }) => {
         const query = listExtensionsSql();
         const data = await database.executeSql(project_id, {
@@ -232,13 +280,9 @@ export function getDatabaseTools({
         idempotentHint: true,
         openWorldHint: false,
       },
-      parameters: z.object({
-        project_id: z.string(),
-      }),
+      parameters: listMigrationsInputSchema,
       inject: { project_id },
-      outputSchema: z.object({
-        migrations: z.array(migrationSchema),
-      }),
+      outputSchema: listMigrationsOutputSchema,
       execute: async ({ project_id }) => {
         return { migrations: await database.listMigrations(project_id) };
       },
@@ -253,15 +297,9 @@ export function getDatabaseTools({
         idempotentHint: false,
         openWorldHint: true,
       },
-      parameters: z.object({
-        project_id: z.string(),
-        name: z.string().describe('The name of the migration in snake_case'),
-        query: z.string().describe('The SQL query to apply'),
-      }),
+      parameters: applyMigrationInputSchema,
       inject: { project_id },
-      outputSchema: z.object({
-        success: z.boolean(),
-      }),
+      outputSchema: applyMigrationOutputSchema,
       execute: async ({ project_id, name, query }) => {
         if (readOnly) {
           throw new Error('Cannot apply migration in read-only mode.');
@@ -285,14 +323,9 @@ export function getDatabaseTools({
         idempotentHint: false,
         openWorldHint: true,
       },
-      parameters: z.object({
-        project_id: z.string(),
-        query: z.string().describe('The SQL query to execute'),
-      }),
+      parameters: executeSqlInputSchema,
       inject: { project_id },
-      outputSchema: z.object({
-        result: z.string(),
-      }),
+      outputSchema: executeSqlOutputSchema,
       execute: async ({ query, project_id }) => {
         const result = await database.executeSql(project_id, {
           query,

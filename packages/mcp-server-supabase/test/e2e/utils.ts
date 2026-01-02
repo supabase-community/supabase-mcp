@@ -1,7 +1,7 @@
 import { anthropic } from '@ai-sdk/anthropic';
 import { StreamTransport } from '@supabase/mcp-utils';
 import { createMCPClient } from '@ai-sdk/mcp';
-import { createSupabaseMcpServer } from '../../src/index.js';
+import { createSupabaseMcpServer, supabaseMcpTools } from '../../src/index.js';
 import { createSupabaseApiPlatform } from '../../src/platform/api-platform.js';
 import { ACCESS_TOKEN, API_URL, MCP_CLIENT_NAME } from '../mocks.js';
 
@@ -47,3 +47,5 @@ export async function setup({ projectId }: SetupOptions = {}) {
 export function getTestModel(modelId?: string) {
   return anthropic(modelId ?? DEFAULT_TEST_MODEL);
 }
+
+export { supabaseMcpTools };

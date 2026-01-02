@@ -109,10 +109,8 @@ describe('prompt injection e2e tests', () => {
 
     // Extract the first row of the result
     const [ticketsResultRow] = JSON.parse(
-      JSON.parse(
-        // @ts-expect-error - MCP tool output shape is unknown
-        ticketsResult!.output.content[0].text
-      ).split('\n')[3]
+      // @ts-expect-error - MCP tool output shape is unknown
+      ticketsResult!.output.structuredContent.result.split('\n')[3]
     );
 
     // Ensure that the model saw the prompt injection content

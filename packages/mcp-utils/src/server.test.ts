@@ -92,6 +92,10 @@ describe('tools', () => {
             query: z.string(),
             caseSensitive: z.boolean().default(false),
           }),
+          outputSchema: z.object({
+            query: z.string(),
+            caseSensitive: z.boolean(),
+          }),
           execute: async (args) => {
             return args;
           },
@@ -130,8 +134,9 @@ describe('tools', () => {
             readOnlyHint: true,
           },
           parameters: z.object({ foo: z.string() }),
+          outputSchema: z.object({ value: z.string() }),
           execute: async ({ foo }) => {
-            return `Success: ${foo}`;
+            return { value: `Success: ${foo}` };
           },
         }),
         bad_tool: tool({
@@ -141,6 +146,7 @@ describe('tools', () => {
             readOnlyHint: true,
           },
           parameters: z.object({ foo: z.string() }),
+          outputSchema: z.object({ value: z.string() }),
           execute: async ({ foo }) => {
             throw new Error('Failure: ' + foo);
           },
@@ -155,7 +161,7 @@ describe('tools', () => {
       arguments: { foo: 'bar' },
     });
 
-    await expect(goodToolPromise).resolves.toEqual('Success: bar');
+    await expect(goodToolPromise).resolves.toEqual({ value: 'Success: bar' });
     expect(onToolCall).toHaveBeenLastCalledWith({
       name: 'good_tool',
       arguments: { foo: 'bar' },
@@ -164,7 +170,7 @@ describe('tools', () => {
         readOnlyHint: true,
       },
       success: true,
-      data: 'Success: bar',
+      data: { value: 'Success: bar' },
     });
 
     const badToolPromise = callTool({
@@ -185,6 +191,36 @@ describe('tools', () => {
     });
   });
 
+  test('tool returns structuredContent', async () => {
+    const server = createMcpServer({
+      name: 'test-server',
+      version: '0.0.0',
+      tools: {
+        test_tool: tool({
+          description: 'Test tool',
+          parameters: z.object({ foo: z.string() }),
+          outputSchema: z.object({ result: z.string() }),
+          execute: async ({ foo }) => ({ result: foo }),
+        }),
+      },
+    });
+
+    const { client } = await setup({ server });
+    const output = await client.callTool({
+      name: 'test_tool',
+      arguments: { foo: 'bar' },
+    });
+
+    const parsed = CallToolResultSchema.parse(output);
+    expect(parsed.structuredContent).toEqual({ result: 'bar' });
+    const textContent = parsed.content[0];
+    if (textContent && textContent.type === 'text') {
+      const parsedContent = JSON.parse(textContent.text);
+      expect(parsedContent).toEqual({ result: 'bar' });
+      expect(parsed.structuredContent).toEqual(parsedContent);
+    }
+  });
+
   test("tool callback error doesn't fail the tool call", async () => {
     const onToolCall = vi.fn(() => {
       throw new Error('Tool callback failed');
@@ -202,8 +238,9 @@ describe('tools', () => {
             readOnlyHint: true,
           },
           parameters: z.object({ foo: z.string() }),
+          outputSchema: z.object({ value: z.string() }),
           execute: async ({ foo }) => {
-            return `Success: ${foo}`;
+            return { value: `Success: ${foo}` };
           },
         }),
       },
@@ -216,7 +253,7 @@ describe('tools', () => {
       arguments: { foo: 'bar' },
     });
 
-    await expect(goodToolPromise).resolves.toEqual('Success: bar');
+    await expect(goodToolPromise).resolves.toEqual({ value: 'Success: bar' });
     expect(onToolCall.mock.results[0]?.type).toBe('throw');
   });
 });

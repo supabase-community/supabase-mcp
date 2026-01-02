@@ -13,7 +13,9 @@ export const searchDocsInputSchema = z.object({
   graphql_query: z.string().describe('GraphQL query string'),
 });
 
-export const searchDocsOutputSchema = z.record(z.string(), z.unknown());
+export const searchDocsOutputSchema = z.object({
+  result: z.unknown().describe('GraphQL query result'),
+});
 
 export function getDocsTools({ contentApiClient }: DocsToolsOptions) {
   return {
@@ -41,7 +43,7 @@ export function getDocsTools({ contentApiClient }: DocsToolsOptions) {
       outputSchema: searchDocsOutputSchema,
       execute: async ({ graphql_query }) => {
         const result = await contentApiClient.query({ query: graphql_query });
-        return result as Record<string, unknown>;
+        return { result };
       },
     }),
   };

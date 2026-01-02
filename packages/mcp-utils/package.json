@@ -29,9 +29,10 @@
     }
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "^1.18.0",
-    "zod": "^3.24.1",
-    "zod-to-json-schema": "^3.24.1"
+    "@modelcontextprotocol/sdk": "catalog:"
+  },
+  "peerDependencies": {
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@total-typescript/tsconfig": "^1.0.4",
@@ -39,6 +40,7 @@
     "prettier": "^3.3.3",
     "tsup": "^8.3.5",
     "typescript": "^5.6.3",
-    "vitest": "^2.1.9"
+    "vitest": "^2.1.9",
+    "zod": "catalog:"
   }
 }

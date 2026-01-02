@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v4';
 import { edgeFunctionExample } from '../edge-function.js';
 import type { EdgeFunctionsOperations } from '../platform/types.js';
 import { injectableTool } from './util.js';

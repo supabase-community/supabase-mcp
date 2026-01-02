@@ -5,7 +5,7 @@ import {
   type CallToolRequest,
 } from '@modelcontextprotocol/sdk/types.js';
 import { describe, expect, test, vi } from 'vitest';
-import { z } from 'zod';
+import { z } from 'zod/v4';
 import {
   createMcpServer,
   resource,

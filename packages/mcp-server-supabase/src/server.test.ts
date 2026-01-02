@@ -1352,7 +1352,7 @@ describe('tools', () => {
         service: invalidService,
       },
     });
-    await expect(getLogsPromise).rejects.toThrow('Invalid enum value');
+    await expect(getLogsPromise).rejects.toThrow('Invalid option');
   });
 
   test('list edge functions', async () => {
@@ -2846,7 +2846,7 @@ describe('feature groups', () => {
       features: ['my-invalid-group'],
     });
 
-    await expect(setupPromise).rejects.toThrow('Invalid enum value');
+    await expect(setupPromise).rejects.toThrow('Invalid input');
   });
 
   test('duplicate group behaves like single group', async () => {

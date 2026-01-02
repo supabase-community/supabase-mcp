@@ -1,6 +1,6 @@
 import { tool } from '@supabase/mcp-utils';
 import { source } from 'common-tags';
-import { z } from 'zod';
+import { z } from 'zod/v4';
 import type { ContentApiClient } from '../content-api/index.js';
 
 export type DocsToolsOptions = {

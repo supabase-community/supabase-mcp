@@ -1,5 +1,5 @@
 import { tool } from '@supabase/mcp-utils';
-import { z } from 'zod';
+import { z } from 'zod/v4';
 import type { AccountOperations } from '../platform/types.js';
 import { type Cost, getBranchCost, getNextProjectCost } from '../pricing.js';
 import { AWS_REGION_CODES } from '../regions.js';
@@ -147,8 +147,10 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
         organization_id: z.string(),
         confirm_cost_id: z
           .string({
-            required_error:
-              'User must confirm understanding of costs before creating a project.',
+            error: (issue) =>
+              issue.input === undefined
+                ? 'User must confirm understanding of costs before creating a project.'
+                : undefined,
           })
           .describe('The cost confirmation ID. Call `confirm_cost` first.'),
       }),

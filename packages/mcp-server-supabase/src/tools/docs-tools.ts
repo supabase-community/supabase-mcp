@@ -3,18 +3,17 @@ import { source } from 'common-tags';
 import { z } from 'zod/v4';
 import type { ContentApiClient } from '../content-api/index.js';
 
+export type SearchDocsInput = z.infer<typeof searchDocsInputSchema>;
+export type SearchDocsOutput = z.infer<typeof searchDocsOutputSchema>;
+export type DocsToolsOptions = {
+  contentApiClient: ContentApiClient;
+};
+
 export const searchDocsInputSchema = z.object({
   graphql_query: z.string().describe('GraphQL query string'),
 });
 
 export const searchDocsOutputSchema = z.record(z.string(), z.unknown());
-
-export type SearchDocsInput = z.infer<typeof searchDocsInputSchema>;
-export type SearchDocsOutput = z.infer<typeof searchDocsOutputSchema>;
-
-export type DocsToolsOptions = {
-  contentApiClient: ContentApiClient;
-};
 
 export function getDocsTools({ contentApiClient }: DocsToolsOptions) {
   return {

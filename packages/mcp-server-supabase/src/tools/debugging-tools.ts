@@ -5,6 +5,15 @@ import {
 } from '../platform/types.js';
 import { injectableTool } from './util.js';
 
+export type GetLogsInput = z.infer<typeof getLogsInputSchema>;
+export type GetLogsOutput = z.infer<typeof getLogsOutputSchema>;
+export type GetAdvisorsInput = z.infer<typeof getAdvisorsInputSchema>;
+export type GetAdvisorsOutput = z.infer<typeof getAdvisorsOutputSchema>;
+export type DebuggingToolsOptions = {
+  debugging: DebuggingOperations;
+  projectId?: string;
+};
+
 export const getLogsInputSchema = z.object({
   project_id: z.string(),
   service: logsServiceSchema.describe('The service to fetch logs for'),
@@ -13,9 +22,6 @@ export const getLogsInputSchema = z.object({
 export const getLogsOutputSchema = z.object({
   result: z.unknown(),
 });
-
-export type GetLogsInput = z.infer<typeof getLogsInputSchema>;
-export type GetLogsOutput = z.infer<typeof getLogsOutputSchema>;
 
 export const getAdvisorsInputSchema = z.object({
   project_id: z.string(),
@@ -27,14 +33,6 @@ export const getAdvisorsInputSchema = z.object({
 export const getAdvisorsOutputSchema = z.object({
   result: z.unknown(),
 });
-
-export type GetAdvisorsInput = z.infer<typeof getAdvisorsInputSchema>;
-export type GetAdvisorsOutput = z.infer<typeof getAdvisorsOutputSchema>;
-
-export type DebuggingToolsOptions = {
-  debugging: DebuggingOperations;
-  projectId?: string;
-};
 
 export function getDebuggingTools({
   debugging,

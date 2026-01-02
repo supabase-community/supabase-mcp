@@ -7,6 +7,18 @@ import {
 } from '../platform/types.js';
 import { injectableTool } from './util.js';
 
+export type ListEdgeFunctionsInput = z.infer<typeof listEdgeFunctionsInputSchema>;
+export type ListEdgeFunctionsOutput = z.infer<typeof listEdgeFunctionsOutputSchema>;
+export type GetEdgeFunctionInput = z.infer<typeof getEdgeFunctionInputSchema>;
+export type GetEdgeFunctionOutput = z.infer<typeof getEdgeFunctionOutputSchema>;
+export type DeployEdgeFunctionInput = z.infer<typeof deployEdgeFunctionInputSchema>;
+export type DeployEdgeFunctionOutput = z.infer<typeof deployEdgeFunctionOutputSchema>;
+export type EdgeFunctionToolsOptions = {
+  functions: EdgeFunctionsOperations;
+  projectId?: string;
+  readOnly?: boolean;
+};
+
 export const listEdgeFunctionsInputSchema = z.object({
   project_id: z.string(),
 });
@@ -15,18 +27,12 @@ export const listEdgeFunctionsOutputSchema = z.object({
   functions: z.array(edgeFunctionSchema),
 });
 
-export type ListEdgeFunctionsInput = z.infer<typeof listEdgeFunctionsInputSchema>;
-export type ListEdgeFunctionsOutput = z.infer<typeof listEdgeFunctionsOutputSchema>;
-
 export const getEdgeFunctionInputSchema = z.object({
   project_id: z.string(),
   function_slug: z.string(),
 });
 
 export const getEdgeFunctionOutputSchema = edgeFunctionWithBodySchema;
-
-export type GetEdgeFunctionInput = z.infer<typeof getEdgeFunctionInputSchema>;
-export type GetEdgeFunctionOutput = z.infer<typeof getEdgeFunctionOutputSchema>;
 
 export const deployEdgeFunctionInputSchema = z.object({
   project_id: z.string(),
@@ -58,15 +64,6 @@ export const deployEdgeFunctionInputSchema = z.object({
 });
 
 export const deployEdgeFunctionOutputSchema = edgeFunctionSchema;
-
-export type DeployEdgeFunctionInput = z.infer<typeof deployEdgeFunctionInputSchema>;
-export type DeployEdgeFunctionOutput = z.infer<typeof deployEdgeFunctionOutputSchema>;
-
-export type EdgeFunctionToolsOptions = {
-  functions: EdgeFunctionsOperations;
-  projectId?: string;
-  readOnly?: boolean;
-};
 
 export function getEdgeFunctionTools({
   functions,

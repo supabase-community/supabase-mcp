@@ -9,6 +9,22 @@ import type { DatabaseOperations } from '../platform/types.js';
 import { migrationSchema } from '../platform/types.js';
 import { injectableTool } from './util.js';
 
+export type ListTablesInput = z.infer<typeof listTablesInputSchema>;
+export type ListTablesOutput = z.infer<typeof listTablesOutputSchema>;
+export type ListExtensionsInput = z.infer<typeof listExtensionsInputSchema>;
+export type ListExtensionsOutput = z.infer<typeof listExtensionsOutputSchema>;
+export type ListMigrationsInput = z.infer<typeof listMigrationsInputSchema>;
+export type ListMigrationsOutput = z.infer<typeof listMigrationsOutputSchema>;
+export type ApplyMigrationInput = z.infer<typeof applyMigrationInputSchema>;
+export type ApplyMigrationOutput = z.infer<typeof applyMigrationOutputSchema>;
+export type ExecuteSqlInput = z.infer<typeof executeSqlInputSchema>;
+export type ExecuteSqlOutput = z.infer<typeof executeSqlOutputSchema>;
+export type DatabaseOperationToolsOptions = {
+  database: DatabaseOperations;
+  projectId?: string;
+  readOnly?: boolean;
+};
+
 export const listTablesInputSchema = z.object({
   project_id: z.string(),
   schemas: z
@@ -54,9 +70,6 @@ export const listTablesOutputSchema = z.object({
   ),
 });
 
-export type ListTablesInput = z.infer<typeof listTablesInputSchema>;
-export type ListTablesOutput = z.infer<typeof listTablesOutputSchema>;
-
 export const listExtensionsInputSchema = z.object({
   project_id: z.string(),
 });
@@ -65,9 +78,6 @@ export const listExtensionsOutputSchema = z.object({
   extensions: z.array(postgresExtensionSchema),
 });
 
-export type ListExtensionsInput = z.infer<typeof listExtensionsInputSchema>;
-export type ListExtensionsOutput = z.infer<typeof listExtensionsOutputSchema>;
-
 export const listMigrationsInputSchema = z.object({
   project_id: z.string(),
 });
@@ -75,9 +85,6 @@ export const listMigrationsInputSchema = z.object({
 export const listMigrationsOutputSchema = z.object({
   migrations: z.array(migrationSchema),
 });
-
-export type ListMigrationsInput = z.infer<typeof listMigrationsInputSchema>;
-export type ListMigrationsOutput = z.infer<typeof listMigrationsOutputSchema>;
 
 export const applyMigrationInputSchema = z.object({
   project_id: z.string(),
@@ -89,9 +96,6 @@ export const applyMigrationOutputSchema = z.object({
   success: z.boolean(),
 });
 
-export type ApplyMigrationInput = z.infer<typeof applyMigrationInputSchema>;
-export type ApplyMigrationOutput = z.infer<typeof applyMigrationOutputSchema>;
-
 export const executeSqlInputSchema = z.object({
   project_id: z.string(),
   query: z.string().describe('The SQL query to execute'),
@@ -101,16 +105,7 @@ export const executeSqlOutputSchema = z.object({
   result: z.string(),
 });
 
-export type ExecuteSqlInput = z.infer<typeof executeSqlInputSchema>;
-export type ExecuteSqlOutput = z.infer<typeof executeSqlOutputSchema>;
-
 const SUCCESS_RESPONSE = { success: true };
-
-export type DatabaseOperationToolsOptions = {
-  database: DatabaseOperations;
-  projectId?: string;
-  readOnly?: boolean;
-};
 
 export function getDatabaseTools({
   database,

@@ -6,6 +6,24 @@ import { getBranchCost } from '../pricing.js';
 import { hashObject } from '../util.js';
 import { injectableTool } from './util.js';
 
+export type CreateBranchInput = z.infer<typeof createBranchInputSchema>;
+export type CreateBranchOutput = z.infer<typeof createBranchOutputSchema>;
+export type ListBranchesInput = z.infer<typeof listBranchesInputSchema>;
+export type ListBranchesOutput = z.infer<typeof listBranchesOutputSchema>;
+export type DeleteBranchInput = z.infer<typeof deleteBranchInputSchema>;
+export type DeleteBranchOutput = z.infer<typeof deleteBranchOutputSchema>;
+export type MergeBranchInput = z.infer<typeof mergeBranchInputSchema>;
+export type MergeBranchOutput = z.infer<typeof mergeBranchOutputSchema>;
+export type ResetBranchInput = z.infer<typeof resetBranchInputSchema>;
+export type ResetBranchOutput = z.infer<typeof resetBranchOutputSchema>;
+export type RebaseBranchInput = z.infer<typeof rebaseBranchInputSchema>;
+export type RebaseBranchOutput = z.infer<typeof rebaseBranchOutputSchema>;
+export type BranchingToolsOptions = {
+  branching: BranchingOperations;
+  projectId?: string;
+  readOnly?: boolean;
+};
+
 export const createBranchInputSchema = z.object({
   project_id: z.string(),
   name: z
@@ -24,9 +42,6 @@ export const createBranchInputSchema = z.object({
 
 export const createBranchOutputSchema = branchSchema;
 
-export type CreateBranchInput = z.infer<typeof createBranchInputSchema>;
-export type CreateBranchOutput = z.infer<typeof createBranchOutputSchema>;
-
 export const listBranchesInputSchema = z.object({
   project_id: z.string(),
 });
@@ -34,9 +49,6 @@ export const listBranchesInputSchema = z.object({
 export const listBranchesOutputSchema = z.object({
   branches: z.array(branchSchema),
 });
-
-export type ListBranchesInput = z.infer<typeof listBranchesInputSchema>;
-export type ListBranchesOutput = z.infer<typeof listBranchesOutputSchema>;
 
 export const deleteBranchInputSchema = z.object({
   branch_id: z.string(),
@@ -46,9 +58,6 @@ export const deleteBranchOutputSchema = z.object({
   success: z.boolean(),
 });
 
-export type DeleteBranchInput = z.infer<typeof deleteBranchInputSchema>;
-export type DeleteBranchOutput = z.infer<typeof deleteBranchOutputSchema>;
-
 export const mergeBranchInputSchema = z.object({
   branch_id: z.string(),
 });
@@ -56,9 +65,6 @@ export const mergeBranchInputSchema = z.object({
 export const mergeBranchOutputSchema = z.object({
   success: z.boolean(),
 });
-
-export type MergeBranchInput = z.infer<typeof mergeBranchInputSchema>;
-export type MergeBranchOutput = z.infer<typeof mergeBranchOutputSchema>;
 
 export const resetBranchInputSchema = z.object({
   branch_id: z.string(),
@@ -74,9 +80,6 @@ export const resetBranchOutputSchema = z.object({
   success: z.boolean(),
 });
 
-export type ResetBranchInput = z.infer<typeof resetBranchInputSchema>;
-export type ResetBranchOutput = z.infer<typeof resetBranchOutputSchema>;
-
 export const rebaseBranchInputSchema = z.object({
   branch_id: z.string(),
 });
@@ -85,16 +88,7 @@ export const rebaseBranchOutputSchema = z.object({
   success: z.boolean(),
 });
 
-export type RebaseBranchInput = z.infer<typeof rebaseBranchInputSchema>;
-export type RebaseBranchOutput = z.infer<typeof rebaseBranchOutputSchema>;
-
 const SUCCESS_RESPONSE = { success: true };
-
-export type BranchingToolsOptions = {
-  branching: BranchingOperations;
-  projectId?: string;
-  readOnly?: boolean;
-};
 
 export function getBranchingTools({
   branching,

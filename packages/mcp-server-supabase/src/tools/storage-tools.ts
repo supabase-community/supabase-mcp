@@ -3,6 +3,18 @@ import type { StorageOperations } from '../platform/types.js';
 import { storageBucketSchema, storageConfigSchema } from '../platform/types.js';
 import { injectableTool } from './util.js';
 
+export type ListStorageBucketsInput = z.infer<typeof listStorageBucketsInputSchema>;
+export type ListStorageBucketsOutput = z.infer<typeof listStorageBucketsOutputSchema>;
+export type GetStorageConfigInput = z.infer<typeof getStorageConfigInputSchema>;
+export type GetStorageConfigOutput = z.infer<typeof getStorageConfigOutputSchema>;
+export type UpdateStorageConfigInput = z.infer<typeof updateStorageConfigInputSchema>;
+export type UpdateStorageConfigOutput = z.infer<typeof updateStorageConfigOutputSchema>;
+export type StorageToolsOptions = {
+  storage: StorageOperations;
+  projectId?: string;
+  readOnly?: boolean;
+};
+
 export const listStorageBucketsInputSchema = z.object({
   project_id: z.string(),
 });
@@ -11,17 +23,11 @@ export const listStorageBucketsOutputSchema = z.object({
   buckets: z.array(storageBucketSchema),
 });
 
-export type ListStorageBucketsInput = z.infer<typeof listStorageBucketsInputSchema>;
-export type ListStorageBucketsOutput = z.infer<typeof listStorageBucketsOutputSchema>;
-
 export const getStorageConfigInputSchema = z.object({
   project_id: z.string(),
 });
 
 export const getStorageConfigOutputSchema = storageConfigSchema;
-
-export type GetStorageConfigInput = z.infer<typeof getStorageConfigInputSchema>;
-export type GetStorageConfigOutput = z.infer<typeof getStorageConfigOutputSchema>;
 
 export const updateStorageConfigInputSchema = z.object({
   project_id: z.string(),
@@ -38,16 +44,7 @@ export const updateStorageConfigOutputSchema = z.object({
   success: z.boolean(),
 });
 
-export type UpdateStorageConfigInput = z.infer<typeof updateStorageConfigInputSchema>;
-export type UpdateStorageConfigOutput = z.infer<typeof updateStorageConfigOutputSchema>;
-
 const SUCCESS_RESPONSE = { success: true };
-
-export type StorageToolsOptions = {
-  storage: StorageOperations;
-  projectId?: string;
-  readOnly?: boolean;
-};
 
 export function getStorageTools({
   storage,

@@ -12,22 +12,23 @@ import {
   ACCESS_TOKEN,
   API_URL,
   contentApiMockSchema,
-  mockContentApiSchemaLoadCount,
+  createBranch,
   createOrganization,
   createProject,
-  createBranch,
   MCP_CLIENT_NAME,
   MCP_CLIENT_VERSION,
   mockBranches,
   mockContentApi,
+  mockContentApiSchemaLoadCount,
   mockManagementApi,
   mockOrgs,
   mockProjects,
 } from '../test/mocks.js';
 import { createSupabaseApiPlatform } from './platform/api-platform.js';
+import type { SupabasePlatform } from './platform/types.js';
 import { BRANCH_COST_HOURLY, PROJECT_COST_MONTHLY } from './pricing.js';
 import { createSupabaseMcpServer } from './server.js';
-import type { SupabasePlatform } from './platform/types.js';
+import { supabaseMcpTools } from './tools/registry.js';
 
 let mockServer: ReturnType<typeof setupServer> | undefined;
 
@@ -2739,6 +2740,46 @@ describe('tools', () => {
     expect(toolsWithoutOutputSchema).toEqual([]);
   });
 
+  test('all tools are included in supabaseMcpTools registry', async () => {
+    // Enable all features to ensure we check all possible tools
+    const { client } = await setup({
+      features: [
+        'docs',
+        'account',
+        'database',
+        'debugging',
+        'development',
+        'functions',
+        'branching',
+        'storage',
+      ],
+    });
+
+    const { tools } = await client.listTools();
+
+    // Check that every tool from the MCP server exists in the registry
+    for (const tool of tools) {
+      expect(
+        supabaseMcpTools,
+        `Tool "${tool.name}" should be in supabaseMcpTools registry`
+      ).toHaveProperty(tool.name);
+    }
+
+    // Also verify that the registry doesn't have extra entries
+    // (tools that don't exist in the server)
+    const registryToolNames = Object.keys(supabaseMcpTools);
+    const serverToolNames = tools.map((t) => t.name);
+
+    const extraToolsInRegistry = registryToolNames.filter(
+      (name) => !serverToolNames.includes(name)
+    );
+
+    expect(
+      extraToolsInRegistry,
+      'Registry should not contain tools that are not in the MCP server when all features are enabled'
+    ).toEqual([]);
+  });
+
   test('structuredContent matches JSON stringified content', async () => {
     const org = await createOrganization({
       name: 'My Org',
@@ -3148,7 +3189,7 @@ describe('docs tools', () => {
       },
     });
 
-    expect(result).toEqual({ dummy: true });
+    expect(result).toEqual({ result: { dummy: true } });
   });
 
   test('tool description contains schema', async () => {

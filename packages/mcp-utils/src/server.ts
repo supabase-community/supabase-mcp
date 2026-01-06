@@ -441,7 +441,9 @@ export function createMcpServer(options: McpServerOptions) {
           tools: await Promise.all(
             Object.entries(tools).map(
               async ([name, { description, annotations, parameters }]) => {
-                const inputSchema = z.toJSONSchema(parameters);
+                const inputSchema = z.toJSONSchema(parameters, {
+                  target: 'draft-07',
+                });
 
                 return {
                   name,

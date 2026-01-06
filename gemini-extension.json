@@ -1,7 +1,7 @@
 {
     "name": "supabase",
     "description": "Access your Supabase projects and perform tasks like managing tables, fetching config, and querying data.",
-    "version": "0.5.9",
+    "version": "0.6.1",
     "contextFileName": "SUPABASE.md",
     "mcpServers": {
         "supabase": {

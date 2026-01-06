@@ -32,7 +32,8 @@ For Node.js package managers, `supabase` commands MUST be prefixed with the pack
 
 **Project identification**
 
-The user will likely have linked their Supabase CLI to a development project. You can find the linked project ref in `supabase/.temp/project-ref`, use this as the `project_id` in MCP tool calls.
+The user will likely have linked their Supabase CLI to a development project.
+The output of `[prefix?] supabase projects list` indicates which project is linked, use its `project_id` in MCP tool calls.
 
 **Schema management**
 

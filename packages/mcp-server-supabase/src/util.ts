@@ -1,4 +1,4 @@
-import { z } from 'zod';
+import { z } from 'zod/v4';
 import type { SupabasePlatform } from './platform/types.js';
 import { PLATFORM_INDEPENDENT_FEATURES } from './server.js';
 import {
@@ -99,22 +99,15 @@ export function parseFeatureGroups(
     ),
   ];
 
-  const availableFeaturesSchema = z.enum(
-    availableFeatures as [string, ...string[]],
-    {
-      description: 'Available features based on platform implementation',
-      errorMap: (issue, ctx) => {
-        switch (issue.code) {
-          case 'invalid_enum_value':
-            return {
-              message: `This platform does not support the '${issue.received}' feature group. Supported groups are: ${availableFeatures.join(', ')}`,
-            };
-          default:
-            return { message: ctx.defaultError };
+  const availableFeaturesSchema = z
+    .enum(availableFeatures as [string, ...string[]], {
+      error: (issue) => {
+        if (issue.code === 'invalid_value') {
+          return `This platform does not support the '${issue.input}' feature group. Supported groups are: ${availableFeatures.join(', ')}`;
         }
       },
-    }
-  );
+    })
+    .describe('Available features based on platform implementation');
 
   // Second pass: validate the desired features against this platform's available features
   return z.set(availableFeaturesSchema).parse(desiredFeatures);

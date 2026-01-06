@@ -6,7 +6,7 @@ import { http, HttpResponse } from 'msw';
 import { customAlphabet } from 'nanoid';
 import { join } from 'node:path/posix';
 import { expect } from 'vitest';
-import { z } from 'zod';
+import { z } from 'zod/v4';
 import packageJson from '../package.json' with { type: 'json' };
 import {
   getQueryFields,
@@ -87,9 +87,24 @@ export const mockBranches = new Map<string, MockBranch>();
 export const mockContentApiSchemaLoadCount = { value: 0 };
 
 export const mockContentApi = [
-  http.post(CONTENT_API_URL, async ({ request }) => {
-    const json = await request.json();
-    const { query } = graphqlRequestSchema.parse(json);
+  http.get(CONTENT_API_URL, async ({ request }) => {
+    const requestUrl = new URL(request.url);
+    const queryParam = requestUrl.searchParams.get('query') ?? '';
+    const variablesParam = requestUrl.searchParams.get('variables');
+
+    let variables: Record<string, unknown> | undefined;
+    if (variablesParam) {
+      try {
+        variables = JSON.parse(variablesParam);
+      } catch {
+        throw Error('Invalid query made to Content API');
+      }
+    }
+
+    const { query } = graphqlRequestSchema.parse({
+      query: queryParam,
+      variables,
+    });
 
     const schema = buildSchema(contentApiMockSchema);
     const document = parse(query);
@@ -446,6 +461,7 @@ export const mockManagementApi = [
         name: z.string(),
         entrypoint_path: z.string(),
         import_map_path: z.string().optional(),
+        verify_jwt: z.boolean().optional(),
       });
 
       const metadataFormValue = formData.get('metadata');
@@ -1011,6 +1027,7 @@ export type MockEdgeFunctionOptions = {
   name: string;
   entrypoint_path: string;
   import_map_path?: string;
+  verify_jwt?: boolean;
 };
 
 export class MockEdgeFunction {
@@ -1066,7 +1083,12 @@ export class MockEdgeFunction {
 
   constructor(
     projectId: string,
-    { name, entrypoint_path, import_map_path }: MockEdgeFunctionOptions
+    {
+      name,
+      entrypoint_path,
+      import_map_path,
+      verify_jwt,
+    }: MockEdgeFunctionOptions
   ) {
     this.projectId = projectId;
     this.id = crypto.randomUUID();
@@ -1079,12 +1101,17 @@ export class MockEdgeFunction {
       ? `file://${join(this.pathPrefix, import_map_path)}`
       : undefined;
     this.import_map = !!import_map_path;
-    this.verify_jwt = true;
+    this.verify_jwt = verify_jwt ?? true;
     this.created_at = new Date();
     this.updated_at = new Date();
   }
 
-  update({ name, entrypoint_path, import_map_path }: MockEdgeFunctionOptions) {
+  update({
+    name,
+    entrypoint_path,
+    import_map_path,
+    verify_jwt,
+  }: MockEdgeFunctionOptions) {
     this.name = name;
     this.version += 1;
     this.entrypoint_path = `file://${join(this.pathPrefix, entrypoint_path)}`;
@@ -1092,6 +1119,9 @@ export class MockEdgeFunction {
       ? `file://${join(this.pathPrefix, import_map_path)}`
       : undefined;
     this.import_map = !!import_map_path;
+    if (verify_jwt !== undefined) {
+      this.verify_jwt = verify_jwt;
+    }
     this.updated_at = new Date();
   }
 }

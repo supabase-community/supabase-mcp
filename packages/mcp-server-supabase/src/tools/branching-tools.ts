@@ -1,5 +1,5 @@
 import { tool } from '@supabase/mcp-utils';
-import { z } from 'zod';
+import { z } from 'zod/v4';
 import type { BranchingOperations } from '../platform/types.js';
 import { getBranchCost } from '../pricing.js';
 import { hashObject } from '../util.js';
@@ -39,8 +39,10 @@ export function getBranchingTools({
           .describe('Name of the branch to create'),
         confirm_cost_id: z
           .string({
-            required_error:
-              'User must confirm understanding of costs before creating a branch.',
+            error: (issue) =>
+              issue.input === undefined
+                ? 'User must confirm understanding of costs before creating a branch.'
+                : undefined,
           })
           .describe('The cost confirmation ID. Call `confirm_cost` first.'),
       }),

@@ -8,7 +8,7 @@ import type {
   ResponseObjectMap,
   SuccessResponse,
 } from 'openapi-typescript-helpers';
-import { z } from 'zod';
+import { z } from 'zod/v4';
 import type { paths } from './types.js';
 
 export function createManagementApiClient(

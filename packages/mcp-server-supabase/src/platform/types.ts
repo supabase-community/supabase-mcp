@@ -1,5 +1,5 @@
 import type { InitData } from '@supabase/mcp-utils';
-import { z } from 'zod';
+import { z } from 'zod/v4';
 import { AWS_REGION_CODES } from '../regions.js';
 
 export type SuccessResponse = {
@@ -104,6 +104,7 @@ export const deployEdgeFunctionOptionsSchema = z.object({
   name: z.string(),
   entrypoint_path: z.string(),
   import_map_path: z.string().optional(),
+  verify_jwt: z.boolean().optional(),
   files: z.array(
     z.object({
       name: z.string(),
@@ -234,10 +235,7 @@ export type DevelopmentOperations = {
 
 export type StorageOperations = {
   getStorageConfig(projectId: string): Promise<StorageConfig>;
-  updateStorageConfig(
-    projectId: string,
-    config: StorageConfig
-  ): Promise<void>;
+  updateStorageConfig(projectId: string, config: StorageConfig): Promise<void>;
   listAllBuckets(projectId: string): Promise<StorageBucket[]>;
 };
 
@@ -249,10 +247,7 @@ export type BranchingOperations = {
   ): Promise<Branch>;
   deleteBranch(branchId: string): Promise<void>;
   mergeBranch(branchId: string): Promise<void>;
-  resetBranch(
-    branchId: string,
-    options: ResetBranchOptions
-  ): Promise<void>;
+  resetBranch(branchId: string, options: ResetBranchOptions): Promise<void>;
   rebaseBranch(branchId: string): Promise<void>;
 };
 

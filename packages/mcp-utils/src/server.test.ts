@@ -5,7 +5,7 @@ import {
   type CallToolRequest,
 } from '@modelcontextprotocol/sdk/types.js';
 import { describe, expect, test, vi } from 'vitest';
-import { z } from 'zod';
+import { z } from 'zod/v4';
 import {
   createMcpServer,
   resource,
@@ -218,6 +218,36 @@ describe('tools', () => {
 
     await expect(goodToolPromise).resolves.toEqual('Success: bar');
     expect(onToolCall.mock.results[0]?.type).toBe('throw');
+  });
+
+  test('tools use draft-07 JSON Schema', async () => {
+    const server = createMcpServer({
+      name: 'test-server',
+      version: '0.0.0',
+      tools: {
+        tool: tool({
+          description: 'A tool that always succeeds',
+          annotations: {
+            title: 'Good tool',
+            readOnlyHint: true,
+          },
+          parameters: z.object({ foo: z.string() }),
+          execute: async ({ foo }) => {
+            return `Success: ${foo}`;
+          },
+        }),
+      },
+    });
+
+    const { client } = await setup({ server });
+
+    const { tools } = await client.listTools();
+
+    for (const tool of tools) {
+      expect(tool.inputSchema['$schema']).toBe(
+        'http://json-schema.org/draft-07/schema#'
+      );
+    }
   });
 });
 

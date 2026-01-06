@@ -1,5 +1,7 @@
 # Supabase MCP Server
 
+[![MCP Registry Version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fregistry.modelcontextprotocol.io%2Fv0.1%2Fservers%2Fcom.supabase%252Fmcp%2Fversions%2Flatest&query=%24.server.version&label=MCP%20Registry&logo=modelcontextprotocol)](https://registry.modelcontextprotocol.io/?q=com.supabase%2Fmcp)
+
 > Connect your Supabase projects to Cursor, Claude, Windsurf, and other AI assistants.
 
 ![supabase-mcp-demo](https://github.com/user-attachments/assets/3fce101a-b7d4-482f-9182-0be70ed1ad56)
@@ -15,13 +17,11 @@ Before setting up the MCP server, we recommend you read our [security best pract
 
 ### 2. Configure your MCP client
 
-The Supabase MCP server is hosted at `https://mcp.supabase.com/mcp` and supports the Streamable HTTP transport with Dynamic Client Registration OAuth 2.1 authentication.
+To configure the Supabase MCP server on your client, visit our [setup documentation](https://supabase.com/docs/guides/getting-started/mcp#step-2-configure-your-ai-tool). You can also generate a custom MCP URL for your project by visiting the [MCP connection tab](https://supabase.com/dashboard/project/_?showConnect=true&connectTab=mcp) in the Supabase dashboard.
 
-If you're running Supabase locally with [Supabase CLI](https://supabase.com/docs/guides/local-development/cli/getting-started), you can access the MCP server at `http://localhost:54321/mcp`. For [self-hosted Supabase](https://supabase.com/docs/guides/self-hosting/docker), check the [Enabling MCP server](https://supabase.com/docs/guides/self-hosting/enable-mcp) page. Currently, the MCP Server in CLI and self-hosted environments offer a limited subset of tools and no OAuth 2.1.
+Your MCP client will automatically prompt you to log in to Supabase during setup. Be sure to choose the organization that contains the project you wish to work with.
 
-The easiest way to connect your MCP client (such as Cursor) to your project is clicking [Connect](https://supabase.com/dashboard/project/_?showConnect=true&tab=mcp) in the Supabase dashboard and navigating to the MCP tab. There you can choose options such as [feature groups](#feature-groups), and generate one-click installers or config entries for popular clients.
-
-Most MCP clients store the configuration as JSON in the following format:
+Most MCP clients require the following information:
 
 ```json
 {
@@ -34,63 +34,15 @@ Most MCP clients store the configuration as JSON in the following format:
 }
 ```
 
-Your MCP client will automatically prompt you to log in to Supabase during setup. This will open a browser window where you can log in to your Supabase account and grant access to the MCP client. Be sure to choose the organization that contains the project you wish to work with. In the future, we'll offer more fine grain control over these permissions.
+If you don't see your MCP client listed in our documentation, check your client's MCP documentation and copy the above MCP information into their expected format (json, yaml, etc).
 
-For more information, visit the [Supabase MCP docs](https://supabase.com/docs/guides/getting-started/mcp).
+#### CLI
 
-You can also manually install it on your favorite client.
+If you're running Supabase locally with [Supabase CLI](https://supabase.com/docs/guides/local-development/cli/getting-started), you can access the MCP server at `http://localhost:54321/mcp`. Currently, the MCP Server in CLI environments offers a limited subset of tools and no OAuth 2.1.
 
-<details>
-<summary>Cursor</summary>
+#### Self-hosted
 
-#### Click the button to install:
-
-[<img src="https://cursor.com/deeplink/mcp-install-dark.svg" alt="Install in Cursor">](https://cursor.com/en/install-mcp?name=Supabase&config=eyJ1cmwiOiJodHRwczovL21jcC5zdXBhYmFzZS5jb20vbWNwIn0%3D)
-
-#### Or install manually:
-
-Go to `Cursor Settings` → `MCP` → `Add new MCP Server`. Name to your liking, use `type: http` and the following config:
-
-```json
-{
-  "mcpServers": {
-    "supabase": {
-      "type": "http",
-      "url": "https://mcp.supabase.com/mcp"
-    }
-  }
-}
-```
-
-For more information, see the [Cursor MCP docs](https://docs.cursor.com/context/mcp).
-
-</details>
-
-<details>
-<summary>VS Code</summary>
-
-#### Click the button to install:
-
-[<img src="https://img.shields.io/badge/VS_Code-VS_Code?style=flat-square&label=Install%20Server&color=0098FF" alt="Install in VS Code">](https://vscode.dev/redirect?url=vscode:mcp/install%3F%7B%22name%22%3A%22Supabase%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fmcp.supabase.com%2Fmcp%22%7D) [<img alt="Install in VS Code Insiders" src="https://img.shields.io/badge/VS_Code_Insiders-VS_Code_Insiders?style=flat-square&label=Install%20Server&color=24bfa5">](https://insiders.vscode.dev/redirect?url=vscode-insiders:mcp/install%3F%7B%22name%22%3A%22Supabase%22%2C%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fmcp.supabase.com%2Fmcp%22%7D)
-
-#### Or install manually:
-
-Open (or create) your `mcp.json` file and add:
-
-```json
-{
-  "servers": {
-    "supabase": {
-      "type": "http",
-      "url": "https://mcp.supabase.com/mcp"
-    }
-  }
-}
-```
-
-For more information, see the [VS Code MCP docs](https://code.visualstudio.com/docs/copilot/customization/mcp-servers#_add-an-mcp-server).
-
-</details>
+For [self-hosted Supabase](https://supabase.com/docs/guides/self-hosting/docker), check the [Enabling MCP server](https://supabase.com/docs/guides/self-hosting/enable-mcp) page. Currently, the MCP Server in self-hosted environments offers a limited subset of tools and no OAuth 2.1.
 
 ## Options
 

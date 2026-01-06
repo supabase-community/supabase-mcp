@@ -1,14 +1,52 @@
 {
-  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-10-17/server.schema.json",
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
   "name": "com.supabase/mcp",
+  "title": "Supabase",
   "description": "MCP server for interacting with the Supabase platform",
+  "icons": [
+    {
+      "mimeType": "image/png",
+      "sizes": ["16x16"],
+      "src": "https://supabase.com/favicon/favicon-16x16.png"
+    },
+    {
+      "mimeType": "image/png",
+      "sizes": ["32x32"],
+      "src": "https://supabase.com/favicon/favicon-32x32.png"
+    },
+    {
+      "mimeType": "image/png",
+      "sizes": ["48x48"],
+      "src": "https://supabase.com/favicon/favicon-48x48.png"
+    },
+    {
+      "mimeType": "image/png",
+      "sizes": ["96x96"],
+      "src": "https://supabase.com/favicon/favicon-96x96.png"
+    },
+    {
+      "mimeType": "image/png",
+      "sizes": ["128x128"],
+      "src": "https://supabase.com/favicon/favicon-128.png"
+    },
+    {
+      "mimeType": "image/png",
+      "sizes": ["180x180"],
+      "src": "https://supabase.com/favicon/favicon-180x180.png"
+    },
+    {
+      "mimeType": "image/png",
+      "sizes": ["196x196"],
+      "src": "https://supabase.com/favicon/favicon-196x196.png"
+    }
+  ],
   "repository": {
     "url": "https://github.com/supabase-community/supabase-mcp",
     "source": "github",
     "subfolder": "packages/mcp-server-supabase"
   },
   "websiteUrl": "https://supabase.com/mcp",
-  "version": "0.5.9",
+  "version": "0.6.1",
   "remotes": [
     {
       "type": "streamable-http",
@@ -20,7 +58,7 @@
       "registryType": "npm",
       "registryBaseUrl": "https://registry.npmjs.org",
       "identifier": "@supabase/mcp-server-supabase",
-      "version": "0.5.9",
+      "version": "0.6.1",
       "transport": {
         "type": "stdio"
       },

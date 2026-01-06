@@ -545,6 +545,7 @@ export function createSupabaseApiPlatform(
         name,
         entrypoint_path,
         import_map_path,
+        verify_jwt,
         files: inputFiles,
       } = deployEdgeFunctionOptionsSchema.parse(options);
 
@@ -575,6 +576,7 @@ export function createSupabaseApiPlatform(
               name,
               entrypoint_path,
               import_map_path,
+              verify_jwt,
             },
             file: inputFiles as any, // We need to pass file name and content to our serializer
           },

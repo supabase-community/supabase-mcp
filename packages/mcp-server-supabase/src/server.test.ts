@@ -5,8 +5,9 @@ import {
 } from '@modelcontextprotocol/sdk/types.js';
 import { StreamTransport } from '@supabase/mcp-utils';
 import { codeBlock, stripIndent } from 'common-tags';
+import gqlmin from 'gqlmin';
 import { setupServer } from 'msw/node';
-import { beforeEach, describe, expect, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import {
   ACCESS_TOKEN,
   API_URL,
@@ -28,14 +29,20 @@ import { BRANCH_COST_HOURLY, PROJECT_COST_MONTHLY } from './pricing.js';
 import { createSupabaseMcpServer } from './server.js';
 import type { SupabasePlatform } from './platform/types.js';
 
+let mockServer: ReturnType<typeof setupServer> | undefined;
+
 beforeEach(async () => {
   mockOrgs.clear();
   mockProjects.clear();
   mockBranches.clear();
   mockContentApiSchemaLoadCount.value = 0;
 
-  const server = setupServer(...mockContentApi, ...mockManagementApi);
-  server.listen({ onUnhandledRequest: 'error' });
+  mockServer = setupServer(...mockContentApi, ...mockManagementApi);
+  mockServer.listen({ onUnhandledRequest: 'error' });
+});
+
+afterEach(() => {
+  mockServer?.close();
 });
 
 type SetupOptions = {
@@ -1345,7 +1352,7 @@ describe('tools', () => {
         service: invalidService,
       },
     });
-    await expect(getLogsPromise).rejects.toThrow('Invalid enum value');
+    await expect(getLogsPromise).rejects.toThrow('Invalid option');
   });
 
   test('list edge functions', async () => {
@@ -1813,6 +1820,148 @@ describe('tools', () => {
 
     expect(result.import_map).toBe(true);
     expect(result.import_map_path).toMatch(/custom-map\.json$/);
+  });
+
+  test('deploy edge function with verify_jwt disabled', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const functionName = 'webhook-handler';
+    const functionCode = 'console.log("Webhook handler");';
+
+    const result = await callTool({
+      name: 'deploy_edge_function',
+      arguments: {
+        project_id: project.id,
+        name: functionName,
+        verify_jwt: false,
+        files: [
+          {
+            name: 'index.ts',
+            content: functionCode,
+          },
+        ],
+      },
+    });
+
+    expect(result).toEqual({
+      id: expect.stringMatching(/^.+$/),
+      slug: functionName,
+      version: 1,
+      name: functionName,
+      status: 'ACTIVE',
+      entrypoint_path: expect.stringMatching(/index\.ts$/),
+      import_map_path: undefined,
+      import_map: false,
+      verify_jwt: false,
+      created_at: expect.stringMatching(
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
+      ),
+      updated_at: expect.stringMatching(
+        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
+      ),
+    });
+  });
+
+  test('deploy edge function with verify_jwt enabled (default)', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const functionName = 'authenticated-function';
+    const functionCode = 'console.log("Authenticated function");';
+
+    const result = await callTool({
+      name: 'deploy_edge_function',
+      arguments: {
+        project_id: project.id,
+        name: functionName,
+        files: [
+          {
+            name: 'index.ts',
+            content: functionCode,
+          },
+        ],
+      },
+    });
+
+    expect(result.verify_jwt).toBe(true);
+  });
+
+  test('update edge function verify_jwt from true to false', async () => {
+    const { callTool } = await setup();
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const functionName = 'my-function';
+
+    // First deploy with verify_jwt: true (default)
+    const edgeFunction = await project.deployEdgeFunction(
+      {
+        name: functionName,
+        entrypoint_path: 'index.ts',
+        verify_jwt: true,
+      },
+      [
+        new File(['console.log("v1");'], 'index.ts', {
+          type: 'application/typescript',
+        }),
+      ]
+    );
+
+    expect(edgeFunction.verify_jwt).toBe(true);
+
+    // Update with verify_jwt: false
+    const result = await callTool({
+      name: 'deploy_edge_function',
+      arguments: {
+        project_id: project.id,
+        name: functionName,
+        verify_jwt: false,
+        files: [
+          {
+            name: 'index.ts',
+            content: 'console.log("v2");',
+          },
+        ],
+      },
+    });
+
+    expect(result.verify_jwt).toBe(false);
+    expect(result.version).toBe(2);
   });
 
   test('create branch', async () => {
@@ -2697,7 +2846,7 @@ describe('feature groups', () => {
       features: ['my-invalid-group'],
     });
 
-    await expect(setupPromise).rejects.toThrow('Invalid enum value');
+    await expect(setupPromise).rejects.toThrow('Invalid input');
   });
 
   test('duplicate group behaves like single group', async () => {
@@ -2962,7 +3111,8 @@ describe('docs tools', () => {
       throw new Error('tool description not found');
     }
 
-    expect(tool.description.includes(contentApiMockSchema)).toBe(true);
+    const minifiedSchema = gqlmin(contentApiMockSchema);
+    expect(tool.description.includes(minifiedSchema)).toBe(true);
   });
 
   test('schema is only loaded when listing tools', async () => {

@@ -1,12 +1,12 @@
 import { type Tool, tool } from '@supabase/mcp-utils';
-import type { z } from 'zod';
+import { z } from 'zod/v4';
 
 type RequireKeys<Injected, Params> = {
   [K in keyof Injected]: K extends keyof Params ? Injected[K] : never;
 };
 
 export type InjectableTool<
-  Params extends z.ZodObject<any> = z.ZodObject<any>,
+  Params extends z.ZodObject,
   Result = unknown,
   Injected extends Partial<z.infer<Params>> = {},
 > = Tool<Params, Result> & {
@@ -21,7 +21,7 @@ export type InjectableTool<
 };
 
 export function injectableTool<
-  Params extends z.ZodObject<any>,
+  Params extends z.ZodObject,
   Result,
   Injected extends Partial<z.infer<Params>>,
 >({
@@ -43,27 +43,25 @@ export function injectableTool<
 
   // Create a mask used to remove injected parameters from the schema
   const mask = Object.fromEntries(
-    Object.entries(inject)
-      .filter(([_, value]) => value !== undefined)
-      .map(([key]) => [key, true as const])
+    Object.keys(inject)
+      .filter((key) => inject[key as keyof Injected] !== undefined)
+      .map((key) => [key, true as const])
   );
 
-  type NonNullableKeys = {
-    [K in keyof Injected]: Injected[K] extends undefined ? never : K;
-  }[keyof Injected];
+  // Schema without injected parameters
+  const cleanParametersSchema = parameters.omit(mask);
 
-  type CleanParams = z.infer<Params> extends any
-    ? {
-        [K in keyof z.infer<Params> as K extends NonNullableKeys
-          ? never
-          : K]: z.infer<Params>[K];
-      }
-    : never;
+  // Wrapper that merges injected values with provided args
+  const executeWithInjection = async (
+    args: z.infer<typeof cleanParametersSchema>
+  ) => {
+    return execute({ ...args, ...inject } as z.infer<Params>);
+  };
 
   return tool({
     description,
     annotations,
-    parameters: parameters.omit(mask),
-    execute: (args) => execute({ ...args, ...inject }),
-  }) as Tool<z.ZodObject<any, any, any, CleanParams>, Result>;
+    parameters: cleanParametersSchema,
+    execute: executeWithInjection,
+  });
 }

@@ -42,7 +42,7 @@
     "tsup": "^8.3.5",
     "tsx": "^4.19.2",
     "typescript": "^5.6.3",
-    "vitest": "^2.1.9",
+    "vitest": "^4.0.16",
     "zod": "catalog:"
   }
 }

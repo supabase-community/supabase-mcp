@@ -15,9 +15,15 @@ catalogs:
     '@modelcontextprotocol/sdk':
       specifier: 1.23.1
       version: 1.23.1
+    '@vitest/coverage-v8':
+      specifier: ^4.0.16
+      version: 4.0.16
     ai:
       specifier: ^6.0.3
       version: 6.0.3
+    vitest:
+      specifier: ^4.0.16
+      version: 4.0.16
     zod:
       specifier: ^3.25.0 || ^4.0.0
       version: 4.2.1
@@ -33,7 +39,7 @@ importers:
         specifier: ^2.1.1
         version: 2.34.3
       vitest:
-        specifier: ^4.0.16
+        specifier: 'catalog:'
         version: 4.0.16(@opentelemetry/api@1.9.0)(@types/node@22.17.2)(msw@2.10.5(@types/node@22.17.2)(typescript@5.9.2))(tsx@4.20.4)
 
   packages/mcp-server-postgrest:
@@ -69,9 +75,6 @@ importers:
       typescript:
         specifier: ^5.6.3
         version: 5.9.2
-      vitest:
-        specifier: ^4.0.16
-        version: 4.0.16(@opentelemetry/api@1.9.0)(@types/node@22.17.2)(msw@2.10.5(@types/node@22.17.2)(typescript@5.9.2))(tsx@4.20.4)
       zod:
         specifier: 'catalog:'
         version: 4.2.1
@@ -119,7 +122,7 @@ importers:
         specifier: ^22.8.6
         version: 22.17.2
       '@vitest/coverage-v8':
-        specifier: ^4.0.16
+        specifier: 'catalog:'
         version: 4.0.16(vitest@4.0.16(@opentelemetry/api@1.9.0)(@types/node@22.17.2)(msw@2.10.5(@types/node@22.17.2)(typescript@5.9.2))(tsx@4.20.4))
       ai:
         specifier: 'catalog:'
@@ -157,9 +160,6 @@ importers:
       vite:
         specifier: ^5.4.19
         version: 5.4.19(@types/node@22.17.2)
-      vitest:
-        specifier: ^4.0.16
-        version: 4.0.16(@opentelemetry/api@1.9.0)(@types/node@22.17.2)(msw@2.10.5(@types/node@22.17.2)(typescript@5.9.2))(tsx@4.20.4)
       zod:
         specifier: 'catalog:'
         version: 4.2.1
@@ -185,9 +185,6 @@ importers:
       typescript:
         specifier: ^5.6.3
         version: 5.9.2
-      vitest:
-        specifier: ^4.0.16
-        version: 4.0.16(@opentelemetry/api@1.9.0)(@types/node@22.17.2)(msw@2.10.5(@types/node@22.17.2)(typescript@5.9.2))(tsx@4.20.4)
       zod:
         specifier: 'catalog:'
         version: 4.2.1
@@ -3368,7 +3365,7 @@ snapshots:
 
   istanbul-lib-source-maps@5.0.6:
     dependencies:
-      '@jridgewell/trace-mapping': 0.3.30
+      '@jridgewell/trace-mapping': 0.3.31
       debug: 4.4.1(supports-color@10.2.0)
       istanbul-lib-coverage: 3.2.2
     transitivePeerDependencies:

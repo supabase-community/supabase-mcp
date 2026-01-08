@@ -13,5 +13,7 @@ catalog:
   '@ai-sdk/anthropic': ^3.0.1
   '@ai-sdk/mcp': ^1.0.1
   '@modelcontextprotocol/sdk': 1.23.1
+  '@vitest/coverage-v8': ^4.0.16
   ai: ^6.0.3
+  vitest: ^4.0.16
   zod: ^3.25.0 || ^4.0.0

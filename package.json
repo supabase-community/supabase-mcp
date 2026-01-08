@@ -9,6 +9,6 @@
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
     "supabase": "^2.1.1",
-    "vitest": "^4.0.16"
+    "vitest": "catalog:"
   }
 }

@@ -40,7 +40,6 @@
     "prettier": "^3.3.3",
     "tsup": "^8.3.5",
     "typescript": "^5.6.3",
-    "vitest": "^4.0.16",
     "zod": "catalog:"
   }
 }

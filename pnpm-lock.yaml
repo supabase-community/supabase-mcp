@@ -35,9 +35,6 @@ importers:
 
   packages/mcp-server-postgrest:
     dependencies:
-      '@modelcontextprotocol/sdk':
-        specifier: 'catalog:'
-        version: 1.25.2(hono@4.11.3)(zod@4.2.1)
       '@supabase/mcp-utils':
         specifier: workspace:^
         version: link:../mcp-utils
@@ -45,6 +42,9 @@ importers:
         specifier: ^0.1.8
         version: 0.1.8
     devDependencies:
+      '@modelcontextprotocol/sdk':
+        specifier: 'catalog:'
+        version: 1.25.2(hono@4.11.3)(zod@4.2.1)
       '@supabase/auth-js':
         specifier: ^2.67.3
         version: 2.71.1
@@ -78,9 +78,6 @@ importers:
       '@mjackson/multipart-parser':
         specifier: ^0.10.1
         version: 0.10.1
-      '@modelcontextprotocol/sdk':
-        specifier: 'catalog:'
-        version: 1.25.2(hono@4.11.3)(zod@4.2.1)
       '@supabase/mcp-utils':
         specifier: workspace:^
         version: link:../mcp-utils
@@ -106,6 +103,9 @@ importers:
       '@electric-sql/pglite':
         specifier: ^0.2.17
         version: 0.2.17
+      '@modelcontextprotocol/sdk':
+        specifier: 'catalog:'
+        version: 1.25.2(hono@4.11.3)(zod@4.2.1)
       '@total-typescript/tsconfig':
         specifier: ^1.0.4
         version: 1.0.4
@@ -162,11 +162,10 @@ importers:
         version: 4.2.1
 
   packages/mcp-utils:
-    dependencies:
+    devDependencies:
       '@modelcontextprotocol/sdk':
         specifier: 'catalog:'
         version: 1.25.2(hono@4.11.3)(zod@4.2.1)
-    devDependencies:
       '@total-typescript/tsconfig':
         specifier: ^1.0.4
         version: 1.0.4

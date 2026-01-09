@@ -27,14 +27,15 @@
     }
   },
   "dependencies": {
-    "@modelcontextprotocol/sdk": "catalog:",
     "@supabase/mcp-utils": "workspace:^",
     "@supabase/sql-to-rest": "^0.1.8"
   },
   "peerDependencies": {
+    "@modelcontextprotocol/sdk": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
+    "@modelcontextprotocol/sdk": "catalog:",
     "@supabase/auth-js": "^2.67.3",
     "@total-typescript/tsconfig": "^1.0.4",
     "@types/node": "^22.8.6",

@@ -442,7 +442,7 @@ export function createMcpServer(options: McpServerOptions) {
             Object.entries(tools).map(
               async ([name, { description, annotations, parameters }]) => {
                 const inputSchema = z.toJSONSchema(parameters, {
-                  target: 'draft-07',
+                  target: 'draft-7',
                 });
 
                 return {

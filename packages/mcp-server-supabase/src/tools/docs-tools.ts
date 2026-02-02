@@ -1,13 +1,17 @@
-import { tool } from '@supabase/mcp-utils';
+import { tool, type ZodRegistry } from '@supabase/mcp-utils';
 import { source } from 'common-tags';
 import { z } from 'zod/v4';
 import type { ContentApiClient } from '../content-api/index.js';
 
 export type DocsToolsOptions = {
   contentApiClient: ContentApiClient;
+  registry: ZodRegistry;
 };
 
-export function getDocsTools({ contentApiClient }: DocsToolsOptions) {
+export function getDocsTools({
+  contentApiClient,
+  registry,
+}: DocsToolsOptions) {
   return {
     search_docs: tool({
       description: async () => {
@@ -31,7 +35,9 @@ export function getDocsTools({ contentApiClient }: DocsToolsOptions) {
       },
       parameters: z.object({
         // Intentionally use a verbose param name for the LLM
-        graphql_query: z.string().describe('GraphQL query string'),
+        graphql_query: z
+          .string()
+          .register(registry, { description: 'GraphQL query string' }),
       }),
       execute: async ({ graphql_query }) => {
         return await contentApiClient.query({ query: graphql_query });

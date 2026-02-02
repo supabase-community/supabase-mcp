@@ -81,7 +81,7 @@ async function setup(options: SetupOptions = {}) {
       apiUrl: API_URL,
     });
 
-  const server = createSupabaseMcpServer({
+  const { server } = createSupabaseMcpServer({
     platform,
     projectId,
     readOnly,

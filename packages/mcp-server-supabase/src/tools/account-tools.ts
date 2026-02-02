@@ -1,4 +1,4 @@
-import { tool } from '@supabase/mcp-utils';
+import { tool, type ZodRegistry } from '@supabase/mcp-utils';
 import { z } from 'zod/v4';
 import type { AccountOperations } from '../platform/types.js';
 import { type Cost, getBranchCost, getNextProjectCost } from '../pricing.js';
@@ -10,9 +10,14 @@ const SUCCESS_RESPONSE = { success: true };
 export type AccountToolsOptions = {
   account: AccountOperations;
   readOnly?: boolean;
+  registry: ZodRegistry;
 };
 
-export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
+export function getAccountTools({
+  account,
+  readOnly,
+  registry,
+}: AccountToolsOptions) {
   return {
     list_organizations: tool({
       description: 'Lists all organizations that the user is a member of.',
@@ -39,7 +44,7 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
         openWorldHint: false,
       },
       parameters: z.object({
-        id: z.string().describe('The organization ID'),
+        id: z.string().register(registry, { description: 'The organization ID' }),
       }),
       execute: async ({ id: organizationId }) => {
         return await account.getOrganization(organizationId);
@@ -70,7 +75,7 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
         openWorldHint: false,
       },
       parameters: z.object({
-        id: z.string().describe('The project ID'),
+        id: z.string().register(registry, { description: 'The project ID' }),
       }),
       execute: async ({ id }) => {
         return await account.getProject(id);
@@ -90,7 +95,9 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
         type: z.enum(['project', 'branch']),
         organization_id: z
           .string()
-          .describe('The organization ID. Always ask the user.'),
+          .register(registry, {
+            description: 'The organization ID. Always ask the user.',
+          }),
       }),
       execute: async ({ type, organization_id }) => {
         function generateResponse(cost: Cost) {
@@ -140,10 +147,14 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
         openWorldHint: false,
       },
       parameters: z.object({
-        name: z.string().describe('The name of the project'),
+        name: z
+          .string()
+          .register(registry, { description: 'The name of the project' }),
         region: z
           .enum(AWS_REGION_CODES)
-          .describe('The region to create the project in.'),
+          .register(registry, {
+            description: 'The region to create the project in.',
+          }),
         organization_id: z.string(),
         confirm_cost_id: z
           .string({
@@ -152,7 +163,9 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
                 ? 'User must confirm understanding of costs before creating a project.'
                 : undefined,
           })
-          .describe('The cost confirmation ID. Call `confirm_cost` first.'),
+          .register(registry, {
+            description: 'The cost confirmation ID. Call `confirm_cost` first.',
+          }),
       }),
       execute: async ({ name, region, organization_id, confirm_cost_id }) => {
         if (readOnly) {

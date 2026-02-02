@@ -1,3 +1,4 @@
+import type { ZodRegistry } from '@supabase/mcp-utils';
 import { source } from 'common-tags';
 import { z } from 'zod/v4';
 import { listExtensionsSql, listTablesSql } from '../pg-meta/index.js';
@@ -14,12 +15,14 @@ export type DatabaseOperationToolsOptions = {
   database: DatabaseOperations;
   projectId?: string;
   readOnly?: boolean;
+  registry: ZodRegistry;
 };
 
 export function getDatabaseTools({
   database,
   projectId,
   readOnly,
+  registry,
 }: DatabaseOperationToolsOptions) {
   const project_id = projectId;
 
@@ -37,8 +40,10 @@ export function getDatabaseTools({
         project_id: z.string(),
         schemas: z
           .array(z.string())
-          .describe('List of schemas to include. Defaults to all schemas.')
-          .default(['public']),
+          .default(['public'])
+          .register(registry, {
+            description: 'List of schemas to include. Defaults to all schemas.',
+          }),
       }),
       inject: { project_id },
       execute: async ({ project_id, schemas }) => {
@@ -206,8 +211,14 @@ export function getDatabaseTools({
       },
       parameters: z.object({
         project_id: z.string(),
-        name: z.string().describe('The name of the migration in snake_case'),
-        query: z.string().describe('The SQL query to apply'),
+        name: z
+          .string()
+          .register(registry, {
+            description: 'The name of the migration in snake_case',
+          }),
+        query: z
+          .string()
+          .register(registry, { description: 'The SQL query to apply' }),
       }),
       inject: { project_id },
       execute: async ({ project_id, name, query }) => {
@@ -235,7 +246,9 @@ export function getDatabaseTools({
       },
       parameters: z.object({
         project_id: z.string(),
-        query: z.string().describe('The SQL query to execute'),
+        query: z
+          .string()
+          .register(registry, { description: 'The SQL query to execute' }),
       }),
       inject: { project_id },
       execute: async ({ query, project_id }) => {

@@ -1,4 +1,4 @@
-import { tool } from '@supabase/mcp-utils';
+import { tool, type ZodRegistry } from '@supabase/mcp-utils';
 import { z } from 'zod/v4';
 import type { BranchingOperations } from '../platform/types.js';
 import { getBranchCost } from '../pricing.js';
@@ -11,12 +11,14 @@ export type BranchingToolsOptions = {
   branching: BranchingOperations;
   projectId?: string;
   readOnly?: boolean;
+  registry: ZodRegistry;
 };
 
 export function getBranchingTools({
   branching,
   projectId,
   readOnly,
+  registry,
 }: BranchingToolsOptions) {
   const project_id = projectId;
 
@@ -36,7 +38,7 @@ export function getBranchingTools({
         name: z
           .string()
           .default('develop')
-          .describe('Name of the branch to create'),
+          .register(registry, { description: 'Name of the branch to create' }),
         confirm_cost_id: z
           .string({
             error: (issue) =>
@@ -44,7 +46,9 @@ export function getBranchingTools({
                 ? 'User must confirm understanding of costs before creating a branch.'
                 : undefined,
           })
-          .describe('The cost confirmation ID. Call `confirm_cost` first.'),
+          .register(registry, {
+            description: 'The cost confirmation ID. Call `confirm_cost` first.',
+          }),
       }),
       inject: { project_id },
       execute: async ({ project_id, name, confirm_cost_id }) => {
@@ -138,9 +142,10 @@ export function getBranchingTools({
         migration_version: z
           .string()
           .optional()
-          .describe(
-            'Reset your development branch to a specific migration version.'
-          ),
+          .register(registry, {
+            description:
+              'Reset your development branch to a specific migration version.',
+          }),
       }),
       execute: async ({ branch_id, migration_version }) => {
         if (readOnly) {

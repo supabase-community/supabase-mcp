@@ -64,7 +64,7 @@ async function main() {
     apiUrl,
   });
 
-  const server = createSupabaseMcpServer({
+  const { server } = createSupabaseMcpServer({
     platform,
     projectId,
     readOnly,

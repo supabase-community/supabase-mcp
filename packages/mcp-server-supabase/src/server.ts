@@ -1,5 +1,6 @@
 import {
   createMcpServer,
+  type McpServerResult,
   type Tool,
   type ToolCallCallback,
 } from '@supabase/mcp-utils';
@@ -68,9 +69,21 @@ const DEFAULT_FEATURES: FeatureGroup[] = [
 export const PLATFORM_INDEPENDENT_FEATURES: FeatureGroup[] = ['docs'];
 
 /**
- * Creates an MCP server for interacting with Supabase.
+ * Result type returned by createSupabaseMcpServer containing both the server
+ * instance and the per-server registry that should be cleaned up when done.
  */
-export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
+export type SupabaseMcpServerResult = McpServerResult;
+
+/**
+ * Creates an MCP server for interacting with Supabase.
+ *
+ * Returns both the server instance and a per-server registry. The consumer
+ * is responsible for calling `registry.clear()` when the server is no longer
+ * needed to prevent memory leaks.
+ */
+export function createSupabaseMcpServer(
+  options: SupabaseMcpServerOptions
+): SupabaseMcpServerResult {
   const {
     platform,
     projectId,
@@ -97,7 +110,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
     features ?? availableDefaultFeatures
   );
 
-  const server = createMcpServer({
+  const { server, registry } = createMcpServer({
     name: 'supabase',
     title: 'Supabase',
     version,
@@ -130,11 +143,11 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       } = platform;
 
       if (enabledFeatures.has('docs')) {
-        Object.assign(tools, getDocsTools({ contentApiClient }));
+        Object.assign(tools, getDocsTools({ contentApiClient, registry }));
       }
 
       if (!projectId && account && enabledFeatures.has('account')) {
-        Object.assign(tools, getAccountTools({ account, readOnly }));
+        Object.assign(tools, getAccountTools({ account, readOnly, registry }));
       }
 
       if (database && enabledFeatures.has('database')) {
@@ -144,12 +157,16 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
             database,
             projectId,
             readOnly,
+            registry,
           })
         );
       }
 
       if (debugging && enabledFeatures.has('debugging')) {
-        Object.assign(tools, getDebuggingTools({ debugging, projectId }));
+        Object.assign(
+          tools,
+          getDebuggingTools({ debugging, projectId, registry })
+        );
       }
 
       if (development && enabledFeatures.has('development')) {
@@ -159,14 +176,14 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       if (functions && enabledFeatures.has('functions')) {
         Object.assign(
           tools,
-          getEdgeFunctionTools({ functions, projectId, readOnly })
+          getEdgeFunctionTools({ functions, projectId, readOnly, registry })
         );
       }
 
       if (branching && enabledFeatures.has('branching')) {
         Object.assign(
           tools,
-          getBranchingTools({ branching, projectId, readOnly })
+          getBranchingTools({ branching, projectId, readOnly, registry })
         );
       }
 
@@ -178,5 +195,5 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
     },
   });
 
-  return server;
+  return { server, registry };
 }

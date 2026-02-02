@@ -1,3 +1,4 @@
+import type { ZodRegistry } from '@supabase/mcp-utils';
 import { z } from 'zod/v4';
 import {
   logsServiceSchema,
@@ -8,11 +9,13 @@ import { injectableTool } from './util.js';
 export type DebuggingToolsOptions = {
   debugging: DebuggingOperations;
   projectId?: string;
+  registry: ZodRegistry;
 };
 
 export function getDebuggingTools({
   debugging,
   projectId,
+  registry,
 }: DebuggingToolsOptions) {
   const project_id = projectId;
 
@@ -29,7 +32,9 @@ export function getDebuggingTools({
       },
       parameters: z.object({
         project_id: z.string(),
-        service: logsServiceSchema.describe('The service to fetch logs for'),
+        service: logsServiceSchema.register(registry, {
+          description: 'The service to fetch logs for',
+        }),
       }),
       inject: { project_id },
       execute: async ({ project_id, service }) => {
@@ -57,7 +62,7 @@ export function getDebuggingTools({
         project_id: z.string(),
         type: z
           .enum(['security', 'performance'])
-          .describe('The type of advisors to fetch'),
+          .register(registry, { description: 'The type of advisors to fetch' }),
       }),
       inject: { project_id },
       execute: async ({ project_id, type }) => {

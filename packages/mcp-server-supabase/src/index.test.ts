@@ -40,7 +40,7 @@ async function setup(options: SetupOptions = {}) {
     accessToken,
   });
 
-  const server = createSupabaseMcpServer({
+  const { server } = createSupabaseMcpServer({
     platform,
     projectId,
     readOnly,

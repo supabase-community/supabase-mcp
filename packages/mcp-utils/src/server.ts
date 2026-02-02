@@ -198,6 +198,16 @@ export type ToolCallCallback = (details: ToolCallDetails) => void;
 export type PropCallback<T> = () => T | Promise<T>;
 export type Prop<T> = T | PropCallback<T>;
 
+/**
+ * Metadata stored in the per-server Zod registry for schema descriptions.
+ */
+export type ZodRegistryMeta = { description?: string };
+
+/**
+ * Per-server Zod registry type for schema metadata.
+ */
+export type ZodRegistry = z.core.$ZodRegistry<ZodRegistryMeta>;
+
 export type McpServerOptions = {
   /**
    * The name of the MCP server. This will be sent to the client as part of
@@ -252,6 +262,23 @@ export type McpServerOptions = {
    * that can change after the server has started.
    */
   tools?: Prop<Record<string, Tool>>;
+
+  /**
+   * Per-server Zod registry for schema metadata. If provided, this registry
+   * will be used for z.toJSONSchema() calls instead of the global registry.
+   * This prevents memory leaks from .describe() calls auto-registering in
+   * z.globalRegistry.
+   */
+  registry?: ZodRegistry;
+};
+
+/**
+ * Result type returned by createMcpServer containing both the server
+ * instance and the per-server registry that should be cleaned up when done.
+ */
+export type McpServerResult = {
+  server: Server;
+  registry: ZodRegistry;
 };
 
 /**
@@ -259,8 +286,16 @@ export type McpServerOptions = {
  *
  * Simplifies the process of creating an MCP server by providing a high-level
  * API for defining resources and tools.
+ *
+ * Returns both the server instance and a per-server registry. The consumer
+ * is responsible for calling `registry.clear()` when the server is no longer
+ * needed to prevent memory leaks.
  */
-export function createMcpServer(options: McpServerOptions) {
+export function createMcpServer(options: McpServerOptions): McpServerResult {
+  // Create per-server registry for schema metadata to avoid memory leaks
+  // from .describe() calls auto-registering in z.globalRegistry
+  const registry = options.registry ?? z.registry<ZodRegistryMeta>();
+
   const capabilities: ServerCapabilities = {};
 
   if (options.resources) {
@@ -443,6 +478,7 @@ export function createMcpServer(options: McpServerOptions) {
               async ([name, { description, annotations, parameters }]) => {
                 const inputSchema = z.toJSONSchema(parameters, {
                   target: 'draft-7',
+                  metadata: registry,
                 });
 
                 return {
@@ -535,7 +571,10 @@ export function createMcpServer(options: McpServerOptions) {
   type Notification = ExpandRecursively<ExtractNotification<typeof server>>;
   type Result = ExpandRecursively<ExtractResult<typeof server>>;
 
-  return server as Server<Request, Notification, Result>;
+  return {
+    server: server as Server<Request, Notification, Result>,
+    registry,
+  };
 }
 
 function enumerateError(error: unknown) {

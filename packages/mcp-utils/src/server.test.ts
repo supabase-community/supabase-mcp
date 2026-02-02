@@ -82,7 +82,7 @@ async function setup(options: SetupOptions) {
 
 describe('tools', () => {
   test('parameter set to default value when omitted by caller', async () => {
-    const server = createMcpServer({
+    const { server } = createMcpServer({
       name: 'test-server',
       version: '0.0.0',
       tools: {
@@ -118,7 +118,7 @@ describe('tools', () => {
   test('tool callback is called for success and errors', async () => {
     const onToolCall = vi.fn();
 
-    const server = createMcpServer({
+    const { server } = createMcpServer({
       name: 'test-server',
       version: '0.0.0',
       onToolCall,
@@ -190,7 +190,7 @@ describe('tools', () => {
       throw new Error('Tool callback failed');
     });
 
-    const server = createMcpServer({
+    const { server } = createMcpServer({
       name: 'test-server',
       version: '0.0.0',
       onToolCall,
@@ -221,7 +221,7 @@ describe('tools', () => {
   });
 
   test('tools use draft-07 JSON Schema', async () => {
-    const server = createMcpServer({
+    const { server } = createMcpServer({
       name: 'test-server',
       version: '0.0.0',
       tools: {

@@ -7,6 +7,24 @@ import { injectableTool } from './util.js';
 
 const SUCCESS_RESPONSE = { success: true };
 
+// Schemas with .describe() moved to module level to avoid re-registering in Zod's globalRegistry
+const branchNameSchema = z
+  .string()
+  .default('develop')
+  .describe('Name of the branch to create');
+const branchConfirmCostIdSchema = z
+  .string({
+    error: (issue) =>
+      issue.input === undefined
+        ? 'User must confirm understanding of costs before creating a branch.'
+        : undefined,
+  })
+  .describe('The cost confirmation ID. Call `confirm_cost` first.');
+const migrationVersionSchema = z
+  .string()
+  .optional()
+  .describe('Reset your development branch to a specific migration version.');
+
 export type BranchingToolsOptions = {
   branching: BranchingOperations;
   projectId?: string;
@@ -33,18 +51,8 @@ export function getBranchingTools({
       },
       parameters: z.object({
         project_id: z.string(),
-        name: z
-          .string()
-          .default('develop')
-          .describe('Name of the branch to create'),
-        confirm_cost_id: z
-          .string({
-            error: (issue) =>
-              issue.input === undefined
-                ? 'User must confirm understanding of costs before creating a branch.'
-                : undefined,
-          })
-          .describe('The cost confirmation ID. Call `confirm_cost` first.'),
+        name: branchNameSchema,
+        confirm_cost_id: branchConfirmCostIdSchema,
       }),
       inject: { project_id },
       execute: async ({ project_id, name, confirm_cost_id }) => {
@@ -135,12 +143,7 @@ export function getBranchingTools({
       },
       parameters: z.object({
         branch_id: z.string(),
-        migration_version: z
-          .string()
-          .optional()
-          .describe(
-            'Reset your development branch to a specific migration version.'
-          ),
+        migration_version: migrationVersionSchema,
       }),
       execute: async ({ branch_id, migration_version }) => {
         if (readOnly) {

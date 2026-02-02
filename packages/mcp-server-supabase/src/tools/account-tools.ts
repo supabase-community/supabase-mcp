@@ -7,6 +7,22 @@ import { hashObject } from '../util.js';
 
 const SUCCESS_RESPONSE = { success: true };
 
+// Schemas with .describe() moved to module level to avoid re-registering in Zod's globalRegistry
+const organizationIdSchema = z.string().describe('The organization ID');
+const projectIdSchema = z.string().describe('The project ID');
+const getCostOrganizationIdSchema = z
+  .string()
+  .describe('The organization ID. Always ask the user.');
+const projectNameSchema = z.string().describe('The name of the project');
+const confirmCostIdSchema = z
+  .string({
+    error: (issue) =>
+      issue.input === undefined
+        ? 'User must confirm understanding of costs before creating a project.'
+        : undefined,
+  })
+  .describe('The cost confirmation ID. Call `confirm_cost` first.');
+
 export type AccountToolsOptions = {
   account: AccountOperations;
   readOnly?: boolean;
@@ -39,7 +55,7 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
         openWorldHint: false,
       },
       parameters: z.object({
-        id: z.string().describe('The organization ID'),
+        id: organizationIdSchema,
       }),
       execute: async ({ id: organizationId }) => {
         return await account.getOrganization(organizationId);
@@ -70,7 +86,7 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
         openWorldHint: false,
       },
       parameters: z.object({
-        id: z.string().describe('The project ID'),
+        id: projectIdSchema,
       }),
       execute: async ({ id }) => {
         return await account.getProject(id);
@@ -88,9 +104,7 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
       },
       parameters: z.object({
         type: z.enum(['project', 'branch']),
-        organization_id: z
-          .string()
-          .describe('The organization ID. Always ask the user.'),
+        organization_id: getCostOrganizationIdSchema,
       }),
       execute: async ({ type, organization_id }) => {
         function generateResponse(cost: Cost) {
@@ -140,19 +154,10 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
         openWorldHint: false,
       },
       parameters: z.object({
-        name: z.string().describe('The name of the project'),
-        region: z
-          .enum(AWS_REGION_CODES)
-          .describe('The region to create the project in.'),
+        name: projectNameSchema,
+        region: z.enum(AWS_REGION_CODES),
         organization_id: z.string(),
-        confirm_cost_id: z
-          .string({
-            error: (issue) =>
-              issue.input === undefined
-                ? 'User must confirm understanding of costs before creating a project.'
-                : undefined,
-          })
-          .describe('The cost confirmation ID. Call `confirm_cost` first.'),
+        confirm_cost_id: confirmCostIdSchema,
       }),
       execute: async ({ name, region, organization_id, confirm_cost_id }) => {
         if (readOnly) {

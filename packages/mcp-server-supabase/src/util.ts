@@ -99,15 +99,16 @@ export function parseFeatureGroups(
     ),
   ];
 
-  const availableFeaturesSchema = z
-    .enum(availableFeatures as [string, ...string[]], {
+  const availableFeaturesSchema = z.enum(
+    availableFeatures as [string, ...string[]],
+    {
       error: (issue) => {
         if (issue.code === 'invalid_value') {
           return `This platform does not support the '${issue.input}' feature group. Supported groups are: ${availableFeatures.join(', ')}`;
         }
       },
-    })
-    .describe('Available features based on platform implementation');
+    }
+  );
 
   // Second pass: validate the desired features against this platform's available features
   return z.set(availableFeaturesSchema).parse(desiredFeatures);

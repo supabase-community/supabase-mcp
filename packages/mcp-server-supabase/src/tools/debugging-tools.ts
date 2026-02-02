@@ -5,6 +5,12 @@ import {
 } from '../platform/types.js';
 import { injectableTool } from './util.js';
 
+// Schemas with .describe() moved to module level to avoid re-registering in Zod's globalRegistry
+// Note: logsServiceSchema.describe() can't be at module level due to circular dependency
+const advisorTypeSchema = z
+  .enum(['security', 'performance'])
+  .describe('The type of advisors to fetch');
+
 export type DebuggingToolsOptions = {
   debugging: DebuggingOperations;
   projectId?: string;
@@ -29,7 +35,7 @@ export function getDebuggingTools({
       },
       parameters: z.object({
         project_id: z.string(),
-        service: logsServiceSchema.describe('The service to fetch logs for'),
+        service: logsServiceSchema,
       }),
       inject: { project_id },
       execute: async ({ project_id, service }) => {
@@ -55,9 +61,7 @@ export function getDebuggingTools({
       },
       parameters: z.object({
         project_id: z.string(),
-        type: z
-          .enum(['security', 'performance'])
-          .describe('The type of advisors to fetch'),
+        type: advisorTypeSchema,
       }),
       inject: { project_id },
       execute: async ({ project_id, type }) => {

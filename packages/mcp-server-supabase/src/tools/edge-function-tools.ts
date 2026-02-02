@@ -3,6 +3,33 @@ import { edgeFunctionExample } from '../edge-function.js';
 import type { EdgeFunctionsOperations } from '../platform/types.js';
 import { injectableTool } from './util.js';
 
+// Schemas with .describe() moved to module level to avoid re-registering in Zod's globalRegistry
+const functionNameSchema = z.string().describe('The name of the function');
+const entrypointPathSchema = z
+  .string()
+  .default('index.ts')
+  .describe('The entrypoint of the function');
+const importMapPathSchema = z
+  .string()
+  .describe('The import map for the function.')
+  .optional();
+const verifyJwtSchema = z
+  .boolean()
+  .default(true)
+  .describe(
+    "Whether to require a valid JWT in the Authorization header. You SHOULD ALWAYS enable this to ensure authorized access. ONLY disable if the function previously had it disabled OR you've confirmed the function body implements custom authentication (e.g., API keys, webhooks) OR the user explicitly requested it be disabled."
+  );
+const edgeFunctionFilesSchema = z
+  .array(
+    z.object({
+      name: z.string(),
+      content: z.string(),
+    })
+  )
+  .describe(
+    'The files to upload. This should include the entrypoint, deno.json, and any relative dependencies. Include the deno.json and deno.jsonc files to configure the Deno runtime (e.g., compiler options, imports) if they exist.'
+  );
+
 export type EdgeFunctionToolsOptions = {
   functions: EdgeFunctionsOperations;
   projectId?: string;
@@ -64,31 +91,11 @@ export function getEdgeFunctionTools({
       },
       parameters: z.object({
         project_id: z.string(),
-        name: z.string().describe('The name of the function'),
-        entrypoint_path: z
-          .string()
-          .default('index.ts')
-          .describe('The entrypoint of the function'),
-        import_map_path: z
-          .string()
-          .describe('The import map for the function.')
-          .optional(),
-        verify_jwt: z
-          .boolean()
-          .default(true)
-          .describe(
-            "Whether to require a valid JWT in the Authorization header. You SHOULD ALWAYS enable this to ensure authorized access. ONLY disable if the function previously had it disabled OR you've confirmed the function body implements custom authentication (e.g., API keys, webhooks) OR the user explicitly requested it be disabled."
-          ),
-        files: z
-          .array(
-            z.object({
-              name: z.string(),
-              content: z.string(),
-            })
-          )
-          .describe(
-            'The files to upload. This should include the entrypoint, deno.json, and any relative dependencies. Include the deno.json and deno.jsonc files to configure the Deno runtime (e.g., compiler options, imports) if they exist.'
-          ),
+        name: functionNameSchema,
+        entrypoint_path: entrypointPathSchema,
+        import_map_path: importMapPathSchema,
+        verify_jwt: verifyJwtSchema,
+        files: edgeFunctionFilesSchema,
       }),
       inject: { project_id },
       execute: async ({

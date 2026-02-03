@@ -10,6 +10,16 @@ import { injectableTool } from './util.js';
 
 const SUCCESS_RESPONSE = { success: true };
 
+const listTablesSchemasSchema = z
+  .array(z.string())
+  .describe('List of schemas to include. Defaults to all schemas.')
+  .default(['public']);
+const migrationNameSchema = z
+  .string()
+  .describe('The name of the migration in snake_case');
+const migrationQuerySchema = z.string().describe('The SQL query to apply');
+const sqlQuerySchema = z.string().describe('The SQL query to execute');
+
 export type DatabaseOperationToolsOptions = {
   database: DatabaseOperations;
   projectId?: string;
@@ -35,10 +45,7 @@ export function getDatabaseTools({
       },
       parameters: z.object({
         project_id: z.string(),
-        schemas: z
-          .array(z.string())
-          .describe('List of schemas to include. Defaults to all schemas.')
-          .default(['public']),
+        schemas: listTablesSchemasSchema,
       }),
       inject: { project_id },
       execute: async ({ project_id, schemas }) => {
@@ -206,8 +213,8 @@ export function getDatabaseTools({
       },
       parameters: z.object({
         project_id: z.string(),
-        name: z.string().describe('The name of the migration in snake_case'),
-        query: z.string().describe('The SQL query to apply'),
+        name: migrationNameSchema,
+        query: migrationQuerySchema,
       }),
       inject: { project_id },
       execute: async ({ project_id, name, query }) => {
@@ -235,7 +242,7 @@ export function getDatabaseTools({
       },
       parameters: z.object({
         project_id: z.string(),
-        query: z.string().describe('The SQL query to execute'),
+        query: sqlQuerySchema,
       }),
       inject: { project_id },
       execute: async ({ query, project_id }) => {

@@ -7,7 +7,8 @@ import { StreamTransport } from '@supabase/mcp-utils';
 import { codeBlock, stripIndent } from 'common-tags';
 import gqlmin from 'gqlmin';
 import { setupServer } from 'msw/node';
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
+import { globalRegistry } from 'zod/v4';
 import {
   ACCESS_TOKEN,
   API_URL,
@@ -3136,5 +3137,24 @@ describe('docs tools', () => {
     // Additional "tools/list" requests fetch the schema again
     await client.listTools();
     expect(mockContentApiSchemaLoadCount.value).toBe(2);
+  });
+});
+
+describe('zod registry', () => {
+  // Zod schemas with `.describe()` auto-register in the global registry. If schemas are defined
+  // inside functions (rather than at module level), new instances register on every call,
+  // causing unbounded memory growth.
+  test('creating multiple servers does not cause unbounded registry growth', async () => {
+    const addSpy = vi.spyOn(globalRegistry, 'add');
+
+    for (let i = 0; i < 9; i++) {
+      const { client } = await setup();
+      await client.listTools();
+    }
+
+    const registryAdditions = addSpy.mock.calls.length;
+    expect(registryAdditions).toBe(0);
+
+    addSpy.mockRestore();
   });
 });

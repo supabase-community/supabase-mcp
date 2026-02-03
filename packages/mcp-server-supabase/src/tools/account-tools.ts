@@ -7,7 +7,6 @@ import { hashObject } from '../util.js';
 
 const SUCCESS_RESPONSE = { success: true };
 
-// Schemas with .describe() moved to module level to avoid re-registering in Zod's globalRegistry
 const organizationIdSchema = z.string().describe('The organization ID');
 const projectIdSchema = z.string().describe('The project ID');
 const getCostOrganizationIdSchema = z

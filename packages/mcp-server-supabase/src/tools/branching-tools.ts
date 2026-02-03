@@ -7,7 +7,6 @@ import { injectableTool } from './util.js';
 
 const SUCCESS_RESPONSE = { success: true };
 
-// Schemas with .describe() moved to module level to avoid re-registering in Zod's globalRegistry
 const branchNameSchema = z
   .string()
   .default('develop')

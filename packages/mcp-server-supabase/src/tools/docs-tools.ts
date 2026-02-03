@@ -3,7 +3,6 @@ import { source } from 'common-tags';
 import { z } from 'zod/v4';
 import type { ContentApiClient } from '../content-api/index.js';
 
-// Schemas with .describe() moved to module level to avoid re-registering in Zod's globalRegistry
 const graphqlQuerySchema = z.string().describe('GraphQL query string');
 
 export type DocsToolsOptions = {

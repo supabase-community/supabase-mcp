@@ -3,7 +3,6 @@ import { edgeFunctionExample } from '../edge-function.js';
 import type { EdgeFunctionsOperations } from '../platform/types.js';
 import { injectableTool } from './util.js';
 
-// Schemas with .describe() moved to module level to avoid re-registering in Zod's globalRegistry
 const functionNameSchema = z.string().describe('The name of the function');
 const entrypointPathSchema = z
   .string()

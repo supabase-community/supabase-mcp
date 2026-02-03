@@ -10,7 +10,6 @@ import { injectableTool } from './util.js';
 
 const SUCCESS_RESPONSE = { success: true };
 
-// Schemas with .describe() moved to module level to avoid re-registering in Zod's globalRegistry
 const listTablesSchemasSchema = z
   .array(z.string())
   .describe('List of schemas to include. Defaults to all schemas.')

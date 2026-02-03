@@ -9,6 +9,9 @@ const SUCCESS_RESPONSE = { success: true };
 
 const organizationIdSchema = z.string().describe('The organization ID');
 const projectIdSchema = z.string().describe('The project ID');
+const regionSchema = z
+  .enum(AWS_REGION_CODES)
+  .describe('The region to create the project in');
 const getCostOrganizationIdSchema = z
   .string()
   .describe('The organization ID. Always ask the user.');
@@ -154,7 +157,7 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
       },
       parameters: z.object({
         name: projectNameSchema,
-        region: z.enum(AWS_REGION_CODES),
+        region: regionSchema,
         organization_id: z.string(),
         confirm_cost_id: confirmCostIdSchema,
       }),

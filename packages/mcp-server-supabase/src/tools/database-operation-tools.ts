@@ -203,7 +203,7 @@ export function getDatabaseTools({
     }),
     apply_migration: injectableTool({
       description:
-        'Applies a migration to the database. Use this when executing DDL operations. Do not hardcode references to generated IDs in data migrations.',
+        'Applies a migration to the database. Use this when executing DDL operations. RLS must be enabled on all tables and include policies (consult docs for best practices). Do not hardcode references to generated IDs in data migrations.',
       annotations: {
         title: 'Apply migration',
         readOnlyHint: false,

@@ -26,10 +26,7 @@ export type BranchingToolsOptions = {
 
 export const createBranchInputSchema = z.object({
   project_id: z.string(),
-  name: z
-    .string()
-    .default('develop')
-    .describe('Name of the branch to create'),
+  name: z.string().default('develop').describe('Name of the branch to create'),
   confirm_cost_id: z
     .string({
       error: (issue) =>
@@ -71,9 +68,7 @@ export const resetBranchInputSchema = z.object({
   migration_version: z
     .string()
     .optional()
-    .describe(
-      'Reset your development branch to a specific migration version.'
-    ),
+    .describe('Reset your development branch to a specific migration version.'),
 });
 
 export const resetBranchOutputSchema = z.object({

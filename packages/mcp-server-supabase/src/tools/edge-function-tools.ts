@@ -7,12 +7,20 @@ import {
 } from '../platform/types.js';
 import { injectableTool } from './util.js';
 
-export type ListEdgeFunctionsInput = z.infer<typeof listEdgeFunctionsInputSchema>;
-export type ListEdgeFunctionsOutput = z.infer<typeof listEdgeFunctionsOutputSchema>;
+export type ListEdgeFunctionsInput = z.infer<
+  typeof listEdgeFunctionsInputSchema
+>;
+export type ListEdgeFunctionsOutput = z.infer<
+  typeof listEdgeFunctionsOutputSchema
+>;
 export type GetEdgeFunctionInput = z.infer<typeof getEdgeFunctionInputSchema>;
 export type GetEdgeFunctionOutput = z.infer<typeof getEdgeFunctionOutputSchema>;
-export type DeployEdgeFunctionInput = z.infer<typeof deployEdgeFunctionInputSchema>;
-export type DeployEdgeFunctionOutput = z.infer<typeof deployEdgeFunctionOutputSchema>;
+export type DeployEdgeFunctionInput = z.infer<
+  typeof deployEdgeFunctionInputSchema
+>;
+export type DeployEdgeFunctionOutput = z.infer<
+  typeof deployEdgeFunctionOutputSchema
+>;
 export type EdgeFunctionToolsOptions = {
   functions: EdgeFunctionsOperations;
   projectId?: string;

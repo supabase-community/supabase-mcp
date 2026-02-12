@@ -5,10 +5,18 @@ import { injectableTool } from './util.js';
 
 export type GetProjectUrlInput = z.infer<typeof getProjectUrlInputSchema>;
 export type GetProjectUrlOutput = z.infer<typeof getProjectUrlOutputSchema>;
-export type GetPublishableKeysInput = z.infer<typeof getPublishableKeysInputSchema>;
-export type GetPublishableKeysOutput = z.infer<typeof getPublishableKeysOutputSchema>;
-export type GenerateTypescriptTypesInput = z.infer<typeof generateTypescriptTypesInputSchema>;
-export type GenerateTypescriptTypesOutput = z.infer<typeof generateTypescriptTypesOutputSchema>;
+export type GetPublishableKeysInput = z.infer<
+  typeof getPublishableKeysInputSchema
+>;
+export type GetPublishableKeysOutput = z.infer<
+  typeof getPublishableKeysOutputSchema
+>;
+export type GenerateTypescriptTypesInput = z.infer<
+  typeof generateTypescriptTypesInputSchema
+>;
+export type GenerateTypescriptTypesOutput = z.infer<
+  typeof generateTypescriptTypesOutputSchema
+>;
 export type DevelopmentToolsOptions = {
   development: DevelopmentOperations;
   projectId?: string;
@@ -43,7 +51,8 @@ export const generateTypescriptTypesInputSchema = z.object({
   project_id: z.string(),
 });
 
-export const generateTypescriptTypesOutputSchema = generateTypescriptTypesResultSchema;
+export const generateTypescriptTypesOutputSchema =
+  generateTypescriptTypesResultSchema;
 
 export function getDevelopmentTools({
   development,

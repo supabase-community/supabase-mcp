@@ -256,6 +256,40 @@ describe('tools', () => {
     await expect(goodToolPromise).resolves.toEqual({ value: 'Success: bar' });
     expect(onToolCall.mock.results[0]?.type).toBe('throw');
   });
+
+  test('tools use draft-07 JSON Schema', async () => {
+    const server = createMcpServer({
+      name: 'test-server',
+      version: '0.0.0',
+      tools: {
+        tool: tool({
+          description: 'A tool that always succeeds',
+          annotations: {
+            title: 'Good tool',
+            readOnlyHint: true,
+          },
+          parameters: z.object({ foo: z.string() }),
+          outputSchema: z.object({ message: z.string() }),
+          execute: async ({ foo }) => {
+            return { message: `Success: ${foo}` };
+          },
+        }),
+      },
+    });
+
+    const { client } = await setup({ server });
+
+    const { tools } = await client.listTools();
+
+    for (const tool of tools) {
+      expect(tool.inputSchema['$schema']).toBe(
+        'http://json-schema.org/draft-07/schema#'
+      );
+      expect(tool.outputSchema?.['$schema']).toBe(
+        'http://json-schema.org/draft-07/schema#'
+      );
+    }
+  });
 });
 
 describe('resources helper', () => {

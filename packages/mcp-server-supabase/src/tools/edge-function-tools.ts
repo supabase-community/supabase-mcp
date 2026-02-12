@@ -59,7 +59,7 @@ export const deployEdgeFunctionInputSchema = z.object({
       })
     )
     .describe(
-      'The files to upload. This should include the entrypoint, deno.json, and any relative dependencies. Always include a deno.json file to configure the Deno runtime (e.g., compiler options, imports) UNLESS it was previously deployed without deno.json.'
+      'The files to upload. This should include the entrypoint, deno.json, and any relative dependencies. Include the deno.json and deno.jsonc files to configure the Deno runtime (e.g., compiler options, imports) if they exist.'
     ),
 });
 

@@ -448,8 +448,12 @@ export function createMcpServer(options: McpServerOptions) {
                 name,
                 { description, annotations, parameters, outputSchema },
               ]) => {
-                const inputJsonSchema = z.toJSONSchema(parameters);
-                const outputJsonSchema = z.toJSONSchema(outputSchema);
+                const inputJsonSchema = z.toJSONSchema(parameters, {
+                  target: 'draft-7',
+                });
+                const outputJsonSchema = z.toJSONSchema(outputSchema, {
+                  target: 'draft-7',
+                });
 
                 return {
                   name,

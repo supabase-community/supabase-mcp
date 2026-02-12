@@ -1008,8 +1008,7 @@ describe('tools', () => {
 
     expect(result).toEqual([
       {
-        schema: 'public',
-        name: 'test',
+        name: 'public.test',
         rls_enabled: false,
         rows: 0,
       },
@@ -1051,7 +1050,7 @@ describe('tools', () => {
 
     // Verbose mode should include columns, primary_keys, and foreign_key_constraints
     const ordersTable = result.find(
-      (t: { name: string }) => t.name === 'orders'
+      (t: { name: string }) => t.name === 'public.orders'
     );
     expect(ordersTable).toEqual(
       expect.objectContaining({

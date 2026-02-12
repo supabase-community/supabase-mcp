@@ -83,10 +83,13 @@ export function getDatabaseTools({
               relationships,
               comment,
 
-              // Passthrough rest
+              // Modified passthrough
+              schema,
+              name,
               ...table
             }) => {
               const compactTable = {
+                name: `${schema}.${name}`,
                 ...table,
                 rows: live_rows_estimate,
 

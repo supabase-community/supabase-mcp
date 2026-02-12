@@ -89,21 +89,22 @@ import {
 } from './storage-tools.js';
 
 /**
- * Complete registry of all Supabase MCP tools with their input and output schemas.
- * Used for type-safe parsing of tool calls and results.
+ * All Supabase MCP tool schemas (input + output pairs).
+ *
+ * Pass to AI SDK's `mcpClient.tools()` `schemas` option to get typed tool
+ * inputs and outputs:
+ * https://ai-sdk.dev/docs/ai-sdk-core/mcp-tools#typed-tool-outputs
  *
  * @example
  * ```typescript
- * import { supabaseMcpTools } from '@supabase/mcp-server-supabase';
- * import { parseToolCall } from '@supabase/mcp-utils';
+ * import { supabaseMcpToolSchemas } from '@supabase/mcp-server-supabase';
  *
- * const parsed = parseToolCall(toolCall, supabaseMcpTools);
- * if (parsed.name === 'execute_sql') {
- *   console.log(parsed.input.query); // Typed input
- * }
+ * const tools = await mcpClient.tools({
+ *   schemas: supabaseMcpToolSchemas,
+ * });
  * ```
  */
-export const supabaseMcpTools = {
+export const supabaseMcpToolSchemas = {
   // Account tools
   list_organizations: {
     inputSchema: listOrganizationsInputSchema,

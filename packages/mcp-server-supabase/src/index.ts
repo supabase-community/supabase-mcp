@@ -164,4 +164,4 @@ export {
   type UpdateStorageConfigOutput,
 } from './tools/storage-tools.js';
 
-export { supabaseMcpTools } from './tools/registry.js';
+export { supabaseMcpToolSchemas } from './tools/tool-schemas.js';

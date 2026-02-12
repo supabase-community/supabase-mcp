@@ -29,7 +29,7 @@ import { createSupabaseApiPlatform } from './platform/api-platform.js';
 import type { SupabasePlatform } from './platform/types.js';
 import { BRANCH_COST_HOURLY, PROJECT_COST_MONTHLY } from './pricing.js';
 import { createSupabaseMcpServer } from './server.js';
-import { supabaseMcpTools } from './tools/registry.js';
+import { supabaseMcpToolSchemas } from './tools/tool-schemas.js';
 
 let mockServer: ReturnType<typeof setupServer> | undefined;
 
@@ -2842,7 +2842,7 @@ describe('tools', () => {
     expect(toolsWithoutOutputSchema).toEqual([]);
   });
 
-  test('all tools are included in supabaseMcpTools registry', async () => {
+  test('all tools are included in supabaseMcpToolSchemas registry', async () => {
     // Enable all features to ensure we check all possible tools
     const { client } = await setup({
       features: [
@@ -2862,14 +2862,14 @@ describe('tools', () => {
     // Check that every tool from the MCP server exists in the registry
     for (const tool of tools) {
       expect(
-        supabaseMcpTools,
-        `Tool "${tool.name}" should be in supabaseMcpTools registry`
+        supabaseMcpToolSchemas,
+        `Tool "${tool.name}" should be in supabaseMcpToolSchemas registry`
       ).toHaveProperty(tool.name);
     }
 
     // Also verify that the registry doesn't have extra entries
     // (tools that don't exist in the server)
-    const registryToolNames = Object.keys(supabaseMcpTools);
+    const registryToolNames = Object.keys(supabaseMcpToolSchemas);
     const serverToolNames = tools.map((t) => t.name);
 
     const extraToolsInRegistry = registryToolNames.filter(

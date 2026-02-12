@@ -119,8 +119,6 @@ export const restoreProjectOutputSchema = z.object({
   success: z.boolean(),
 });
 
-const SUCCESS_RESPONSE = { success: true };
-
 export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
   return {
     list_organizations: tool({
@@ -273,7 +271,7 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
         }
 
         await account.pauseProject(project_id);
-        return SUCCESS_RESPONSE;
+        return { success: true };
       },
     }),
     restore_project: tool({
@@ -293,7 +291,7 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
         }
 
         await account.restoreProject(project_id);
-        return SUCCESS_RESPONSE;
+        return { success: true };
       },
     }),
   };

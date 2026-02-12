@@ -111,8 +111,6 @@ export const executeSqlOutputSchema = z.object({
   result: z.string(),
 });
 
-const SUCCESS_RESPONSE = { success: true };
-
 export function getDatabaseTools({
   database,
   projectId,
@@ -325,7 +323,7 @@ export function getDatabaseTools({
           query,
         });
 
-        return SUCCESS_RESPONSE;
+        return { success: true };
       },
     }),
     execute_sql: injectableTool({

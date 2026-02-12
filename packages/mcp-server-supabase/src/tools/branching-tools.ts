@@ -83,8 +83,6 @@ export const rebaseBranchOutputSchema = z.object({
   success: z.boolean(),
 });
 
-const SUCCESS_RESPONSE = { success: true };
-
 export function getBranchingTools({
   branching,
   projectId,
@@ -155,7 +153,7 @@ export function getBranchingTools({
         }
 
         await branching.deleteBranch(branch_id);
-        return SUCCESS_RESPONSE;
+        return { success: true };
       },
     }),
     merge_branch: tool({
@@ -176,7 +174,7 @@ export function getBranchingTools({
         }
 
         await branching.mergeBranch(branch_id);
-        return SUCCESS_RESPONSE;
+        return { success: true };
       },
     }),
     reset_branch: tool({
@@ -199,7 +197,7 @@ export function getBranchingTools({
         await branching.resetBranch(branch_id, {
           migration_version,
         });
-        return SUCCESS_RESPONSE;
+        return { success: true };
       },
     }),
     rebase_branch: tool({
@@ -220,7 +218,7 @@ export function getBranchingTools({
         }
 
         await branching.rebaseBranch(branch_id);
-        return SUCCESS_RESPONSE;
+        return { success: true };
       },
     }),
   };

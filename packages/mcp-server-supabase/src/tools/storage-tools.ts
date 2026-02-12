@@ -54,8 +54,6 @@ export const updateStorageConfigOutputSchema = z.object({
   success: z.boolean(),
 });
 
-const SUCCESS_RESPONSE = { success: true };
-
 export function getStorageTools({
   storage,
   projectId,
@@ -114,7 +112,7 @@ export function getStorageTools({
         }
 
         await storage.updateStorageConfig(project_id, config);
-        return SUCCESS_RESPONSE;
+        return { success: true };
       },
     }),
   };

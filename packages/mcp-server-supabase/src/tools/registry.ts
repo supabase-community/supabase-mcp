@@ -1,4 +1,4 @@
-import type { ToolRegistry } from '@supabase/mcp-utils';
+import type { z } from 'zod/v4';
 import {
   // Account tools
   listOrganizationsInputSchema,
@@ -240,4 +240,10 @@ export const supabaseMcpTools = {
     inputSchema: updateStorageConfigInputSchema,
     outputSchema: updateStorageConfigOutputSchema,
   },
-} satisfies ToolRegistry;
+} satisfies Record<
+  string,
+  {
+    inputSchema: z.ZodObject<any>;
+    outputSchema: z.ZodObject<any>;
+  }
+>;

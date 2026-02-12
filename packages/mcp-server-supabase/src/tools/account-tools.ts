@@ -2,7 +2,7 @@ import { tool } from '@supabase/mcp-utils';
 import { z } from 'zod/v4';
 import type { AccountOperations } from '../platform/types.js';
 import { organizationSchema, projectSchema } from '../platform/types.js';
-import { type Cost, getBranchCost, getNextProjectCost } from '../pricing.js';
+import { getBranchCost, getNextProjectCost } from '../pricing.js';
 import { AWS_REGION_CODES } from '../regions.js';
 import { hashObject } from '../util.js';
 
@@ -70,7 +70,9 @@ export const getCostInputSchema = z.object({
 });
 
 export const getCostOutputSchema = z.object({
-  message: z.string(),
+  type: z.enum(['project', 'branch']),
+  amount: z.number().describe('Cost in USD'),
+  recurrence: z.enum(['hourly', 'monthly']),
 });
 
 export const confirmCostInputSchema = z.object({
@@ -185,7 +187,7 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
     }),
     get_cost: tool({
       description:
-        'Gets the cost of creating a new project or branch. Never assume organization as costs can be different for each.',
+        'Gets the cost of creating a new project or branch. Never assume organization as costs can be different for each. Always repeat the cost to the user and confirm their understanding before proceeding.',
       annotations: {
         title: 'Get cost of new resources',
         readOnlyHint: true,
@@ -196,18 +198,11 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
       parameters: getCostInputSchema,
       outputSchema: getCostOutputSchema,
       execute: async ({ type, organization_id }) => {
-        function generateResponse(cost: Cost) {
-          return `The new ${type} will cost $${cost.amount} ${cost.recurrence}. You must repeat this to the user and confirm their understanding.`;
-        }
         switch (type) {
-          case 'project': {
-            const cost = await getNextProjectCost(account, organization_id);
-            return { message: generateResponse(cost) };
-          }
-          case 'branch': {
-            const cost = getBranchCost();
-            return { message: generateResponse(cost) };
-          }
+          case 'project':
+            return await getNextProjectCost(account, organization_id);
+          case 'branch':
+            return getBranchCost();
           default:
             throw new Error(`Unknown cost type: ${type}`);
         }

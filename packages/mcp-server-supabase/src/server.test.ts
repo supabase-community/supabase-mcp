@@ -192,8 +192,9 @@ describe('tools', () => {
     });
 
     expect(result).toEqual({
-      message:
-        'The new project will cost $0 monthly. You must repeat this to the user and confirm their understanding.',
+      type: 'project',
+      amount: 0,
+      recurrence: 'monthly',
     });
   });
 
@@ -215,8 +216,9 @@ describe('tools', () => {
     });
 
     expect(result).toEqual({
-      message:
-        'The new project will cost $0 monthly. You must repeat this to the user and confirm their understanding.',
+      type: 'project',
+      amount: 0,
+      recurrence: 'monthly',
     });
   });
 
@@ -245,7 +247,9 @@ describe('tools', () => {
     });
 
     expect(result).toEqual({
-      message: `The new project will cost $${PROJECT_COST_MONTHLY} monthly. You must repeat this to the user and confirm their understanding.`,
+      type: 'project',
+      amount: PROJECT_COST_MONTHLY,
+      recurrence: 'monthly',
     });
   });
 
@@ -274,7 +278,9 @@ describe('tools', () => {
     });
 
     expect(result).toEqual({
-      message: `The new project will cost $0 monthly. You must repeat this to the user and confirm their understanding.`,
+      type: 'project',
+      amount: 0,
+      recurrence: 'monthly',
     });
   });
 
@@ -296,7 +302,9 @@ describe('tools', () => {
     });
 
     expect(result).toEqual({
-      message: `The new branch will cost $${BRANCH_COST_HOURLY} hourly. You must repeat this to the user and confirm their understanding.`,
+      type: 'branch',
+      amount: BRANCH_COST_HOURLY,
+      recurrence: 'hourly',
     });
   });
 

@@ -20,16 +20,15 @@ cd packages/mcp-server-supabase
 pnpm dev
 ```
 
-Configure your MCP client with the `file:` protocol to run the local build. You may need to restart the server in your MCP client after each change.
+Configure your MCP client to run the local build. You may need to restart the server in your MCP client after each change.
 
 ```json
 {
   "mcpServers": {
     "supabase": {
-      "command": "npx",
+      "command": "node",
       "args": [
-        "-y",
-        "@supabase/mcp-server-supabase@file:/path/to/mcp-server-supabase/packages/mcp-server-supabase",
+        "/path/to/supabase-mcp/packages/mcp-server-supabase/dist/transports/stdio.js",
         "--project-ref",
         "<your project ref>"
       ],

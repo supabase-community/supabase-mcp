@@ -31,15 +31,21 @@ export const listTablesInputSchema = z.object({
     .array(z.string())
     .describe('List of schemas to include. Defaults to all schemas.')
     .default(['public']),
+  verbose: z
+    .boolean()
+    .describe(
+      'When true, includes column details, primary keys, and foreign key constraints. Defaults to false for a compact summary.'
+    )
+    .default(false),
 });
 
 export const listTablesOutputSchema = z.object({
   tables: z.array(
     z.object({
-      schema: z.string(),
       name: z.string(),
       rls_enabled: z.boolean(),
       rows: z.number().nullable(),
+      comment: z.string().nullable().optional(),
       columns: z
         .array(
           z.object({
@@ -54,9 +60,9 @@ export const listTablesOutputSchema = z.object({
             comment: z.union([z.string(), z.null()]).optional(),
           })
         )
-        .nullable(),
-      primary_keys: z.array(z.string()).nullable(),
-      comment: z.string().nullable().optional(),
+        .nullable()
+        .optional(),
+      primary_keys: z.array(z.string()).nullable().optional(),
       foreign_key_constraints: z
         .array(
           z.object({
@@ -116,7 +122,8 @@ export function getDatabaseTools({
 
   const databaseOperationTools = {
     list_tables: injectableTool({
-      description: 'Lists all tables in one or more schemas.',
+      description:
+        'Lists all tables in one or more schemas. By default returns a compact summary. Set verbose to true to include column details, primary keys, and foreign key constraints.',
       annotations: {
         title: 'List tables',
         readOnlyHint: true,
@@ -127,7 +134,7 @@ export function getDatabaseTools({
       parameters: listTablesInputSchema,
       inject: { project_id },
       outputSchema: listTablesOutputSchema,
-      execute: async ({ project_id, schemas }) => {
+      execute: async ({ project_id, schemas, verbose }) => {
         const { query, parameters } = listTablesSql(schemas);
         const data = await database.executeSql(project_id, {
           query,
@@ -154,9 +161,24 @@ export function getDatabaseTools({
               relationships,
               comment,
 
-              // Passthrough rest
+              // Modified passthrough
+              schema,
+              name,
               ...table
             }) => {
+              const compactTable = {
+                name: `${schema}.${name}`,
+                ...table,
+                rows: live_rows_estimate,
+
+                // Omit fields when empty
+                ...(comment !== null && { comment }),
+              };
+
+              if (!verbose) {
+                return compactTable;
+              }
+
               const foreign_key_constraints = relationships?.map(
                 ({
                   constraint_name,
@@ -174,8 +196,7 @@ export function getDatabaseTools({
               );
 
               return {
-                ...table,
-                rows: live_rows_estimate,
+                ...compactTable,
                 columns: columns
                   ? columns.map(
                       ({
@@ -232,7 +253,6 @@ export function getDatabaseTools({
                   : null,
 
                 // Omit fields when empty
-                ...(comment !== null && { comment }),
                 ...(foreign_key_constraints.length > 0 && {
                   foreign_key_constraints,
                 }),

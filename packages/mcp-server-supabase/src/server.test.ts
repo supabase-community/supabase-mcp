@@ -967,13 +967,13 @@ describe('tools', () => {
       arguments: {
         project_id: project.id,
         schemas: ['public'],
+        verbose: true,
       },
     });
 
     expect(listTablesResult.tables).toEqual([
       {
-        schema: 'public',
-        name: 'test',
+        name: 'public.test',
         rls_enabled: false,
         rows: 0,
         columns: [
@@ -988,6 +988,99 @@ describe('tools', () => {
         primary_keys: ['id'],
       },
     ]);
+  });
+
+  test('list_tables returns compact summary by default', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    await project.db.exec(
+      'create table test (id integer generated always as identity primary key)'
+    );
+
+    const result = await callTool({
+      name: 'list_tables',
+      arguments: {
+        project_id: project.id,
+        schemas: ['public'],
+      },
+    });
+
+    expect(result).toEqual({
+      tables: [
+        {
+          name: 'public.test',
+          rls_enabled: false,
+          rows: 0,
+        },
+      ],
+    });
+  });
+
+  test('list_tables returns full details when verbose is true', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    await project.db.exec(`
+      create table users (id integer generated always as identity primary key);
+      create table orders (
+        id integer generated always as identity primary key,
+        user_id integer references users(id)
+      );
+    `);
+
+    const result = await callTool({
+      name: 'list_tables',
+      arguments: {
+        project_id: project.id,
+        schemas: ['public'],
+        verbose: true,
+      },
+    });
+
+    // Verbose mode should include columns, primary_keys, and foreign_key_constraints
+    const ordersTable = result.tables.find(
+      (t: { name: string }) => t.name === 'public.orders'
+    );
+    expect(ordersTable).toEqual(
+      expect.objectContaining({
+        columns: expect.arrayContaining([
+          expect.objectContaining({ name: 'id' }),
+          expect.objectContaining({ name: 'user_id' }),
+        ]),
+        primary_keys: ['id'],
+        foreign_key_constraints: [
+          expect.objectContaining({
+            source: 'public.orders.user_id',
+            target: 'public.users.id',
+          }),
+        ],
+      })
+    );
   });
 
   test('cannot apply migration in read-only mode', async () => {
@@ -1055,10 +1148,10 @@ describe('tools', () => {
     });
 
     expect(result.tables).toEqual(
-      expect.arrayContaining([expect.objectContaining({ name: 'test_2' })])
+      expect.arrayContaining([expect.objectContaining({ name: 'test.test_2' })])
     );
     expect(result.tables).not.toEqual(
-      expect.arrayContaining([expect.objectContaining({ name: 'test_1' })])
+      expect.arrayContaining([expect.objectContaining({ name: 'test.test_1' })])
     );
   });
 
@@ -2420,7 +2513,7 @@ describe('tools', () => {
     });
 
     expect(firstTablesResult.tables).toContainEqual(
-      expect.objectContaining({ name: 'test_untracked' })
+      expect.objectContaining({ name: 'public.test_untracked' })
     );
 
     await callTool({
@@ -2439,7 +2532,7 @@ describe('tools', () => {
 
     // Expect the untracked table to be removed after reset
     expect(secondTablesResult.tables).not.toContainEqual(
-      expect.objectContaining({ name: 'test_untracked' })
+      expect.objectContaining({ name: 'public.test_untracked' })
     );
   });
 
@@ -2548,7 +2641,7 @@ describe('tools', () => {
     });
 
     expect(firstTablesResult.tables).toContainEqual(
-      expect.objectContaining({ name: 'sample' })
+      expect.objectContaining({ name: 'public.sample' })
     );
 
     await callTool({
@@ -2577,7 +2670,7 @@ describe('tools', () => {
     });
 
     expect(secondTablesResult.tables).not.toContainEqual(
-      expect.objectContaining({ name: 'sample' })
+      expect.objectContaining({ name: 'public.sample' })
     );
   });
 
@@ -3151,13 +3244,13 @@ describe('project scoped tools', () => {
       name: 'list_tables',
       arguments: {
         schemas: ['public'],
+        verbose: true,
       },
     });
 
     expect(result.tables).toEqual([
       expect.objectContaining({
-        name: 'test',
-        schema: 'public',
+        name: 'public.test',
         columns: [
           expect.objectContaining({
             name: 'id',

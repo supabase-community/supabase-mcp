@@ -960,8 +960,7 @@ describe('tools', () => {
 
     expect(listTablesResult).toEqual([
       {
-        schema: 'public',
-        name: 'test',
+        name: 'public.test',
         rls_enabled: false,
         rows: 0,
         columns: [
@@ -1134,10 +1133,10 @@ describe('tools', () => {
     });
 
     expect(result).toEqual(
-      expect.arrayContaining([expect.objectContaining({ name: 'test_2' })])
+      expect.arrayContaining([expect.objectContaining({ name: 'test.test_2' })])
     );
     expect(result).not.toEqual(
-      expect.arrayContaining([expect.objectContaining({ name: 'test_1' })])
+      expect.arrayContaining([expect.objectContaining({ name: 'test.test_1' })])
     );
   });
 
@@ -2499,7 +2498,7 @@ describe('tools', () => {
     });
 
     expect(firstTablesResult).toContainEqual(
-      expect.objectContaining({ name: 'test_untracked' })
+      expect.objectContaining({ name: 'public.test_untracked' })
     );
 
     await callTool({
@@ -2518,7 +2517,7 @@ describe('tools', () => {
 
     // Expect the untracked table to be removed after reset
     expect(secondTablesResult).not.toContainEqual(
-      expect.objectContaining({ name: 'test_untracked' })
+      expect.objectContaining({ name: 'public.test_untracked' })
     );
   });
 
@@ -2627,7 +2626,7 @@ describe('tools', () => {
     });
 
     expect(firstTablesResult).toContainEqual(
-      expect.objectContaining({ name: 'sample' })
+      expect.objectContaining({ name: 'public.sample' })
     );
 
     await callTool({
@@ -2656,7 +2655,7 @@ describe('tools', () => {
     });
 
     expect(secondTablesResult).not.toContainEqual(
-      expect.objectContaining({ name: 'sample' })
+      expect.objectContaining({ name: 'public.sample' })
     );
   });
 
@@ -3153,8 +3152,7 @@ describe('project scoped tools', () => {
 
     expect(result).toEqual([
       expect.objectContaining({
-        name: 'test',
-        schema: 'public',
+        name: 'public.test',
         columns: [
           expect.objectContaining({
             name: 'id',

@@ -16,5 +16,3 @@ export const AWS_REGION_CODES = [
   'ap-southeast-2',
   'sa-east-1',
 ] as const;
-
-export type RegionCodes = (typeof AWS_REGION_CODES)[number];

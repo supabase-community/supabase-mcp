@@ -954,6 +954,7 @@ describe('tools', () => {
       arguments: {
         project_id: project.id,
         schemas: ['public'],
+        verbose: true,
       },
     });
 
@@ -975,6 +976,98 @@ describe('tools', () => {
         primary_keys: ['id'],
       },
     ]);
+  });
+
+  test('list_tables returns compact summary by default', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    await project.db.exec(
+      'create table test (id integer generated always as identity primary key)'
+    );
+
+    const result = await callTool({
+      name: 'list_tables',
+      arguments: {
+        project_id: project.id,
+        schemas: ['public'],
+      },
+    });
+
+    expect(result).toEqual([
+      {
+        schema: 'public',
+        name: 'test',
+        rls_enabled: false,
+        rows: 0,
+      },
+    ]);
+  });
+
+  test('list_tables returns full details when verbose is true', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    await project.db.exec(`
+      create table users (id integer generated always as identity primary key);
+      create table orders (
+        id integer generated always as identity primary key,
+        user_id integer references users(id)
+      );
+    `);
+
+    const result = await callTool({
+      name: 'list_tables',
+      arguments: {
+        project_id: project.id,
+        schemas: ['public'],
+        verbose: true,
+      },
+    });
+
+    // Verbose mode should include columns, primary_keys, and foreign_key_constraints
+    const ordersTable = result.find(
+      (t: { name: string }) => t.name === 'orders'
+    );
+    expect(ordersTable).toEqual(
+      expect.objectContaining({
+        columns: expect.arrayContaining([
+          expect.objectContaining({ name: 'id' }),
+          expect.objectContaining({ name: 'user_id' }),
+        ]),
+        primary_keys: ['id'],
+        foreign_key_constraints: [
+          expect.objectContaining({
+            source: 'public.orders.user_id',
+            target: 'public.users.id',
+          }),
+        ],
+      })
+    );
   });
 
   test('cannot apply migration in read-only mode', async () => {
@@ -3055,6 +3148,7 @@ describe('project scoped tools', () => {
       name: 'list_tables',
       arguments: {
         schemas: ['public'],
+        verbose: true,
       },
     });
 

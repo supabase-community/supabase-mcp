@@ -136,7 +136,7 @@ describe('tools', () => {
           parameters: z.object({ foo: z.string() }),
           outputSchema: z.object({ value: z.string() }),
           execute: async ({ foo }) => {
-            return { value: `Success: ${foo}` };
+            return { value: foo };
           },
         }),
         bad_tool: tool({
@@ -161,7 +161,7 @@ describe('tools', () => {
       arguments: { foo: 'bar' },
     });
 
-    await expect(goodToolPromise).resolves.toEqual({ value: 'Success: bar' });
+    await expect(goodToolPromise).resolves.toEqual({ value: 'bar' });
     expect(onToolCall).toHaveBeenLastCalledWith({
       name: 'good_tool',
       arguments: { foo: 'bar' },
@@ -170,7 +170,7 @@ describe('tools', () => {
         readOnlyHint: true,
       },
       success: true,
-      data: { value: 'Success: bar' },
+      data: { value: 'bar' },
     });
 
     const badToolPromise = callTool({
@@ -240,7 +240,7 @@ describe('tools', () => {
           parameters: z.object({ foo: z.string() }),
           outputSchema: z.object({ value: z.string() }),
           execute: async ({ foo }) => {
-            return { value: `Success: ${foo}` };
+            return { value: foo };
           },
         }),
       },
@@ -253,7 +253,7 @@ describe('tools', () => {
       arguments: { foo: 'bar' },
     });
 
-    await expect(goodToolPromise).resolves.toEqual({ value: 'Success: bar' });
+    await expect(goodToolPromise).resolves.toEqual({ value: 'bar' });
     expect(onToolCall.mock.results[0]?.type).toBe('throw');
   });
 
@@ -271,7 +271,7 @@ describe('tools', () => {
           parameters: z.object({ foo: z.string() }),
           outputSchema: z.object({ message: z.string() }),
           execute: async ({ foo }) => {
-            return { message: `Success: ${foo}` };
+            return { message: foo };
           },
         }),
       },

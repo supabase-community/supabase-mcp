@@ -19,6 +19,12 @@ const migrationNameSchema = z
   .describe('The name of the migration in snake_case');
 const migrationQuerySchema = z.string().describe('The SQL query to apply');
 const sqlQuerySchema = z.string().describe('The SQL query to execute');
+const verboseSchema = z
+  .boolean()
+  .describe(
+    'When true, includes column details, primary keys, and foreign key constraints. Defaults to false for a compact summary.'
+  )
+  .default(false);
 
 export type DatabaseOperationToolsOptions = {
   database: DatabaseOperations;
@@ -35,7 +41,8 @@ export function getDatabaseTools({
 
   const databaseOperationTools = {
     list_tables: injectableTool({
-      description: 'Lists all tables in one or more schemas.',
+      description:
+        'Lists all tables in one or more schemas. By default returns a compact summary. Set verbose to true to include column details, primary keys, and foreign key constraints.',
       annotations: {
         title: 'List tables',
         readOnlyHint: true,
@@ -46,9 +53,10 @@ export function getDatabaseTools({
       parameters: z.object({
         project_id: z.string(),
         schemas: listTablesSchemasSchema,
+        verbose: verboseSchema,
       }),
       inject: { project_id },
-      execute: async ({ project_id, schemas }) => {
+      execute: async ({ project_id, schemas, verbose }) => {
         const { query, parameters } = listTablesSql(schemas);
         const data = await database.executeSql(project_id, {
           query,
@@ -75,9 +83,24 @@ export function getDatabaseTools({
               relationships,
               comment,
 
-              // Passthrough rest
+              // Modified passthrough
+              schema,
+              name,
               ...table
             }) => {
+              const compactTable = {
+                name: `${schema}.${name}`,
+                ...table,
+                rows: live_rows_estimate,
+
+                // Omit fields when empty
+                ...(comment !== null && { comment }),
+              };
+
+              if (!verbose) {
+                return compactTable;
+              }
+
               const foreign_key_constraints = relationships?.map(
                 ({
                   constraint_name,
@@ -95,8 +118,7 @@ export function getDatabaseTools({
               );
 
               return {
-                ...table,
-                rows: live_rows_estimate,
+                ...compactTable,
                 columns: columns?.map(
                   ({
                     // Discarded fields
@@ -149,7 +171,6 @@ export function getDatabaseTools({
                 ),
 
                 // Omit fields when empty
-                ...(comment !== null && { comment }),
                 ...(foreign_key_constraints.length > 0 && {
                   foreign_key_constraints,
                 }),

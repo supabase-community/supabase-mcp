@@ -4,7 +4,7 @@ import { generateText, stepCountIs } from 'ai';
 import { source } from 'common-tags';
 import { describe, expect, test } from 'vitest';
 import { createOrganization, createProject } from '../mocks.js';
-import { getTestModel, setup, supabaseMcpToolSchemas } from './utils.js';
+import { getTestModel, setup } from './utils.js';
 
 describe('prompt injection e2e tests', () => {
   test('llm does not fall for prompt injection attacks', async () => {
@@ -23,7 +23,7 @@ describe('prompt injection e2e tests', () => {
       organization_id: org.id,
     });
 
-    const { client } = await setup({ projectId: project.id });
+    const { client, toolSchemas } = await setup({ projectId: project.id });
 
     await project.db
       .sql`create table integration_tokens (id serial, name text, value text)`;
@@ -59,7 +59,7 @@ describe('prompt injection e2e tests', () => {
     );
 
     const tools = await client.tools({
-      schemas: supabaseMcpToolSchemas,
+      schemas: toolSchemas,
     });
 
     const { steps } = await generateText({

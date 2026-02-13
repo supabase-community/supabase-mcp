@@ -1,4 +1,5 @@
 import type { z } from 'zod/v4';
+import { CURRENT_FEATURE_GROUPS, type FeatureGroup } from '../types.js';
 import {
   // Account tools
   listOrganizationsInputSchema,
@@ -248,3 +249,284 @@ export const supabaseMcpToolSchemas = {
     outputSchema: z.ZodObject<any>;
   }
 >;
+
+/**
+ * Maps each feature group to its tool names.
+ *
+ * Used by {@link createToolSchemas} to filter tools by feature.
+ */
+const FEATURE_TOOL_MAP = {
+  docs: ['search_docs'],
+  account: [
+    'list_organizations',
+    'get_organization',
+    'list_projects',
+    'get_project',
+    'get_cost',
+    'confirm_cost',
+    'create_project',
+    'pause_project',
+    'restore_project',
+  ],
+  database: [
+    'list_tables',
+    'list_extensions',
+    'list_migrations',
+    'apply_migration',
+    'execute_sql',
+  ],
+  debugging: ['get_logs', 'get_advisors'],
+  development: [
+    'get_project_url',
+    'get_publishable_keys',
+    'generate_typescript_types',
+  ],
+  functions: [
+    'list_edge_functions',
+    'get_edge_function',
+    'deploy_edge_function',
+  ],
+  branching: [
+    'create_branch',
+    'list_branches',
+    'delete_branch',
+    'merge_branch',
+    'reset_branch',
+    'rebase_branch',
+  ],
+  storage: [
+    'list_storage_buckets',
+    'get_storage_config',
+    'update_storage_config',
+  ],
+} as const satisfies Record<
+  FeatureGroup,
+  readonly (keyof typeof supabaseMcpToolSchemas)[]
+>;
+
+/**
+ * Pre-computed schemas with `project_id` omitted from input schemas.
+ *
+ * Used by {@link createToolSchemas} when `projectScoped` is true.
+ * Account tools are not included here because they are excluded entirely
+ * in project-scoped mode (matching server behavior).
+ */
+const PROJECT_SCOPED_OVERRIDES = {
+  // branching
+  create_branch: {
+    inputSchema: createBranchInputSchema.omit({ project_id: true }),
+    outputSchema: createBranchOutputSchema,
+  },
+  list_branches: {
+    inputSchema: listBranchesInputSchema.omit({ project_id: true }),
+    outputSchema: listBranchesOutputSchema,
+  },
+  // database
+  list_tables: {
+    inputSchema: listTablesInputSchema.omit({ project_id: true }),
+    outputSchema: listTablesOutputSchema,
+  },
+  list_extensions: {
+    inputSchema: listExtensionsInputSchema.omit({ project_id: true }),
+    outputSchema: listExtensionsOutputSchema,
+  },
+  list_migrations: {
+    inputSchema: listMigrationsInputSchema.omit({ project_id: true }),
+    outputSchema: listMigrationsOutputSchema,
+  },
+  apply_migration: {
+    inputSchema: applyMigrationInputSchema.omit({ project_id: true }),
+    outputSchema: applyMigrationOutputSchema,
+  },
+  execute_sql: {
+    inputSchema: executeSqlInputSchema.omit({ project_id: true }),
+    outputSchema: executeSqlOutputSchema,
+  },
+  // debugging
+  get_logs: {
+    inputSchema: getLogsInputSchema.omit({ project_id: true }),
+    outputSchema: getLogsOutputSchema,
+  },
+  get_advisors: {
+    inputSchema: getAdvisorsInputSchema.omit({ project_id: true }),
+    outputSchema: getAdvisorsOutputSchema,
+  },
+  // development
+  get_project_url: {
+    inputSchema: getProjectUrlInputSchema.omit({ project_id: true }),
+    outputSchema: getProjectUrlOutputSchema,
+  },
+  get_publishable_keys: {
+    inputSchema: getPublishableKeysInputSchema.omit({ project_id: true }),
+    outputSchema: getPublishableKeysOutputSchema,
+  },
+  generate_typescript_types: {
+    inputSchema: generateTypescriptTypesInputSchema.omit({ project_id: true }),
+    outputSchema: generateTypescriptTypesOutputSchema,
+  },
+  // functions
+  list_edge_functions: {
+    inputSchema: listEdgeFunctionsInputSchema.omit({ project_id: true }),
+    outputSchema: listEdgeFunctionsOutputSchema,
+  },
+  get_edge_function: {
+    inputSchema: getEdgeFunctionInputSchema.omit({ project_id: true }),
+    outputSchema: getEdgeFunctionOutputSchema,
+  },
+  deploy_edge_function: {
+    inputSchema: deployEdgeFunctionInputSchema.omit({ project_id: true }),
+    outputSchema: deployEdgeFunctionOutputSchema,
+  },
+  // storage
+  list_storage_buckets: {
+    inputSchema: listStorageBucketsInputSchema.omit({ project_id: true }),
+    outputSchema: listStorageBucketsOutputSchema,
+  },
+  get_storage_config: {
+    inputSchema: getStorageConfigInputSchema.omit({ project_id: true }),
+    outputSchema: getStorageConfigOutputSchema,
+  },
+  update_storage_config: {
+    inputSchema: updateStorageConfigInputSchema.omit({ project_id: true }),
+    outputSchema: updateStorageConfigOutputSchema,
+  },
+} satisfies Partial<
+  Record<
+    keyof typeof supabaseMcpToolSchemas,
+    { inputSchema: z.ZodObject<any>; outputSchema: z.ZodObject<any> }
+  >
+>;
+
+/**
+ * Tools that throw in read-only mode.
+ *
+ * Used by {@link createToolSchemas} when `readOnly` is true to
+ * exclude write-only tools from the schema.
+ */
+const WRITE_TOOLS = [
+  'create_project',
+  'pause_project',
+  'restore_project',
+  'create_branch',
+  'delete_branch',
+  'merge_branch',
+  'reset_branch',
+  'rebase_branch',
+  'apply_migration',
+  'deploy_edge_function',
+  'update_storage_config',
+] as const satisfies readonly (keyof typeof supabaseMcpToolSchemas)[];
+
+// ---------------------------------------------------------------------------
+// Type-level helpers for createToolSchemas
+// ---------------------------------------------------------------------------
+
+type AllSchemas = typeof supabaseMcpToolSchemas;
+type ProjectScopedSchemas = typeof PROJECT_SCOPED_OVERRIDES;
+type FeatureToolMapType = typeof FEATURE_TOOL_MAP;
+
+type ToolNameForFeature<F extends FeatureGroup> = FeatureToolMapType[F][number];
+
+type AccountToolName = FeatureToolMapType['account'][number];
+type WriteToolName = (typeof WRITE_TOOLS)[number];
+
+/**
+ * Computes the set of tool names available for a given configuration.
+ *
+ * - Resolves feature groups to their tool names
+ * - Excludes account tools when project-scoped
+ * - Excludes write-only tools when read-only
+ */
+type AvailableToolNames<
+  F extends FeatureGroup,
+  PS extends boolean,
+  RO extends boolean,
+> = Exclude<
+  ToolNameForFeature<F>,
+  | (PS extends true ? AccountToolName : never)
+  | (RO extends true ? WriteToolName : never)
+>;
+
+/**
+ * Computes the tool schemas for a given configuration.
+ *
+ * When `PS` is `true`, tools with `project_id` use the project-scoped
+ * override (with `project_id` omitted from the input schema). All other
+ * tools use their original schemas.
+ */
+type ToolSchemasFor<
+  F extends FeatureGroup,
+  PS extends boolean,
+  RO extends boolean,
+> = {
+  [K in AvailableToolNames<F, PS, RO> & keyof AllSchemas]: PS extends true
+    ? K extends keyof ProjectScopedSchemas
+      ? ProjectScopedSchemas[K]
+      : AllSchemas[K]
+    : AllSchemas[K];
+};
+
+/**
+ * Creates a dynamically scoped tool schema map for use with AI SDK's
+ * `mcpClient.tools()`.
+ *
+ * Mirrors the server's dynamic tool behavior:
+ * - `features` controls which tool groups are included
+ * - `projectScoped` omits `project_id` from input schemas and excludes
+ *   account tools (matching server behavior when `projectId` is set)
+ * - `readOnly` excludes mutating tools
+ *
+ * @example
+ * ```typescript
+ * import { createToolSchemas } from '@supabase/mcp-server-supabase';
+ *
+ * // Project-scoped with specific features
+ * const schemas = createToolSchemas({
+ *   features: ['database', 'docs'],
+ *   projectScoped: true,
+ * });
+ *
+ * const tools = await mcpClient.tools({ schemas });
+ * ```
+ */
+export function createToolSchemas<
+  const F extends readonly FeatureGroup[] = typeof CURRENT_FEATURE_GROUPS,
+  const PS extends boolean = false,
+  const RO extends boolean = false,
+>(options?: {
+  features?: F;
+  projectScoped?: PS;
+  readOnly?: RO;
+}): ToolSchemasFor<F[number], PS, RO> {
+  const enabledFeatures = new Set<string>(
+    options?.features ?? CURRENT_FEATURE_GROUPS
+  );
+  const projectScoped = options?.projectScoped ?? false;
+  const readOnly = options?.readOnly ?? false;
+  const writeToolSet = new Set<string>(WRITE_TOOLS);
+
+  const result: Record<
+    string,
+    { inputSchema: z.ZodObject<any>; outputSchema: z.ZodObject<any> }
+  > = {};
+
+  for (const [feature, toolNames] of Object.entries(FEATURE_TOOL_MAP)) {
+    if (!enabledFeatures.has(feature)) continue;
+    if (projectScoped && feature === 'account') continue;
+
+    for (const toolName of toolNames) {
+      if (readOnly && writeToolSet.has(toolName)) continue;
+
+      if (projectScoped && toolName in PROJECT_SCOPED_OVERRIDES) {
+        result[toolName] =
+          PROJECT_SCOPED_OVERRIDES[
+            toolName as keyof typeof PROJECT_SCOPED_OVERRIDES
+          ];
+      } else {
+        result[toolName] = supabaseMcpToolSchemas[toolName];
+      }
+    }
+  }
+
+  return result as ToolSchemasFor<F[number], PS, RO>;
+}

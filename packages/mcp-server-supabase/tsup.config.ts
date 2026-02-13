@@ -5,6 +5,8 @@ export default defineConfig([
     entry: [
       'src/index.ts',
       'src/transports/stdio.ts',
+      'src/transports/http.ts',
+      'src/transports/index.ts',
       'src/platform/index.ts',
       'src/platform/api-platform.ts',
     ],

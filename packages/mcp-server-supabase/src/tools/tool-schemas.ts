@@ -489,7 +489,8 @@ type ToolSchemasFor<
  * ```
  */
 export function createToolSchemas<
-  const Features extends readonly FeatureGroup[] = typeof CURRENT_FEATURE_GROUPS,
+  const Features extends
+    readonly FeatureGroup[] = typeof CURRENT_FEATURE_GROUPS,
   const ProjectScoped extends boolean = false,
   const ReadOnly extends boolean = false,
 >(options?: {

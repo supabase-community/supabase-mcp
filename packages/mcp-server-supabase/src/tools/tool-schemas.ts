@@ -423,12 +423,11 @@ const WRITE_TOOLS = [
 
 type AllSchemas = typeof supabaseMcpToolSchemas;
 type ProjectScopedSchemas = typeof PROJECT_SCOPED_OVERRIDES;
-type FeatureToolMapType = typeof FEATURE_TOOL_MAP;
 
 type ToolNameForFeature<Feature extends FeatureGroup> =
-  FeatureToolMapType[Feature][number];
+  (typeof FEATURE_TOOL_MAP)[Feature][number];
 
-type AccountToolName = FeatureToolMapType['account'][number];
+type AccountToolName = ToolNameForFeature<'account'>;
 type WriteToolName = (typeof WRITE_TOOLS)[number];
 
 /**
@@ -459,14 +458,12 @@ type ToolSchemasFor<
   Feature extends FeatureGroup,
   ProjectScoped extends boolean,
   ReadOnly extends boolean,
-> = {
-  [K in AvailableToolNames<Feature, ProjectScoped, ReadOnly> &
-    keyof AllSchemas]: ProjectScoped extends true
-    ? K extends keyof ProjectScopedSchemas
-      ? ProjectScopedSchemas[K]
-      : AllSchemas[K]
-    : AllSchemas[K];
-};
+> = Pick<
+  ProjectScoped extends true
+    ? Omit<AllSchemas, keyof ProjectScopedSchemas> & ProjectScopedSchemas
+    : AllSchemas,
+  AvailableToolNames<Feature, ProjectScoped, ReadOnly> & keyof AllSchemas
+>;
 
 /**
  * Creates a dynamically scoped tool schema map for use with AI SDK's

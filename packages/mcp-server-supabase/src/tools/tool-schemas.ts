@@ -425,7 +425,8 @@ type AllSchemas = typeof supabaseMcpToolSchemas;
 type ProjectScopedSchemas = typeof PROJECT_SCOPED_OVERRIDES;
 type FeatureToolMapType = typeof FEATURE_TOOL_MAP;
 
-type ToolNameForFeature<F extends FeatureGroup> = FeatureToolMapType[F][number];
+type ToolNameForFeature<Feature extends FeatureGroup> =
+  FeatureToolMapType[Feature][number];
 
 type AccountToolName = FeatureToolMapType['account'][number];
 type WriteToolName = (typeof WRITE_TOOLS)[number];
@@ -438,28 +439,29 @@ type WriteToolName = (typeof WRITE_TOOLS)[number];
  * - Excludes write-only tools when read-only
  */
 type AvailableToolNames<
-  F extends FeatureGroup,
-  PS extends boolean,
-  RO extends boolean,
+  Feature extends FeatureGroup,
+  ProjectScoped extends boolean,
+  ReadOnly extends boolean,
 > = Exclude<
-  ToolNameForFeature<F>,
-  | (PS extends true ? AccountToolName : never)
-  | (RO extends true ? WriteToolName : never)
+  ToolNameForFeature<Feature>,
+  | (ProjectScoped extends true ? AccountToolName : never)
+  | (ReadOnly extends true ? WriteToolName : never)
 >;
 
 /**
  * Computes the tool schemas for a given configuration.
  *
- * When `PS` is `true`, tools with `project_id` use the project-scoped
- * override (with `project_id` omitted from the input schema). All other
- * tools use their original schemas.
+ * When `ProjectScoped` is `true`, tools with `project_id` use the
+ * project-scoped override (with `project_id` omitted from the input
+ * schema). All other tools use their original schemas.
  */
 type ToolSchemasFor<
-  F extends FeatureGroup,
-  PS extends boolean,
-  RO extends boolean,
+  Feature extends FeatureGroup,
+  ProjectScoped extends boolean,
+  ReadOnly extends boolean,
 > = {
-  [K in AvailableToolNames<F, PS, RO> & keyof AllSchemas]: PS extends true
+  [K in AvailableToolNames<Feature, ProjectScoped, ReadOnly> &
+    keyof AllSchemas]: ProjectScoped extends true
     ? K extends keyof ProjectScopedSchemas
       ? ProjectScopedSchemas[K]
       : AllSchemas[K]
@@ -490,14 +492,14 @@ type ToolSchemasFor<
  * ```
  */
 export function createToolSchemas<
-  const F extends readonly FeatureGroup[] = typeof CURRENT_FEATURE_GROUPS,
-  const PS extends boolean = false,
-  const RO extends boolean = false,
+  const Features extends readonly FeatureGroup[] = typeof CURRENT_FEATURE_GROUPS,
+  const ProjectScoped extends boolean = false,
+  const ReadOnly extends boolean = false,
 >(options?: {
-  features?: F;
-  projectScoped?: PS;
-  readOnly?: RO;
-}): ToolSchemasFor<F[number], PS, RO> {
+  features?: Features;
+  projectScoped?: ProjectScoped;
+  readOnly?: ReadOnly;
+}): ToolSchemasFor<Features[number], ProjectScoped, ReadOnly> {
   const enabledFeatures = new Set<string>(
     options?.features ?? CURRENT_FEATURE_GROUPS
   );
@@ -528,5 +530,5 @@ export function createToolSchemas<
     }
   }
 
-  return result as ToolSchemasFor<F[number], PS, RO>;
+  return result as ToolSchemasFor<Features[number], ProjectScoped, ReadOnly>;
 }

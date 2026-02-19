@@ -62,6 +62,32 @@ describe('createToolSchemas', () => {
     });
   });
 
+  describe('PROJECT_SCOPED_OVERRIDES completeness', () => {
+    test('all tools with project_id in inputSchema have it omitted in project-scoped mode', () => {
+      const projectScopedSchemas = createToolSchemas({ projectScoped: true });
+
+      for (const [name, { inputSchema }] of Object.entries(
+        supabaseMcpToolSchemas
+      )) {
+        const shape = inputSchema._zod.def.shape;
+        if (!('project_id' in shape)) continue;
+
+        // Account tools are excluded entirely from project-scoped mode - skip them
+        if (!(name in projectScopedSchemas)) continue;
+
+        const projectScopedEntry =
+          projectScopedSchemas[name as keyof typeof projectScopedSchemas];
+        const projectScopedShape =
+          projectScopedEntry.inputSchema._zod.def.shape;
+
+        expect(
+          projectScopedShape,
+          `Tool "${name}" has project_id in inputSchema but it is not omitted in project-scoped mode — add it to PROJECT_SCOPED_OVERRIDES`
+        ).not.toHaveProperty('project_id');
+      }
+    });
+  });
+
   describe('projectScoped', () => {
     test('excludes account tools', () => {
       const schemas = createToolSchemas({ projectScoped: true });

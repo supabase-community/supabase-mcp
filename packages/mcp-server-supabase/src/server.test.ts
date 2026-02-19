@@ -29,7 +29,10 @@ import { createSupabaseApiPlatform } from './platform/api-platform.js';
 import type { SupabasePlatform } from './platform/types.js';
 import { BRANCH_COST_HOURLY, PROJECT_COST_MONTHLY } from './pricing.js';
 import { createSupabaseMcpServer } from './server.js';
-import { supabaseMcpToolSchemas } from './tools/tool-schemas.js';
+import {
+  createToolSchemas,
+  supabaseMcpToolSchemas,
+} from './tools/tool-schemas.js';
 
 let mockServer: ReturnType<typeof setupServer> | undefined;
 
@@ -2880,6 +2883,41 @@ describe('tools', () => {
       extraToolsInRegistry,
       'Registry should not contain tools that are not in the MCP server when all features are enabled'
     ).toEqual([]);
+  });
+
+  test('all write tools (readOnlyHint: false) are excluded from readOnly schemas', async () => {
+    // Use readOnly server so dynamic annotations (e.g. execute_sql) reflect
+    // read-only mode correctly — execute_sql reports readOnlyHint: true when
+    // the server is read-only, so it won't be incorrectly caught by the filter below.
+    const { client } = await setup({
+      readOnly: true,
+      features: [
+        'docs',
+        'account',
+        'database',
+        'debugging',
+        'development',
+        'functions',
+        'branching',
+        'storage',
+      ],
+    });
+
+    const { tools } = await client.listTools();
+
+    const writeToolNames = tools
+      .filter((tool) => tool.annotations?.readOnlyHint === false)
+      .map((tool) => tool.name);
+
+    const readOnlySchemas = createToolSchemas({ readOnly: true });
+    const readOnlySchemaKeys = Object.keys(readOnlySchemas);
+
+    for (const name of writeToolNames) {
+      expect(
+        readOnlySchemaKeys,
+        `Write tool "${name}" (readOnlyHint: false) is missing from WRITE_TOOLS — add it to WRITE_TOOLS in tool-schemas.ts`
+      ).not.toContain(name);
+    }
   });
 
   test('structuredContent matches JSON stringified content', async () => {

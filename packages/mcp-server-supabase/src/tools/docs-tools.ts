@@ -17,9 +17,24 @@ export const searchDocsOutputSchema = z.object({
   result: z.unknown().describe('GraphQL query result'),
 });
 
+export const docsToolDefs = {
+  search_docs: {
+    parameters: searchDocsInputSchema,
+    outputSchema: searchDocsOutputSchema,
+    annotations: {
+      title: 'Search docs',
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
+} as const;
+
 export function getDocsTools({ contentApiClient }: DocsToolsOptions) {
   return {
     search_docs: tool({
+      ...docsToolDefs.search_docs,
       description: async () => {
         const schema = await contentApiClient.loadSchema();
 
@@ -32,15 +47,6 @@ export function getDocsTools({ contentApiClient }: DocsToolsOptions) {
           ${schema}
         `;
       },
-      annotations: {
-        title: 'Search docs',
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: true,
-        openWorldHint: false,
-      },
-      parameters: searchDocsInputSchema,
-      outputSchema: searchDocsOutputSchema,
       execute: async ({ graphql_query }) => {
         const result = await contentApiClient.query({ query: graphql_query });
         return { result };

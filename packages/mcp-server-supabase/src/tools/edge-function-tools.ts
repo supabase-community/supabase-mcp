@@ -73,6 +73,42 @@ export const deployEdgeFunctionInputSchema = z.object({
 
 export const deployEdgeFunctionOutputSchema = edgeFunctionSchema;
 
+export const edgeFunctionToolDefs = {
+  list_edge_functions: {
+    parameters: listEdgeFunctionsInputSchema,
+    outputSchema: listEdgeFunctionsOutputSchema,
+    annotations: {
+      title: 'List Edge Functions',
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
+  get_edge_function: {
+    parameters: getEdgeFunctionInputSchema,
+    outputSchema: getEdgeFunctionOutputSchema,
+    annotations: {
+      title: 'Get Edge Function',
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
+  deploy_edge_function: {
+    parameters: deployEdgeFunctionInputSchema,
+    outputSchema: deployEdgeFunctionOutputSchema,
+    annotations: {
+      title: 'Deploy Edge Function',
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: false,
+      openWorldHint: false,
+    },
+  },
+} as const;
+
 export function getEdgeFunctionTools({
   functions,
   projectId,
@@ -82,50 +118,26 @@ export function getEdgeFunctionTools({
 
   return {
     list_edge_functions: injectableTool({
+      ...edgeFunctionToolDefs.list_edge_functions,
       description: 'Lists all Edge Functions in a Supabase project.',
-      annotations: {
-        title: 'List Edge Functions',
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: true,
-        openWorldHint: false,
-      },
-      parameters: listEdgeFunctionsInputSchema,
       inject: { project_id },
-      outputSchema: listEdgeFunctionsOutputSchema,
       execute: async ({ project_id }) => {
         return { functions: await functions.listEdgeFunctions(project_id) };
       },
     }),
     get_edge_function: injectableTool({
+      ...edgeFunctionToolDefs.get_edge_function,
       description:
         'Retrieves file contents for an Edge Function in a Supabase project.',
-      annotations: {
-        title: 'Get Edge Function',
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: true,
-        openWorldHint: false,
-      },
-      parameters: getEdgeFunctionInputSchema,
       inject: { project_id },
-      outputSchema: getEdgeFunctionOutputSchema,
       execute: async ({ project_id, function_slug }) => {
         return await functions.getEdgeFunction(project_id, function_slug);
       },
     }),
     deploy_edge_function: injectableTool({
+      ...edgeFunctionToolDefs.deploy_edge_function,
       description: `Deploys an Edge Function to a Supabase project. If the function already exists, this will create a new version. Example:\n\n${edgeFunctionExample}`,
-      annotations: {
-        title: 'Deploy Edge Function',
-        readOnlyHint: false,
-        destructiveHint: true,
-        idempotentHint: false,
-        openWorldHint: false,
-      },
-      parameters: deployEdgeFunctionInputSchema,
       inject: { project_id },
-      outputSchema: deployEdgeFunctionOutputSchema,
       execute: async ({
         project_id,
         name,

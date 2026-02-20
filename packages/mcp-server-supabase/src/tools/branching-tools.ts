@@ -83,6 +83,75 @@ export const rebaseBranchOutputSchema = z.object({
   success: z.boolean(),
 });
 
+export const branchingToolDefs = {
+  create_branch: {
+    parameters: createBranchInputSchema,
+    outputSchema: createBranchOutputSchema,
+    annotations: {
+      title: 'Create branch',
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: false,
+    },
+  },
+  list_branches: {
+    parameters: listBranchesInputSchema,
+    outputSchema: listBranchesOutputSchema,
+    annotations: {
+      title: 'List branches',
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
+  delete_branch: {
+    parameters: deleteBranchInputSchema,
+    outputSchema: deleteBranchOutputSchema,
+    annotations: {
+      title: 'Delete branch',
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: false,
+      openWorldHint: false,
+    },
+  },
+  merge_branch: {
+    parameters: mergeBranchInputSchema,
+    outputSchema: mergeBranchOutputSchema,
+    annotations: {
+      title: 'Merge branch',
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: false,
+      openWorldHint: false,
+    },
+  },
+  reset_branch: {
+    parameters: resetBranchInputSchema,
+    outputSchema: resetBranchOutputSchema,
+    annotations: {
+      title: 'Reset branch',
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: false,
+      openWorldHint: false,
+    },
+  },
+  rebase_branch: {
+    parameters: rebaseBranchInputSchema,
+    outputSchema: rebaseBranchOutputSchema,
+    annotations: {
+      title: 'Rebase branch',
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: false,
+      openWorldHint: false,
+    },
+  },
+} as const;
+
 export function getBranchingTools({
   branching,
   projectId,
@@ -92,18 +161,10 @@ export function getBranchingTools({
 
   return {
     create_branch: injectableTool({
+      ...branchingToolDefs.create_branch,
       description:
         'Creates a development branch on a Supabase project. This will apply all migrations from the main project to a fresh branch database. Note that production data will not carry over. The branch will get its own project_id via the resulting project_ref. Use this ID to execute queries and migrations on the branch.',
-      annotations: {
-        title: 'Create branch',
-        readOnlyHint: false,
-        destructiveHint: false,
-        idempotentHint: false,
-        openWorldHint: false,
-      },
-      parameters: createBranchInputSchema,
       inject: { project_id },
-      outputSchema: createBranchOutputSchema,
       execute: async ({ project_id, name, confirm_cost_id }) => {
         if (readOnly) {
           throw new Error('Cannot create a branch in read-only mode.');
@@ -120,33 +181,17 @@ export function getBranchingTools({
       },
     }),
     list_branches: injectableTool({
+      ...branchingToolDefs.list_branches,
       description:
         'Lists all development branches of a Supabase project. This will return branch details including status which you can use to check when operations like merge/rebase/reset complete.',
-      annotations: {
-        title: 'List branches',
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: true,
-        openWorldHint: false,
-      },
-      parameters: listBranchesInputSchema,
       inject: { project_id },
-      outputSchema: listBranchesOutputSchema,
       execute: async ({ project_id }) => {
         return { branches: await branching.listBranches(project_id) };
       },
     }),
     delete_branch: tool({
+      ...branchingToolDefs.delete_branch,
       description: 'Deletes a development branch.',
-      annotations: {
-        title: 'Delete branch',
-        readOnlyHint: false,
-        destructiveHint: true,
-        idempotentHint: false,
-        openWorldHint: false,
-      },
-      parameters: deleteBranchInputSchema,
-      outputSchema: deleteBranchOutputSchema,
       execute: async ({ branch_id }) => {
         if (readOnly) {
           throw new Error('Cannot delete a branch in read-only mode.');
@@ -157,17 +202,9 @@ export function getBranchingTools({
       },
     }),
     merge_branch: tool({
+      ...branchingToolDefs.merge_branch,
       description:
         'Merges migrations and edge functions from a development branch to production.',
-      annotations: {
-        title: 'Merge branch',
-        readOnlyHint: false,
-        destructiveHint: true,
-        idempotentHint: false,
-        openWorldHint: false,
-      },
-      parameters: mergeBranchInputSchema,
-      outputSchema: mergeBranchOutputSchema,
       execute: async ({ branch_id }) => {
         if (readOnly) {
           throw new Error('Cannot merge a branch in read-only mode.');
@@ -178,17 +215,9 @@ export function getBranchingTools({
       },
     }),
     reset_branch: tool({
+      ...branchingToolDefs.reset_branch,
       description:
         'Resets migrations of a development branch. Any untracked data or schema changes will be lost.',
-      annotations: {
-        title: 'Reset branch',
-        readOnlyHint: false,
-        destructiveHint: true,
-        idempotentHint: false,
-        openWorldHint: false,
-      },
-      parameters: resetBranchInputSchema,
-      outputSchema: resetBranchOutputSchema,
       execute: async ({ branch_id, migration_version }) => {
         if (readOnly) {
           throw new Error('Cannot reset a branch in read-only mode.');
@@ -201,17 +230,9 @@ export function getBranchingTools({
       },
     }),
     rebase_branch: tool({
+      ...branchingToolDefs.rebase_branch,
       description:
         'Rebases a development branch on production. This will effectively run any newer migrations from production onto this branch to help handle migration drift.',
-      annotations: {
-        title: 'Rebase branch',
-        readOnlyHint: false,
-        destructiveHint: true,
-        idempotentHint: false,
-        openWorldHint: false,
-      },
-      parameters: rebaseBranchInputSchema,
-      outputSchema: rebaseBranchOutputSchema,
       execute: async ({ branch_id }) => {
         if (readOnly) {
           throw new Error('Cannot rebase a branch in read-only mode.');

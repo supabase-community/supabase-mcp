@@ -119,82 +119,144 @@ export const restoreProjectOutputSchema = z.object({
   success: z.boolean(),
 });
 
+export const accountToolDefs = {
+  list_organizations: {
+    parameters: listOrganizationsInputSchema,
+    outputSchema: listOrganizationsOutputSchema,
+    annotations: {
+      title: 'List organizations',
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
+  get_organization: {
+    parameters: getOrganizationInputSchema,
+    outputSchema: getOrganizationOutputSchema,
+    annotations: {
+      title: 'Get organization details',
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
+  list_projects: {
+    parameters: listProjectsInputSchema,
+    outputSchema: listProjectsOutputSchema,
+    annotations: {
+      title: 'List projects',
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
+  get_project: {
+    parameters: getProjectInputSchema,
+    outputSchema: getProjectOutputSchema,
+    annotations: {
+      title: 'Get project details',
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
+  get_cost: {
+    parameters: getCostInputSchema,
+    outputSchema: getCostOutputSchema,
+    annotations: {
+      title: 'Get cost of new resources',
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
+  confirm_cost: {
+    parameters: confirmCostInputSchema,
+    outputSchema: confirmCostOutputSchema,
+    annotations: {
+      title: 'Confirm cost understanding',
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
+  create_project: {
+    parameters: createProjectInputSchema,
+    outputSchema: createProjectOutputSchema,
+    annotations: {
+      title: 'Create project',
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: false,
+    },
+  },
+  pause_project: {
+    parameters: pauseProjectInputSchema,
+    outputSchema: pauseProjectOutputSchema,
+    annotations: {
+      title: 'Pause project',
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: false,
+    },
+  },
+  restore_project: {
+    parameters: restoreProjectInputSchema,
+    outputSchema: restoreProjectOutputSchema,
+    annotations: {
+      title: 'Restore project',
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: false,
+    },
+  },
+} as const;
+
 export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
   return {
     list_organizations: tool({
+      ...accountToolDefs.list_organizations,
       description: 'Lists all organizations that the user is a member of.',
-      annotations: {
-        title: 'List organizations',
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: true,
-        openWorldHint: false,
-      },
-      parameters: listOrganizationsInputSchema,
-      outputSchema: listOrganizationsOutputSchema,
       execute: async () => {
         return { organizations: await account.listOrganizations() };
       },
     }),
     get_organization: tool({
+      ...accountToolDefs.get_organization,
       description:
         'Gets details for an organization. Includes subscription plan.',
-      annotations: {
-        title: 'Get organization details',
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: true,
-        openWorldHint: false,
-      },
-      parameters: getOrganizationInputSchema,
-      outputSchema: getOrganizationOutputSchema,
       execute: async ({ id: organizationId }) => {
         return await account.getOrganization(organizationId);
       },
     }),
     list_projects: tool({
+      ...accountToolDefs.list_projects,
       description:
         'Lists all Supabase projects for the user. Use this to help discover the project ID of the project that the user is working on.',
-      annotations: {
-        title: 'List projects',
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: true,
-        openWorldHint: false,
-      },
-      parameters: listProjectsInputSchema,
-      outputSchema: listProjectsOutputSchema,
       execute: async () => {
         return { projects: await account.listProjects() };
       },
     }),
     get_project: tool({
+      ...accountToolDefs.get_project,
       description: 'Gets details for a Supabase project.',
-      annotations: {
-        title: 'Get project details',
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: true,
-        openWorldHint: false,
-      },
-      parameters: getProjectInputSchema,
-      outputSchema: getProjectOutputSchema,
       execute: async ({ id }) => {
         return await account.getProject(id);
       },
     }),
     get_cost: tool({
+      ...accountToolDefs.get_cost,
       description:
         'Gets the cost of creating a new project or branch. Never assume organization as costs can be different for each. Always repeat the cost to the user and confirm their understanding before proceeding.',
-      annotations: {
-        title: 'Get cost of new resources',
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: true,
-        openWorldHint: false,
-      },
-      parameters: getCostInputSchema,
-      outputSchema: getCostOutputSchema,
       execute: async ({ type, organization_id }) => {
         switch (type) {
           case 'project':
@@ -207,33 +269,17 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
       },
     }),
     confirm_cost: tool({
+      ...accountToolDefs.confirm_cost,
       description:
         'Ask the user to confirm their understanding of the cost of creating a new project or branch. Call `get_cost` first. Returns a unique ID for this confirmation which should be passed to `create_project` or `create_branch`.',
-      annotations: {
-        title: 'Confirm cost understanding',
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: true,
-        openWorldHint: false,
-      },
-      parameters: confirmCostInputSchema,
-      outputSchema: confirmCostOutputSchema,
       execute: async (cost) => {
         return { confirmation_id: await hashObject(cost) };
       },
     }),
     create_project: tool({
+      ...accountToolDefs.create_project,
       description:
         'Creates a new Supabase project. Always ask the user which organization to create the project in. The project can take a few minutes to initialize - use `get_project` to check the status.',
-      annotations: {
-        title: 'Create project',
-        readOnlyHint: false,
-        destructiveHint: false,
-        idempotentHint: false,
-        openWorldHint: false,
-      },
-      parameters: createProjectInputSchema,
-      outputSchema: createProjectOutputSchema,
       execute: async ({ name, region, organization_id, confirm_cost_id }) => {
         if (readOnly) {
           throw new Error('Cannot create a project in read-only mode.');
@@ -255,16 +301,8 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
       },
     }),
     pause_project: tool({
+      ...accountToolDefs.pause_project,
       description: 'Pauses a Supabase project.',
-      annotations: {
-        title: 'Pause project',
-        readOnlyHint: false,
-        destructiveHint: false,
-        idempotentHint: false,
-        openWorldHint: false,
-      },
-      parameters: pauseProjectInputSchema,
-      outputSchema: pauseProjectOutputSchema,
       execute: async ({ project_id }) => {
         if (readOnly) {
           throw new Error('Cannot pause a project in read-only mode.');
@@ -275,16 +313,8 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
       },
     }),
     restore_project: tool({
+      ...accountToolDefs.restore_project,
       description: 'Restores a Supabase project.',
-      annotations: {
-        title: 'Restore project',
-        readOnlyHint: false,
-        destructiveHint: false,
-        idempotentHint: false,
-        openWorldHint: false,
-      },
-      parameters: restoreProjectInputSchema,
-      outputSchema: restoreProjectOutputSchema,
       execute: async ({ project_id }) => {
         if (readOnly) {
           throw new Error('Cannot restore a project in read-only mode.');

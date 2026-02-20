@@ -1,93 +1,54 @@
+import type { Annotations } from '@supabase/mcp-utils';
 import type { z } from 'zod/v4';
 import { CURRENT_FEATURE_GROUPS, type FeatureGroup } from '../types.js';
-import {
-  // Account tools
-  listOrganizationsInputSchema,
-  listOrganizationsOutputSchema,
-  getOrganizationInputSchema,
-  getOrganizationOutputSchema,
-  listProjectsInputSchema,
-  listProjectsOutputSchema,
-  getProjectInputSchema,
-  getProjectOutputSchema,
-  getCostInputSchema,
-  getCostOutputSchema,
-  confirmCostInputSchema,
-  confirmCostOutputSchema,
-  createProjectInputSchema,
-  createProjectOutputSchema,
-  pauseProjectInputSchema,
-  pauseProjectOutputSchema,
-  restoreProjectInputSchema,
-  restoreProjectOutputSchema,
-} from './account-tools.js';
-import {
-  // Branching tools
-  createBranchInputSchema,
-  createBranchOutputSchema,
-  listBranchesInputSchema,
-  listBranchesOutputSchema,
-  deleteBranchInputSchema,
-  deleteBranchOutputSchema,
-  mergeBranchInputSchema,
-  mergeBranchOutputSchema,
-  resetBranchInputSchema,
-  resetBranchOutputSchema,
-  rebaseBranchInputSchema,
-  rebaseBranchOutputSchema,
-} from './branching-tools.js';
-import {
-  // Database operation tools
-  listTablesInputSchema,
-  listTablesOutputSchema,
-  listExtensionsInputSchema,
-  listExtensionsOutputSchema,
-  listMigrationsInputSchema,
-  listMigrationsOutputSchema,
-  applyMigrationInputSchema,
-  applyMigrationOutputSchema,
-  executeSqlInputSchema,
-  executeSqlOutputSchema,
-} from './database-operation-tools.js';
-import {
-  // Debugging tools
-  getLogsInputSchema,
-  getLogsOutputSchema,
-  getAdvisorsInputSchema,
-  getAdvisorsOutputSchema,
-} from './debugging-tools.js';
-import {
-  // Development tools
-  getProjectUrlInputSchema,
-  getProjectUrlOutputSchema,
-  getPublishableKeysInputSchema,
-  getPublishableKeysOutputSchema,
-  generateTypescriptTypesInputSchema,
-  generateTypescriptTypesOutputSchema,
-} from './development-tools.js';
-import {
-  // Docs tools
-  searchDocsInputSchema,
-  searchDocsOutputSchema,
-} from './docs-tools.js';
-import {
-  // Edge function tools
-  listEdgeFunctionsInputSchema,
-  listEdgeFunctionsOutputSchema,
-  getEdgeFunctionInputSchema,
-  getEdgeFunctionOutputSchema,
-  deployEdgeFunctionInputSchema,
-  deployEdgeFunctionOutputSchema,
-} from './edge-function-tools.js';
-import {
-  // Storage tools
-  listStorageBucketsInputSchema,
-  listStorageBucketsOutputSchema,
-  getStorageConfigInputSchema,
-  getStorageConfigOutputSchema,
-  updateStorageConfigInputSchema,
-  updateStorageConfigOutputSchema,
-} from './storage-tools.js';
+import { accountToolDefs } from './account-tools.js';
+import { branchingToolDefs } from './branching-tools.js';
+import { databaseToolDefs } from './database-operation-tools.js';
+import { debuggingToolDefs } from './debugging-tools.js';
+import { developmentToolDefs } from './development-tools.js';
+import { docsToolDefs } from './docs-tools.js';
+import { edgeFunctionToolDefs } from './edge-function-tools.js';
+import { storageToolDefs } from './storage-tools.js';
+
+// ---------------------------------------------------------------------------
+// Helper: convert tool defs (parameters) to schema entries (inputSchema)
+// ---------------------------------------------------------------------------
+
+type ToolDefs = Record<
+  string,
+  {
+    parameters: z.ZodObject<any>;
+    outputSchema: z.ZodObject<any>;
+    annotations: Annotations;
+  }
+>;
+
+type DefsToSchemas<T extends ToolDefs> = {
+  [K in keyof T]: {
+    inputSchema: T[K]['parameters'];
+    outputSchema: T[K]['outputSchema'];
+    annotations: T[K]['annotations'];
+  };
+};
+
+function defsToSchemas<const T extends ToolDefs>(defs: T): DefsToSchemas<T> {
+  return Object.fromEntries(
+    Object.entries(defs).map(([name, { parameters: inputSchema, ...rest }]) => [
+      name,
+      { inputSchema, ...rest },
+    ])
+  ) as DefsToSchemas<T>;
+}
+
+type SchemaEntry = {
+  inputSchema: z.ZodObject<any>;
+  outputSchema: z.ZodObject<any>;
+  annotations: Annotations;
+};
+
+// ---------------------------------------------------------------------------
+// supabaseMcpToolSchemas — assembled from per-file tool defs
+// ---------------------------------------------------------------------------
 
 /**
  * All Supabase MCP tool schemas (input + output pairs).
@@ -106,302 +67,85 @@ import {
  * ```
  */
 export const supabaseMcpToolSchemas = {
-  // Account tools
-  list_organizations: {
-    inputSchema: listOrganizationsInputSchema,
-    outputSchema: listOrganizationsOutputSchema,
-  },
-  get_organization: {
-    inputSchema: getOrganizationInputSchema,
-    outputSchema: getOrganizationOutputSchema,
-  },
-  list_projects: {
-    inputSchema: listProjectsInputSchema,
-    outputSchema: listProjectsOutputSchema,
-  },
-  get_project: {
-    inputSchema: getProjectInputSchema,
-    outputSchema: getProjectOutputSchema,
-  },
-  get_cost: {
-    inputSchema: getCostInputSchema,
-    outputSchema: getCostOutputSchema,
-  },
-  confirm_cost: {
-    inputSchema: confirmCostInputSchema,
-    outputSchema: confirmCostOutputSchema,
-  },
-  create_project: {
-    inputSchema: createProjectInputSchema,
-    outputSchema: createProjectOutputSchema,
-  },
-  pause_project: {
-    inputSchema: pauseProjectInputSchema,
-    outputSchema: pauseProjectOutputSchema,
-  },
-  restore_project: {
-    inputSchema: restoreProjectInputSchema,
-    outputSchema: restoreProjectOutputSchema,
-  },
-  // Branching tools
-  create_branch: {
-    inputSchema: createBranchInputSchema,
-    outputSchema: createBranchOutputSchema,
-  },
-  list_branches: {
-    inputSchema: listBranchesInputSchema,
-    outputSchema: listBranchesOutputSchema,
-  },
-  delete_branch: {
-    inputSchema: deleteBranchInputSchema,
-    outputSchema: deleteBranchOutputSchema,
-  },
-  merge_branch: {
-    inputSchema: mergeBranchInputSchema,
-    outputSchema: mergeBranchOutputSchema,
-  },
-  reset_branch: {
-    inputSchema: resetBranchInputSchema,
-    outputSchema: resetBranchOutputSchema,
-  },
-  rebase_branch: {
-    inputSchema: rebaseBranchInputSchema,
-    outputSchema: rebaseBranchOutputSchema,
-  },
-  // Database operation tools
-  list_tables: {
-    inputSchema: listTablesInputSchema,
-    outputSchema: listTablesOutputSchema,
-  },
-  list_extensions: {
-    inputSchema: listExtensionsInputSchema,
-    outputSchema: listExtensionsOutputSchema,
-  },
-  list_migrations: {
-    inputSchema: listMigrationsInputSchema,
-    outputSchema: listMigrationsOutputSchema,
-  },
-  apply_migration: {
-    inputSchema: applyMigrationInputSchema,
-    outputSchema: applyMigrationOutputSchema,
-  },
-  execute_sql: {
-    inputSchema: executeSqlInputSchema,
-    outputSchema: executeSqlOutputSchema,
-  },
-  // Debugging tools
-  get_logs: {
-    inputSchema: getLogsInputSchema,
-    outputSchema: getLogsOutputSchema,
-  },
-  get_advisors: {
-    inputSchema: getAdvisorsInputSchema,
-    outputSchema: getAdvisorsOutputSchema,
-  },
-  // Development tools
-  get_project_url: {
-    inputSchema: getProjectUrlInputSchema,
-    outputSchema: getProjectUrlOutputSchema,
-  },
-  get_publishable_keys: {
-    inputSchema: getPublishableKeysInputSchema,
-    outputSchema: getPublishableKeysOutputSchema,
-  },
-  generate_typescript_types: {
-    inputSchema: generateTypescriptTypesInputSchema,
-    outputSchema: generateTypescriptTypesOutputSchema,
-  },
-  // Docs tools
-  search_docs: {
-    inputSchema: searchDocsInputSchema,
-    outputSchema: searchDocsOutputSchema,
-  },
-  // Edge function tools
-  list_edge_functions: {
-    inputSchema: listEdgeFunctionsInputSchema,
-    outputSchema: listEdgeFunctionsOutputSchema,
-  },
-  get_edge_function: {
-    inputSchema: getEdgeFunctionInputSchema,
-    outputSchema: getEdgeFunctionOutputSchema,
-  },
-  deploy_edge_function: {
-    inputSchema: deployEdgeFunctionInputSchema,
-    outputSchema: deployEdgeFunctionOutputSchema,
-  },
-  // Storage tools
-  list_storage_buckets: {
-    inputSchema: listStorageBucketsInputSchema,
-    outputSchema: listStorageBucketsOutputSchema,
-  },
-  get_storage_config: {
-    inputSchema: getStorageConfigInputSchema,
-    outputSchema: getStorageConfigOutputSchema,
-  },
-  update_storage_config: {
-    inputSchema: updateStorageConfigInputSchema,
-    outputSchema: updateStorageConfigOutputSchema,
-  },
-} satisfies Record<
-  string,
-  {
-    inputSchema: z.ZodObject<any>;
-    outputSchema: z.ZodObject<any>;
-  }
->;
+  ...defsToSchemas(accountToolDefs),
+  ...defsToSchemas(branchingToolDefs),
+  ...defsToSchemas(databaseToolDefs),
+  ...defsToSchemas(debuggingToolDefs),
+  ...defsToSchemas(developmentToolDefs),
+  ...defsToSchemas(docsToolDefs),
+  ...defsToSchemas(edgeFunctionToolDefs),
+  ...defsToSchemas(storageToolDefs),
+} satisfies Record<string, SchemaEntry>;
+
+// ---------------------------------------------------------------------------
+// FEATURE_TOOL_MAP — derived from per-file tool def keys
+// ---------------------------------------------------------------------------
 
 /**
  * Maps each feature group to its tool names.
+ * Derived from the per-file tool defs so that adding a tool to a file
+ * automatically includes it in the feature group.
  *
  * Used by {@link createToolSchemas} to filter tools by feature.
  */
 const FEATURE_TOOL_MAP = {
-  docs: ['search_docs'],
-  account: [
-    'list_organizations',
-    'get_organization',
-    'list_projects',
-    'get_project',
-    'get_cost',
-    'confirm_cost',
-    'create_project',
-    'pause_project',
-    'restore_project',
-  ],
-  database: [
-    'list_tables',
-    'list_extensions',
-    'list_migrations',
-    'apply_migration',
-    'execute_sql',
-  ],
-  debugging: ['get_logs', 'get_advisors'],
-  development: [
-    'get_project_url',
-    'get_publishable_keys',
-    'generate_typescript_types',
-  ],
-  functions: [
-    'list_edge_functions',
-    'get_edge_function',
-    'deploy_edge_function',
-  ],
-  branching: [
-    'create_branch',
-    'list_branches',
-    'delete_branch',
-    'merge_branch',
-    'reset_branch',
-    'rebase_branch',
-  ],
-  storage: [
-    'list_storage_buckets',
-    'get_storage_config',
-    'update_storage_config',
-  ],
-} as const satisfies Record<
+  docs: Object.keys(docsToolDefs) as readonly (keyof typeof docsToolDefs)[],
+  account: Object.keys(accountToolDefs) as readonly (keyof typeof accountToolDefs)[],
+  database: Object.keys(databaseToolDefs) as readonly (keyof typeof databaseToolDefs)[],
+  debugging: Object.keys(debuggingToolDefs) as readonly (keyof typeof debuggingToolDefs)[],
+  development: Object.keys(developmentToolDefs) as readonly (keyof typeof developmentToolDefs)[],
+  functions: Object.keys(edgeFunctionToolDefs) as readonly (keyof typeof edgeFunctionToolDefs)[],
+  branching: Object.keys(branchingToolDefs) as readonly (keyof typeof branchingToolDefs)[],
+  storage: Object.keys(storageToolDefs) as readonly (keyof typeof storageToolDefs)[],
+} satisfies Record<
   FeatureGroup,
   readonly (keyof typeof supabaseMcpToolSchemas)[]
 >;
 
-/**
- * Pre-computed schemas with `project_id` omitted from input schemas.
- *
- * Used by {@link createToolSchemas} when `projectScoped` is true.
- * Account tools are not included here because they are excluded entirely
- * in project-scoped mode (matching server behavior).
- */
-const PROJECT_SCOPED_OVERRIDES = {
-  // branching
-  create_branch: {
-    inputSchema: createBranchInputSchema.omit({ project_id: true }),
-    outputSchema: createBranchOutputSchema,
-  },
-  list_branches: {
-    inputSchema: listBranchesInputSchema.omit({ project_id: true }),
-    outputSchema: listBranchesOutputSchema,
-  },
-  // database
-  list_tables: {
-    inputSchema: listTablesInputSchema.omit({ project_id: true }),
-    outputSchema: listTablesOutputSchema,
-  },
-  list_extensions: {
-    inputSchema: listExtensionsInputSchema.omit({ project_id: true }),
-    outputSchema: listExtensionsOutputSchema,
-  },
-  list_migrations: {
-    inputSchema: listMigrationsInputSchema.omit({ project_id: true }),
-    outputSchema: listMigrationsOutputSchema,
-  },
-  apply_migration: {
-    inputSchema: applyMigrationInputSchema.omit({ project_id: true }),
-    outputSchema: applyMigrationOutputSchema,
-  },
-  execute_sql: {
-    inputSchema: executeSqlInputSchema.omit({ project_id: true }),
-    outputSchema: executeSqlOutputSchema,
-  },
-  // debugging
-  get_logs: {
-    inputSchema: getLogsInputSchema.omit({ project_id: true }),
-    outputSchema: getLogsOutputSchema,
-  },
-  get_advisors: {
-    inputSchema: getAdvisorsInputSchema.omit({ project_id: true }),
-    outputSchema: getAdvisorsOutputSchema,
-  },
-  // development
-  get_project_url: {
-    inputSchema: getProjectUrlInputSchema.omit({ project_id: true }),
-    outputSchema: getProjectUrlOutputSchema,
-  },
-  get_publishable_keys: {
-    inputSchema: getPublishableKeysInputSchema.omit({ project_id: true }),
-    outputSchema: getPublishableKeysOutputSchema,
-  },
-  generate_typescript_types: {
-    inputSchema: generateTypescriptTypesInputSchema.omit({ project_id: true }),
-    outputSchema: generateTypescriptTypesOutputSchema,
-  },
-  // functions
-  list_edge_functions: {
-    inputSchema: listEdgeFunctionsInputSchema.omit({ project_id: true }),
-    outputSchema: listEdgeFunctionsOutputSchema,
-  },
-  get_edge_function: {
-    inputSchema: getEdgeFunctionInputSchema.omit({ project_id: true }),
-    outputSchema: getEdgeFunctionOutputSchema,
-  },
-  deploy_edge_function: {
-    inputSchema: deployEdgeFunctionInputSchema.omit({ project_id: true }),
-    outputSchema: deployEdgeFunctionOutputSchema,
-  },
-  // storage
-  list_storage_buckets: {
-    inputSchema: listStorageBucketsInputSchema.omit({ project_id: true }),
-    outputSchema: listStorageBucketsOutputSchema,
-  },
-  get_storage_config: {
-    inputSchema: getStorageConfigInputSchema.omit({ project_id: true }),
-    outputSchema: getStorageConfigOutputSchema,
-  },
-  update_storage_config: {
-    inputSchema: updateStorageConfigInputSchema.omit({ project_id: true }),
-    outputSchema: updateStorageConfigOutputSchema,
-  },
-} satisfies Partial<
-  Record<
-    keyof typeof supabaseMcpToolSchemas,
-    { inputSchema: z.ZodObject<any>; outputSchema: z.ZodObject<any> }
-  >
->;
+// ---------------------------------------------------------------------------
+// PROJECT_SCOPED_OVERRIDES — derived via Zod schema introspection
+// ---------------------------------------------------------------------------
 
 /**
- * Tools that throw in read-only mode.
+ * Schemas with `project_id` omitted from input schemas.
+ * Computed dynamically: any tool whose inputSchema has a `project_id`
+ * key gets an override with that key omitted.
  *
- * Used by {@link createToolSchemas} when `readOnly` is true to
- * exclude write-only tools from the schema.
+ * Account tools also appear here but are excluded entirely in
+ * project-scoped mode (matching server behavior).
+ *
+ * Used by {@link createToolSchemas} when `projectScoped` is true.
+ */
+const PROJECT_SCOPED_OVERRIDES: Record<string, SchemaEntry> =
+  Object.fromEntries(
+    Object.entries(supabaseMcpToolSchemas)
+      .filter(
+        ([, { inputSchema }]) =>
+          'project_id' in (inputSchema as z.ZodObject<any>)._zod.def.shape
+      )
+      .map(([name, { inputSchema, ...rest }]) => [
+        name,
+        {
+          inputSchema: (inputSchema as z.ZodObject<any>).omit({
+            project_id: true,
+          }),
+          ...rest,
+        },
+      ])
+  );
+
+// ---------------------------------------------------------------------------
+// WRITE_TOOLS — tools excluded entirely in read-only mode
+// ---------------------------------------------------------------------------
+
+/**
+ * Tools that are excluded entirely in read-only mode.
+ *
+ * Note: `execute_sql` is intentionally absent — it adapts to read-only
+ * mode dynamically (via `readOnlyHint` and `read_only` SQL flag) rather
+ * than being excluded.
+ *
+ * Used by {@link createToolSchemas} when `readOnly` is true.
  */
 const WRITE_TOOLS = [
   'create_project',
@@ -422,7 +166,23 @@ const WRITE_TOOLS = [
 // ---------------------------------------------------------------------------
 
 type AllSchemas = typeof supabaseMcpToolSchemas;
-type ProjectScopedSchemas = typeof PROJECT_SCOPED_OVERRIDES;
+
+/** Tool names whose inputSchema contains `project_id`. */
+type ProjectScopedToolName = {
+  [K in keyof AllSchemas]: 'project_id' extends keyof z.infer<
+    AllSchemas[K]['inputSchema']
+  >
+    ? K
+    : never;
+}[keyof AllSchemas];
+
+type ProjectScopedSchemas = {
+  [K in ProjectScopedToolName]: {
+    inputSchema: z.ZodObject<any>;
+    outputSchema: AllSchemas[K]['outputSchema'];
+    annotations: AllSchemas[K]['annotations'];
+  };
+};
 
 type ToolNameForFeature<Feature extends FeatureGroup> =
   (typeof FEATURE_TOOL_MAP)[Feature][number];
@@ -460,7 +220,7 @@ type ToolSchemasFor<
   ReadOnly extends boolean,
 > = Pick<
   ProjectScoped extends true
-    ? Omit<AllSchemas, keyof ProjectScopedSchemas> & ProjectScopedSchemas
+    ? Omit<AllSchemas, ProjectScopedToolName> & ProjectScopedSchemas
     : AllSchemas,
   AvailableToolNames<Feature, ProjectScoped, ReadOnly> & keyof AllSchemas
 >;
@@ -505,10 +265,7 @@ export function createToolSchemas<
   const readOnly = options?.readOnly ?? false;
   const writeToolSet = new Set<string>(WRITE_TOOLS);
 
-  const result: Record<
-    string,
-    { inputSchema: z.ZodObject<any>; outputSchema: z.ZodObject<any> }
-  > = {};
+  const result: Record<string, SchemaEntry> = {};
 
   for (const [feature, toolNames] of Object.entries(FEATURE_TOOL_MAP)) {
     if (!enabledFeatures.has(feature)) continue;
@@ -518,10 +275,7 @@ export function createToolSchemas<
       if (readOnly && writeToolSet.has(toolName)) continue;
 
       if (projectScoped && toolName in PROJECT_SCOPED_OVERRIDES) {
-        result[toolName] =
-          PROJECT_SCOPED_OVERRIDES[
-            toolName as keyof typeof PROJECT_SCOPED_OVERRIDES
-          ];
+        result[toolName] = PROJECT_SCOPED_OVERRIDES[toolName]!;
       } else {
         result[toolName] = supabaseMcpToolSchemas[toolName];
       }

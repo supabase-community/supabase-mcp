@@ -54,6 +54,42 @@ export const updateStorageConfigOutputSchema = z.object({
   success: z.boolean(),
 });
 
+export const storageToolDefs = {
+  list_storage_buckets: {
+    parameters: listStorageBucketsInputSchema,
+    outputSchema: listStorageBucketsOutputSchema,
+    annotations: {
+      title: 'List storage buckets',
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
+  get_storage_config: {
+    parameters: getStorageConfigInputSchema,
+    outputSchema: getStorageConfigOutputSchema,
+    annotations: {
+      title: 'Get storage config',
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
+  update_storage_config: {
+    parameters: updateStorageConfigInputSchema,
+    outputSchema: updateStorageConfigOutputSchema,
+    annotations: {
+      title: 'Update storage config',
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: false,
+      openWorldHint: false,
+    },
+  },
+} as const;
+
 export function getStorageTools({
   storage,
   projectId,
@@ -63,49 +99,25 @@ export function getStorageTools({
 
   return {
     list_storage_buckets: injectableTool({
+      ...storageToolDefs.list_storage_buckets,
       description: 'Lists all storage buckets in a Supabase project.',
-      annotations: {
-        title: 'List storage buckets',
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: true,
-        openWorldHint: false,
-      },
-      parameters: listStorageBucketsInputSchema,
       inject: { project_id },
-      outputSchema: listStorageBucketsOutputSchema,
       execute: async ({ project_id }) => {
         return { buckets: await storage.listAllBuckets(project_id) };
       },
     }),
     get_storage_config: injectableTool({
+      ...storageToolDefs.get_storage_config,
       description: 'Get the storage config for a Supabase project.',
-      annotations: {
-        title: 'Get storage config',
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: true,
-        openWorldHint: false,
-      },
-      parameters: getStorageConfigInputSchema,
       inject: { project_id },
-      outputSchema: getStorageConfigOutputSchema,
       execute: async ({ project_id }) => {
         return await storage.getStorageConfig(project_id);
       },
     }),
     update_storage_config: injectableTool({
+      ...storageToolDefs.update_storage_config,
       description: 'Update the storage config for a Supabase project.',
-      annotations: {
-        title: 'Update storage config',
-        readOnlyHint: false,
-        destructiveHint: true,
-        idempotentHint: false,
-        openWorldHint: false,
-      },
-      parameters: updateStorageConfigInputSchema,
       inject: { project_id },
-      outputSchema: updateStorageConfigOutputSchema,
       execute: async ({ project_id, config }) => {
         if (readOnly) {
           throw new Error('Cannot update storage config in read-only mode.');

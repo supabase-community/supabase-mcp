@@ -50,14 +50,17 @@ export type ResourceTemplate<Uri extends string = string, Result = unknown> = {
   ): Promise<Result>;
 };
 
+type RecordSchema = z.ZodObject<any> | z.ZodRecord<any, any>;
+
 export type Tool<
   Params extends z.ZodObject<any> = z.ZodObject<any>,
-  Result = unknown,
+  OutputSchema extends RecordSchema = RecordSchema,
 > = {
   description: Prop<string>;
   annotations?: Annotations;
   parameters: Params;
-  execute(params: z.infer<Params>): Promise<Result>;
+  outputSchema: OutputSchema;
+  execute(params: z.infer<Params>): Promise<z.infer<OutputSchema>>;
 };
 
 /**
@@ -164,9 +167,10 @@ export function jsonResourceResponse<Uri extends string, Response>(
 /**
  * Helper function to define an MCP tool while preserving type information.
  */
-export function tool<Params extends z.ZodObject<any>, Result>(
-  tool: Tool<Params, Result>
-) {
+export function tool<
+  Params extends z.ZodObject<any>,
+  OutputSchema extends RecordSchema,
+>(tool: Tool<Params, OutputSchema>) {
   return tool;
 }
 
@@ -441,7 +445,7 @@ export function createMcpServer(options: McpServerOptions) {
           tools: await Promise.all(
             Object.entries(tools).map(
               async ([name, { description, annotations, parameters }]) => {
-                const inputSchema = z.toJSONSchema(parameters, {
+                const inputJsonSchema = z.toJSONSchema(parameters, {
                   target: 'draft-7',
                 });
 
@@ -454,7 +458,7 @@ export function createMcpServer(options: McpServerOptions) {
                   annotations,
                   // Casting the same as the SDK does:
                   // https://github.com/modelcontextprotocol/typescript-sdk/blob/fb07af810b51003c338dc4885a9e42f54519f9af/src/server/mcp.ts#L154
-                  inputSchema: inputSchema as McpTool['inputSchema'],
+                  inputSchema: inputJsonSchema as McpTool['inputSchema'],
                 };
               }
             )
@@ -509,9 +513,10 @@ export function createMcpServer(options: McpServerOptions) {
 
         const result = await executeWithCallback(tool);
 
-        const content = result
-          ? [{ type: 'text', text: JSON.stringify(result) }]
-          : [];
+        const content =
+          result != null
+            ? [{ type: 'text', text: JSON.stringify(result) }]
+            : [];
 
         return {
           content,

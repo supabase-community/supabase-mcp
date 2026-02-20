@@ -1,34 +1,87 @@
 import { tool } from '@supabase/mcp-utils';
 import { z } from 'zod/v4';
 import type { BranchingOperations } from '../platform/types.js';
+import { branchSchema } from '../platform/types.js';
 import { getBranchCost } from '../pricing.js';
 import { hashObject } from '../util.js';
 import { injectableTool } from './util.js';
 
-const SUCCESS_RESPONSE = { success: true };
-
-const branchNameSchema = z
-  .string()
-  .default('develop')
-  .describe('Name of the branch to create');
-const branchConfirmCostIdSchema = z
-  .string({
-    error: (issue) =>
-      issue.input === undefined
-        ? 'User must confirm understanding of costs before creating a branch.'
-        : undefined,
-  })
-  .describe('The cost confirmation ID. Call `confirm_cost` first.');
-const migrationVersionSchema = z
-  .string()
-  .optional()
-  .describe('Reset your development branch to a specific migration version.');
-
+export type CreateBranchInput = z.infer<typeof createBranchInputSchema>;
+export type CreateBranchOutput = z.infer<typeof createBranchOutputSchema>;
+export type ListBranchesInput = z.infer<typeof listBranchesInputSchema>;
+export type ListBranchesOutput = z.infer<typeof listBranchesOutputSchema>;
+export type DeleteBranchInput = z.infer<typeof deleteBranchInputSchema>;
+export type DeleteBranchOutput = z.infer<typeof deleteBranchOutputSchema>;
+export type MergeBranchInput = z.infer<typeof mergeBranchInputSchema>;
+export type MergeBranchOutput = z.infer<typeof mergeBranchOutputSchema>;
+export type ResetBranchInput = z.infer<typeof resetBranchInputSchema>;
+export type ResetBranchOutput = z.infer<typeof resetBranchOutputSchema>;
+export type RebaseBranchInput = z.infer<typeof rebaseBranchInputSchema>;
+export type RebaseBranchOutput = z.infer<typeof rebaseBranchOutputSchema>;
 export type BranchingToolsOptions = {
   branching: BranchingOperations;
   projectId?: string;
   readOnly?: boolean;
 };
+
+export const createBranchInputSchema = z.object({
+  project_id: z.string(),
+  name: z.string().default('develop').describe('Name of the branch to create'),
+  confirm_cost_id: z
+    .string({
+      error: (issue) =>
+        issue.input === undefined
+          ? 'User must confirm understanding of costs before creating a branch.'
+          : undefined,
+    })
+    .describe('The cost confirmation ID. Call `confirm_cost` first.'),
+});
+
+export const createBranchOutputSchema = branchSchema;
+
+export const listBranchesInputSchema = z.object({
+  project_id: z.string(),
+});
+
+export const listBranchesOutputSchema = z.object({
+  branches: z.array(branchSchema),
+});
+
+export const deleteBranchInputSchema = z.object({
+  branch_id: z.string(),
+});
+
+export const deleteBranchOutputSchema = z.object({
+  success: z.boolean(),
+});
+
+export const mergeBranchInputSchema = z.object({
+  branch_id: z.string(),
+});
+
+export const mergeBranchOutputSchema = z.object({
+  success: z.boolean(),
+});
+
+export const resetBranchInputSchema = z.object({
+  branch_id: z.string(),
+  migration_version: z
+    .string()
+    .optional()
+    .describe('Reset your development branch to a specific migration version.'),
+});
+
+export const resetBranchOutputSchema = z.object({
+  success: z.boolean(),
+});
+
+export const rebaseBranchInputSchema = z.object({
+  branch_id: z.string(),
+});
+
+export const rebaseBranchOutputSchema = z.object({
+  success: z.boolean(),
+});
 
 export function getBranchingTools({
   branching,
@@ -48,12 +101,9 @@ export function getBranchingTools({
         idempotentHint: false,
         openWorldHint: false,
       },
-      parameters: z.object({
-        project_id: z.string(),
-        name: branchNameSchema,
-        confirm_cost_id: branchConfirmCostIdSchema,
-      }),
+      parameters: createBranchInputSchema,
       inject: { project_id },
+      outputSchema: createBranchOutputSchema,
       execute: async ({ project_id, name, confirm_cost_id }) => {
         if (readOnly) {
           throw new Error('Cannot create a branch in read-only mode.');
@@ -79,12 +129,11 @@ export function getBranchingTools({
         idempotentHint: true,
         openWorldHint: false,
       },
-      parameters: z.object({
-        project_id: z.string(),
-      }),
+      parameters: listBranchesInputSchema,
       inject: { project_id },
+      outputSchema: listBranchesOutputSchema,
       execute: async ({ project_id }) => {
-        return await branching.listBranches(project_id);
+        return { branches: await branching.listBranches(project_id) };
       },
     }),
     delete_branch: tool({
@@ -96,16 +145,15 @@ export function getBranchingTools({
         idempotentHint: false,
         openWorldHint: false,
       },
-      parameters: z.object({
-        branch_id: z.string(),
-      }),
+      parameters: deleteBranchInputSchema,
+      outputSchema: deleteBranchOutputSchema,
       execute: async ({ branch_id }) => {
         if (readOnly) {
           throw new Error('Cannot delete a branch in read-only mode.');
         }
 
         await branching.deleteBranch(branch_id);
-        return SUCCESS_RESPONSE;
+        return { success: true };
       },
     }),
     merge_branch: tool({
@@ -118,16 +166,15 @@ export function getBranchingTools({
         idempotentHint: false,
         openWorldHint: false,
       },
-      parameters: z.object({
-        branch_id: z.string(),
-      }),
+      parameters: mergeBranchInputSchema,
+      outputSchema: mergeBranchOutputSchema,
       execute: async ({ branch_id }) => {
         if (readOnly) {
           throw new Error('Cannot merge a branch in read-only mode.');
         }
 
         await branching.mergeBranch(branch_id);
-        return SUCCESS_RESPONSE;
+        return { success: true };
       },
     }),
     reset_branch: tool({
@@ -140,10 +187,8 @@ export function getBranchingTools({
         idempotentHint: false,
         openWorldHint: false,
       },
-      parameters: z.object({
-        branch_id: z.string(),
-        migration_version: migrationVersionSchema,
-      }),
+      parameters: resetBranchInputSchema,
+      outputSchema: resetBranchOutputSchema,
       execute: async ({ branch_id, migration_version }) => {
         if (readOnly) {
           throw new Error('Cannot reset a branch in read-only mode.');
@@ -152,7 +197,7 @@ export function getBranchingTools({
         await branching.resetBranch(branch_id, {
           migration_version,
         });
-        return SUCCESS_RESPONSE;
+        return { success: true };
       },
     }),
     rebase_branch: tool({
@@ -165,16 +210,15 @@ export function getBranchingTools({
         idempotentHint: false,
         openWorldHint: false,
       },
-      parameters: z.object({
-        branch_id: z.string(),
-      }),
+      parameters: rebaseBranchInputSchema,
+      outputSchema: rebaseBranchOutputSchema,
       execute: async ({ branch_id }) => {
         if (readOnly) {
           throw new Error('Cannot rebase a branch in read-only mode.');
         }
 
         await branching.rebaseBranch(branch_id);
-        return SUCCESS_RESPONSE;
+        return { success: true };
       },
     }),
   };

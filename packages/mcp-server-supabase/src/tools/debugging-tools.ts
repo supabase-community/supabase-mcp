@@ -5,14 +5,34 @@ import {
 } from '../platform/types.js';
 import { injectableTool } from './util.js';
 
-const advisorTypeSchema = z
-  .enum(['security', 'performance'])
-  .describe('The type of advisors to fetch');
-
+export type GetLogsInput = z.infer<typeof getLogsInputSchema>;
+export type GetLogsOutput = z.infer<typeof getLogsOutputSchema>;
+export type GetAdvisorsInput = z.infer<typeof getAdvisorsInputSchema>;
+export type GetAdvisorsOutput = z.infer<typeof getAdvisorsOutputSchema>;
 export type DebuggingToolsOptions = {
   debugging: DebuggingOperations;
   projectId?: string;
 };
+
+export const getLogsInputSchema = z.object({
+  project_id: z.string(),
+  service: logsServiceSchema.describe('The service to fetch logs for'),
+});
+
+export const getLogsOutputSchema = z.object({
+  result: z.unknown(),
+});
+
+export const getAdvisorsInputSchema = z.object({
+  project_id: z.string(),
+  type: z
+    .enum(['security', 'performance'])
+    .describe('The type of advisors to fetch'),
+});
+
+export const getAdvisorsOutputSchema = z.object({
+  result: z.unknown(),
+});
 
 export function getDebuggingTools({
   debugging,
@@ -31,20 +51,19 @@ export function getDebuggingTools({
         idempotentHint: true,
         openWorldHint: false,
       },
-      parameters: z.object({
-        project_id: z.string(),
-        service: logsServiceSchema,
-      }),
+      parameters: getLogsInputSchema,
       inject: { project_id },
+      outputSchema: getLogsOutputSchema,
       execute: async ({ project_id, service }) => {
         const startTimestamp = new Date(Date.now() - 24 * 60 * 60 * 1000); // Last 24 hours
         const endTimestamp = new Date();
 
-        return debugging.getLogs(project_id, {
+        const result = await debugging.getLogs(project_id, {
           service,
           iso_timestamp_start: startTimestamp.toISOString(),
           iso_timestamp_end: endTimestamp.toISOString(),
         });
+        return { result };
       },
     }),
     get_advisors: injectableTool({
@@ -57,20 +76,22 @@ export function getDebuggingTools({
         idempotentHint: true,
         openWorldHint: false,
       },
-      parameters: z.object({
-        project_id: z.string(),
-        type: advisorTypeSchema,
-      }),
+      parameters: getAdvisorsInputSchema,
       inject: { project_id },
+      outputSchema: getAdvisorsOutputSchema,
       execute: async ({ project_id, type }) => {
+        let result: unknown;
         switch (type) {
           case 'security':
-            return debugging.getSecurityAdvisors(project_id);
+            result = await debugging.getSecurityAdvisors(project_id);
+            break;
           case 'performance':
-            return debugging.getPerformanceAdvisors(project_id);
+            result = await debugging.getPerformanceAdvisors(project_id);
+            break;
           default:
             throw new Error(`Unknown advisor type: ${type}`);
         }
+        return { result };
       },
     }),
   };

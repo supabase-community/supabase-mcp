@@ -10,8 +10,8 @@ onlyBuiltDependencies:
   - supabase
 
 catalog:
-  '@ai-sdk/anthropic': ^3.0.1
-  '@ai-sdk/mcp': ^1.0.1
+  '@ai-sdk/anthropic': ^3.0.42
+  '@ai-sdk/mcp': ^1.0.20
   '@modelcontextprotocol/sdk': ^1.25.2
-  ai: ^6.0.3
+  ai: ^6.0.83
   zod: ^3.25.0 || ^4.0.0

@@ -3,11 +3,19 @@ import { source } from 'common-tags';
 import { z } from 'zod/v4';
 import type { ContentApiClient } from '../content-api/index.js';
 
-const graphqlQuerySchema = z.string().describe('GraphQL query string');
-
+export type SearchDocsInput = z.infer<typeof searchDocsInputSchema>;
+export type SearchDocsOutput = z.infer<typeof searchDocsOutputSchema>;
 export type DocsToolsOptions = {
   contentApiClient: ContentApiClient;
 };
+
+export const searchDocsInputSchema = z.object({
+  graphql_query: z.string().describe('GraphQL query string'),
+});
+
+export const searchDocsOutputSchema = z.object({
+  result: z.unknown().describe('GraphQL query result'),
+});
 
 export function getDocsTools({ contentApiClient }: DocsToolsOptions) {
   return {
@@ -31,12 +39,11 @@ export function getDocsTools({ contentApiClient }: DocsToolsOptions) {
         idempotentHint: true,
         openWorldHint: false,
       },
-      parameters: z.object({
-        // Intentionally use a verbose param name for the LLM
-        graphql_query: graphqlQuerySchema,
-      }),
+      parameters: searchDocsInputSchema,
+      outputSchema: searchDocsOutputSchema,
       execute: async ({ graphql_query }) => {
-        return await contentApiClient.query({ query: graphql_query });
+        const result = await contentApiClient.query({ query: graphql_query });
+        return { result };
       },
     }),
   };

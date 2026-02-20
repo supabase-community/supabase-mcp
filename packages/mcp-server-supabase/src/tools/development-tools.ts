@@ -1,11 +1,58 @@
 import { z } from 'zod/v4';
 import type { DevelopmentOperations } from '../platform/types.js';
+import { generateTypescriptTypesResultSchema } from '../platform/types.js';
 import { injectableTool } from './util.js';
 
+export type GetProjectUrlInput = z.infer<typeof getProjectUrlInputSchema>;
+export type GetProjectUrlOutput = z.infer<typeof getProjectUrlOutputSchema>;
+export type GetPublishableKeysInput = z.infer<
+  typeof getPublishableKeysInputSchema
+>;
+export type GetPublishableKeysOutput = z.infer<
+  typeof getPublishableKeysOutputSchema
+>;
+export type GenerateTypescriptTypesInput = z.infer<
+  typeof generateTypescriptTypesInputSchema
+>;
+export type GenerateTypescriptTypesOutput = z.infer<
+  typeof generateTypescriptTypesOutputSchema
+>;
 export type DevelopmentToolsOptions = {
   development: DevelopmentOperations;
   projectId?: string;
 };
+
+export const getProjectUrlInputSchema = z.object({
+  project_id: z.string(),
+});
+
+export const getProjectUrlOutputSchema = z.object({
+  url: z.string(),
+});
+
+export const getPublishableKeysInputSchema = z.object({
+  project_id: z.string(),
+});
+
+export const getPublishableKeysOutputSchema = z.object({
+  keys: z.array(
+    z.object({
+      api_key: z.string(),
+      name: z.string(),
+      type: z.enum(['legacy', 'publishable']),
+      description: z.string().optional(),
+      id: z.string().optional(),
+      disabled: z.boolean().optional(),
+    })
+  ),
+});
+
+export const generateTypescriptTypesInputSchema = z.object({
+  project_id: z.string(),
+});
+
+export const generateTypescriptTypesOutputSchema =
+  generateTypescriptTypesResultSchema;
 
 export function getDevelopmentTools({
   development,
@@ -23,12 +70,11 @@ export function getDevelopmentTools({
         idempotentHint: true,
         openWorldHint: false,
       },
-      parameters: z.object({
-        project_id: z.string(),
-      }),
+      parameters: getProjectUrlInputSchema,
       inject: { project_id },
+      outputSchema: getProjectUrlOutputSchema,
       execute: async ({ project_id }) => {
-        return development.getProjectUrl(project_id);
+        return { url: await development.getProjectUrl(project_id) };
       },
     }),
     get_publishable_keys: injectableTool({
@@ -41,12 +87,11 @@ export function getDevelopmentTools({
         idempotentHint: true,
         openWorldHint: false,
       },
-      parameters: z.object({
-        project_id: z.string(),
-      }),
+      parameters: getPublishableKeysInputSchema,
       inject: { project_id },
+      outputSchema: getPublishableKeysOutputSchema,
       execute: async ({ project_id }) => {
-        return development.getPublishableKeys(project_id);
+        return { keys: await development.getPublishableKeys(project_id) };
       },
     }),
     generate_typescript_types: injectableTool({
@@ -58,10 +103,9 @@ export function getDevelopmentTools({
         idempotentHint: true,
         openWorldHint: false,
       },
-      parameters: z.object({
-        project_id: z.string(),
-      }),
+      parameters: generateTypescriptTypesInputSchema,
       inject: { project_id },
+      outputSchema: generateTypescriptTypesOutputSchema,
       execute: async ({ project_id }) => {
         return development.generateTypescriptTypes(project_id);
       },

@@ -119,10 +119,7 @@ const FEATURE_TOOL_MAP = {
 const PROJECT_SCOPED_OVERRIDES: Record<string, SchemaEntry> =
   Object.fromEntries(
     Object.entries(supabaseMcpToolSchemas)
-      .filter(
-        ([, { inputSchema }]) =>
-          'project_id' in (inputSchema as z.ZodObject<any>)._zod.def.shape
-      )
+      .filter(([, { inputSchema }]) => 'project_id' in inputSchema.shape)
       .map(([name, { inputSchema, ...rest }]) => [
         name,
         {

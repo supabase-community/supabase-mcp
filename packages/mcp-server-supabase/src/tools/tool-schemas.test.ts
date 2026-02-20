@@ -69,16 +69,14 @@ describe('createToolSchemas', () => {
       for (const [name, { inputSchema }] of Object.entries(
         supabaseMcpToolSchemas
       )) {
-        const shape = inputSchema._zod.def.shape;
-        if (!('project_id' in shape)) continue;
+        if (!('project_id' in inputSchema.shape)) continue;
 
         // Account tools are excluded entirely from project-scoped mode - skip them
         if (!(name in projectScopedSchemas)) continue;
 
         const projectScopedEntry =
           projectScopedSchemas[name as keyof typeof projectScopedSchemas];
-        const projectScopedShape =
-          projectScopedEntry.inputSchema._zod.def.shape;
+        const projectScopedShape = projectScopedEntry.inputSchema.shape;
 
         expect(
           projectScopedShape,
@@ -115,8 +113,7 @@ describe('createToolSchemas', () => {
       const schemas = createToolSchemas({ projectScoped: true });
 
       // execute_sql should not have project_id
-      const executeSqlInput = schemas.execute_sql.inputSchema;
-      const shape = executeSqlInput._zod.def.shape;
+      const { shape } = schemas.execute_sql.inputSchema;
       expect(shape).not.toHaveProperty('project_id');
       expect(shape).toHaveProperty('query');
     });
@@ -175,6 +172,25 @@ describe('createToolSchemas', () => {
       expectTypeOf(schemas).toHaveProperty('execute_sql');
       expectTypeOf(schemas).toHaveProperty('search_docs');
     });
+
+    test('WRITE_TOOLS matches tools with readOnlyHint: false (except execute_sql)', () => {
+      // Validates that the hardcoded WRITE_TOOLS list stays in sync with annotations.
+      // execute_sql is excluded because it handles read-only mode dynamically.
+      const derivedWriteTools = Object.entries(supabaseMcpToolSchemas)
+        .filter(
+          ([name, { annotations }]) =>
+            annotations.readOnlyHint === false && name !== 'execute_sql'
+        )
+        .map(([name]) => name)
+        .sort();
+
+      const readOnlySchemas = createToolSchemas({ readOnly: true });
+      const actuallyExcluded = Object.keys(supabaseMcpToolSchemas)
+        .filter((name) => !(name in readOnlySchemas))
+        .sort();
+
+      expect(actuallyExcluded).toEqual(derivedWriteTools);
+    });
   });
 
   describe('combined options', () => {
@@ -194,7 +210,7 @@ describe('createToolSchemas', () => {
 
       // Read tools with project_id omitted
       expect(keys).toContain('execute_sql');
-      const executeSqlShape = schemas.execute_sql.inputSchema._zod.def.shape;
+      const { shape: executeSqlShape } = schemas.execute_sql.inputSchema;
       expect(executeSqlShape).not.toHaveProperty('project_id');
     });
 

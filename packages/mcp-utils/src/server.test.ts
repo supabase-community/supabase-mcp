@@ -191,36 +191,6 @@ describe('tools', () => {
     });
   });
 
-  test('tool returns structuredContent', async () => {
-    const server = createMcpServer({
-      name: 'test-server',
-      version: '0.0.0',
-      tools: {
-        test_tool: tool({
-          description: 'Test tool',
-          parameters: z.object({ foo: z.string() }),
-          outputSchema: z.object({ result: z.string() }),
-          execute: async ({ foo }) => ({ result: foo }),
-        }),
-      },
-    });
-
-    const { client } = await setup({ server });
-    const output = await client.callTool({
-      name: 'test_tool',
-      arguments: { foo: 'bar' },
-    });
-
-    const parsed = CallToolResultSchema.parse(output);
-    expect(parsed.structuredContent).toEqual({ result: 'bar' });
-    const textContent = parsed.content[0];
-    if (textContent && textContent.type === 'text') {
-      const parsedContent = JSON.parse(textContent.text);
-      expect(parsedContent).toEqual({ result: 'bar' });
-      expect(parsed.structuredContent).toEqual(parsedContent);
-    }
-  });
-
   test("tool callback error doesn't fail the tool call", async () => {
     const onToolCall = vi.fn(() => {
       throw new Error('Tool callback failed');
@@ -283,9 +253,6 @@ describe('tools', () => {
 
     for (const tool of tools) {
       expect(tool.inputSchema['$schema']).toBe(
-        'http://json-schema.org/draft-07/schema#'
-      );
-      expect(tool.outputSchema?.['$schema']).toBe(
         'http://json-schema.org/draft-07/schema#'
       );
     }

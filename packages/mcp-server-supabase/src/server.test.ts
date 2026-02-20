@@ -2834,17 +2834,6 @@ describe('tools', () => {
     }
   });
 
-  test('all tools have outputSchema defined', async () => {
-    const { client } = await setup();
-    const tools = await client.listTools();
-
-    const toolsWithoutOutputSchema = tools.tools.filter(
-      (tool) => !tool.outputSchema
-    );
-
-    expect(toolsWithoutOutputSchema).toEqual([]);
-  });
-
   test('all tools are included in supabaseMcpToolSchemas registry', async () => {
     // Enable all features to ensure we check all possible tools
     const { client } = await setup({
@@ -2920,7 +2909,7 @@ describe('tools', () => {
     }
   });
 
-  test('structuredContent matches JSON stringified content', async () => {
+  test('tool result content is valid JSON', async () => {
     const org = await createOrganization({
       name: 'My Org',
       plan: 'free',
@@ -2949,7 +2938,7 @@ describe('tools', () => {
       throw new Error('Expected text content in tool response');
     }
     const parsedContent = JSON.parse(firstContent.text);
-    expect(result.structuredContent).toEqual(parsedContent);
+    expect(parsedContent).toBeTypeOf('object');
   });
 });
 

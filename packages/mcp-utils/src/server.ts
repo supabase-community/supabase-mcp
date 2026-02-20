@@ -444,14 +444,8 @@ export function createMcpServer(options: McpServerOptions) {
         return {
           tools: await Promise.all(
             Object.entries(tools).map(
-              async ([
-                name,
-                { description, annotations, parameters, outputSchema },
-              ]) => {
+              async ([name, { description, annotations, parameters }]) => {
                 const inputJsonSchema = z.toJSONSchema(parameters, {
-                  target: 'draft-7',
-                });
-                const outputJsonSchema = z.toJSONSchema(outputSchema, {
                   target: 'draft-7',
                 });
 
@@ -465,7 +459,6 @@ export function createMcpServer(options: McpServerOptions) {
                   // Casting the same as the SDK does:
                   // https://github.com/modelcontextprotocol/typescript-sdk/blob/fb07af810b51003c338dc4885a9e42f54519f9af/src/server/mcp.ts#L154
                   inputSchema: inputJsonSchema as McpTool['inputSchema'],
-                  outputSchema: outputJsonSchema as McpTool['outputSchema'],
                 };
               }
             )
@@ -518,16 +511,15 @@ export function createMcpServer(options: McpServerOptions) {
           return res.data;
         };
 
-        const structuredContent = await executeWithCallback(tool);
+        const result = await executeWithCallback(tool);
 
         const content =
-          structuredContent != null
-            ? [{ type: 'text', text: JSON.stringify(structuredContent) }]
+          result != null
+            ? [{ type: 'text', text: JSON.stringify(result) }]
             : [];
 
         return {
           content,
-          structuredContent: structuredContent ?? undefined,
         };
       } catch (error) {
         return {

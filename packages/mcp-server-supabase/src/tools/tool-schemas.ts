@@ -10,10 +10,6 @@ import { edgeFunctionToolDefs } from './edge-function-tools.js';
 import { storageToolDefs } from './storage-tools.js';
 import type { ToolDefs } from './util.js';
 
-// ---------------------------------------------------------------------------
-// Helper: convert tool defs (parameters) to schema entries (inputSchema)
-// ---------------------------------------------------------------------------
-
 type DefsToSchemas<T extends ToolDefs> = {
   [K in keyof T]: {
     inputSchema: T[K]['parameters'];
@@ -36,10 +32,6 @@ type SchemaEntry = {
   outputSchema: z.ZodObject<any>;
   annotations: ToolDefs[string]['annotations'];
 };
-
-// ---------------------------------------------------------------------------
-// supabaseMcpToolSchemas — assembled from per-file tool defs
-// ---------------------------------------------------------------------------
 
 /**
  * All Supabase MCP tool schemas (input + output pairs).
@@ -68,10 +60,6 @@ export const supabaseMcpToolSchemas = {
   ...defsToSchemas(storageToolDefs),
 } satisfies Record<string, SchemaEntry>;
 
-// ---------------------------------------------------------------------------
-// FEATURE_TOOL_MAP — derived from per-file tool def keys
-// ---------------------------------------------------------------------------
-
 /**
  * Maps each feature group to its tool names.
  * Derived from the per-file tool defs so that adding a tool to a file
@@ -92,10 +80,6 @@ const FEATURE_TOOL_MAP = {
   FeatureGroup,
   readonly (keyof typeof supabaseMcpToolSchemas)[]
 >;
-
-// ---------------------------------------------------------------------------
-// PROJECT_SCOPED_OVERRIDES — derived via Zod schema introspection
-// ---------------------------------------------------------------------------
 
 /**
  * Schemas with `project_id` omitted from input schemas.
@@ -122,10 +106,6 @@ const PROJECT_SCOPED_OVERRIDES: Record<string, SchemaEntry> =
       ])
   );
 
-// ---------------------------------------------------------------------------
-// WRITE_TOOLS — tools excluded entirely in read-only mode
-// ---------------------------------------------------------------------------
-
 /**
  * Tools that are excluded entirely in read-only mode.
  *
@@ -148,10 +128,6 @@ const WRITE_TOOLS = [
   'deploy_edge_function',
   'update_storage_config',
 ] as const satisfies readonly (keyof typeof supabaseMcpToolSchemas)[];
-
-// ---------------------------------------------------------------------------
-// Type-level helpers for createToolSchemas
-// ---------------------------------------------------------------------------
 
 type AllSchemas = typeof supabaseMcpToolSchemas;
 

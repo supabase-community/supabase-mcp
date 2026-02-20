@@ -1,5 +1,6 @@
 import { tool } from '@supabase/mcp-utils';
 import { z } from 'zod/v4';
+import type { ToolDefs } from './util.js';
 import type { AccountOperations } from '../platform/types.js';
 import { organizationSchema, projectSchema } from '../platform/types.js';
 import { getBranchCost, getNextProjectCost } from '../pricing.js';
@@ -121,6 +122,7 @@ export const restoreProjectOutputSchema = z.object({
 
 export const accountToolDefs = {
   list_organizations: {
+    description: 'Lists all organizations that the user is a member of.',
     parameters: listOrganizationsInputSchema,
     outputSchema: listOrganizationsOutputSchema,
     annotations: {
@@ -132,6 +134,7 @@ export const accountToolDefs = {
     },
   },
   get_organization: {
+    description: 'Gets details for an organization. Includes subscription plan.',
     parameters: getOrganizationInputSchema,
     outputSchema: getOrganizationOutputSchema,
     annotations: {
@@ -143,6 +146,8 @@ export const accountToolDefs = {
     },
   },
   list_projects: {
+    description:
+      'Lists all Supabase projects for the user. Use this to help discover the project ID of the project that the user is working on.',
     parameters: listProjectsInputSchema,
     outputSchema: listProjectsOutputSchema,
     annotations: {
@@ -154,6 +159,7 @@ export const accountToolDefs = {
     },
   },
   get_project: {
+    description: 'Gets details for a Supabase project.',
     parameters: getProjectInputSchema,
     outputSchema: getProjectOutputSchema,
     annotations: {
@@ -165,6 +171,8 @@ export const accountToolDefs = {
     },
   },
   get_cost: {
+    description:
+      'Gets the cost of creating a new project or branch. Never assume organization as costs can be different for each. Always repeat the cost to the user and confirm their understanding before proceeding.',
     parameters: getCostInputSchema,
     outputSchema: getCostOutputSchema,
     annotations: {
@@ -176,6 +184,8 @@ export const accountToolDefs = {
     },
   },
   confirm_cost: {
+    description:
+      'Ask the user to confirm their understanding of the cost of creating a new project or branch. Call `get_cost` first. Returns a unique ID for this confirmation which should be passed to `create_project` or `create_branch`.',
     parameters: confirmCostInputSchema,
     outputSchema: confirmCostOutputSchema,
     annotations: {
@@ -187,6 +197,8 @@ export const accountToolDefs = {
     },
   },
   create_project: {
+    description:
+      'Creates a new Supabase project. Always ask the user which organization to create the project in. The project can take a few minutes to initialize - use `get_project` to check the status.',
     parameters: createProjectInputSchema,
     outputSchema: createProjectOutputSchema,
     annotations: {
@@ -198,6 +210,7 @@ export const accountToolDefs = {
     },
   },
   pause_project: {
+    description: 'Pauses a Supabase project.',
     parameters: pauseProjectInputSchema,
     outputSchema: pauseProjectOutputSchema,
     annotations: {
@@ -209,6 +222,7 @@ export const accountToolDefs = {
     },
   },
   restore_project: {
+    description: 'Restores a Supabase project.',
     parameters: restoreProjectInputSchema,
     outputSchema: restoreProjectOutputSchema,
     annotations: {
@@ -219,44 +233,36 @@ export const accountToolDefs = {
       openWorldHint: false,
     },
   },
-} as const;
+} as const satisfies ToolDefs;
 
 export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
   return {
     list_organizations: tool({
       ...accountToolDefs.list_organizations,
-      description: 'Lists all organizations that the user is a member of.',
       execute: async () => {
         return { organizations: await account.listOrganizations() };
       },
     }),
     get_organization: tool({
       ...accountToolDefs.get_organization,
-      description:
-        'Gets details for an organization. Includes subscription plan.',
       execute: async ({ id: organizationId }) => {
         return await account.getOrganization(organizationId);
       },
     }),
     list_projects: tool({
       ...accountToolDefs.list_projects,
-      description:
-        'Lists all Supabase projects for the user. Use this to help discover the project ID of the project that the user is working on.',
       execute: async () => {
         return { projects: await account.listProjects() };
       },
     }),
     get_project: tool({
       ...accountToolDefs.get_project,
-      description: 'Gets details for a Supabase project.',
       execute: async ({ id }) => {
         return await account.getProject(id);
       },
     }),
     get_cost: tool({
       ...accountToolDefs.get_cost,
-      description:
-        'Gets the cost of creating a new project or branch. Never assume organization as costs can be different for each. Always repeat the cost to the user and confirm their understanding before proceeding.',
       execute: async ({ type, organization_id }) => {
         switch (type) {
           case 'project':
@@ -270,16 +276,12 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
     }),
     confirm_cost: tool({
       ...accountToolDefs.confirm_cost,
-      description:
-        'Ask the user to confirm their understanding of the cost of creating a new project or branch. Call `get_cost` first. Returns a unique ID for this confirmation which should be passed to `create_project` or `create_branch`.',
       execute: async (cost) => {
         return { confirmation_id: await hashObject(cost) };
       },
     }),
     create_project: tool({
       ...accountToolDefs.create_project,
-      description:
-        'Creates a new Supabase project. Always ask the user which organization to create the project in. The project can take a few minutes to initialize - use `get_project` to check the status.',
       execute: async ({ name, region, organization_id, confirm_cost_id }) => {
         if (readOnly) {
           throw new Error('Cannot create a project in read-only mode.');
@@ -302,7 +304,6 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
     }),
     pause_project: tool({
       ...accountToolDefs.pause_project,
-      description: 'Pauses a Supabase project.',
       execute: async ({ project_id }) => {
         if (readOnly) {
           throw new Error('Cannot pause a project in read-only mode.');
@@ -314,7 +315,6 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
     }),
     restore_project: tool({
       ...accountToolDefs.restore_project,
-      description: 'Restores a Supabase project.',
       execute: async ({ project_id }) => {
         if (readOnly) {
           throw new Error('Cannot restore a project in read-only mode.');

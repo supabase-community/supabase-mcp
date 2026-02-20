@@ -1,7 +1,7 @@
 import { z } from 'zod/v4';
 import type { StorageOperations } from '../platform/types.js';
 import { storageBucketSchema, storageConfigSchema } from '../platform/types.js';
-import { injectableTool } from './util.js';
+import { injectableTool, type ToolDefs } from './util.js';
 
 export type ListStorageBucketsInput = z.infer<
   typeof listStorageBucketsInputSchema
@@ -56,6 +56,7 @@ export const updateStorageConfigOutputSchema = z.object({
 
 export const storageToolDefs = {
   list_storage_buckets: {
+    description: 'Lists all storage buckets in a Supabase project.',
     parameters: listStorageBucketsInputSchema,
     outputSchema: listStorageBucketsOutputSchema,
     annotations: {
@@ -67,6 +68,7 @@ export const storageToolDefs = {
     },
   },
   get_storage_config: {
+    description: 'Get the storage config for a Supabase project.',
     parameters: getStorageConfigInputSchema,
     outputSchema: getStorageConfigOutputSchema,
     annotations: {
@@ -78,6 +80,7 @@ export const storageToolDefs = {
     },
   },
   update_storage_config: {
+    description: 'Update the storage config for a Supabase project.',
     parameters: updateStorageConfigInputSchema,
     outputSchema: updateStorageConfigOutputSchema,
     annotations: {
@@ -88,7 +91,7 @@ export const storageToolDefs = {
       openWorldHint: false,
     },
   },
-} as const;
+} as const satisfies ToolDefs;
 
 export function getStorageTools({
   storage,
@@ -100,7 +103,6 @@ export function getStorageTools({
   return {
     list_storage_buckets: injectableTool({
       ...storageToolDefs.list_storage_buckets,
-      description: 'Lists all storage buckets in a Supabase project.',
       inject: { project_id },
       execute: async ({ project_id }) => {
         return { buckets: await storage.listAllBuckets(project_id) };
@@ -108,7 +110,6 @@ export function getStorageTools({
     }),
     get_storage_config: injectableTool({
       ...storageToolDefs.get_storage_config,
-      description: 'Get the storage config for a Supabase project.',
       inject: { project_id },
       execute: async ({ project_id }) => {
         return await storage.getStorageConfig(project_id);
@@ -116,7 +117,6 @@ export function getStorageTools({
     }),
     update_storage_config: injectableTool({
       ...storageToolDefs.update_storage_config,
-      description: 'Update the storage config for a Supabase project.',
       inject: { project_id },
       execute: async ({ project_id, config }) => {
         if (readOnly) {

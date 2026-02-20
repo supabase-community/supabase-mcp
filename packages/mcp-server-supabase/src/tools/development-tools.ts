@@ -1,7 +1,7 @@
 import { z } from 'zod/v4';
 import type { DevelopmentOperations } from '../platform/types.js';
 import { generateTypescriptTypesResultSchema } from '../platform/types.js';
-import { injectableTool } from './util.js';
+import { injectableTool, type ToolDefs } from './util.js';
 
 export type GetProjectUrlInput = z.infer<typeof getProjectUrlInputSchema>;
 export type GetProjectUrlOutput = z.infer<typeof getProjectUrlOutputSchema>;
@@ -56,6 +56,7 @@ export const generateTypescriptTypesOutputSchema =
 
 export const developmentToolDefs = {
   get_project_url: {
+    description: 'Gets the API URL for a project.',
     parameters: getProjectUrlInputSchema,
     outputSchema: getProjectUrlOutputSchema,
     annotations: {
@@ -67,6 +68,8 @@ export const developmentToolDefs = {
     },
   },
   get_publishable_keys: {
+    description:
+      'Gets all publishable API keys for a project, including legacy anon keys (JWT-based) and modern publishable keys (format: sb_publishable_...). Publishable keys are recommended for new applications due to better security and independent rotation. Legacy anon keys are included for compatibility, as many LLMs are pretrained on them. Disabled keys are indicated by the "disabled" field; only use keys where disabled is false or undefined.',
     parameters: getPublishableKeysInputSchema,
     outputSchema: getPublishableKeysOutputSchema,
     annotations: {
@@ -78,6 +81,7 @@ export const developmentToolDefs = {
     },
   },
   generate_typescript_types: {
+    description: 'Generates TypeScript types for a project.',
     parameters: generateTypescriptTypesInputSchema,
     outputSchema: generateTypescriptTypesOutputSchema,
     annotations: {
@@ -88,7 +92,7 @@ export const developmentToolDefs = {
       openWorldHint: false,
     },
   },
-} as const;
+} as const satisfies ToolDefs;
 
 export function getDevelopmentTools({
   development,
@@ -99,7 +103,6 @@ export function getDevelopmentTools({
   return {
     get_project_url: injectableTool({
       ...developmentToolDefs.get_project_url,
-      description: 'Gets the API URL for a project.',
       inject: { project_id },
       execute: async ({ project_id }) => {
         return { url: await development.getProjectUrl(project_id) };
@@ -107,8 +110,6 @@ export function getDevelopmentTools({
     }),
     get_publishable_keys: injectableTool({
       ...developmentToolDefs.get_publishable_keys,
-      description:
-        'Gets all publishable API keys for a project, including legacy anon keys (JWT-based) and modern publishable keys (format: sb_publishable_...). Publishable keys are recommended for new applications due to better security and independent rotation. Legacy anon keys are included for compatibility, as many LLMs are pretrained on them. Disabled keys are indicated by the "disabled" field; only use keys where disabled is false or undefined.',
       inject: { project_id },
       execute: async ({ project_id }) => {
         return { keys: await development.getPublishableKeys(project_id) };
@@ -116,7 +117,6 @@ export function getDevelopmentTools({
     }),
     generate_typescript_types: injectableTool({
       ...developmentToolDefs.generate_typescript_types,
-      description: 'Generates TypeScript types for a project.',
       inject: { project_id },
       execute: async ({ project_id }) => {
         return development.generateTypescriptTypes(project_id);

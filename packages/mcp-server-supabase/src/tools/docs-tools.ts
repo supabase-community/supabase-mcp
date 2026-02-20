@@ -2,6 +2,7 @@ import { tool } from '@supabase/mcp-utils';
 import { source } from 'common-tags';
 import { z } from 'zod/v4';
 import type { ContentApiClient } from '../content-api/index.js';
+import type { ToolDefs } from './util.js';
 
 export type SearchDocsInput = z.infer<typeof searchDocsInputSchema>;
 export type SearchDocsOutput = z.infer<typeof searchDocsOutputSchema>;
@@ -29,7 +30,7 @@ export const docsToolDefs = {
       openWorldHint: false,
     },
   },
-} as const;
+} as const satisfies ToolDefs;
 
 export function getDocsTools({ contentApiClient }: DocsToolsOptions) {
   return {

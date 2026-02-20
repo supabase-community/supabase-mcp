@@ -1,5 +1,14 @@
-import { type Tool, tool } from '@supabase/mcp-utils';
+import { type Annotations, type Tool, tool } from '@supabase/mcp-utils';
 import { z } from 'zod/v4';
+
+export type ToolDef = {
+  description?: string | (() => string | Promise<string>);
+  parameters: z.ZodObject<any>;
+  outputSchema: z.ZodObject<any>;
+  annotations: Annotations;
+};
+
+export type ToolDefs = Record<string, ToolDef>;
 
 type RequireKeys<Injected, Params> = {
   [K in keyof Injected]: K extends keyof Params ? Injected[K] : never;

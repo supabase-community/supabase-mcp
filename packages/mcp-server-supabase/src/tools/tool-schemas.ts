@@ -1,4 +1,3 @@
-import type { Annotations } from '@supabase/mcp-utils';
 import type { z } from 'zod/v4';
 import { CURRENT_FEATURE_GROUPS, type FeatureGroup } from '../types.js';
 import { accountToolDefs } from './account-tools.js';
@@ -9,19 +8,11 @@ import { developmentToolDefs } from './development-tools.js';
 import { docsToolDefs } from './docs-tools.js';
 import { edgeFunctionToolDefs } from './edge-function-tools.js';
 import { storageToolDefs } from './storage-tools.js';
+import type { ToolDefs } from './util.js';
 
 // ---------------------------------------------------------------------------
 // Helper: convert tool defs (parameters) to schema entries (inputSchema)
 // ---------------------------------------------------------------------------
-
-type ToolDefs = Record<
-  string,
-  {
-    parameters: z.ZodObject<any>;
-    outputSchema: z.ZodObject<any>;
-    annotations: Annotations;
-  }
->;
 
 type DefsToSchemas<T extends ToolDefs> = {
   [K in keyof T]: {
@@ -43,7 +34,7 @@ function defsToSchemas<const T extends ToolDefs>(defs: T): DefsToSchemas<T> {
 type SchemaEntry = {
   inputSchema: z.ZodObject<any>;
   outputSchema: z.ZodObject<any>;
-  annotations: Annotations;
+  annotations: ToolDefs[string]['annotations'];
 };
 
 // ---------------------------------------------------------------------------

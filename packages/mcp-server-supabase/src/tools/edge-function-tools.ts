@@ -5,7 +5,7 @@ import {
   edgeFunctionSchema,
   edgeFunctionWithBodySchema,
 } from '../platform/types.js';
-import { injectableTool } from './util.js';
+import { injectableTool, type ToolDefs } from './util.js';
 
 export type ListEdgeFunctionsInput = z.infer<
   typeof listEdgeFunctionsInputSchema
@@ -75,6 +75,7 @@ export const deployEdgeFunctionOutputSchema = edgeFunctionSchema;
 
 export const edgeFunctionToolDefs = {
   list_edge_functions: {
+    description: 'Lists all Edge Functions in a Supabase project.',
     parameters: listEdgeFunctionsInputSchema,
     outputSchema: listEdgeFunctionsOutputSchema,
     annotations: {
@@ -86,6 +87,8 @@ export const edgeFunctionToolDefs = {
     },
   },
   get_edge_function: {
+    description:
+      'Retrieves file contents for an Edge Function in a Supabase project.',
     parameters: getEdgeFunctionInputSchema,
     outputSchema: getEdgeFunctionOutputSchema,
     annotations: {
@@ -97,6 +100,7 @@ export const edgeFunctionToolDefs = {
     },
   },
   deploy_edge_function: {
+    description: `Deploys an Edge Function to a Supabase project. If the function already exists, this will create a new version. Example:\n\n${edgeFunctionExample}`,
     parameters: deployEdgeFunctionInputSchema,
     outputSchema: deployEdgeFunctionOutputSchema,
     annotations: {
@@ -107,7 +111,7 @@ export const edgeFunctionToolDefs = {
       openWorldHint: false,
     },
   },
-} as const;
+} as const satisfies ToolDefs;
 
 export function getEdgeFunctionTools({
   functions,
@@ -119,7 +123,6 @@ export function getEdgeFunctionTools({
   return {
     list_edge_functions: injectableTool({
       ...edgeFunctionToolDefs.list_edge_functions,
-      description: 'Lists all Edge Functions in a Supabase project.',
       inject: { project_id },
       execute: async ({ project_id }) => {
         return { functions: await functions.listEdgeFunctions(project_id) };
@@ -127,8 +130,6 @@ export function getEdgeFunctionTools({
     }),
     get_edge_function: injectableTool({
       ...edgeFunctionToolDefs.get_edge_function,
-      description:
-        'Retrieves file contents for an Edge Function in a Supabase project.',
       inject: { project_id },
       execute: async ({ project_id, function_slug }) => {
         return await functions.getEdgeFunction(project_id, function_slug);
@@ -136,7 +137,6 @@ export function getEdgeFunctionTools({
     }),
     deploy_edge_function: injectableTool({
       ...edgeFunctionToolDefs.deploy_edge_function,
-      description: `Deploys an Edge Function to a Supabase project. If the function already exists, this will create a new version. Example:\n\n${edgeFunctionExample}`,
       inject: { project_id },
       execute: async ({
         project_id,

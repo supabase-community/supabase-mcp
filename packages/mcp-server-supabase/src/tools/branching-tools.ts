@@ -4,7 +4,7 @@ import type { BranchingOperations } from '../platform/types.js';
 import { branchSchema } from '../platform/types.js';
 import { getBranchCost } from '../pricing.js';
 import { hashObject } from '../util.js';
-import { injectableTool } from './util.js';
+import { injectableTool, type ToolDefs } from './util.js';
 
 export type CreateBranchInput = z.infer<typeof createBranchInputSchema>;
 export type CreateBranchOutput = z.infer<typeof createBranchOutputSchema>;
@@ -85,6 +85,8 @@ export const rebaseBranchOutputSchema = z.object({
 
 export const branchingToolDefs = {
   create_branch: {
+    description:
+      'Creates a development branch on a Supabase project. This will apply all migrations from the main project to a fresh branch database. Note that production data will not carry over. The branch will get its own project_id via the resulting project_ref. Use this ID to execute queries and migrations on the branch.',
     parameters: createBranchInputSchema,
     outputSchema: createBranchOutputSchema,
     annotations: {
@@ -96,6 +98,8 @@ export const branchingToolDefs = {
     },
   },
   list_branches: {
+    description:
+      'Lists all development branches of a Supabase project. This will return branch details including status which you can use to check when operations like merge/rebase/reset complete.',
     parameters: listBranchesInputSchema,
     outputSchema: listBranchesOutputSchema,
     annotations: {
@@ -107,6 +111,7 @@ export const branchingToolDefs = {
     },
   },
   delete_branch: {
+    description: 'Deletes a development branch.',
     parameters: deleteBranchInputSchema,
     outputSchema: deleteBranchOutputSchema,
     annotations: {
@@ -118,6 +123,8 @@ export const branchingToolDefs = {
     },
   },
   merge_branch: {
+    description:
+      'Merges migrations and edge functions from a development branch to production.',
     parameters: mergeBranchInputSchema,
     outputSchema: mergeBranchOutputSchema,
     annotations: {
@@ -129,6 +136,8 @@ export const branchingToolDefs = {
     },
   },
   reset_branch: {
+    description:
+      'Resets migrations of a development branch. Any untracked data or schema changes will be lost.',
     parameters: resetBranchInputSchema,
     outputSchema: resetBranchOutputSchema,
     annotations: {
@@ -140,6 +149,8 @@ export const branchingToolDefs = {
     },
   },
   rebase_branch: {
+    description:
+      'Rebases a development branch on production. This will effectively run any newer migrations from production onto this branch to help handle migration drift.',
     parameters: rebaseBranchInputSchema,
     outputSchema: rebaseBranchOutputSchema,
     annotations: {
@@ -150,7 +161,7 @@ export const branchingToolDefs = {
       openWorldHint: false,
     },
   },
-} as const;
+} as const satisfies ToolDefs;
 
 export function getBranchingTools({
   branching,
@@ -162,8 +173,6 @@ export function getBranchingTools({
   return {
     create_branch: injectableTool({
       ...branchingToolDefs.create_branch,
-      description:
-        'Creates a development branch on a Supabase project. This will apply all migrations from the main project to a fresh branch database. Note that production data will not carry over. The branch will get its own project_id via the resulting project_ref. Use this ID to execute queries and migrations on the branch.',
       inject: { project_id },
       execute: async ({ project_id, name, confirm_cost_id }) => {
         if (readOnly) {
@@ -182,8 +191,6 @@ export function getBranchingTools({
     }),
     list_branches: injectableTool({
       ...branchingToolDefs.list_branches,
-      description:
-        'Lists all development branches of a Supabase project. This will return branch details including status which you can use to check when operations like merge/rebase/reset complete.',
       inject: { project_id },
       execute: async ({ project_id }) => {
         return { branches: await branching.listBranches(project_id) };
@@ -191,7 +198,6 @@ export function getBranchingTools({
     }),
     delete_branch: tool({
       ...branchingToolDefs.delete_branch,
-      description: 'Deletes a development branch.',
       execute: async ({ branch_id }) => {
         if (readOnly) {
           throw new Error('Cannot delete a branch in read-only mode.');
@@ -203,8 +209,6 @@ export function getBranchingTools({
     }),
     merge_branch: tool({
       ...branchingToolDefs.merge_branch,
-      description:
-        'Merges migrations and edge functions from a development branch to production.',
       execute: async ({ branch_id }) => {
         if (readOnly) {
           throw new Error('Cannot merge a branch in read-only mode.');
@@ -216,8 +220,6 @@ export function getBranchingTools({
     }),
     reset_branch: tool({
       ...branchingToolDefs.reset_branch,
-      description:
-        'Resets migrations of a development branch. Any untracked data or schema changes will be lost.',
       execute: async ({ branch_id, migration_version }) => {
         if (readOnly) {
           throw new Error('Cannot reset a branch in read-only mode.');
@@ -231,8 +233,6 @@ export function getBranchingTools({
     }),
     rebase_branch: tool({
       ...branchingToolDefs.rebase_branch,
-      description:
-        'Rebases a development branch on production. This will effectively run any newer migrations from production onto this branch to help handle migration drift.',
       execute: async ({ branch_id }) => {
         if (readOnly) {
           throw new Error('Cannot rebase a branch in read-only mode.');

@@ -3,7 +3,7 @@ import {
   logsServiceSchema,
   type DebuggingOperations,
 } from '../platform/types.js';
-import { injectableTool } from './util.js';
+import { injectableTool, type ToolDefs } from './util.js';
 
 export type GetLogsInput = z.infer<typeof getLogsInputSchema>;
 export type GetLogsOutput = z.infer<typeof getLogsOutputSchema>;
@@ -36,6 +36,8 @@ export const getAdvisorsOutputSchema = z.object({
 
 export const debuggingToolDefs = {
   get_logs: {
+    description:
+      'Gets logs for a Supabase project by service type. Use this to help debug problems with your app. This will return logs within the last 24 hours.',
     parameters: getLogsInputSchema,
     outputSchema: getLogsOutputSchema,
     annotations: {
@@ -47,6 +49,8 @@ export const debuggingToolDefs = {
     },
   },
   get_advisors: {
+    description:
+      "Gets a list of advisory notices for the Supabase project. Use this to check for security vulnerabilities or performance improvements. Include the remediation URL as a clickable link so that the user can reference the issue themselves. It's recommended to run this tool regularly, especially after making DDL changes to the database since it will catch things like missing RLS policies.",
     parameters: getAdvisorsInputSchema,
     outputSchema: getAdvisorsOutputSchema,
     annotations: {
@@ -57,7 +61,7 @@ export const debuggingToolDefs = {
       openWorldHint: false,
     },
   },
-} as const;
+} as const satisfies ToolDefs;
 
 export function getDebuggingTools({
   debugging,
@@ -68,8 +72,6 @@ export function getDebuggingTools({
   return {
     get_logs: injectableTool({
       ...debuggingToolDefs.get_logs,
-      description:
-        'Gets logs for a Supabase project by service type. Use this to help debug problems with your app. This will return logs within the last 24 hours.',
       inject: { project_id },
       execute: async ({ project_id, service }) => {
         const startTimestamp = new Date(Date.now() - 24 * 60 * 60 * 1000); // Last 24 hours
@@ -85,8 +87,6 @@ export function getDebuggingTools({
     }),
     get_advisors: injectableTool({
       ...debuggingToolDefs.get_advisors,
-      description:
-        "Gets a list of advisory notices for the Supabase project. Use this to check for security vulnerabilities or performance improvements. Include the remediation URL as a clickable link so that the user can reference the issue themselves. It's recommended to run this tool regularly, especially after making DDL changes to the database since it will catch things like missing RLS policies.",
       inject: { project_id },
       execute: async ({ project_id, type }) => {
         let result: unknown;

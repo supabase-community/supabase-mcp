@@ -20,7 +20,7 @@ type DefsToSchemas<T extends ToolDefs> = {
 
 function defsToSchemas<const T extends ToolDefs>(defs: T): DefsToSchemas<T> {
   return Object.fromEntries(
-    Object.entries(defs).map(([name, { parameters: inputSchema, ...rest }]) => [
+    Object.entries(defs).map(([name, { parameters: inputSchema, description: _, ...rest }]) => [
       name,
       { inputSchema, ...rest },
     ])

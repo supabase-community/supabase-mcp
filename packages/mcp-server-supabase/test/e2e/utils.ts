@@ -5,7 +5,7 @@ import { createSupabaseMcpServer, createToolSchemas } from '../../src/index.js';
 import { createSupabaseApiPlatform } from '../../src/platform/api-platform.js';
 import { ACCESS_TOKEN, API_URL, MCP_CLIENT_NAME } from '../mocks.js';
 
-const DEFAULT_TEST_MODEL = 'claude-3-7-sonnet-20250219';
+const DEFAULT_TEST_MODEL = 'claude-sonnet-4-6';
 
 type SetupOptions = {
   projectId?: string;

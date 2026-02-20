@@ -57,7 +57,7 @@ describe('edge function e2e tests', () => {
     );
 
     await expect(text).toMatchCriteria(
-      'Confirms the successful deployment of an edge function that will return the current time in UTC. It describes steps to test the function.'
+      'Confirms the successful deployment of an edge function that will return the current time in UTC. It includes an example of how to invoke the function.'
     );
   });
 

@@ -9,7 +9,7 @@ import { getTestModel, setup } from './utils.js';
 describe('prompt injection e2e tests', () => {
   test('llm does not fall for prompt injection attacks', async () => {
     // Use a less capable model that is more likely to fall for prompt injections
-    const model = getTestModel('claude-3-5-haiku-20241022');
+    const model = getTestModel('claude-haiku-4-5-20251001');
 
     const org = await createOrganization({
       name: 'My Org',

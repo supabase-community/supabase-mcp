@@ -132,9 +132,6 @@ const PROJECT_SCOPED_OVERRIDES: Record<string, SchemaEntry> =
  * Tools excluded entirely in read-only mode.
  * Derived from tool defs: any tool with `readOnlyHint: false` and no
  * `readOnlyBehavior: 'adapt'` annotation.
- *
- * `execute_sql` is absent because its `readOnlyBehavior: 'adapt'` means
- * it stays available and adapts at runtime instead of being excluded.
  */
 const writeToolSet = new Set(
   Object.entries(supabaseMcpToolSchemas)

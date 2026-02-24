@@ -6,25 +6,13 @@ import { getBranchCost } from '../pricing.js';
 import { hashObject } from '../util.js';
 import { injectableTool, type ToolDefs } from './util.js';
 
-export type CreateBranchInput = z.infer<typeof createBranchInputSchema>;
-export type CreateBranchOutput = z.infer<typeof createBranchOutputSchema>;
-export type ListBranchesInput = z.infer<typeof listBranchesInputSchema>;
-export type ListBranchesOutput = z.infer<typeof listBranchesOutputSchema>;
-export type DeleteBranchInput = z.infer<typeof deleteBranchInputSchema>;
-export type DeleteBranchOutput = z.infer<typeof deleteBranchOutputSchema>;
-export type MergeBranchInput = z.infer<typeof mergeBranchInputSchema>;
-export type MergeBranchOutput = z.infer<typeof mergeBranchOutputSchema>;
-export type ResetBranchInput = z.infer<typeof resetBranchInputSchema>;
-export type ResetBranchOutput = z.infer<typeof resetBranchOutputSchema>;
-export type RebaseBranchInput = z.infer<typeof rebaseBranchInputSchema>;
-export type RebaseBranchOutput = z.infer<typeof rebaseBranchOutputSchema>;
-export type BranchingToolsOptions = {
+type BranchingToolsOptions = {
   branching: BranchingOperations;
   projectId?: string;
   readOnly?: boolean;
 };
 
-export const createBranchInputSchema = z.object({
+const createBranchInputSchema = z.object({
   project_id: z.string(),
   name: z.string().default('develop').describe('Name of the branch to create'),
   confirm_cost_id: z
@@ -37,33 +25,33 @@ export const createBranchInputSchema = z.object({
     .describe('The cost confirmation ID. Call `confirm_cost` first.'),
 });
 
-export const createBranchOutputSchema = branchSchema;
+const createBranchOutputSchema = branchSchema;
 
-export const listBranchesInputSchema = z.object({
+const listBranchesInputSchema = z.object({
   project_id: z.string(),
 });
 
-export const listBranchesOutputSchema = z.object({
+const listBranchesOutputSchema = z.object({
   branches: z.array(branchSchema),
 });
 
-export const deleteBranchInputSchema = z.object({
+const deleteBranchInputSchema = z.object({
   branch_id: z.string(),
 });
 
-export const deleteBranchOutputSchema = z.object({
+const deleteBranchOutputSchema = z.object({
   success: z.boolean(),
 });
 
-export const mergeBranchInputSchema = z.object({
+const mergeBranchInputSchema = z.object({
   branch_id: z.string(),
 });
 
-export const mergeBranchOutputSchema = z.object({
+const mergeBranchOutputSchema = z.object({
   success: z.boolean(),
 });
 
-export const resetBranchInputSchema = z.object({
+const resetBranchInputSchema = z.object({
   branch_id: z.string(),
   migration_version: z
     .string()
@@ -71,15 +59,15 @@ export const resetBranchInputSchema = z.object({
     .describe('Reset your development branch to a specific migration version.'),
 });
 
-export const resetBranchOutputSchema = z.object({
+const resetBranchOutputSchema = z.object({
   success: z.boolean(),
 });
 
-export const rebaseBranchInputSchema = z.object({
+const rebaseBranchInputSchema = z.object({
   branch_id: z.string(),
 });
 
-export const rebaseBranchOutputSchema = z.object({
+const rebaseBranchOutputSchema = z.object({
   success: z.boolean(),
 });
 

@@ -7,36 +7,14 @@ import { getBranchCost, getNextProjectCost } from '../pricing.js';
 import { AWS_REGION_CODES } from '../regions.js';
 import { hashObject } from '../util.js';
 
-export type ListOrganizationsInput = z.infer<
-  typeof listOrganizationsInputSchema
->;
-export type ListOrganizationsOutput = z.infer<
-  typeof listOrganizationsOutputSchema
->;
-export type GetOrganizationInput = z.infer<typeof getOrganizationInputSchema>;
-export type GetOrganizationOutput = z.infer<typeof getOrganizationOutputSchema>;
-export type ListProjectsInput = z.infer<typeof listProjectsInputSchema>;
-export type ListProjectsOutput = z.infer<typeof listProjectsOutputSchema>;
-export type GetProjectInput = z.infer<typeof getProjectInputSchema>;
-export type GetProjectOutput = z.infer<typeof getProjectOutputSchema>;
-export type GetCostInput = z.infer<typeof getCostInputSchema>;
-export type GetCostOutput = z.infer<typeof getCostOutputSchema>;
-export type ConfirmCostInput = z.infer<typeof confirmCostInputSchema>;
-export type ConfirmCostOutput = z.infer<typeof confirmCostOutputSchema>;
-export type CreateProjectInput = z.infer<typeof createProjectInputSchema>;
-export type CreateProjectOutput = z.infer<typeof createProjectOutputSchema>;
-export type PauseProjectInput = z.infer<typeof pauseProjectInputSchema>;
-export type PauseProjectOutput = z.infer<typeof pauseProjectOutputSchema>;
-export type RestoreProjectInput = z.infer<typeof restoreProjectInputSchema>;
-export type RestoreProjectOutput = z.infer<typeof restoreProjectOutputSchema>;
-export type AccountToolsOptions = {
+type AccountToolsOptions = {
   account: AccountOperations;
   readOnly?: boolean;
 };
 
-export const listOrganizationsInputSchema = z.object({});
+const listOrganizationsInputSchema = z.object({});
 
-export const listOrganizationsOutputSchema = z.object({
+const listOrganizationsOutputSchema = z.object({
   organizations: z.array(
     z.object({
       id: z.string(),
@@ -45,48 +23,48 @@ export const listOrganizationsOutputSchema = z.object({
   ),
 });
 
-export const getOrganizationInputSchema = z.object({
+const getOrganizationInputSchema = z.object({
   id: z.string().describe('The organization ID'),
 });
 
-export const getOrganizationOutputSchema = organizationSchema;
+const getOrganizationOutputSchema = organizationSchema;
 
-export const listProjectsInputSchema = z.object({});
+const listProjectsInputSchema = z.object({});
 
-export const listProjectsOutputSchema = z.object({
+const listProjectsOutputSchema = z.object({
   projects: z.array(projectSchema),
 });
 
-export const getProjectInputSchema = z.object({
+const getProjectInputSchema = z.object({
   id: z.string().describe('The project ID'),
 });
 
-export const getProjectOutputSchema = projectSchema;
+const getProjectOutputSchema = projectSchema;
 
-export const getCostInputSchema = z.object({
+const getCostInputSchema = z.object({
   type: z.enum(['project', 'branch']),
   organization_id: z
     .string()
     .describe('The organization ID. Always ask the user.'),
 });
 
-export const getCostOutputSchema = z.object({
+const getCostOutputSchema = z.object({
   type: z.enum(['project', 'branch']),
   amount: z.number().describe('Cost in USD'),
   recurrence: z.enum(['hourly', 'monthly']),
 });
 
-export const confirmCostInputSchema = z.object({
+const confirmCostInputSchema = z.object({
   type: z.enum(['project', 'branch']),
   recurrence: z.enum(['hourly', 'monthly']),
   amount: z.number(),
 });
 
-export const confirmCostOutputSchema = z.object({
+const confirmCostOutputSchema = z.object({
   confirmation_id: z.string(),
 });
 
-export const createProjectInputSchema = z.object({
+const createProjectInputSchema = z.object({
   name: z.string().describe('The name of the project'),
   region: z
     .enum(AWS_REGION_CODES)
@@ -102,21 +80,21 @@ export const createProjectInputSchema = z.object({
     .describe('The cost confirmation ID. Call `confirm_cost` first.'),
 });
 
-export const createProjectOutputSchema = projectSchema;
+const createProjectOutputSchema = projectSchema;
 
-export const pauseProjectInputSchema = z.object({
+const pauseProjectInputSchema = z.object({
   project_id: z.string(),
 });
 
-export const pauseProjectOutputSchema = z.object({
+const pauseProjectOutputSchema = z.object({
   success: z.boolean(),
 });
 
-export const restoreProjectInputSchema = z.object({
+const restoreProjectInputSchema = z.object({
   project_id: z.string(),
 });
 
-export const restoreProjectOutputSchema = z.object({
+const restoreProjectOutputSchema = z.object({
   success: z.boolean(),
 });
 

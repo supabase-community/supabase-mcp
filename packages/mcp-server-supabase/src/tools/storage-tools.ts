@@ -3,43 +3,27 @@ import type { StorageOperations } from '../platform/types.js';
 import { storageBucketSchema, storageConfigSchema } from '../platform/types.js';
 import { injectableTool, type ToolDefs } from './util.js';
 
-export type ListStorageBucketsInput = z.infer<
-  typeof listStorageBucketsInputSchema
->;
-export type ListStorageBucketsOutput = z.infer<
-  typeof listStorageBucketsOutputSchema
->;
-export type GetStorageConfigInput = z.infer<typeof getStorageConfigInputSchema>;
-export type GetStorageConfigOutput = z.infer<
-  typeof getStorageConfigOutputSchema
->;
-export type UpdateStorageConfigInput = z.infer<
-  typeof updateStorageConfigInputSchema
->;
-export type UpdateStorageConfigOutput = z.infer<
-  typeof updateStorageConfigOutputSchema
->;
-export type StorageToolsOptions = {
+type StorageToolsOptions = {
   storage: StorageOperations;
   projectId?: string;
   readOnly?: boolean;
 };
 
-export const listStorageBucketsInputSchema = z.object({
+const listStorageBucketsInputSchema = z.object({
   project_id: z.string(),
 });
 
-export const listStorageBucketsOutputSchema = z.object({
+const listStorageBucketsOutputSchema = z.object({
   buckets: z.array(storageBucketSchema),
 });
 
-export const getStorageConfigInputSchema = z.object({
+const getStorageConfigInputSchema = z.object({
   project_id: z.string(),
 });
 
-export const getStorageConfigOutputSchema = storageConfigSchema;
+const getStorageConfigOutputSchema = storageConfigSchema;
 
-export const updateStorageConfigInputSchema = z.object({
+const updateStorageConfigInputSchema = z.object({
   project_id: z.string(),
   config: z.object({
     fileSizeLimit: z.number(),
@@ -50,7 +34,7 @@ export const updateStorageConfigInputSchema = z.object({
   }),
 });
 
-export const updateStorageConfigOutputSchema = z.object({
+const updateStorageConfigOutputSchema = z.object({
   success: z.boolean(),
 });
 

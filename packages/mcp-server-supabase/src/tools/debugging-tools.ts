@@ -5,32 +5,28 @@ import {
 } from '../platform/types.js';
 import { injectableTool, type ToolDefs } from './util.js';
 
-export type GetLogsInput = z.infer<typeof getLogsInputSchema>;
-export type GetLogsOutput = z.infer<typeof getLogsOutputSchema>;
-export type GetAdvisorsInput = z.infer<typeof getAdvisorsInputSchema>;
-export type GetAdvisorsOutput = z.infer<typeof getAdvisorsOutputSchema>;
-export type DebuggingToolsOptions = {
+type DebuggingToolsOptions = {
   debugging: DebuggingOperations;
   projectId?: string;
 };
 
-export const getLogsInputSchema = z.object({
+const getLogsInputSchema = z.object({
   project_id: z.string(),
   service: logsServiceSchema.describe('The service to fetch logs for'),
 });
 
-export const getLogsOutputSchema = z.object({
+const getLogsOutputSchema = z.object({
   result: z.unknown(),
 });
 
-export const getAdvisorsInputSchema = z.object({
+const getAdvisorsInputSchema = z.object({
   project_id: z.string(),
   type: z
     .enum(['security', 'performance'])
     .describe('The type of advisors to fetch'),
 });
 
-export const getAdvisorsOutputSchema = z.object({
+const getAdvisorsOutputSchema = z.object({
   result: z.unknown(),
 });
 

@@ -4,17 +4,15 @@ import { z } from 'zod/v4';
 import type { ContentApiClient } from '../content-api/index.js';
 import type { ToolDefs } from './util.js';
 
-export type SearchDocsInput = z.infer<typeof searchDocsInputSchema>;
-export type SearchDocsOutput = z.infer<typeof searchDocsOutputSchema>;
-export type DocsToolsOptions = {
+type DocsToolsOptions = {
   contentApiClient: ContentApiClient;
 };
 
-export const searchDocsInputSchema = z.object({
+const searchDocsInputSchema = z.object({
   graphql_query: z.string().describe('GraphQL query string'),
 });
 
-export const searchDocsOutputSchema = z.object({
+const searchDocsOutputSchema = z.object({
   result: z.unknown().describe('GraphQL query result'),
 });
 

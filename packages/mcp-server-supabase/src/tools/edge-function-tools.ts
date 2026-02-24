@@ -7,42 +7,28 @@ import {
 } from '../platform/types.js';
 import { injectableTool, type ToolDefs } from './util.js';
 
-export type ListEdgeFunctionsInput = z.infer<
-  typeof listEdgeFunctionsInputSchema
->;
-export type ListEdgeFunctionsOutput = z.infer<
-  typeof listEdgeFunctionsOutputSchema
->;
-export type GetEdgeFunctionInput = z.infer<typeof getEdgeFunctionInputSchema>;
-export type GetEdgeFunctionOutput = z.infer<typeof getEdgeFunctionOutputSchema>;
-export type DeployEdgeFunctionInput = z.infer<
-  typeof deployEdgeFunctionInputSchema
->;
-export type DeployEdgeFunctionOutput = z.infer<
-  typeof deployEdgeFunctionOutputSchema
->;
-export type EdgeFunctionToolsOptions = {
+type EdgeFunctionToolsOptions = {
   functions: EdgeFunctionsOperations;
   projectId?: string;
   readOnly?: boolean;
 };
 
-export const listEdgeFunctionsInputSchema = z.object({
+const listEdgeFunctionsInputSchema = z.object({
   project_id: z.string(),
 });
 
-export const listEdgeFunctionsOutputSchema = z.object({
+const listEdgeFunctionsOutputSchema = z.object({
   functions: z.array(edgeFunctionSchema),
 });
 
-export const getEdgeFunctionInputSchema = z.object({
+const getEdgeFunctionInputSchema = z.object({
   project_id: z.string(),
   function_slug: z.string(),
 });
 
-export const getEdgeFunctionOutputSchema = edgeFunctionWithBodySchema;
+const getEdgeFunctionOutputSchema = edgeFunctionWithBodySchema;
 
-export const deployEdgeFunctionInputSchema = z.object({
+const deployEdgeFunctionInputSchema = z.object({
   project_id: z.string(),
   name: z.string().describe('The name of the function'),
   entrypoint_path: z
@@ -71,7 +57,7 @@ export const deployEdgeFunctionInputSchema = z.object({
     ),
 });
 
-export const deployEdgeFunctionOutputSchema = edgeFunctionSchema;
+const deployEdgeFunctionOutputSchema = edgeFunctionSchema;
 
 export const edgeFunctionToolDefs = {
   list_edge_functions: {

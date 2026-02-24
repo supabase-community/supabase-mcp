@@ -3,38 +3,24 @@ import type { DevelopmentOperations } from '../platform/types.js';
 import { generateTypescriptTypesResultSchema } from '../platform/types.js';
 import { injectableTool, type ToolDefs } from './util.js';
 
-export type GetProjectUrlInput = z.infer<typeof getProjectUrlInputSchema>;
-export type GetProjectUrlOutput = z.infer<typeof getProjectUrlOutputSchema>;
-export type GetPublishableKeysInput = z.infer<
-  typeof getPublishableKeysInputSchema
->;
-export type GetPublishableKeysOutput = z.infer<
-  typeof getPublishableKeysOutputSchema
->;
-export type GenerateTypescriptTypesInput = z.infer<
-  typeof generateTypescriptTypesInputSchema
->;
-export type GenerateTypescriptTypesOutput = z.infer<
-  typeof generateTypescriptTypesOutputSchema
->;
-export type DevelopmentToolsOptions = {
+type DevelopmentToolsOptions = {
   development: DevelopmentOperations;
   projectId?: string;
 };
 
-export const getProjectUrlInputSchema = z.object({
+const getProjectUrlInputSchema = z.object({
   project_id: z.string(),
 });
 
-export const getProjectUrlOutputSchema = z.object({
+const getProjectUrlOutputSchema = z.object({
   url: z.string(),
 });
 
-export const getPublishableKeysInputSchema = z.object({
+const getPublishableKeysInputSchema = z.object({
   project_id: z.string(),
 });
 
-export const getPublishableKeysOutputSchema = z.object({
+const getPublishableKeysOutputSchema = z.object({
   keys: z.array(
     z.object({
       api_key: z.string(),
@@ -47,11 +33,11 @@ export const getPublishableKeysOutputSchema = z.object({
   ),
 });
 
-export const generateTypescriptTypesInputSchema = z.object({
+const generateTypescriptTypesInputSchema = z.object({
   project_id: z.string(),
 });
 
-export const generateTypescriptTypesOutputSchema =
+const generateTypescriptTypesOutputSchema =
   generateTypescriptTypesResultSchema;
 
 export const developmentToolDefs = {

@@ -6,6 +6,8 @@ export type ToolDef = {
   parameters: z.ZodObject<any>;
   outputSchema: z.ZodObject<any>;
   annotations: Annotations;
+  /** 'adapt' = stays available in read-only mode, adapts behavior. 'exclude' (default) = removed from tool list. */
+  readOnlyBehavior?: 'exclude' | 'adapt';
 };
 
 export type ToolDefs = Record<string, ToolDef>;

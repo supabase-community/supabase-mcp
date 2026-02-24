@@ -173,13 +173,14 @@ describe('createToolSchemas', () => {
       expectTypeOf(schemas).toHaveProperty('search_docs');
     });
 
-    test('WRITE_TOOLS matches tools with readOnlyHint: false (except execute_sql)', () => {
-      // Validates that the hardcoded WRITE_TOOLS list stays in sync with annotations.
-      // execute_sql is excluded because it handles read-only mode dynamically.
+    test('write tools match readOnlyHint: false tools (excluding readOnlyBehavior: adapt)', () => {
+      // Validates that excluded write tools are derived from annotations,
+      // and that execute_sql (readOnlyBehavior: 'adapt') is not excluded.
       const derivedWriteTools = Object.entries(supabaseMcpToolSchemas)
         .filter(
-          ([name, { annotations }]) =>
-            annotations.readOnlyHint === false && name !== 'execute_sql'
+          ([, entry]) =>
+            entry.annotations.readOnlyHint === false &&
+            entry.readOnlyBehavior !== 'adapt'
         )
         .map(([name]) => name)
         .sort();

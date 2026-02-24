@@ -15,6 +15,9 @@ type DefsToSchemas<T extends ToolDefs> = {
     inputSchema: T[K]['parameters'];
     outputSchema: T[K]['outputSchema'];
     annotations: T[K]['annotations'];
+    readOnlyBehavior: T[K] extends { readOnlyBehavior: infer R extends 'exclude' | 'adapt' }
+      ? R
+      : undefined;
   };
 };
 
@@ -33,6 +36,7 @@ type SchemaEntry = {
   inputSchema: z.ZodObject<any>;
   outputSchema: z.ZodObject<any>;
   annotations: ToolDefs[string]['annotations'];
+  readOnlyBehavior?: 'exclude' | 'adapt';
 };
 
 /**
@@ -123,27 +127,22 @@ const PROJECT_SCOPED_OVERRIDES: Record<string, SchemaEntry> =
   );
 
 /**
- * Tools that are excluded entirely in read-only mode.
+ * Tools excluded entirely in read-only mode.
+ * Derived from tool defs: any tool with `readOnlyHint: false` and no
+ * `readOnlyBehavior: 'adapt'` annotation.
  *
- * Note: `execute_sql` is intentionally absent — it adapts to read-only
- * mode dynamically (via `readOnlyHint` and `read_only` SQL flag) rather
- * than being excluded.
- *
- * Used by {@link createToolSchemas} when `readOnly` is true.
+ * `execute_sql` is absent because its `readOnlyBehavior: 'adapt'` means
+ * it stays available and adapts at runtime instead of being excluded.
  */
-const WRITE_TOOLS = [
-  'create_project',
-  'pause_project',
-  'restore_project',
-  'create_branch',
-  'delete_branch',
-  'merge_branch',
-  'reset_branch',
-  'rebase_branch',
-  'apply_migration',
-  'deploy_edge_function',
-  'update_storage_config',
-] as const satisfies readonly (keyof typeof supabaseMcpToolSchemas)[];
+const writeToolSet = new Set(
+  Object.entries(supabaseMcpToolSchemas)
+    .filter(
+      ([, entry]) =>
+        entry.annotations.readOnlyHint === false &&
+        entry.readOnlyBehavior !== 'adapt'
+    )
+    .map(([name]) => name)
+);
 
 type AllSchemas = typeof supabaseMcpToolSchemas;
 
@@ -170,7 +169,15 @@ type ToolNameForFeature<Feature extends FeatureGroup> =
   (typeof FEATURE_TOOL_MAP)[Feature][number];
 
 type AccountToolName = ToolNameForFeature<'account'>;
-type WriteToolName = (typeof WRITE_TOOLS)[number];
+type WriteToolName = {
+  [K in keyof AllSchemas]: AllSchemas[K]['annotations'] extends {
+    readOnlyHint: false;
+  }
+    ? AllSchemas[K] extends { readOnlyBehavior: 'adapt' }
+      ? never
+      : K
+    : never;
+}[keyof AllSchemas];
 
 /**
  * Computes the set of tool names available for a given configuration.
@@ -245,7 +252,6 @@ export function createToolSchemas<
   );
   const projectScoped = options?.projectScoped ?? false;
   const readOnly = options?.readOnly ?? false;
-  const writeToolSet = new Set<string>(WRITE_TOOLS);
 
   const result: Record<string, SchemaEntry> = {};
 

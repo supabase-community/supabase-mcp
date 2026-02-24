@@ -158,7 +158,9 @@ type ProjectScopedToolName = {
 
 type ProjectScopedSchemas = {
   [K in ProjectScopedToolName]: {
-    inputSchema: z.ZodObject<any>;
+    inputSchema: AllSchemas[K]['inputSchema'] extends z.ZodObject<infer S>
+      ? z.ZodObject<Omit<S, 'project_id'>>
+      : never;
     outputSchema: AllSchemas[K]['outputSchema'];
     annotations: AllSchemas[K]['annotations'];
   };

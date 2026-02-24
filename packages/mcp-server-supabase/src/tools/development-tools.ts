@@ -37,8 +37,7 @@ const generateTypescriptTypesInputSchema = z.object({
   project_id: z.string(),
 });
 
-const generateTypescriptTypesOutputSchema =
-  generateTypescriptTypesResultSchema;
+const generateTypescriptTypesOutputSchema = generateTypescriptTypesResultSchema;
 
 export const developmentToolDefs = {
   get_project_url: {

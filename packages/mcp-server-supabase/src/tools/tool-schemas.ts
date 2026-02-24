@@ -15,7 +15,9 @@ type DefsToSchemas<T extends ToolDefs> = {
     inputSchema: T[K]['parameters'];
     outputSchema: T[K]['outputSchema'];
     annotations: T[K]['annotations'];
-    readOnlyBehavior: T[K] extends { readOnlyBehavior: infer R extends 'exclude' | 'adapt' }
+    readOnlyBehavior: T[K] extends {
+      readOnlyBehavior: infer R extends 'exclude' | 'adapt';
+    }
       ? R
       : undefined;
   };

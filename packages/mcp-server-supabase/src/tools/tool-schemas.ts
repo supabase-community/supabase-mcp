@@ -20,10 +20,12 @@ type DefsToSchemas<T extends ToolDefs> = {
 
 function defsToSchemas<const T extends ToolDefs>(defs: T): DefsToSchemas<T> {
   return Object.fromEntries(
-    Object.entries(defs).map(([name, { parameters: inputSchema, description: _, ...rest }]) => [
-      name,
-      { inputSchema, ...rest },
-    ])
+    Object.entries(defs).map(
+      ([name, { parameters: inputSchema, description: _, ...rest }]) => [
+        name,
+        { inputSchema, ...rest },
+      ]
+    )
   ) as DefsToSchemas<T>;
 }
 
@@ -69,13 +71,27 @@ export const supabaseMcpToolSchemas = {
  */
 const FEATURE_TOOL_MAP = {
   docs: Object.keys(docsToolDefs) as readonly (keyof typeof docsToolDefs)[],
-  account: Object.keys(accountToolDefs) as readonly (keyof typeof accountToolDefs)[],
-  database: Object.keys(databaseToolDefs) as readonly (keyof typeof databaseToolDefs)[],
-  debugging: Object.keys(debuggingToolDefs) as readonly (keyof typeof debuggingToolDefs)[],
-  development: Object.keys(developmentToolDefs) as readonly (keyof typeof developmentToolDefs)[],
-  functions: Object.keys(edgeFunctionToolDefs) as readonly (keyof typeof edgeFunctionToolDefs)[],
-  branching: Object.keys(branchingToolDefs) as readonly (keyof typeof branchingToolDefs)[],
-  storage: Object.keys(storageToolDefs) as readonly (keyof typeof storageToolDefs)[],
+  account: Object.keys(
+    accountToolDefs
+  ) as readonly (keyof typeof accountToolDefs)[],
+  database: Object.keys(
+    databaseToolDefs
+  ) as readonly (keyof typeof databaseToolDefs)[],
+  debugging: Object.keys(
+    debuggingToolDefs
+  ) as readonly (keyof typeof debuggingToolDefs)[],
+  development: Object.keys(
+    developmentToolDefs
+  ) as readonly (keyof typeof developmentToolDefs)[],
+  functions: Object.keys(
+    edgeFunctionToolDefs
+  ) as readonly (keyof typeof edgeFunctionToolDefs)[],
+  branching: Object.keys(
+    branchingToolDefs
+  ) as readonly (keyof typeof branchingToolDefs)[],
+  storage: Object.keys(
+    storageToolDefs
+  ) as readonly (keyof typeof storageToolDefs)[],
 } satisfies Record<
   FeatureGroup,
   readonly (keyof typeof supabaseMcpToolSchemas)[]

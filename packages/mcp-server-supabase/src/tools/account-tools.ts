@@ -134,7 +134,8 @@ export const accountToolDefs = {
     },
   },
   get_organization: {
-    description: 'Gets details for an organization. Includes subscription plan.',
+    description:
+      'Gets details for an organization. Includes subscription plan.',
     parameters: getOrganizationInputSchema,
     outputSchema: getOrganizationOutputSchema,
     annotations: {

@@ -1522,15 +1522,10 @@ describe('tools', () => {
         name: edgeFunction.name,
         status: edgeFunction.status,
         entrypoint_path: 'index.ts',
-        import_map_path: undefined,
         import_map: false,
         verify_jwt: true,
-        created_at: expect.stringMatching(
-          /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
-        ),
-        updated_at: expect.stringMatching(
-          /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
-        ),
+        created_at: expect.any(Number),
+        updated_at: expect.any(Number),
       },
     ]);
   });
@@ -1584,15 +1579,10 @@ describe('tools', () => {
       name: edgeFunction.name,
       status: edgeFunction.status,
       entrypoint_path: 'index.ts',
-      import_map_path: undefined,
       import_map: false,
       verify_jwt: true,
-      created_at: expect.stringMatching(
-        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
-      ),
-      updated_at: expect.stringMatching(
-        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
-      ),
+      created_at: expect.any(Number),
+      updated_at: expect.any(Number),
       files: [
         {
           name: 'index.ts',
@@ -1642,15 +1632,10 @@ describe('tools', () => {
       name: functionName,
       status: 'ACTIVE',
       entrypoint_path: expect.stringMatching(/index\.ts$/),
-      import_map_path: undefined,
       import_map: false,
       verify_jwt: true,
-      created_at: expect.stringMatching(
-        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
-      ),
-      updated_at: expect.stringMatching(
-        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
-      ),
+      created_at: expect.any(Number),
+      updated_at: expect.any(Number),
     });
   });
 
@@ -1747,21 +1732,14 @@ describe('tools', () => {
       name: functionName,
       status: 'ACTIVE',
       entrypoint_path: expect.stringMatching(/index\.ts$/),
-      import_map_path: undefined,
       import_map: false,
       verify_jwt: true,
-      created_at: expect.stringMatching(
-        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
-      ),
-      updated_at: expect.stringMatching(
-        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
-      ),
+      created_at: expect.any(Number),
+      updated_at: expect.any(Number),
     });
 
-    expect(new Date(result.created_at).getTime()).toEqual(originalCreatedAt);
-    expect(new Date(result.updated_at).getTime()).toBeGreaterThan(
-      originalUpdatedAt
-    );
+    expect(result.created_at).toEqual(originalCreatedAt);
+    expect(result.updated_at).toBeGreaterThan(originalUpdatedAt);
   });
 
   test('custom edge function import map', async () => {
@@ -1981,15 +1959,10 @@ describe('tools', () => {
       name: functionName,
       status: 'ACTIVE',
       entrypoint_path: expect.stringMatching(/index\.ts$/),
-      import_map_path: undefined,
       import_map: false,
       verify_jwt: false,
-      created_at: expect.stringMatching(
-        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
-      ),
-      updated_at: expect.stringMatching(
-        /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
-      ),
+      created_at: expect.any(Number),
+      updated_at: expect.any(Number),
     });
   });
 

@@ -24,7 +24,24 @@ jobs:
           pnpm rebuild # To create bin links
       - name: Tests
         run: pnpm run test:coverage
+      - name: Upload coverage artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: coverage
+          path: ./packages/mcp-server-supabase/coverage/lcov.info
+          retention-days: 1
+  coveralls:
+    needs: test
+    runs-on: ubuntu-latest
+    if: ${{ always() && needs.test.result == 'success' }}
+    continue-on-error: true
+    steps:
+      - name: Download coverage artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: coverage
       - name: Upload coverage results to Coveralls
         uses: coverallsapp/github-action@v2
         with:
           base-path: ./packages/mcp-server-supabase
+          file: lcov.info

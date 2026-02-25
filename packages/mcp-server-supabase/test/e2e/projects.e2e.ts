@@ -1,18 +1,13 @@
 /// <reference types="../extensions.d.ts" />
 
-import {
-  generateText,
-  type TypedToolCall,
-  type ToolSet,
-  stepCountIs,
-} from 'ai';
+import { generateText, stepCountIs } from 'ai';
 import { describe, expect, test } from 'vitest';
 import { createOrganization, createProject } from '../mocks.js';
 import { getTestModel, setup } from './utils.js';
 
 describe('project management e2e tests', () => {
   test('identifies correct project before listing tables', async () => {
-    const { client } = await setup();
+    const { client, toolSchemas } = await setup();
     const model = getTestModel();
 
     const org = await createOrganization({
@@ -37,10 +32,9 @@ describe('project management e2e tests', () => {
     await inventoryProject.db
       .sql`create table inventory (id serial, name text)`;
 
-    const toolCalls: TypedToolCall<ToolSet>[] = [];
-    const tools = await client.tools();
+    const tools = await client.tools({ schemas: toolSchemas });
 
-    const { text } = await generateText({
+    const { steps } = await generateText({
       model,
       tools,
       messages: [
@@ -55,18 +49,14 @@ describe('project management e2e tests', () => {
         },
       ],
       stopWhen: stepCountIs(3),
-      async onStepFinish({ toolCalls: tools }) {
-        toolCalls.push(...tools);
-      },
     });
 
+    const toolCalls = steps.flatMap((step) => step.staticToolCalls);
+    const text = steps.at(-1)?.text ?? '';
+
     expect(toolCalls).toHaveLength(2);
-    expect(toolCalls[0]).toEqual(
-      expect.objectContaining({ toolName: 'list_projects' })
-    );
-    expect(toolCalls[1]).toEqual(
-      expect.objectContaining({ toolName: 'list_tables' })
-    );
+    expect(toolCalls.at(0)?.toolName).toBe('list_projects');
+    expect(toolCalls.at(1)?.toolName).toBe('list_tables');
 
     await expect(text).toMatchCriteria(
       'Describes a single table in the "todos-app" project called "todos"'
@@ -88,13 +78,12 @@ describe('project management e2e tests', () => {
 
     await project.db.sql`create table todos (id serial, name text)`;
 
-    const { client } = await setup({ projectId: project.id });
+    const { client, toolSchemas } = await setup({ projectId: project.id });
     const model = getTestModel();
 
-    const toolCalls: TypedToolCall<ToolSet>[] = [];
-    const tools = await client.tools();
+    const tools = await client.tools({ schemas: toolSchemas });
 
-    const { text } = await generateText({
+    const { steps } = await generateText({
       model,
       tools,
       messages: [
@@ -109,15 +98,13 @@ describe('project management e2e tests', () => {
         },
       ],
       stopWhen: stepCountIs(2),
-      async onStepFinish({ toolCalls: tools }) {
-        toolCalls.push(...tools);
-      },
     });
 
+    const toolCalls = steps.flatMap((step) => step.staticToolCalls);
+    const text = steps.at(-1)?.text ?? '';
+
     expect(toolCalls).toHaveLength(1);
-    expect(toolCalls[0]).toEqual(
-      expect.objectContaining({ toolName: 'list_tables' })
-    );
+    expect(toolCalls.at(0)?.toolName).toBe('list_tables');
 
     await expect(text).toMatchCriteria(
       `Describes the single todos table available in the project.`

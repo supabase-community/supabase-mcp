@@ -1,11 +1,6 @@
 /// <reference types="../extensions.d.ts" />
 
-import {
-  generateText,
-  type TypedToolCall,
-  type ToolSet,
-  stepCountIs,
-} from 'ai';
+import { generateText, stepCountIs } from 'ai';
 import { codeBlock } from 'common-tags';
 import { describe, expect, test } from 'vitest';
 import { createOrganization, createProject } from '../mocks.js';
@@ -14,7 +9,7 @@ import { getTestModel, setup } from './utils.js';
 
 describe('edge function e2e tests', () => {
   test('deploys an edge function', async () => {
-    const { client } = await setup();
+    const { client, toolSchemas } = await setup();
     const model = getTestModel();
 
     const org = await createOrganization({
@@ -29,10 +24,9 @@ describe('edge function e2e tests', () => {
       organization_id: org.id,
     });
 
-    const toolCalls: TypedToolCall<ToolSet>[] = [];
-    const tools = await client.tools();
+    const tools = await client.tools({ schemas: toolSchemas });
 
-    const { text } = await generateText({
+    const { steps } = await generateText({
       model,
       tools,
       messages: [
@@ -47,13 +41,13 @@ describe('edge function e2e tests', () => {
         },
       ],
       stopWhen: stepCountIs(3),
-      async onStepFinish({ toolCalls: tools }) {
-        toolCalls.push(...tools);
-      },
     });
 
-    expect(toolCalls).toContainEqual(
-      expect.objectContaining({ toolName: 'deploy_edge_function' })
+    const toolCalls = steps.flatMap((step) => step.staticToolCalls);
+    const text = steps.at(-1)?.text ?? '';
+
+    expect(toolCalls.some((c) => c.toolName === 'deploy_edge_function')).toBe(
+      true
     );
 
     await expect(text).toMatchCriteria(
@@ -62,7 +56,7 @@ describe('edge function e2e tests', () => {
   });
 
   test('modifies an edge function', async () => {
-    const { client } = await setup();
+    const { client, toolSchemas } = await setup();
     const model = getTestModel();
 
     const org = await createOrganization({
@@ -95,10 +89,9 @@ describe('edge function e2e tests', () => {
       ]
     );
 
-    const toolCalls: TypedToolCall<ToolSet>[] = [];
-    const tools = await client.tools();
+    const tools = await client.tools({ schemas: toolSchemas });
 
-    const { text } = await generateText({
+    const { steps } = await generateText({
       model,
       tools,
       messages: [
@@ -113,31 +106,25 @@ describe('edge function e2e tests', () => {
         },
       ],
       stopWhen: stepCountIs(4),
-      async onStepFinish({ toolCalls: tools }) {
-        toolCalls.push(...tools);
-      },
     });
 
+    const toolCalls = steps.flatMap((step) => step.staticToolCalls);
+    const text = steps.at(-1)?.text ?? '';
+
     expect(toolCalls).toHaveLength(3);
-    expect(toolCalls[0]).toEqual(
-      expect.objectContaining({ toolName: 'list_edge_functions' })
-    );
-    expect(toolCalls[1]).toEqual(
-      expect.objectContaining({ toolName: 'get_edge_function' })
-    );
-    expect(toolCalls[2]).toEqual(
-      expect.objectContaining({ toolName: 'deploy_edge_function' })
-    );
+    expect(toolCalls.at(0)?.toolName).toBe('list_edge_functions');
+    expect(toolCalls.at(1)?.toolName).toBe('get_edge_function');
+    expect(toolCalls.at(2)?.toolName).toBe('deploy_edge_function');
 
     await expect(text).toMatchCriteria(
       'Confirms the successful modification of an Edge Function.'
     );
 
     expect(edgeFunction.files).toHaveLength(1);
-    expect(edgeFunction.files[0].name).toBe(
+    expect(edgeFunction.files.at(0)?.name).toBe(
       join(edgeFunction.pathPrefix, 'index.ts')
     );
-    await expect(edgeFunction.files[0].text()).resolves.toEqual(codeBlock`
+    await expect(edgeFunction.files.at(0)?.text()).resolves.toEqual(codeBlock`
       Deno.serve(async (req: Request) => {
         return new Response('Hello Earth!', { headers: { 'Content-Type': 'text/plain' } })
       })

@@ -445,7 +445,7 @@ export function createMcpServer(options: McpServerOptions) {
           tools: await Promise.all(
             Object.entries(tools).map(
               async ([name, { description, annotations, parameters }]) => {
-                const inputJsonSchema = z.toJSONSchema(parameters, {
+                const inputSchema = z.toJSONSchema(parameters, {
                   target: 'draft-7',
                 });
 
@@ -458,7 +458,7 @@ export function createMcpServer(options: McpServerOptions) {
                   annotations,
                   // Casting the same as the SDK does:
                   // https://github.com/modelcontextprotocol/typescript-sdk/blob/fb07af810b51003c338dc4885a9e42f54519f9af/src/server/mcp.ts#L154
-                  inputSchema: inputJsonSchema as McpTool['inputSchema'],
+                  inputSchema: inputSchema as McpTool['inputSchema'],
                 };
               }
             )

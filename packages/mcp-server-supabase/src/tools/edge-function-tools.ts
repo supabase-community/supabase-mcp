@@ -1,39 +1,103 @@
 import { z } from 'zod/v4';
 import { edgeFunctionExample } from '../edge-function.js';
 import type { EdgeFunctionsOperations } from '../platform/types.js';
-import { injectableTool } from './util.js';
+import {
+  edgeFunctionSchema,
+  edgeFunctionWithBodySchema,
+} from '../platform/types.js';
+import { injectableTool, type ToolDefs } from './util.js';
 
-const functionNameSchema = z.string().describe('The name of the function');
-const entrypointPathSchema = z
-  .string()
-  .default('index.ts')
-  .describe('The entrypoint of the function');
-const importMapPathSchema = z
-  .string()
-  .describe('The import map for the function.')
-  .optional();
-const verifyJwtSchema = z
-  .boolean()
-  .default(true)
-  .describe(
-    "Whether to require a valid JWT in the Authorization header. You SHOULD ALWAYS enable this to ensure authorized access. ONLY disable if the function previously had it disabled OR you've confirmed the function body implements custom authentication (e.g., API keys, webhooks) OR the user explicitly requested it be disabled."
-  );
-const edgeFunctionFilesSchema = z
-  .array(
-    z.object({
-      name: z.string(),
-      content: z.string(),
-    })
-  )
-  .describe(
-    'The files to upload. This should include the entrypoint, deno.json, and any relative dependencies. Include the deno.json and deno.jsonc files to configure the Deno runtime (e.g., compiler options, imports) if they exist.'
-  );
-
-export type EdgeFunctionToolsOptions = {
+type EdgeFunctionToolsOptions = {
   functions: EdgeFunctionsOperations;
   projectId?: string;
   readOnly?: boolean;
 };
+
+const listEdgeFunctionsInputSchema = z.object({
+  project_id: z.string(),
+});
+
+const listEdgeFunctionsOutputSchema = z.object({
+  functions: z.array(edgeFunctionSchema),
+});
+
+const getEdgeFunctionInputSchema = z.object({
+  project_id: z.string(),
+  function_slug: z.string(),
+});
+
+const getEdgeFunctionOutputSchema = edgeFunctionWithBodySchema;
+
+const deployEdgeFunctionInputSchema = z.object({
+  project_id: z.string(),
+  name: z.string().describe('The name of the function'),
+  entrypoint_path: z
+    .string()
+    .default('index.ts')
+    .describe('The entrypoint of the function'),
+  import_map_path: z
+    .string()
+    .describe('The import map for the function.')
+    .optional(),
+  verify_jwt: z
+    .boolean()
+    .default(true)
+    .describe(
+      "Whether to require a valid JWT in the Authorization header. You SHOULD ALWAYS enable this to ensure authorized access. ONLY disable if the function previously had it disabled OR you've confirmed the function body implements custom authentication (e.g., API keys, webhooks) OR the user explicitly requested it be disabled."
+    ),
+  files: z
+    .array(
+      z.object({
+        name: z.string(),
+        content: z.string(),
+      })
+    )
+    .describe(
+      'The files to upload. This should include the entrypoint, deno.json, and any relative dependencies. Include the deno.json and deno.jsonc files to configure the Deno runtime (e.g., compiler options, imports) if they exist.'
+    ),
+});
+
+const deployEdgeFunctionOutputSchema = edgeFunctionSchema;
+
+export const edgeFunctionToolDefs = {
+  list_edge_functions: {
+    description: 'Lists all Edge Functions in a Supabase project.',
+    parameters: listEdgeFunctionsInputSchema,
+    outputSchema: listEdgeFunctionsOutputSchema,
+    annotations: {
+      title: 'List Edge Functions',
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
+  get_edge_function: {
+    description:
+      'Retrieves file contents for an Edge Function in a Supabase project.',
+    parameters: getEdgeFunctionInputSchema,
+    outputSchema: getEdgeFunctionOutputSchema,
+    annotations: {
+      title: 'Get Edge Function',
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
+  deploy_edge_function: {
+    description: `Deploys an Edge Function to a Supabase project. If the function already exists, this will create a new version. Example:\n\n${edgeFunctionExample}`,
+    parameters: deployEdgeFunctionInputSchema,
+    outputSchema: deployEdgeFunctionOutputSchema,
+    annotations: {
+      title: 'Deploy Edge Function',
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: false,
+      openWorldHint: false,
+    },
+  },
+} as const satisfies ToolDefs;
 
 export function getEdgeFunctionTools({
   functions,
@@ -44,58 +108,21 @@ export function getEdgeFunctionTools({
 
   return {
     list_edge_functions: injectableTool({
-      description: 'Lists all Edge Functions in a Supabase project.',
-      annotations: {
-        title: 'List Edge Functions',
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: true,
-        openWorldHint: false,
-      },
-      parameters: z.object({
-        project_id: z.string(),
-      }),
+      ...edgeFunctionToolDefs.list_edge_functions,
       inject: { project_id },
       execute: async ({ project_id }) => {
-        return await functions.listEdgeFunctions(project_id);
+        return { functions: await functions.listEdgeFunctions(project_id) };
       },
     }),
     get_edge_function: injectableTool({
-      description:
-        'Retrieves file contents for an Edge Function in a Supabase project.',
-      annotations: {
-        title: 'Get Edge Function',
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: true,
-        openWorldHint: false,
-      },
-      parameters: z.object({
-        project_id: z.string(),
-        function_slug: z.string(),
-      }),
+      ...edgeFunctionToolDefs.get_edge_function,
       inject: { project_id },
       execute: async ({ project_id, function_slug }) => {
         return await functions.getEdgeFunction(project_id, function_slug);
       },
     }),
     deploy_edge_function: injectableTool({
-      description: `Deploys an Edge Function to a Supabase project. If the function already exists, this will create a new version. Example:\n\n${edgeFunctionExample}`,
-      annotations: {
-        title: 'Deploy Edge Function',
-        readOnlyHint: false,
-        destructiveHint: true,
-        idempotentHint: false,
-        openWorldHint: false,
-      },
-      parameters: z.object({
-        project_id: z.string(),
-        name: functionNameSchema,
-        entrypoint_path: entrypointPathSchema,
-        import_map_path: importMapPathSchema,
-        verify_jwt: verifyJwtSchema,
-        files: edgeFunctionFilesSchema,
-      }),
+      ...edgeFunctionToolDefs.deploy_edge_function,
       inject: { project_id },
       execute: async ({
         project_id,

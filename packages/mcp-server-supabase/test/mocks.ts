@@ -1076,8 +1076,8 @@ export class MockEdgeFunction {
       import_map_path: this.import_map_path,
       import_map: this.import_map,
       verify_jwt: this.verify_jwt,
-      created_at: this.created_at.toISOString(),
-      updated_at: this.updated_at.toISOString(),
+      created_at: this.created_at.getTime(),
+      updated_at: this.updated_at.getTime(),
     };
   }
 

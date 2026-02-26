@@ -2,16 +2,38 @@ import { tool } from '@supabase/mcp-utils';
 import { source } from 'common-tags';
 import { z } from 'zod/v4';
 import type { ContentApiClient } from '../content-api/index.js';
+import type { ToolDefs } from './util.js';
 
-const graphqlQuerySchema = z.string().describe('GraphQL query string');
-
-export type DocsToolsOptions = {
+type DocsToolsOptions = {
   contentApiClient: ContentApiClient;
 };
+
+const searchDocsInputSchema = z.object({
+  graphql_query: z.string().describe('GraphQL query string'),
+});
+
+const searchDocsOutputSchema = z.object({
+  result: z.unknown().describe('GraphQL query result'),
+});
+
+export const docsToolDefs = {
+  search_docs: {
+    parameters: searchDocsInputSchema,
+    outputSchema: searchDocsOutputSchema,
+    annotations: {
+      title: 'Search docs',
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
+} as const satisfies ToolDefs;
 
 export function getDocsTools({ contentApiClient }: DocsToolsOptions) {
   return {
     search_docs: tool({
+      ...docsToolDefs.search_docs,
       description: async () => {
         const schema = await contentApiClient.loadSchema();
 
@@ -24,19 +46,9 @@ export function getDocsTools({ contentApiClient }: DocsToolsOptions) {
           ${schema}
         `;
       },
-      annotations: {
-        title: 'Search docs',
-        readOnlyHint: true,
-        destructiveHint: false,
-        idempotentHint: true,
-        openWorldHint: false,
-      },
-      parameters: z.object({
-        // Intentionally use a verbose param name for the LLM
-        graphql_query: graphqlQuerySchema,
-      }),
       execute: async ({ graphql_query }) => {
-        return await contentApiClient.query({ query: graphql_query });
+        const result = await contentApiClient.query({ query: graphql_query });
+        return { result };
       },
     }),
   };

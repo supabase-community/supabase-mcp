@@ -212,6 +212,66 @@ We recommend the following best practices to mitigate security risks when using 
 
 - **Feature groups**: The server allows you to enable or disable specific [tool groups](#feature-groups), so you can control which tools are available to the LLM. This helps reduce the attack surface and limits the actions that LLMs can perform to only those that you need.
 
+## Usage with AI SDK's MCP Client
+
+The `@supabase/mcp-server-supabase` package exports `createToolSchemas()` to populate input and output schemas for Vercel AI SDK's [MCP client](https://ai-sdk.dev/docs/ai-sdk-core/mcp-tools). This allows Supabase MCP tools to be treated as static tools with client-side validation and inferred TypeScript types for their inputs and outputs.
+
+```ts
+import { createToolSchemas } from '@supabase/mcp-server-supabase';
+import { createMCPClient } from '@ai-sdk/mcp';
+import { streamText } from 'ai';
+
+const mcpClient = await createMCPClient({
+  transport: {
+    type: 'http',
+    url: 'https://mcp.supabase.com/mcp',
+  },
+});
+
+const tools = await mcpClient.tools({
+  schemas: createToolSchemas(),
+});
+
+const result = streamText({ model, tools, prompt: '...' });
+
+for (const step of await result.steps) {
+  for (const toolResult of step.staticToolResults) {
+    if (toolResult.toolName === 'get_project_url') {
+      toolResult.input;  // { project_id: string }
+      toolResult.output; // { url: string }
+    }
+  }
+}
+```
+
+`createToolSchemas()` accepts similar filtering options as the MCP server's URL parameters:
+
+- `features`: Restrict to specific [feature groups](#feature-groups) (e.g. `['database', 'docs']`). Defaults to all default feature groups.
+- `projectScoped`: When `true`, omits `project_id` from tool input schemas and excludes account-level tools — use when connecting to a server configured with `project_ref`. Defaults to `false`.
+- `readOnly`: When `true`, excludes mutating tools — use when connecting to a server configured with `read_only=true`. Defaults to `false`.
+
+```ts
+const mcpClient = await createMCPClient({
+  transport: {
+    type: 'http',
+    url: 'https://mcp.supabase.com/mcp?project_ref=<project-ref>&read_only=true&features=database,docs',
+  },
+});
+
+const tools = await mcpClient.tools({
+  schemas: createToolSchemas({
+    features: ['database', 'docs'],
+    projectScoped: true,
+    readOnly: true,
+  }),
+});
+```
+
+> [!NOTE]
+> This server does not send `structuredContent` in MCP tool results. AI SDK falls back to parsing JSON from `content` text.
+
+For more information, see [Schema Definition](https://ai-sdk.dev/docs/ai-sdk-core/mcp-tools#schema-definition) and [Typed Tool Outputs](https://ai-sdk.dev/docs/ai-sdk-core/mcp-tools#typed-tool-outputs) in the AI SDK docs.
+
 ## Other MCP servers
 
 ### `@supabase/mcp-server-postgrest`

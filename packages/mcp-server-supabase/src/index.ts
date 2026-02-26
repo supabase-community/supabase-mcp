@@ -11,3 +11,8 @@ export {
   type FeatureGroup,
 } from './types.js';
 export const version = packageJson.version;
+
+export {
+  createToolSchemas,
+  supabaseMcpToolSchemas,
+} from './tools/tool-schemas.js';

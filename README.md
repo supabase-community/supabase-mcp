@@ -267,6 +267,9 @@ const tools = await mcpClient.tools({
 });
 ```
 
+> [!NOTE]
+> This server does not send `structuredContent` in MCP tool results. AI SDK falls back to parsing JSON from `content` text.
+
 For more information, see [Schema Definition](https://ai-sdk.dev/docs/ai-sdk-core/mcp-tools#schema-definition) and [Typed Tool Outputs](https://ai-sdk.dev/docs/ai-sdk-core/mcp-tools#typed-tool-outputs) in the AI SDK docs.
 
 ## Other MCP servers

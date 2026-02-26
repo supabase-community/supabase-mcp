@@ -16,7 +16,6 @@ describe('createToolSchemas', () => {
         expect(schemas[name as keyof typeof schemas]).toBe(schema);
       }
     });
-
   });
 
   describe('feature filtering', () => {

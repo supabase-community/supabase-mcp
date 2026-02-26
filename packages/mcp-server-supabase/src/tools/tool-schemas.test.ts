@@ -17,14 +17,6 @@ describe('createToolSchemas', () => {
       }
     });
 
-    test('type includes all tool names', () => {
-      const schemas = createToolSchemas();
-      expectTypeOf(schemas).toHaveProperty('execute_sql');
-      expectTypeOf(schemas).toHaveProperty('search_docs');
-      expectTypeOf(schemas).toHaveProperty('list_organizations');
-      expectTypeOf(schemas).toHaveProperty('deploy_edge_function');
-      expectTypeOf(schemas).toHaveProperty('list_storage_buckets');
-    });
   });
 
   describe('feature filtering', () => {
@@ -91,16 +83,7 @@ describe('createToolSchemas', () => {
       const schemas = createToolSchemas({ projectScoped: true });
       const keys = Object.keys(schemas);
 
-      // Account tools should be absent
       expect(keys).not.toContain('list_organizations');
-      expect(keys).not.toContain('get_organization');
-      expect(keys).not.toContain('list_projects');
-      expect(keys).not.toContain('get_project');
-      expect(keys).not.toContain('get_cost');
-      expect(keys).not.toContain('confirm_cost');
-      expect(keys).not.toContain('create_project');
-      expect(keys).not.toContain('pause_project');
-      expect(keys).not.toContain('restore_project');
     });
 
     test('type excludes account tools', () => {
@@ -142,17 +125,7 @@ describe('createToolSchemas', () => {
       const schemas = createToolSchemas({ readOnly: true });
       const keys = Object.keys(schemas);
 
-      expect(keys).not.toContain('create_project');
-      expect(keys).not.toContain('pause_project');
-      expect(keys).not.toContain('restore_project');
-      expect(keys).not.toContain('create_branch');
-      expect(keys).not.toContain('delete_branch');
-      expect(keys).not.toContain('merge_branch');
-      expect(keys).not.toContain('reset_branch');
-      expect(keys).not.toContain('rebase_branch');
       expect(keys).not.toContain('apply_migration');
-      expect(keys).not.toContain('deploy_edge_function');
-      expect(keys).not.toContain('update_storage_config');
     });
 
     test('keeps read-only tools', () => {

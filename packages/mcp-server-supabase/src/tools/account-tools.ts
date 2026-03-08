@@ -189,7 +189,8 @@ export const accountToolDefs = {
     },
   },
   pause_project: {
-    description: 'Pauses a Supabase project.',
+    description:
+      'Pauses a Supabase project. The database and APIs will become unavailable while paused. Use `restore_project` to resume. Always confirm with the user before pausing.',
     parameters: pauseProjectInputSchema,
     outputSchema: pauseProjectOutputSchema,
     annotations: {
@@ -201,7 +202,8 @@ export const accountToolDefs = {
     },
   },
   restore_project: {
-    description: 'Restores a Supabase project.',
+    description:
+      'Restores a previously paused Supabase project. The database and APIs will become available again once restoration completes. Use `get_project` to check the project status after restoring.',
     parameters: restoreProjectInputSchema,
     outputSchema: restoreProjectOutputSchema,
     annotations: {

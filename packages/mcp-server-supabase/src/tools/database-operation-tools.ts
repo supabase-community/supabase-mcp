@@ -116,7 +116,8 @@ export const databaseToolDefs = {
     },
   },
   list_extensions: {
-    description: 'Lists all extensions in the database.',
+    description:
+      'Lists all Postgres extensions available in the database, including their install status (e.g. pgvector, postgis, uuid-ossp). Use to check database capabilities before enabling a new extension via `apply_migration`.',
     parameters: listExtensionsInputSchema,
     outputSchema: listExtensionsOutputSchema,
     annotations: {
@@ -128,7 +129,8 @@ export const databaseToolDefs = {
     },
   },
   list_migrations: {
-    description: 'Lists all migrations in the database.',
+    description:
+      'Lists all migrations applied to the database. Use to review migration history or verify that a recently applied migration succeeded.',
     parameters: listMigrationsInputSchema,
     outputSchema: listMigrationsOutputSchema,
     annotations: {

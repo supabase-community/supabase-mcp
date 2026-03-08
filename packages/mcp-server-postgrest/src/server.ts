@@ -63,7 +63,8 @@ export function createPostgrestMcpServer(options: PostgrestMcpServerOptions) {
     ]),
     tools: {
       postgrestRequest: tool({
-        description: 'Performs an HTTP request against the PostgREST API',
+        description:
+          'Sends an HTTP request to the PostgREST API to query or modify data. Use `method` and `path` to target a specific table (e.g. GET /users?id=eq.1). For write operations (POST, PATCH, DELETE), include a `body` with the row data. Prefer `sqlToRest` to convert SQL queries into the equivalent PostgREST request.',
         parameters: z.object({
           method: z.enum(['GET', 'POST', 'PUT', 'PATCH', 'DELETE']),
           path: z.string(),

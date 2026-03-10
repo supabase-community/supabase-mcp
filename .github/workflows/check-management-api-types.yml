@@ -1,0 +1,26 @@
+name: Check Management API Types
+
+on:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v3
+        with:
+          install: true
+          cache: true
+      - name: Install dependencies
+        run: pnpm install --ignore-scripts
+      - name: Regenerate management API types
+        run: pnpm --filter @supabase/mcp-server-supabase generate:management-api-types
+      - name: Check for diff
+        run: |
+          if ! git diff --exit-code packages/mcp-server-supabase/src/management-api/types.ts; then
+            echo "Management API types are out of date. Run 'pnpm generate:management-api-types' to update."
+            exit 1
+          fi

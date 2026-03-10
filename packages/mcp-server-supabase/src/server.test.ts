@@ -395,11 +395,13 @@ describe('tools', () => {
       arguments: newProject,
     });
 
-    const { confirm_cost_id: _, ...projectInfo } = newProject;
-
     expect(result).toEqual({
-      ...projectInfo,
       id: expect.stringMatching(/^.+$/),
+      ref: expect.stringMatching(/^.+$/),
+      name: newProject.name,
+      region: newProject.region,
+      organization_id: newProject.organization_id,
+      organization_slug: newProject.organization_id,
       created_at: expect.stringMatching(
         /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
       ),
@@ -2099,6 +2101,7 @@ describe('tools', () => {
       parent_project_ref: project.id,
       is_default: false,
       persistent: false,
+      with_data: false,
       status: 'CREATING_PROJECT',
       created_at: expect.stringMatching(
         /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/

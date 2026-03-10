@@ -189,16 +189,16 @@ export const mockManagementApi = [
     const bodySchema = z.object({
       name: z.string(),
       region: z.string(),
-      organization_id: z.string(),
+      organization_slug: z.string(),
       db_pass: z.string(),
     });
     const body = await request.json();
-    const { name, region, organization_id } = bodySchema.parse(body);
+    const { name, region, organization_slug } = bodySchema.parse(body);
 
     const project = await createProject({
       name,
       region,
-      organization_id,
+      organization_id: organization_slug,
     });
 
     const { database, ...projectResponse } = project.details;
@@ -1161,7 +1161,9 @@ export type MockProjectOptions = {
 
 export class MockProject {
   id: string;
+  ref: string;
   organization_id: string;
+  organization_slug: string;
   name: string;
   region: string;
   created_at: Date;
@@ -1196,7 +1198,9 @@ export class MockProject {
   get details(): Project {
     return {
       id: this.id,
+      ref: this.ref,
       organization_id: this.organization_id,
+      organization_slug: this.organization_slug,
       name: this.name,
       region: this.region,
       created_at: this.created_at.toISOString(),
@@ -1207,10 +1211,12 @@ export class MockProject {
 
   constructor({ name, region, organization_id }: MockProjectOptions) {
     this.id = nanoid();
+    this.ref = this.id;
 
     this.name = name;
     this.region = region;
     this.organization_id = organization_id;
+    this.organization_slug = organization_id;
 
     this.created_at = new Date();
     this.status = 'UNKNOWN';
@@ -1308,6 +1314,7 @@ export class MockBranch {
       parent_project_ref: this.parent_project_ref,
       is_default: this.is_default,
       persistent: this.persistent,
+      with_data: false,
       status: this.status,
       created_at: this.created_at.toISOString(),
       updated_at: this.updated_at.toISOString(),

@@ -33,7 +33,9 @@ export const organizationSchema = z.object({
 
 export const projectSchema = z.object({
   id: z.string(),
+  ref: z.string(),
   organization_id: z.string(),
+  organization_slug: z.string(),
   name: z.string(),
   status: z.string(),
   created_at: z.string(),

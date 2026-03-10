@@ -152,8 +152,8 @@ describe('tools', () => {
 
     expect(result).toEqual({
       organizations: [
-        { id: org1.id, name: org1.name },
-        { id: org2.id, name: org2.name },
+        { id: org1.id, slug: org1.slug, name: org1.name },
+        { id: org2.id, slug: org2.slug, name: org2.name },
       ],
     });
   });

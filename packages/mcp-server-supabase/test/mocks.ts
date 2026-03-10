@@ -80,7 +80,7 @@ export type Migration = {
   query: string;
 };
 
-export const mockOrgs = new Map<string, Organization>();
+export const mockOrgs = new Map<string, MockOrganization>();
 export const mockProjects = new Map<string, MockProject>();
 export const mockBranches = new Map<string, MockBranch>();
 
@@ -247,7 +247,11 @@ export const mockManagementApi = [
    */
   http.get(`${API_URL}/v1/organizations`, () => {
     return HttpResponse.json(
-      Array.from(mockOrgs.values()).map(({ id, name }) => ({ id, name }))
+      Array.from(mockOrgs.values()).map(({ id, slug, name }) => ({
+        id,
+        slug,
+        name,
+      }))
     );
   }),
 
@@ -999,6 +1003,7 @@ export type MockOrganizationOptions = {
 
 export class MockOrganization {
   id: string;
+  slug: string;
   name: Organization['name'];
   plan: Organization['plan'];
   allowed_release_channels: Organization['allowed_release_channels'];
@@ -1016,6 +1021,7 @@ export class MockOrganization {
 
   constructor(options: MockOrganizationOptions) {
     this.id = nanoid();
+    this.slug = nanoid();
     this.name = options.name;
     this.plan = options.plan;
     this.allowed_release_channels = options.allowed_release_channels;

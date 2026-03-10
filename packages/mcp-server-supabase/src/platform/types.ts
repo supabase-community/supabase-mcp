@@ -186,7 +186,7 @@ export type DatabaseOperations = {
 };
 
 export type AccountOperations = {
-  listOrganizations(): Promise<Pick<Organization, 'id' | 'name'>[]>;
+  listOrganizations(): Promise<{ id: string; slug: string; name: string }[]>;
   getOrganization(organizationId: string): Promise<Organization>;
   listProjects(): Promise<Project[]>;
   getProject(projectId: string): Promise<Project>;

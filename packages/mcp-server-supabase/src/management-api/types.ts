@@ -1691,6 +1691,7 @@ export interface components {
         };
         OrganizationResponseV1: {
             id: string;
+            slug: string;
             name: string;
         };
         CreateOrganizationV1: {

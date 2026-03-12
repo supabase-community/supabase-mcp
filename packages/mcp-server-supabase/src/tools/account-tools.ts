@@ -100,7 +100,7 @@ const restoreProjectOutputSchema = z.object({
 
 export const accountToolDefs = {
   list_organizations: {
-    description: 'Lists all organizations that the user is a member of.',
+    description: 'List all organizations that the user is a member of in their Supabase account. Use when the user wants to see which organizations they belong to or need to select an organization for project management. Do not use when you need detailed information about a specific organization (use get_organization instead). Takes no required parameters. e.g., returns organizations like "acme-corp" or "my-startup-llc". Raises an error if the user's authentication token is invalid or expired.',
     parameters: listOrganizationsInputSchema,
     outputSchema: listOrganizationsOutputSchema,
     annotations: {
@@ -113,7 +113,7 @@ export const accountToolDefs = {
   },
   get_organization: {
     description:
-      'Gets details for an organization. Includes subscription plan.',
+      'Retrieve detailed information about a specific Supabase organization, including subscription plan, billing details, and member count. Use when the user wants to inspect organization settings, check billing status, or review subscription limits for a particular organization. Do not use when you need to see all organizations the user belongs to (use list_organizations instead). Accepts `org_id` (required string), e.g., "my-company-org" or "personal-workspace". Raises an error if the organization does not exist or the user lacks access permissions.',
     parameters: getOrganizationInputSchema,
     outputSchema: getOrganizationOutputSchema,
     annotations: {
@@ -126,7 +126,7 @@ export const accountToolDefs = {
   },
   list_projects: {
     description:
-      'Lists all Supabase projects for the user. Use this to help discover the project ID of the project that the user is working on.',
+      'List all Supabase projects associated with your account. Use when the user wants to browse available projects, find a specific project ID, or select which project to work with. Do not use when you need details about a specific project (use get_project instead) or when working with organizations (use list_organizations instead). Takes no required parameters. Returns project names, IDs, regions, and status information, e.g., project ID "abc123def" with name "my-app-prod". Raises an error if authentication fails or the API is unavailable.',
     parameters: listProjectsInputSchema,
     outputSchema: listProjectsOutputSchema,
     annotations: {
@@ -138,7 +138,7 @@ export const accountToolDefs = {
     },
   },
   get_project: {
-    description: 'Gets details for a Supabase project.',
+    description: 'Retrieve detailed information about a specific Supabase project including configuration, status, and metadata. Use when the user wants to inspect project settings, check project health, or gather information about a particular project. Do not use when you need to see all available projects (use list_projects instead). Accepts `project_ref` (required string), e.g., "abcdefghijklmnop" or "my-project-ref". Raises an error if the project reference is invalid or the user lacks access permissions.',
     parameters: getProjectInputSchema,
     outputSchema: getProjectOutputSchema,
     annotations: {
@@ -151,7 +151,7 @@ export const accountToolDefs = {
   },
   get_cost: {
     description:
-      'Gets the cost of creating a new project or branch. Never assume organization as costs can be different for each. Always repeat the cost to the user and confirm their understanding before proceeding.',
+      'Retrieve the cost of creating a new Supabase project or branch and confirm user understanding before proceeding. Use when the user wants to understand pricing implications before creating resources. Do not use when you need to actually confirm the cost with the user (use confirm_cost instead). Accepts `organization_id` (required) and `type` (required: "project" or "branch"), e.g., organization_id="my-org-123", type="project". Always repeats the cost to the user and requires confirmation of their understanding. Raises an error if the organization does not exist or user lacks access permissions.',
     parameters: getCostInputSchema,
     outputSchema: getCostOutputSchema,
     annotations: {
@@ -164,7 +164,7 @@ export const accountToolDefs = {
   },
   confirm_cost: {
     description:
-      'Ask the user to confirm their understanding of the cost of creating a new project or branch. Call `get_cost` first. Returns a unique ID for this confirmation which should be passed to `create_project` or `create_branch`.',
+      'Confirm the user's understanding of project or branch creation costs before proceeding with the operation. Use when the user wants to acknowledge and approve the financial implications of creating new Supabase resources. Do not use when you need to calculate costs without user confirmation (use get_cost instead) or when creating resources that don't require cost approval. Must call `get_cost` first to obtain pricing information. Returns a unique `confirmation_id` (required for `create_project` or `create_branch`), e.g., "conf_abc123xyz". Fails if `get_cost` was not called previously or if the user declines the cost confirmation.',
     parameters: confirmCostInputSchema,
     outputSchema: confirmCostOutputSchema,
     annotations: {
@@ -177,7 +177,7 @@ export const accountToolDefs = {
   },
   create_project: {
     description:
-      'Creates a new Supabase project. Always ask the user which organization to create the project in. The project can take a few minutes to initialize - use `get_project` to check the status.',
+      'Create a new Supabase project within a specified organization. Use when the user wants to set up a fresh database and backend infrastructure for a new application or service. Do not use when you need to create a development environment for an existing project (use create_branch instead). Accepts `organization_id` (required) and `name` (required), e.g., organization_id="org_abc123", name="my-new-app". The project takes several minutes to initialize - check status with get_project. Raises an error if the organization has reached its project limit or lacks sufficient permissions.',
     parameters: createProjectInputSchema,
     outputSchema: createProjectOutputSchema,
     annotations: {
@@ -189,7 +189,7 @@ export const accountToolDefs = {
     },
   },
   pause_project: {
-    description: 'Pauses a Supabase project.',
+    description: 'Pause a Supabase project to temporarily stop all database operations and API access. Use when the user wants to temporarily disable a project to save costs or prevent access during maintenance. Do not use when you need to restore an already paused project (use restore_project instead). Accepts `project_ref` (required string), e.g., "abcdefghijklmnop". Raises an error if the project is already paused or if you lack sufficient permissions to modify the project.',
     parameters: pauseProjectInputSchema,
     outputSchema: pauseProjectOutputSchema,
     annotations: {
@@ -201,7 +201,7 @@ export const accountToolDefs = {
     },
   },
   restore_project: {
-    description: 'Restores a Supabase project.',
+    description: 'Restore a previously paused or deleted Supabase project to active status. Use when the user wants to reactivate a project that was temporarily paused or recover a recently deleted project. Do not use when you need to pause an active project (use pause_project instead). Accepts `project_ref` (required string identifier for the project to restore), e.g., "abc123def456" or "my-project-ref". Raises an error if the project reference is invalid or if the project cannot be restored due to billing issues.',
     parameters: restoreProjectInputSchema,
     outputSchema: restoreProjectOutputSchema,
     annotations: {

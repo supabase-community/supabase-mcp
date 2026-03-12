@@ -152,8 +152,8 @@ describe('tools', () => {
 
     expect(result).toEqual({
       organizations: [
-        { id: org1.id, name: org1.name },
-        { id: org2.id, name: org2.name },
+        { id: org1.id, slug: org1.slug, name: org1.name },
+        { id: org2.id, slug: org2.slug, name: org2.name },
       ],
     });
   });
@@ -395,11 +395,13 @@ describe('tools', () => {
       arguments: newProject,
     });
 
-    const { confirm_cost_id: _, ...projectInfo } = newProject;
-
     expect(result).toEqual({
-      ...projectInfo,
       id: expect.stringMatching(/^.+$/),
+      ref: expect.stringMatching(/^.+$/),
+      name: newProject.name,
+      region: newProject.region,
+      organization_id: newProject.organization_id,
+      organization_slug: newProject.organization_id,
       created_at: expect.stringMatching(
         /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/
       ),
@@ -2099,6 +2101,7 @@ describe('tools', () => {
       parent_project_ref: project.id,
       is_default: false,
       persistent: false,
+      with_data: false,
       status: 'CREATING_PROJECT',
       created_at: expect.stringMatching(
         /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(\.\d+)?Z$/

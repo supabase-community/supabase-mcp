@@ -33,7 +33,9 @@ export const organizationSchema = z.object({
 
 export const projectSchema = z.object({
   id: z.string(),
+  ref: z.string(),
   organization_id: z.string(),
+  organization_slug: z.string(),
   name: z.string(),
   status: z.string(),
   created_at: z.string(),
@@ -186,7 +188,7 @@ export type DatabaseOperations = {
 };
 
 export type AccountOperations = {
-  listOrganizations(): Promise<Pick<Organization, 'id' | 'name'>[]>;
+  listOrganizations(): Promise<{ id: string; slug: string; name: string }[]>;
   getOrganization(organizationId: string): Promise<Organization>;
   listProjects(): Promise<Project[]>;
   getProject(projectId: string): Promise<Project>;

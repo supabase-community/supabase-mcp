@@ -36,6 +36,7 @@ jobs:
     if: ${{ always() && needs.test.result == 'success' }}
     continue-on-error: true
     steps:
+      - uses: actions/checkout@v4
       - name: Download coverage artifact
         uses: actions/download-artifact@v4
         with:

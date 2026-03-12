@@ -18,6 +18,7 @@ const listOrganizationsOutputSchema = z.object({
   organizations: z.array(
     z.object({
       id: z.string(),
+      slug: z.string(),
       name: z.string(),
     })
   ),

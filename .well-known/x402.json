@@ -1,0 +1,63 @@
+{
+  "name": "supabase-community/supabase-mcp",
+  "description": "MCP server for interacting with Supabase",
+  "accepts": [
+    {
+      "network": "eip155:8453",
+      "asset": "USDC",
+      "address": "YOUR_WALLET_ADDRESS"
+    }
+  ],
+  "resources": [
+    {
+      "path": "/list_projects",
+      "price": "0.01",
+      "description": "Pay-per-call access to list_projects"
+    },
+    {
+      "path": "/get_project",
+      "price": "0.01",
+      "description": "Pay-per-call access to get_project"
+    },
+    {
+      "path": "/search_docs",
+      "price": "0.01",
+      "description": "Pay-per-call access to search_docs"
+    },
+    {
+      "path": "/list_tables",
+      "price": "0.01",
+      "description": "Pay-per-call access to list_tables"
+    },
+    {
+      "path": "/execute_sql",
+      "price": "0.01",
+      "description": "Pay-per-call access to execute_sql"
+    },
+    {
+      "path": "/apply_migration",
+      "price": "0.01",
+      "description": "Pay-per-call access to apply_migration"
+    },
+    {
+      "path": "/get_logs",
+      "price": "0.01",
+      "description": "Pay-per-call access to get_logs"
+    },
+    {
+      "path": "/get_advisors",
+      "price": "0.01",
+      "description": "Pay-per-call access to get_advisors"
+    },
+    {
+      "path": "/deploy_edge_function",
+      "price": "0.01",
+      "description": "Pay-per-call access to deploy_edge_function"
+    },
+    {
+      "path": "/create_branch",
+      "price": "0.01",
+      "description": "Pay-per-call access to create_branch"
+    }
+  ]
+}

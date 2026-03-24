@@ -1545,6 +1545,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/projects/{ref}/database/openapi": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get PostgREST OpenAPI spec
+         * @description Returns the PostgREST OpenAPI specification for the project. This is the replacement for querying `/rest/v1/` directly with the anon key.
+         */
+        get: operations["v1-get-database-openapi"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/projects/{ref}/functions": {
         parameters: {
             query?: never;
@@ -4310,6 +4330,8 @@ export interface components {
             name: string;
             /** @enum {string} */
             status: "AVAILABLE" | "PENDING" | "REMOVED" | "FAILED";
+            /** Format: date-time */
+            completed_on: string | null;
         };
         V1UndoBody: {
             name: string;
@@ -9941,6 +9963,59 @@ export interface operations {
                 content?: never;
             };
             /** @description Failed to remove JIT access */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "v1-get-database-openapi": {
+        parameters: {
+            query?: {
+                /** @description The database schema to generate the OpenAPI spec for */
+                schema?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Project ref */
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden action */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Failed to fetch PostgREST OpenAPI spec */
             500: {
                 headers: {
                     [name: string]: unknown;

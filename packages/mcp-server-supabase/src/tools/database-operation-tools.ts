@@ -84,7 +84,14 @@ const listMigrationsOutputSchema = z.object({
 
 const applyMigrationInputSchema = z.object({
   project_id: z.string(),
-  name: z.string().describe('The name of the migration in snake_case'),
+  name: z
+    .string()
+    .describe('The name of the migration in snake_case')
+    .refine(
+      (name) =>
+        !name.includes('/') && !name.includes('\\') && !name.includes('..'),
+      { message: 'Name cannot contain path separators or traversal' }
+    ),
   query: z.string().describe('The SQL query to apply'),
 });
 

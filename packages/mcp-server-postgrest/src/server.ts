@@ -75,7 +75,10 @@ export function createPostgrestMcpServer(options: PostgrestMcpServerOptions) {
             .optional(),
         }),
         async execute({ method, path, body }) {
-          const url = new URL(`${apiUrl}${path}`);
+          // normalize path concating to apiUrl
+          const { pathname, search } = new URL(path, 'http://mock/');
+          const normalizedPath = `${pathname}${search}`;
+          const url = new URL(`${apiUrl}${normalizedPath}`);
 
           const headers = getHeaders(method);
 

@@ -44,6 +44,8 @@ If you're running Supabase locally with [Supabase CLI](https://supabase.com/docs
 
 For [self-hosted Supabase](https://supabase.com/docs/guides/self-hosting/docker), check the [Enabling MCP server](https://supabase.com/docs/guides/self-hosting/enable-mcp) page. Currently, the MCP Server in self-hosted environments offers a limited subset of tools and no OAuth 2.1.
 
+A 1-click hosted deployment is also available on [Fronteir AI](https://fronteir.ai/mcp/supabase-community-supabase-mcp).
+
 ## Options
 
 The following options are configurable as URL query parameters:

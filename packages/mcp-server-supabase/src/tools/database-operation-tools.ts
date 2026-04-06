@@ -1,5 +1,10 @@
 import { source } from 'common-tags';
 import { z } from 'zod/v4';
+import {
+  advisorySchema,
+  buildRlsDisabledAdvisory,
+  selectAdvisory,
+} from '../advisories/index.js';
 import { listExtensionsSql, listTablesSql } from '../pg-meta/index.js';
 import {
   postgresExtensionSchema,
@@ -64,6 +69,7 @@ const listTablesOutputSchema = z.object({
         .optional(),
     })
   ),
+  advisory: advisorySchema.optional(),
 });
 
 const listExtensionsInputSchema = z.object({
@@ -304,7 +310,14 @@ export function getDatabaseTools({
               };
             }
           );
-        return { tables };
+        const advisory = selectAdvisory([
+          buildRlsDisabledAdvisory(tables),
+        ]);
+
+        return {
+          tables,
+          ...(advisory && { advisory }),
+        };
       },
     }),
     list_extensions: injectableTool({

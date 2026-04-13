@@ -298,6 +298,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Gets the user's profile */
+        get: operations["v1-get-profile"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/projects/{ref}/actions": {
         parameters: {
             query?: never;
@@ -1337,22 +1354,22 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * [Beta] List applied migration versions
+         * List applied migration versions
          * @description Only available to selected partner OAuth apps
          */
         get: operations["v1-list-migration-history"];
         /**
-         * [Beta] Upsert a database migration without applying
+         * Upsert a database migration without applying
          * @description Only available to selected partner OAuth apps
          */
         put: operations["v1-upsert-a-migration"];
         /**
-         * [Beta] Apply a database migration
+         * Apply a database migration
          * @description Only available to selected partner OAuth apps
          */
         post: operations["v1-apply-a-migration"];
         /**
-         * [Beta] Rollback database migrations and remove them from history table
+         * Rollback database migrations and remove them from history table
          * @description Only available to selected partner OAuth apps
          */
         delete: operations["v1-rollback-migrations"];
@@ -1369,7 +1386,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * [Beta] Fetch an existing entry from migration history
+         * Fetch an existing entry from migration history
          * @description Only available to selected partner OAuth apps
          */
         get: operations["v1-get-a-migration"];
@@ -1379,7 +1396,7 @@ export interface paths {
         options?: never;
         head?: never;
         /**
-         * [Beta] Patch an existing entry in migration history
+         * Patch an existing entry in migration history
          * @description Only available to selected partner OAuth apps
          */
         patch: operations["v1-patch-a-migration"];
@@ -1943,6 +1960,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/organizations/{slug}/entitlements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Get entitlements for an organization
+         * @description Returns the entitlements available to the organization based on their plan and any overrides.
+         */
+        get: operations["v1-get-organization-entitlements"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/organizations/{slug}/members": {
         parameters: {
             query?: never;
@@ -2034,6 +2071,13 @@ export interface components {
             db_pass?: string;
             jwt_secret?: string;
         };
+        /** @example {
+         *       "branch_name": "preview-login-page",
+         *       "git_branch": "feature/login-page",
+         *       "persistent": true,
+         *       "request_review": true,
+         *       "notify_url": "https://example.com/webhooks/branches"
+         *     } */
         UpdateBranchBody: {
             branch_name?: string;
             git_branch?: string;
@@ -2088,6 +2132,9 @@ export interface components {
             /** @enum {string} */
             message: "ok";
         };
+        /** @example {
+         *       "migration_version": "20250312000000"
+         *     } */
         BranchActionBody: {
             migration_version?: string;
         };
@@ -2134,26 +2181,26 @@ export interface components {
              * @description Deprecated: Use `ref` instead.
              */
             id: string;
-            /** @description Project ref */
+            /**
+             * @description Project ref
+             * @example abcdefghijklmnopqrst
+             */
             ref: string;
             /**
              * @deprecated
              * @description Deprecated: Use `organization_slug` instead.
              */
             organization_id: string;
-            /** @description Organization slug */
+            /**
+             * @description Organization slug
+             * @example tsrqponmlkjihgfedcba
+             */
             organization_slug: string;
             /** @description Name of your project */
             name: string;
-            /**
-             * @description Region of your project
-             * @example us-east-1
-             */
+            /** @description Region of your project */
             region: string;
-            /**
-             * @description Creation timestamp
-             * @example 2023-03-29T16:32:59Z
-             */
+            /** @description Creation timestamp */
             created_at: string;
             /** @enum {string} */
             status: "INACTIVE" | "ACTIVE_HEALTHY" | "ACTIVE_UNHEALTHY" | "COMING_UP" | "UNKNOWN" | "GOING_DOWN" | "INIT_FAILED" | "REMOVED" | "RESTORING" | "UPGRADING" | "PAUSING" | "RESTORE_FAILED" | "RESTARTING" | "PAUSE_FAILED" | "RESIZING";
@@ -2168,6 +2215,12 @@ export interface components {
                 release_channel: string;
             };
         };
+        /** @example {
+         *       "db_pass": "correct-horse-battery-staple",
+         *       "name": "acme-prod",
+         *       "organization_slug": "tsrqponmlkjihgfedcba",
+         *       "region": "us-east-1"
+         *     } */
         V1CreateProjectBody: {
             /** @description Database password */
             db_pass: string;
@@ -2178,7 +2231,10 @@ export interface components {
              * @description Deprecated: Use `organization_slug` instead.
              */
             organization_id?: string;
-            /** @description Organization slug */
+            /**
+             * @description Organization slug
+             * @example tsrqponmlkjihgfedcba
+             */
             organization_slug: string;
             /**
              * @deprecated
@@ -2189,14 +2245,10 @@ export interface components {
             /**
              * @deprecated
              * @description Region you want your server to reside in. Use region_selection instead.
-             * @example us-east-1
              * @enum {string}
              */
             region?: "us-east-1" | "us-east-2" | "us-west-1" | "us-west-2" | "ap-east-1" | "ap-southeast-1" | "ap-northeast-1" | "ap-northeast-2" | "ap-southeast-2" | "eu-west-1" | "eu-west-2" | "eu-west-3" | "eu-north-1" | "eu-central-1" | "eu-central-2" | "ca-central-1" | "ap-south-1" | "sa-east-1";
-            /**
-             * @description Region selection. Only one of region or region_selection can be specified.
-             * @example { type: 'smartGroup', code: 'americas' }
-             */
+            /** @description Region selection. Only one of region or region_selection can be specified. */
             region_selection?: {
                 /** @enum {string} */
                 type: "specific";
@@ -2210,7 +2262,6 @@ export interface components {
                 type: "smartGroup";
                 /**
                  * @description The Smart Region Group's code. The codes supported are not a stable API, and should be retrieved from the /available-regions endpoint.
-                 * @example apac
                  * @enum {string}
                  */
                 code: "americas" | "emea" | "apac";
@@ -2222,14 +2273,12 @@ export interface components {
             kps_enabled?: boolean;
             /**
              * @description Desired instance size. Omit this field to always default to the smallest possible size.
-             * @example nano
              * @enum {string}
              */
             desired_instance_size?: "nano" | "micro" | "small" | "medium" | "large" | "xlarge" | "2xlarge" | "4xlarge" | "8xlarge" | "12xlarge" | "16xlarge" | "24xlarge" | "24xlarge_optimized_memory" | "24xlarge_optimized_cpu" | "24xlarge_high_memory" | "48xlarge" | "48xlarge_optimized_memory" | "48xlarge_optimized_cpu" | "48xlarge_high_memory";
             /**
              * Format: uri
              * @description Template URL used to create the project from the CLI.
-             * @example https://github.com/supabase/supabase/tree/master/examples/slack-clone/nextjs-slack-clone
              */
             template_url?: string;
         };
@@ -2239,26 +2288,26 @@ export interface components {
              * @description Deprecated: Use `ref` instead.
              */
             id: string;
-            /** @description Project ref */
+            /**
+             * @description Project ref
+             * @example abcdefghijklmnopqrst
+             */
             ref: string;
             /**
              * @deprecated
              * @description Deprecated: Use `organization_slug` instead.
              */
             organization_id: string;
-            /** @description Organization slug */
+            /**
+             * @description Organization slug
+             * @example tsrqponmlkjihgfedcba
+             */
             organization_slug: string;
             /** @description Name of your project */
             name: string;
-            /**
-             * @description Region of your project
-             * @example us-east-1
-             */
+            /** @description Region of your project */
             region: string;
-            /**
-             * @description Creation timestamp
-             * @example 2023-03-29T16:32:59Z
-             */
+            /** @description Creation timestamp */
             created_at: string;
             /** @enum {string} */
             status: "INACTIVE" | "ACTIVE_HEALTHY" | "ACTIVE_UNHEALTHY" | "COMING_UP" | "UNKNOWN" | "GOING_DOWN" | "INIT_FAILED" | "REMOVED" | "RESTORING" | "UPGRADING" | "PAUSING" | "RESTORE_FAILED" | "RESTARTING" | "PAUSE_FAILED" | "RESIZING";
@@ -2311,13 +2360,28 @@ export interface components {
              * @description Deprecated: Use `slug` instead.
              */
             id: string;
-            /** @description Organization slug */
+            /**
+             * @description Organization slug
+             * @example tsrqponmlkjihgfedcba
+             */
             slug: string;
             name: string;
         };
+        /** @example {
+         *       "name": "Acme"
+         *     } */
         CreateOrganizationV1: {
             name: string;
         };
+        /** @example {
+         *       "grant_type": "authorization_code",
+         *       "client_id": "66666666-6666-4666-8666-666666666666",
+         *       "client_secret": "sb_secret_live_example_9f4d3a206b2e4a7e8c91",
+         *       "code": "oauth_code_9f4d3a206b2e4a7e8c91",
+         *       "code_verifier": "qW0Z6d9pQnW0mL1dK1q9wFq6Yz2nV5rA8jT3mP7sH4c",
+         *       "redirect_uri": "https://app.acme.com/auth/callback",
+         *       "scope": "projects:read projects:write"
+         *     } */
         OAuthTokenBody: {
             /** @enum {string} */
             grant_type?: "authorization_code" | "refresh_token";
@@ -2342,6 +2406,11 @@ export interface components {
             /** @enum {string} */
             token_type: "Bearer";
         };
+        /** @example {
+         *       "client_id": "66666666-6666-4666-8666-666666666666",
+         *       "client_secret": "sb_secret_live_example_9f4d3a206b2e4a7e8c91",
+         *       "refresh_token": "oauth_refresh_9f4d3a206b2e4a7e8c91"
+         *     } */
         OAuthRevokeTokenBody: {
             /** Format: uuid */
             client_id: string;
@@ -2408,6 +2477,11 @@ export interface components {
                 sql: string;
             };
         };
+        V1ProfileResponse: {
+            gotrue_id: string;
+            primary_email: string;
+            username: string;
+        };
         ListActionRunResponse: {
             id: string;
             branch_id: string;
@@ -2442,6 +2516,12 @@ export interface components {
             created_at: string;
             updated_at: string;
         };
+        /** @example {
+         *       "clone": "RUNNING",
+         *       "configure": "RUNNING",
+         *       "migrate": "RUNNING",
+         *       "deploy": "CREATED"
+         *     } */
         UpdateRunStatusBody: {
             /** @enum {string} */
             clone?: "CREATED" | "DEAD" | "EXITED" | "PAUSED" | "REMOVING" | "RESTARTING" | "RUNNING";
@@ -2482,6 +2562,11 @@ export interface components {
         LegacyApiKeysResponse: {
             enabled: boolean;
         };
+        /** @example {
+         *       "type": "secret",
+         *       "name": "ci_secret_key",
+         *       "description": "CI deploy key"
+         *     } */
         CreateApiKeyBody: {
             /** @enum {string} */
             type: "publishable" | "secret";
@@ -2491,6 +2576,10 @@ export interface components {
                 [key: string]: unknown;
             } | null;
         };
+        /** @example {
+         *       "name": "ci_secret_key_rotated",
+         *       "description": "Rotated after March release"
+         *     } */
         UpdateApiKeyBody: {
             name?: string;
             description?: string | null;
@@ -2498,6 +2587,13 @@ export interface components {
                 [key: string]: unknown;
             } | null;
         };
+        /** @example {
+         *       "branch_name": "preview-login-page",
+         *       "git_branch": "feature/login-page",
+         *       "persistent": true,
+         *       "with_data": false,
+         *       "notify_url": "https://example.com/webhooks/branches"
+         *     } */
         CreateBranchBody: {
             branch_name: string;
             git_branch?: string;
@@ -2558,6 +2654,9 @@ export interface components {
                 };
             };
         };
+        /** @example {
+         *       "custom_hostname": "docs.example.com"
+         *     } */
         UpdateCustomHostnameBody: {
             custom_hostname: string;
         };
@@ -2577,6 +2676,9 @@ export interface components {
                 };
             }[];
         };
+        /** @example {
+         *       "state": "enabled"
+         *     } */
         JitAccessRequestRequest: {
             /** @enum {string} */
             state: "enabled" | "disabled" | "unavailable";
@@ -2591,6 +2693,12 @@ export interface components {
                 type: string;
             }[];
         };
+        /** @example {
+         *       "ipv4_addresses": [
+         *         "203.0.113.10"
+         *       ],
+         *       "requester_ip": false
+         *     } */
         RemoveNetworkBanRequest: {
             /** @description List of IP addresses to unban. */
             ipv4_addresses: string[];
@@ -2609,7 +2717,17 @@ export interface components {
                 dbAllowedCidrs?: string[];
                 dbAllowedCidrsV6?: string[];
             };
-            /** @description Populated when a new config has been received, but not registered as successfully applied to a project. */
+            /**
+             * @description Populated when a new config has been received, but not registered as successfully applied to a project.
+             * @example {
+             *       "dbAllowedCidrs": [
+             *         "203.0.113.0/24"
+             *       ],
+             *       "dbAllowedCidrsV6": [
+             *         "2001:db8::/32"
+             *       ]
+             *     }
+             */
             old_config?: {
                 dbAllowedCidrs?: string[];
                 dbAllowedCidrsV6?: string[];
@@ -2621,10 +2739,30 @@ export interface components {
             /** Format: date-time */
             applied_at?: string;
         };
+        /** @example {
+         *       "dbAllowedCidrs": [
+         *         "203.0.113.0/24"
+         *       ],
+         *       "dbAllowedCidrsV6": [
+         *         "2001:db8::/32"
+         *       ]
+         *     } */
         NetworkRestrictionsRequest: {
             dbAllowedCidrs?: string[];
             dbAllowedCidrsV6?: string[];
         };
+        /** @example {
+         *       "add": {
+         *         "dbAllowedCidrs": [
+         *           "203.0.113.0/24"
+         *         ]
+         *       },
+         *       "remove": {
+         *         "dbAllowedCidrs": [
+         *           "198.51.100.0/24"
+         *         ]
+         *       }
+         *     } */
         NetworkRestrictionsPatchRequest: {
             add?: {
                 dbAllowedCidrs?: string[];
@@ -2664,6 +2802,9 @@ export interface components {
         PgsodiumConfigResponse: {
             root_key: string;
         };
+        /** @example {
+         *       "root_key": "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
+         *     } */
         UpdatePgsodiumConfigBody: {
             root_key: string;
         };
@@ -2675,6 +2816,11 @@ export interface components {
             db_pool: number | null;
             jwt_secret?: string;
         };
+        /** @example {
+         *       "db_schema": "public,storage",
+         *       "db_pool": 20,
+         *       "max_rows": 1000
+         *     } */
         V1UpdatePostgrestConfigBody: {
             db_extra_search_path?: string;
             db_schema?: string;
@@ -2693,6 +2839,9 @@ export interface components {
             ref: string;
             name: string;
         };
+        /** @example {
+         *       "name": "Acme Platform"
+         *     } */
         V1UpdateProjectBody: {
             name: string;
         };
@@ -2701,14 +2850,24 @@ export interface components {
             value: string;
             updated_at?: string;
         };
+        /** @example [
+         *       {
+         *         "name": "OPENAI_API_KEY",
+         *         "value": "sk-example-secret"
+         *       },
+         *       {
+         *         "name": "STRIPE_WEBHOOK_SECRET",
+         *         "value": "whsec_example"
+         *       }
+         *     ] */
         CreateSecretBody: {
-            /**
-             * @description Secret name must not start with the SUPABASE_ prefix.
-             * @example string
-             */
+            /** @description Secret name must not start with the SUPABASE_ prefix. */
             name: string;
             value: string;
         }[];
+        /** @example [
+         *       "OPENAI_API_KEY"
+         *     ] */
         DeleteSecretsBody: string[];
         SslEnforcementResponse: {
             currentConfig: {
@@ -2716,6 +2875,11 @@ export interface components {
             };
             appliedSuccessfully: boolean;
         };
+        /** @example {
+         *       "requestedConfig": {
+         *         "database": true
+         *       }
+         *     } */
         SslEnforcementRequest: {
             requestedConfig: {
                 database: boolean;
@@ -2729,6 +2893,9 @@ export interface components {
             status: "not-used" | "custom-domain-used" | "active";
             custom_domain?: string;
         };
+        /** @example {
+         *       "vanity_subdomain": "acme-prod"
+         *     } */
         VanitySubdomainBody: {
             vanity_subdomain: string;
         };
@@ -2738,6 +2905,10 @@ export interface components {
         ActivateVanitySubdomainResponse: {
             custom_domain: string;
         };
+        /** @example {
+         *       "target_version": "17",
+         *       "release_channel": "ga"
+         *     } */
         UpgradeDatabaseBody: {
             target_version: string;
             /** @enum {string} */
@@ -2837,14 +3008,19 @@ export interface components {
             override_enabled: boolean;
             override_active_until: string;
         };
+        /** @example {
+         *       "read_replica_region": "us-west-1"
+         *     } */
         SetUpReadReplicaBody: {
             /**
              * @description Region you want your read replica to reside in
-             * @example us-east-1
              * @enum {string}
              */
             read_replica_region: "us-east-1" | "us-east-2" | "us-west-1" | "us-west-2" | "ap-east-1" | "ap-southeast-1" | "ap-northeast-1" | "ap-northeast-2" | "ap-southeast-2" | "eu-west-1" | "eu-west-2" | "eu-west-3" | "eu-north-1" | "eu-central-1" | "eu-central-2" | "ca-central-1" | "ap-south-1" | "sa-east-1";
         };
+        /** @example {
+         *       "database_identifier": "abcdefghijklmnopqrst-rr-us-west-1-abcde"
+         *     } */
         RemoveReadReplicaBody: {
             database_identifier: string;
         };
@@ -2890,6 +3066,10 @@ export interface components {
             /** Format: date-time */
             updated_at: string;
         };
+        /** @example {
+         *       "algorithm": "RS256",
+         *       "status": "standby"
+         *     } */
         CreateSigningKeyBody: {
             /** @enum {string} */
             algorithm: "EdDSA" | "ES256" | "RS256" | "HS256";
@@ -2979,6 +3159,9 @@ export interface components {
                 updated_at: string;
             }[];
         };
+        /** @example {
+         *       "status": "standby"
+         *     } */
         UpdateSigningKeyBody: {
             /** @enum {string} */
             status: "in_use" | "previously_used" | "revoked" | "standby";
@@ -3151,6 +3334,10 @@ export interface components {
             mfa_phone_verify_enabled: boolean | null;
             mfa_web_authn_enroll_enabled: boolean | null;
             mfa_web_authn_verify_enabled: boolean | null;
+            passkey_enabled: boolean;
+            webauthn_rp_display_name: string | null;
+            webauthn_rp_id: string | null;
+            webauthn_rp_origins: string | null;
             mfa_phone_otp_length: number;
             mfa_phone_template: string | null;
             mfa_phone_max_frequency: number | null;
@@ -3224,6 +3411,11 @@ export interface components {
             custom_oauth_enabled: boolean;
             custom_oauth_max_providers: number;
         };
+        /** @example {
+         *       "site_url": "https://app.example.com",
+         *       "disable_signup": false,
+         *       "jwt_exp": 3600
+         *     } */
         UpdateAuthConfigBody: {
             site_url?: string | null;
             disable_signup?: boolean | null;
@@ -3450,6 +3642,10 @@ export interface components {
             mfa_totp_verify_enabled?: boolean | null;
             mfa_web_authn_enroll_enabled?: boolean | null;
             mfa_web_authn_verify_enabled?: boolean | null;
+            passkey_enabled?: boolean;
+            webauthn_rp_display_name?: string | null;
+            webauthn_rp_id?: string | null;
+            webauthn_rp_origins?: string | null;
             mfa_phone_enroll_enabled?: boolean | null;
             mfa_phone_verify_enabled?: boolean | null;
             mfa_phone_max_frequency?: number | null;
@@ -3462,6 +3658,10 @@ export interface components {
             oauth_server_authorization_path?: string | null;
             custom_oauth_enabled?: boolean;
         };
+        /** @example {
+         *       "oidc_issuer_url": "https://login.acme.com",
+         *       "jwks_url": "https://login.acme.com/.well-known/jwks.json"
+         *     } */
         CreateThirdPartyAuthBody: {
             oidc_issuer_url?: string;
             jwks_url?: string;
@@ -3527,6 +3727,10 @@ export interface components {
                 }[];
             }[];
         };
+        /** @example {
+         *       "addon_variant": "pitr_7",
+         *       "addon_type": "pitr"
+         *     } */
         ApplyProjectAddonBody: {
             addon_variant: ("ci_micro" | "ci_small" | "ci_medium" | "ci_large" | "ci_xlarge" | "ci_2xlarge" | "ci_4xlarge" | "ci_8xlarge" | "ci_12xlarge" | "ci_16xlarge" | "ci_24xlarge" | "ci_24xlarge_optimized_cpu" | "ci_24xlarge_optimized_memory" | "ci_24xlarge_high_memory" | "ci_48xlarge" | "ci_48xlarge_optimized_cpu" | "ci_48xlarge_optimized_memory" | "ci_48xlarge_high_memory") | "cd_default" | ("pitr_7" | "pitr_14" | "pitr_28") | "ipv4_default";
             /** @enum {string} */
@@ -3626,6 +3830,9 @@ export interface components {
                 status: string;
             };
         };
+        /** @example {
+         *       "read_only": true
+         *     } */
         CreateRoleBody: {
             read_only: boolean;
         };
@@ -3643,11 +3850,21 @@ export interface components {
             version: string;
             name?: string;
         }[];
+        /** @example {
+         *       "query": "create table public.widgets(id bigint primary key);",
+         *       "name": "create_widgets_table",
+         *       "rollback": "drop table if exists public.widgets;"
+         *     } */
         V1CreateMigrationBody: {
             query: string;
             name?: string;
             rollback?: string;
         };
+        /** @example {
+         *       "query": "create table public.widgets(id bigint primary key);",
+         *       "name": "create_widgets_table",
+         *       "rollback": "drop table if exists public.widgets;"
+         *     } */
         V1UpsertMigrationBody: {
             query: string;
             name?: string;
@@ -3661,15 +3878,26 @@ export interface components {
             created_by?: string;
             idempotency_key?: string;
         };
+        /** @example {
+         *       "name": "create_widgets_table",
+         *       "rollback": "drop table if exists public.widgets;"
+         *     } */
         V1PatchMigrationBody: {
             name?: string;
             rollback?: string;
         };
+        /** @example {
+         *       "query": "select * from pg_stat_activity limit 1;",
+         *       "read_only": true
+         *     } */
         V1RunQueryBody: {
             query: string;
             parameters?: unknown[];
             read_only?: boolean;
         };
+        /** @example {
+         *       "query": "select * from pg_stat_activity limit 1;"
+         *     } */
         V1ReadOnlyQueryBody: {
             query: string;
             parameters?: unknown[];
@@ -3686,12 +3914,19 @@ export interface components {
                 [key: string]: unknown;
             })[];
         };
+        /** @example {
+         *       "password": "correct-horse-battery-staple"
+         *     } */
         V1UpdatePasswordBody: {
             password: string;
         };
         V1UpdatePasswordResponse: {
             message: string;
         };
+        /** @example {
+         *       "role": "postgres",
+         *       "rhost": "203.0.113.10"
+         *     } */
         AuthorizeJitAccessBody: {
             role: string;
             rhost: string;
@@ -3730,6 +3965,22 @@ export interface components {
                 }[];
             }[];
         };
+        /** @example {
+         *       "user_id": "55555555-5555-4555-8555-555555555555",
+         *       "roles": [
+         *         {
+         *           "role": "postgres",
+         *           "expires_at": 1740787200,
+         *           "allowed_networks": {
+         *             "allowed_cidrs": [
+         *               {
+         *                 "cidr": "203.0.113.0/24"
+         *               }
+         *             ]
+         *           }
+         *         }
+         *       ]
+         *     } */
         UpdateJitAccessBody: {
             /** Format: uuid */
             user_id: string;
@@ -3763,12 +4014,29 @@ export interface components {
             import_map_path?: string;
             ezbr_sha256?: string;
         };
+        /** @example {
+         *       "slug": "hello-world",
+         *       "name": "Hello World",
+         *       "body": "Deno.serve(() => new Response('Hello, world!'))",
+         *       "verify_jwt": true
+         *     } */
         V1CreateFunctionBody: {
             slug: string;
             name: string;
             body: string;
             verify_jwt?: boolean;
         };
+        /** @example [
+         *       {
+         *         "id": "3c078cce-ad70-4148-9f37-4da362789053",
+         *         "slug": "hello-world",
+         *         "name": "Hello World",
+         *         "status": "ACTIVE",
+         *         "version": 2,
+         *         "verify_jwt": true,
+         *         "entrypoint_path": "index.ts"
+         *       }
+         *     ] */
         BulkUpdateFunctionBody: {
             id: string;
             slug: string;
@@ -3803,6 +4071,16 @@ export interface components {
                 ezbr_sha256?: string;
             }[];
         };
+        /** @example {
+         *       "file": [
+         *         "./supabase/functions/hello-world/index.ts"
+         *       ],
+         *       "metadata": {
+         *         "entrypoint_path": "index.ts",
+         *         "verify_jwt": true,
+         *         "name": "Hello World"
+         *       }
+         *     } */
         FunctionDeployBody: {
             file?: string[];
             metadata: {
@@ -3848,6 +4126,11 @@ export interface components {
             ezbr_sha256?: string;
         };
         StreamableFile: Record<string, never>;
+        /** @example {
+         *       "name": "Hello World",
+         *       "body": "Deno.serve(() => new Response('Hello again!'))",
+         *       "verify_jwt": true
+         *     } */
         V1UpdateFunctionBody: {
             name?: string;
             body?: string;
@@ -3876,6 +4159,14 @@ export interface components {
             };
             last_modified_at?: string;
         };
+        /** @example {
+         *       "attributes": {
+         *         "type": "gp3",
+         *         "size_gb": 100,
+         *         "iops": 3000,
+         *         "throughput_mibps": 125
+         *       }
+         *     } */
         DiskRequestBody: {
             attributes: {
                 iops: number;
@@ -3939,6 +4230,14 @@ export interface components {
             migrationVersion: string;
             databasePoolMode: string;
         };
+        /** @example {
+         *       "fileSizeLimit": 10485760,
+         *       "features": {
+         *         "imageTransformation": {
+         *           "enabled": true
+         *         }
+         *       }
+         *     } */
         UpdateStorageConfigBody: {
             /** Format: int64 */
             fileSizeLimit?: number;
@@ -3995,6 +4294,10 @@ export interface components {
             /** @enum {string} */
             pool_mode: "transaction" | "session";
         };
+        /** @example {
+         *       "default_pool_size": 25,
+         *       "pool_mode": "transaction"
+         *     } */
         UpdateSupavisorConfigBody: {
             default_pool_size?: number | null;
             /**
@@ -4038,6 +4341,12 @@ export interface components {
             checkpoint_timeout?: string;
             hot_standby_feedback?: boolean;
         };
+        /** @example {
+         *       "max_connections": 120,
+         *       "shared_buffers": "256MB",
+         *       "work_mem": "4MB",
+         *       "statement_timeout": "60000ms"
+         *     } */
         UpdatePostgresConfigBody: {
             effective_cache_size?: string;
             logical_decoding_work_mem?: string;
@@ -4094,6 +4403,11 @@ export interface components {
             /** @description Whether to enable presence */
             presence_enabled: boolean;
         };
+        /** @example {
+         *       "private_only": false,
+         *       "max_concurrent_users": 1000,
+         *       "max_channels_per_client": 100
+         *     } */
         UpdateRealtimeConfigBody: {
             /** @description Whether to only allow private channels */
             private_only?: boolean;
@@ -4118,6 +4432,26 @@ export interface components {
             /** @description Whether to enable presence */
             presence_enabled?: boolean;
         };
+        /** @example {
+         *       "type": "saml",
+         *       "metadata_url": "https://sso.acme.com/metadata.xml",
+         *       "domains": [
+         *         "acme.com"
+         *       ],
+         *       "attribute_mapping": {
+         *         "keys": {
+         *           "email": {
+         *             "name": "email"
+         *           },
+         *           "first_name": {
+         *             "name": "first_name"
+         *           },
+         *           "last_name": {
+         *             "name": "last_name"
+         *           }
+         *         }
+         *       }
+         *     } */
         CreateProviderBody: {
             /**
              * @description What type of provider will be created
@@ -4229,6 +4563,13 @@ export interface components {
             created_at?: string;
             updated_at?: string;
         };
+        /** @example {
+         *       "metadata_url": "https://sso.acme.com/metadata.xml",
+         *       "domains": [
+         *         "acme.com",
+         *         "contractors.acme.com"
+         *       ]
+         *     } */
         UpdateProviderBody: {
             metadata_xml?: string;
             metadata_url?: string;
@@ -4319,10 +4660,16 @@ export interface components {
                 latest_physical_backup_date_unix?: number;
             };
         };
+        /** @example {
+         *       "recovery_time_target_unix": 1740787200
+         *     } */
         V1RestorePitrBody: {
             /** Format: int64 */
             recovery_time_target_unix: number;
         };
+        /** @example {
+         *       "name": "before-upgrade"
+         *     } */
         V1RestorePointPostBody: {
             name: string;
         };
@@ -4333,8 +4680,35 @@ export interface components {
             /** Format: date-time */
             completed_on: string | null;
         };
+        /** @example {
+         *       "name": "before-upgrade"
+         *     } */
         V1UndoBody: {
             name: string;
+        };
+        V1ListEntitlementsResponse: {
+            entitlements: {
+                feature: {
+                    /** @enum {string} */
+                    key: "instances.compute_update_available_sizes" | "instances.read_replicas" | "instances.disk_modifications" | "instances.high_availability" | "instances.orioledb" | "replication.etl" | "storage.max_file_size" | "storage.max_file_size.configurable" | "storage.image_transformations" | "storage.vector_buckets" | "storage.iceberg_catalog" | "security.audit_logs_days" | "security.questionnaire" | "security.soc2_report" | "security.private_link" | "security.enforce_mfa" | "log.retention_days" | "custom_domain" | "vanity_subdomain" | "ipv4" | "pitr.available_variants" | "log_drains" | "branching_limit" | "branching_persistent" | "auth.mfa_phone" | "auth.mfa_web_authn" | "auth.mfa_enhanced_security" | "auth.hooks" | "auth.platform.sso" | "auth.custom_jwt_template" | "auth.saml_2" | "auth.user_sessions" | "auth.leaked_password_protection" | "auth.advanced_auth_settings" | "auth.performance_settings" | "auth.password_hibp" | "backup.retention_days" | "backup.restore_to_new_project" | "function.max_count" | "function.size_limit_mb" | "realtime.max_concurrent_users" | "realtime.max_events_per_second" | "realtime.max_joins_per_second" | "realtime.max_channels_per_client" | "realtime.max_bytes_per_second" | "realtime.max_presence_events_per_second" | "realtime.max_payload_size_in_kb" | "project_scoped_roles" | "security.member_roles" | "project_pausing" | "project_cloning" | "project_restore_after_expiry" | "assistant.advance_model" | "integrations.github_connections" | "dedicated_pooler" | "observability.dashboard_advanced_metrics";
+                    /** @enum {string} */
+                    type: "boolean" | "numeric" | "set";
+                };
+                hasAccess: boolean;
+                /** @enum {string} */
+                type: "boolean" | "numeric" | "set";
+                config: {
+                    enabled: boolean;
+                } | {
+                    enabled: boolean;
+                    value: number;
+                    unlimited: boolean;
+                    unit: string;
+                } | {
+                    enabled: boolean;
+                    set: string[];
+                };
+            }[];
         };
         V1OrganizationMemberResponse: {
             user_id: string;
@@ -4434,7 +4808,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description Branch ID */
+                /** @description Branch ref or deprecated branch ID */
                 branch_id_or_ref: string;
             };
             cookie?: never;
@@ -4466,7 +4840,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                /** @description Branch ID */
+                /** @description Branch ref or deprecated branch ID */
                 branch_id_or_ref: string;
             };
             cookie?: never;
@@ -4495,7 +4869,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description Branch ID */
+                /** @description Branch ref or deprecated branch ID */
                 branch_id_or_ref: string;
             };
             cookie?: never;
@@ -4528,7 +4902,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description Branch ID */
+                /** @description Branch ref or deprecated branch ID */
                 branch_id_or_ref: string;
             };
             cookie?: never;
@@ -4561,7 +4935,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description Branch ID */
+                /** @description Branch ref or deprecated branch ID */
                 branch_id_or_ref: string;
             };
             cookie?: never;
@@ -4594,7 +4968,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description Branch ID */
+                /** @description Branch ref or deprecated branch ID */
                 branch_id_or_ref: string;
             };
             cookie?: never;
@@ -4627,7 +5001,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description Branch ID */
+                /** @description Branch ref or deprecated branch ID */
                 branch_id_or_ref: string;
             };
             cookie?: never;
@@ -4660,7 +5034,7 @@ export interface operations {
             };
             header?: never;
             path: {
-                /** @description Branch ID */
+                /** @description Branch ref or deprecated branch ID */
                 branch_id_or_ref: string;
             };
             cookie?: never;
@@ -4967,6 +5341,25 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    "v1-get-profile": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["V1ProfileResponse"];
+                };
             };
         };
     };
@@ -11719,6 +12112,49 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden action */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "v1-get-organization-entitlements": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Organization slug */
+                slug: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["V1ListEntitlementsResponse"];
+                };
             };
             /** @description Unauthorized */
             401: {

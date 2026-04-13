@@ -310,9 +310,7 @@ export function getDatabaseTools({
               };
             }
           );
-        const advisory = selectAdvisory([
-          buildRlsDisabledAdvisory(tables),
-        ]);
+        const advisory = selectAdvisory([buildRlsDisabledAdvisory(tables)]);
 
         return {
           tables,

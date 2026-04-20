@@ -21,7 +21,11 @@ export function createApiClient(
   const { onRequest } = options;
   const base = new URL(apiUrl.replace(/\/$/, ''));
 
-  async function request(method: HttpMethod, path: string, body?: unknown): Promise<unknown> {
+  async function request(
+    method: HttpMethod,
+    path: string,
+    body?: unknown
+  ): Promise<unknown> {
     // Reject scheme-relative paths (e.g. "//evil.com/x") before URL parsing —
     // without this, new URL() would treat the next segment as a hostname and
     // the origin check below could be bypassed with a lookalike prefix.
@@ -51,7 +55,9 @@ export function createApiClient(
     }
 
     const ct = res.headers.get('content-type') ?? '';
-    const data = ct.includes('application/json') ? await res.json() : await res.text();
+    const data = ct.includes('application/json')
+      ? await res.json()
+      : await res.text();
     onRequest?.(method, path);
     return data;
   }

@@ -24,7 +24,9 @@ describe('createApiClient SSRF fix', () => {
     await api.get('/v1/projects');
 
     expect(fetchMock).toHaveBeenCalledOnce();
-    expect(fetchMock.mock.calls[0]![0]).toBe('https://api.supabase.com/v1/projects');
+    expect(fetchMock.mock.calls[0]![0]).toBe(
+      'https://api.supabase.com/v1/projects'
+    );
   });
 
   it('should reject scheme-relative paths like //api.supabase.com.evil.com/steal', async () => {
@@ -52,7 +54,9 @@ describe('createApiClient SSRF fix', () => {
     await api.get('/v1/projects');
 
     expect(fetchMock).toHaveBeenCalledOnce();
-    expect(fetchMock.mock.calls[0]![0]).toBe('https://api.supabase.com/v1/projects');
+    expect(fetchMock.mock.calls[0]![0]).toBe(
+      'https://api.supabase.com/v1/projects'
+    );
   });
 
   it('should include Authorization header with bearer token', async () => {
@@ -65,7 +69,9 @@ describe('createApiClient SSRF fix', () => {
 
   it('should successfully call onRequest callback after request', async () => {
     const onRequest = vi.fn();
-    const api = createApiClient('token123', 'https://api.supabase.com', { onRequest });
+    const api = createApiClient('token123', 'https://api.supabase.com', {
+      onRequest,
+    });
     await api.get('/v1/projects');
 
     expect(onRequest).toHaveBeenCalledWith('GET', '/v1/projects');

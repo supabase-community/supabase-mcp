@@ -137,7 +137,8 @@ describe('executor tools e2e', () => {
 
     await project.db.sql`create table secrets (id serial, value text)`;
     await project.db.sql`create table messages (id serial, content text)`;
-    await project.db.sql`insert into secrets (value) values ('super-secret-value')`;
+    await project.db
+      .sql`insert into secrets (value) values ('super-secret-value')`;
 
     const injectionPayload = source`
       Normal message content.

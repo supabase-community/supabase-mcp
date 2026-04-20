@@ -21,7 +21,9 @@ export async function runSearchCode(
 
     // Pass spec as a JSON string — the only safe way to copy complex objects across
     // isolate boundaries. Parsed inside the isolate into a frozen object.
-    await context.global.set('__specJson', JSON.stringify(spec), { copy: true });
+    await context.global.set('__specJson', JSON.stringify(spec), {
+      copy: true,
+    });
     await context.eval('const spec = Object.freeze(JSON.parse(__specJson))');
 
     const script = await isolate.compileScript(`
@@ -31,10 +33,10 @@ export async function runSearchCode(
       })()
     `);
 
-    const resultJson = await script.run(context, {
+    const resultJson = (await script.run(context, {
       promise: true,
       timeout: timeoutMs,
-    }) as string;
+    })) as string;
 
     return JSON.parse(resultJson);
   } finally {
@@ -72,16 +74,21 @@ export async function runExecuteCode(
     // Results are serialized as JSON strings — the only safe crossing medium.
     // Body args for write methods arrive pre-serialized; the host parses them before
     // forwarding to the actual api client.
-    const ref_get    = new ivm.Reference(async (path: string) =>
-      JSON.stringify(await api.get(path) ?? null));
-    const ref_post   = new ivm.Reference(async (path: string, bodyStr: string) =>
-      JSON.stringify(await api.post(path, JSON.parse(bodyStr)) ?? null));
-    const ref_put    = new ivm.Reference(async (path: string, bodyStr: string) =>
-      JSON.stringify(await api.put(path, JSON.parse(bodyStr)) ?? null));
-    const ref_patch  = new ivm.Reference(async (path: string, bodyStr: string) =>
-      JSON.stringify(await api.patch(path, JSON.parse(bodyStr)) ?? null));
+    const ref_get = new ivm.Reference(async (path: string) =>
+      JSON.stringify((await api.get(path)) ?? null)
+    );
+    const ref_post = new ivm.Reference(async (path: string, bodyStr: string) =>
+      JSON.stringify((await api.post(path, JSON.parse(bodyStr))) ?? null)
+    );
+    const ref_put = new ivm.Reference(async (path: string, bodyStr: string) =>
+      JSON.stringify((await api.put(path, JSON.parse(bodyStr))) ?? null)
+    );
+    const ref_patch = new ivm.Reference(async (path: string, bodyStr: string) =>
+      JSON.stringify((await api.patch(path, JSON.parse(bodyStr))) ?? null)
+    );
     const ref_delete = new ivm.Reference(async (path: string) =>
-      JSON.stringify(await api.delete(path) ?? null));
+      JSON.stringify((await api.delete(path)) ?? null)
+    );
 
     // Build the api object using evalClosure. References are bound as $0–$4 — they are
     // auto-detected as TransferableHandle objects and transferred into the isolate as
@@ -108,11 +115,15 @@ export async function runExecuteCode(
 
     // Inject extra context (e.g. project_id) as top-level variables via JSON.
     if (Object.keys(extraContext).length > 0) {
-      await context.global.set('__ctxJson', JSON.stringify(extraContext), { copy: true });
+      await context.global.set('__ctxJson', JSON.stringify(extraContext), {
+        copy: true,
+      });
       const assignments = Object.keys(extraContext)
         .map((k) => `const ${k} = __ctx[${JSON.stringify(k)}];`)
         .join('\n');
-      await context.eval(`const __ctx = JSON.parse(__ctxJson);\n${assignments}`);
+      await context.eval(
+        `const __ctx = JSON.parse(__ctxJson);\n${assignments}`
+      );
     }
 
     const script = await isolate.compileScript(`
@@ -122,10 +133,10 @@ export async function runExecuteCode(
       })()
     `);
 
-    const resultJson = await script.run(context, {
+    const resultJson = (await script.run(context, {
       promise: true,
       timeout: timeoutMs,
-    }) as string;
+    })) as string;
 
     return JSON.parse(resultJson);
   } finally {

@@ -33,7 +33,10 @@ describe('runSearchCode — functional', () => {
 
   test('supports async code', async () => {
     const spec = { info: { title: 'Supabase API' } };
-    const result = await runSearchCode(`return await Promise.resolve(spec.info.title)`, spec);
+    const result = await runSearchCode(
+      `return await Promise.resolve(spec.info.title)`,
+      spec
+    );
     expect(result).toBe('Supabase API');
   });
 });
@@ -81,7 +84,10 @@ describe('runExecuteCode — functional', () => {
     const api = mockApi();
     vi.mocked(api.get).mockResolvedValue([{ id: 'org-1', name: 'My Org' }]);
 
-    const result = await runExecuteCode(`return api.get('/v1/organizations')`, api);
+    const result = await runExecuteCode(
+      `return api.get('/v1/organizations')`,
+      api
+    );
 
     expect(api.get).toHaveBeenCalledWith('/v1/organizations');
     expect(result).toEqual([{ id: 'org-1', name: 'My Org' }]);
@@ -89,7 +95,9 @@ describe('runExecuteCode — functional', () => {
 
   test('project_id is available as a top-level variable', async () => {
     const api = mockApi();
-    const result = await runExecuteCode(`return project_id`, api, { project_id: 'proj-ref' });
+    const result = await runExecuteCode(`return project_id`, api, {
+      project_id: 'proj-ref',
+    });
     expect(result).toBe('proj-ref');
   });
 
@@ -107,12 +115,17 @@ describe('runExecuteCode — functional', () => {
       `,
       api
     );
-    expect(result).toEqual({ orgs: [{ id: 'org-1' }], projects: [{ id: 'proj-1' }] });
+    expect(result).toEqual({
+      orgs: [{ id: 'org-1' }],
+      projects: [{ id: 'proj-1' }],
+    });
   });
 
   test('terminates on infinite loop within timeout', async () => {
     const api = mockApi();
-    await expect(runExecuteCode(`while(true){}`, api, {}, 200)).rejects.toThrow();
+    await expect(
+      runExecuteCode(`while(true){}`, api, {}, 200)
+    ).rejects.toThrow();
   }, 5000);
 });
 

@@ -15,20 +15,24 @@ type ExecutorToolsOptions = {
 };
 
 const searchApiInputSchema = z.object({
-  code: z.string().describe(
-    'JavaScript code that receives `spec` (the full Management API OpenAPI spec object) and must `return` a value. ' +
-    'Example: return Object.keys(spec.paths).filter(p => p.startsWith("/v1/projects"))'
-  ),
+  code: z
+    .string()
+    .describe(
+      'JavaScript code that receives `spec` (the full Management API OpenAPI spec object) and must `return` a value. ' +
+        'Example: return Object.keys(spec.paths).filter(p => p.startsWith("/v1/projects"))'
+    ),
 });
 
 const searchApiOutputSchema = z.object({ result: z.string() });
 
 const executeApiInputSchema = z.object({
   project_id: z.string().describe('The project reference ID'),
-  code: z.string().describe(
-    'JavaScript code with access to `api` (get/post/put/patch/delete) and `project_id`. Must `return` a value. ' +
-    'Example: return api.get("/v1/organizations")'
-  ),
+  code: z
+    .string()
+    .describe(
+      'JavaScript code with access to `api` (get/post/put/patch/delete) and `project_id`. Must `return` a value. ' +
+        'Example: return api.get("/v1/organizations")'
+    ),
 });
 
 const executeApiOutputSchema = z.object({ result: z.string() });
@@ -78,7 +82,11 @@ export const executorToolDefs = {
   },
 } as const satisfies ToolDefs;
 
-export function getExecutorTools({ executor, projectId, readOnly }: ExecutorToolsOptions) {
+export function getExecutorTools({
+  executor,
+  projectId,
+  readOnly,
+}: ExecutorToolsOptions) {
   const project_id = projectId;
 
   return {
@@ -96,7 +104,9 @@ export function getExecutorTools({ executor, projectId, readOnly }: ExecutorTool
       inject: { project_id },
       execute: async ({ code, project_id }) => {
         if (readOnly) {
-          throw new Error('Cannot execute Management API calls in read-only mode.');
+          throw new Error(
+            'Cannot execute Management API calls in read-only mode.'
+          );
         }
 
         const calledEndpoints: Array<{ method: string; path: string }> = [];

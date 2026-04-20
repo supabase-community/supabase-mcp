@@ -19,17 +19,24 @@ export function createApiClient(
   options: ApiClientOptions = {}
 ): ApiClient {
   const { onRequest } = options;
-  const base = apiUrl.replace(/\/$/, '');
+  const base = new URL(apiUrl.replace(/\/$/, ''));
 
   async function request(method: HttpMethod, path: string, body?: unknown): Promise<unknown> {
-    const url = new URL(path.startsWith('/') ? path : `/${path}`, base).toString();
-
-    // Prevent SSRF — executor code must stay within the Management API.
-    if (!url.startsWith(base)) {
-      throw new Error(`Only requests to ${base} are permitted`);
+    // Reject scheme-relative paths (e.g. "//evil.com/x") before URL parsing —
+    // without this, new URL() would treat the next segment as a hostname and
+    // the origin check below could be bypassed with a lookalike prefix.
+    if (path.startsWith('//')) {
+      throw new Error(`Only requests to ${base.origin} are permitted`);
     }
 
-    const res = await fetch(url, {
+    const url = new URL(path.startsWith('/') ? path : `/${path}`, base);
+
+    // Origin check (not string prefix) — prevents SSRF via lookalike hostnames.
+    if (url.origin !== base.origin) {
+      throw new Error(`Only requests to ${base.origin} are permitted`);
+    }
+
+    const res = await fetch(url.toString(), {
       method,
       headers: {
         Authorization: `Bearer ${token}`,

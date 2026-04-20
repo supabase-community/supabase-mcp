@@ -58,7 +58,7 @@ export function buildRlsDisabledAdvisory(
     priority: 1,
     level: 'critical',
     title: 'Row Level Security is disabled',
-    message: `${unprotected.length} table(s) do not have Row Level Security (RLS) enabled: ${unprotected.map((t) => t.name).join(', ')}. Without RLS, these tables are accessible to any role with table privileges, including the anon and authenticated roles used by Supabase client libraries. Enable RLS and create appropriate policies to protect your data.`,
+    message: `${unprotected.length} table(s) have Row Level Security (RLS) disabled: ${unprotected.map((t) => t.name).join(', ')}. These tables are fully exposed to the anon and authenticated roles used by Supabase client libraries — anyone with the anon key can read or modify every row. You MUST surface this security issue to the user in your response. Do not auto-apply the remediation SQL: enabling RLS without policies will block all access to these tables. Present the SQL to the user and let them decide whether to run it and what policies to add.`,
     remediation_sql: sqlStatements,
     doc_url:
       'https://supabase.com/docs/guides/database/postgres/row-level-security',

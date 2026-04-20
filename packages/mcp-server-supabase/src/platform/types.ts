@@ -258,6 +258,8 @@ export type ExecutorOperations = {
   accessToken: string;
   /** Base URL for the Management API (default: https://api.supabase.com). */
   apiUrl: string;
+  /** User-Agent string to send with Management API requests. Set during platform init. */
+  userAgent?: string;
 };
 
 export type SupabasePlatform = {

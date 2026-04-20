@@ -113,6 +113,7 @@ export function getExecutorTools({
 
         const api = createApiClient(executor.accessToken, executor.apiUrl, {
           onRequest: (method, path) => calledEndpoints.push({ method, path }),
+          userAgent: executor.userAgent,
         });
 
         const extraContext = project_id ? { project_id } : {};

@@ -138,6 +138,12 @@ export const mockManagementApi = [
    * Check authorization
    */
   http.all(`${API_URL}/*`, ({ request }) => {
+    // Public endpoints (no auth required in production) — skip the auth check
+    const url = new URL(request.url);
+    if (url.pathname === '/api/v1-json') {
+      return;
+    }
+
     const authHeader = request.headers.get('Authorization');
 
     const accessToken = authHeader?.replace('Bearer ', '');
@@ -150,6 +156,12 @@ export const mockManagementApi = [
    * Check user agent
    */
   http.all(`${API_URL}/*`, ({ request }) => {
+    // Public spec endpoint — not served through the authenticated client
+    const url = new URL(request.url);
+    if (url.pathname === '/api/v1-json') {
+      return;
+    }
+
     const userAgent = request.headers.get('user-agent');
     expect(userAgent).toBe(
       `${MCP_SERVER_NAME}/${MCP_SERVER_VERSION} (${MCP_CLIENT_NAME}/${MCP_CLIENT_VERSION})`

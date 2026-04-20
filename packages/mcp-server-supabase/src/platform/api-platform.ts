@@ -788,14 +788,17 @@ export function createSupabaseApiPlatform(
         throw new Error('Client info is required');
       }
 
+      const userAgent = `supabase-mcp/${version} (${clientInfo.name}/${clientInfo.version})`;
+
       // Re-initialize the management API client with the user agent
       managementApiClient = createManagementApiClient(
         managementApiUrl,
         accessToken,
-        {
-          'User-Agent': `supabase-mcp/${version} (${clientInfo.name}/${clientInfo.version})`,
-        }
+        { 'User-Agent': userAgent }
       );
+
+      // Propagate the same user agent to the executor client.
+      executor.userAgent = userAgent;
     },
     account,
     database,

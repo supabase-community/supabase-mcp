@@ -11,6 +11,8 @@ export interface ApiClient {
 export interface ApiClientOptions {
   // Called after each successful request — used to track which endpoints were hit.
   onRequest?: (method: HttpMethod, path: string) => void;
+  // User-Agent header to send on every request.
+  userAgent?: string;
 }
 
 export function createApiClient(
@@ -18,7 +20,7 @@ export function createApiClient(
   apiUrl: string,
   options: ApiClientOptions = {}
 ): ApiClient {
-  const { onRequest } = options;
+  const { onRequest, userAgent } = options;
   const base = new URL(apiUrl.replace(/\/$/, ''));
 
   async function request(
@@ -45,6 +47,7 @@ export function createApiClient(
       headers: {
         Authorization: `Bearer ${token}`,
         'Content-Type': 'application/json',
+        ...(userAgent ? { 'User-Agent': userAgent } : {}),
       },
       body: body !== undefined ? JSON.stringify(body) : undefined,
     });

@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
-import { createApiClient } from './client';
+import { createApiClient } from './client.js';
 
 describe('createApiClient SSRF fix', () => {
   let fetchMock: ReturnType<typeof vi.fn>;
@@ -24,7 +24,7 @@ describe('createApiClient SSRF fix', () => {
     await api.get('/v1/projects');
 
     expect(fetchMock).toHaveBeenCalledOnce();
-    expect(fetchMock.mock.calls[0][0]).toBe('https://api.supabase.com/v1/projects');
+    expect(fetchMock.mock.calls[0]![0]).toBe('https://api.supabase.com/v1/projects');
   });
 
   it('should reject scheme-relative paths like //api.supabase.com.evil.com/steal', async () => {
@@ -52,14 +52,14 @@ describe('createApiClient SSRF fix', () => {
     await api.get('/v1/projects');
 
     expect(fetchMock).toHaveBeenCalledOnce();
-    expect(fetchMock.mock.calls[0][0]).toBe('https://api.supabase.com/v1/projects');
+    expect(fetchMock.mock.calls[0]![0]).toBe('https://api.supabase.com/v1/projects');
   });
 
   it('should include Authorization header with bearer token', async () => {
     const api = createApiClient('secret-token', 'https://api.supabase.com');
     await api.get('/v1/projects');
 
-    const callArgs = fetchMock.mock.calls[0][1];
+    const callArgs = fetchMock.mock.calls[0]![1];
     expect(callArgs.headers.Authorization).toBe('Bearer secret-token');
   });
 

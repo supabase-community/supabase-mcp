@@ -138,6 +138,12 @@ export const mockManagementApi = [
    * Check authorization
    */
   http.all(`${API_URL}/*`, ({ request }) => {
+    // Public endpoints (no auth required in production) — skip the auth check
+    const url = new URL(request.url);
+    if (url.pathname === '/api/v1-json') {
+      return;
+    }
+
     const authHeader = request.headers.get('Authorization');
 
     const accessToken = authHeader?.replace('Bearer ', '');
@@ -150,6 +156,12 @@ export const mockManagementApi = [
    * Check user agent
    */
   http.all(`${API_URL}/*`, ({ request }) => {
+    // Public spec endpoint — not served through the authenticated client
+    const url = new URL(request.url);
+    if (url.pathname === '/api/v1-json') {
+      return;
+    }
+
     const userAgent = request.headers.get('user-agent');
     expect(userAgent).toBe(
       `${MCP_SERVER_NAME}/${MCP_SERVER_VERSION} (${MCP_CLIENT_NAME}/${MCP_CLIENT_VERSION})`
@@ -932,6 +944,34 @@ export const mockManagementApi = [
       }
     }
   ),
+
+  /**
+   * Serve a minimal Management API OpenAPI spec fixture for executor tests.
+   * The real endpoint (https://api.supabase.com/api/v1-json) is not covered
+   * by the /v1/* handlers, so we intercept it here to keep tests offline.
+   */
+  http.get(`${API_URL}/api/v1-json`, () => {
+    return HttpResponse.json({
+      openapi: '3.0.0',
+      info: { title: 'Supabase Management API', version: '1.0' },
+      paths: {
+        '/v1/organizations': { get: { summary: 'List orgs' } },
+        '/v1/projects': { get: { summary: 'List projects' } },
+        '/v1/projects/{ref}/database/query': {
+          post: { summary: 'Execute SQL' },
+        },
+        '/v1/projects/{ref}/branches': {
+          get: { summary: 'List branches' },
+          post: { summary: 'Create branch' },
+        },
+        '/v1/branches/{id}': {
+          get: { summary: 'Get branch' },
+          delete: { summary: 'Delete branch' },
+        },
+        '/v1/branches/{id}/merge': { post: { summary: 'Merge branch' } },
+      },
+    });
+  }),
 ];
 
 export async function createOrganization(options: MockOrganizationOptions) {

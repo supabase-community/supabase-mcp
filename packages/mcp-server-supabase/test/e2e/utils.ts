@@ -28,13 +28,18 @@ type SetupResult<ProjectScoped extends boolean> = {
  */
 export async function setup(options: {
   projectId: string;
+  features?: string[];
 }): Promise<SetupResult<true>>;
 export async function setup(options?: {
   projectId?: never;
+  features?: string[];
 }): Promise<SetupResult<false>>;
 export async function setup({
   projectId,
-}: { projectId?: string } = {}): Promise<SetupResult<boolean>> {
+  features,
+}: { projectId?: string; features?: string[] } = {}): Promise<
+  SetupResult<boolean>
+> {
   const clientTransport = new StreamTransport();
   const serverTransport = new StreamTransport();
 
@@ -49,6 +54,7 @@ export async function setup({
   const server = createSupabaseMcpServer({
     platform,
     projectId,
+    features,
   });
 
   await server.connect(serverTransport);

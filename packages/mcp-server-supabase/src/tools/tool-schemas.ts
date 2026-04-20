@@ -7,6 +7,7 @@ import { debuggingToolDefs } from './debugging-tools.js';
 import { developmentToolDefs } from './development-tools.js';
 import { docsToolDefs } from './docs-tools.js';
 import { edgeFunctionToolDefs } from './edge-function-tools.js';
+import { executorToolDefs } from './executor-tools.js';
 import { storageToolDefs } from './storage-tools.js';
 import type { ToolDefs } from './util.js';
 
@@ -65,6 +66,7 @@ export const supabaseMcpToolSchemas = {
   ...defsToSchemas(developmentToolDefs),
   ...defsToSchemas(docsToolDefs),
   ...defsToSchemas(edgeFunctionToolDefs),
+  ...defsToSchemas(executorToolDefs),
   ...defsToSchemas(storageToolDefs),
 } satisfies Record<string, SchemaEntry>;
 
@@ -95,6 +97,9 @@ const FEATURE_TOOL_MAP = {
   branching: Object.keys(
     branchingToolDefs
   ) as readonly (keyof typeof branchingToolDefs)[],
+  executor: Object.keys(
+    executorToolDefs
+  ) as readonly (keyof typeof executorToolDefs)[],
   storage: Object.keys(
     storageToolDefs
   ) as readonly (keyof typeof storageToolDefs)[],

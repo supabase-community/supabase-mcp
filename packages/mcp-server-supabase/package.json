@@ -55,6 +55,7 @@
     "common-tags": "^1.8.2",
     "gqlmin": "^0.3.1",
     "graphql": "^16.11.0",
+    "isolated-vm": "^6.1.2",
     "openapi-fetch": "^0.13.5"
   },
   "peerDependencies": {

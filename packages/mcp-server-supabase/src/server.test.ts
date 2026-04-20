@@ -2822,6 +2822,7 @@ describe('tools', () => {
         'functions',
         'branching',
         'storage',
+        'executor',
       ],
     });
 

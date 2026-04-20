@@ -97,7 +97,9 @@ const FEATURE_TOOL_MAP = {
   branching: Object.keys(
     branchingToolDefs
   ) as readonly (keyof typeof branchingToolDefs)[],
-  executor: [] as readonly (keyof typeof executorToolDefs)[],
+  executor: Object.keys(
+    executorToolDefs
+  ) as readonly (keyof typeof executorToolDefs)[],
   storage: Object.keys(
     storageToolDefs
   ) as readonly (keyof typeof storageToolDefs)[],

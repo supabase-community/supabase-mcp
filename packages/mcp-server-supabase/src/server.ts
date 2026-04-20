@@ -13,6 +13,7 @@ import { getDebuggingTools } from './tools/debugging-tools.js';
 import { getDevelopmentTools } from './tools/development-tools.js';
 import { getDocsTools } from './tools/docs-tools.js';
 import { getEdgeFunctionTools } from './tools/edge-function-tools.js';
+import { getExecutorTools } from './tools/executor-tools.js';
 import { getStorageTools } from './tools/storage-tools.js';
 import type { FeatureGroup } from './types.js';
 import { parseFeatureGroups } from './util.js';
@@ -127,6 +128,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
         development,
         storage,
         branching,
+        executor,
       } = platform;
 
       if (enabledFeatures.has('docs')) {
@@ -172,6 +174,13 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
 
       if (storage && enabledFeatures.has('storage')) {
         Object.assign(tools, getStorageTools({ storage, projectId, readOnly }));
+      }
+
+      if (executor && enabledFeatures.has('executor')) {
+        Object.assign(
+          tools,
+          getExecutorTools({ executor, projectId, readOnly })
+        );
       }
 
       return tools;

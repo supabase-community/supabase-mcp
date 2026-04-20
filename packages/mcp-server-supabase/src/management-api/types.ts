@@ -578,9 +578,9 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** [Beta] Get project's just-in-time access configuration. */
+        /** [Beta] Get project's temporary access configuration. */
         get: operations["v1-get-jit-access-config"];
-        /** [Beta] Update project's just-in-time access configuration. */
+        /** [Beta] Update project's temporary access configuration. */
         put: operations["v1-update-jit-access-config"];
         post?: never;
         delete?: never;
@@ -2681,7 +2681,7 @@ export interface components {
          *     } */
         JitAccessRequestRequest: {
             /** @enum {string} */
-            state: "enabled" | "disabled" | "unavailable";
+            state: "enabled" | "disabled";
         };
         NetworkBanResponse: {
             banned_ipv4_addresses: string[];
@@ -4690,7 +4690,7 @@ export interface components {
             entitlements: {
                 feature: {
                     /** @enum {string} */
-                    key: "instances.compute_update_available_sizes" | "instances.read_replicas" | "instances.disk_modifications" | "instances.high_availability" | "instances.orioledb" | "replication.etl" | "storage.max_file_size" | "storage.max_file_size.configurable" | "storage.image_transformations" | "storage.vector_buckets" | "storage.iceberg_catalog" | "security.audit_logs_days" | "security.questionnaire" | "security.soc2_report" | "security.private_link" | "security.enforce_mfa" | "log.retention_days" | "custom_domain" | "vanity_subdomain" | "ipv4" | "pitr.available_variants" | "log_drains" | "branching_limit" | "branching_persistent" | "auth.mfa_phone" | "auth.mfa_web_authn" | "auth.mfa_enhanced_security" | "auth.hooks" | "auth.platform.sso" | "auth.custom_jwt_template" | "auth.saml_2" | "auth.user_sessions" | "auth.leaked_password_protection" | "auth.advanced_auth_settings" | "auth.performance_settings" | "auth.password_hibp" | "backup.retention_days" | "backup.restore_to_new_project" | "function.max_count" | "function.size_limit_mb" | "realtime.max_concurrent_users" | "realtime.max_events_per_second" | "realtime.max_joins_per_second" | "realtime.max_channels_per_client" | "realtime.max_bytes_per_second" | "realtime.max_presence_events_per_second" | "realtime.max_payload_size_in_kb" | "project_scoped_roles" | "security.member_roles" | "project_pausing" | "project_cloning" | "project_restore_after_expiry" | "assistant.advance_model" | "integrations.github_connections" | "dedicated_pooler" | "observability.dashboard_advanced_metrics";
+                    key: "instances.compute_update_available_sizes" | "instances.read_replicas" | "instances.disk_modifications" | "instances.high_availability" | "instances.orioledb" | "replication.etl" | "storage.max_file_size" | "storage.max_file_size.configurable" | "storage.image_transformations" | "storage.vector_buckets" | "storage.iceberg_catalog" | "security.audit_logs_days" | "security.questionnaire" | "security.soc2_report" | "security.iso27001_certificate" | "security.private_link" | "security.enforce_mfa" | "log.retention_days" | "custom_domain" | "vanity_subdomain" | "ipv4" | "pitr.available_variants" | "log_drains" | "branching_limit" | "branching_persistent" | "auth.mfa_phone" | "auth.mfa_web_authn" | "auth.mfa_enhanced_security" | "auth.hooks" | "auth.platform.sso" | "auth.custom_jwt_template" | "auth.saml_2" | "auth.user_sessions" | "auth.leaked_password_protection" | "auth.advanced_auth_settings" | "auth.performance_settings" | "auth.password_hibp" | "backup.retention_days" | "backup.restore_to_new_project" | "function.max_count" | "function.size_limit_mb" | "realtime.max_concurrent_users" | "realtime.max_events_per_second" | "realtime.max_joins_per_second" | "realtime.max_channels_per_client" | "realtime.max_bytes_per_second" | "realtime.max_presence_events_per_second" | "realtime.max_payload_size_in_kb" | "project_scoped_roles" | "security.member_roles" | "project_pausing" | "project_cloning" | "project_restore_after_expiry" | "assistant.advance_model" | "integrations.github_connections" | "dedicated_pooler" | "observability.dashboard_advanced_metrics";
                     /** @enum {string} */
                     type: "boolean" | "numeric" | "set";
                 };
@@ -6455,7 +6455,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Failed to retrieve project's JIT access config */
+            /** @description Failed to retrieve project's temporary access configuration. */
             500: {
                 headers: {
                     [name: string]: unknown;
@@ -6509,7 +6509,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Failed to update project's just-in-time access configuration. */
+            /** @description Failed to update project's temporary access configuration. */
             500: {
                 headers: {
                     [name: string]: unknown;

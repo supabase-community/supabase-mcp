@@ -46,17 +46,13 @@ export async function runSearchCode(
  * Runs agent code with `api` and optional extra context injected as top-level variables.
  * Code must use `return` to produce a value.
  *
- * api methods are exposed as host References via `applySyncPromise` — they are captured
- * inside the `api` object on `globalThis`. The References are set using internal names
- * (__ivm_get, __ivm_post, etc.) that are NOT the names checked by security tests, and
- * calling `.deref()` on them from inside the isolate throws "Cannot dereference this from
- * current isolate", preventing the Reference leak attack described in the isolated-vm
- * SECURITY section: https://github.com/laverdet/isolated-vm#security
+ * api methods are exposed as host References bound via `evalClosure` as `$0`–`$4`. They are
+ * captured inside the `api` object on `globalThis` but are NEVER set as named globals on
+ * `context.global`. This prevents the "Reference leak" springboard attack described in the
+ * isolated-vm SECURITY section: https://github.com/laverdet/isolated-vm#security
  *
- * NOTE: The plan specified `evalClosure` with `$0.apply(...)`, but isolated-vm v6 changed
- * the internal proxy API so that `Reference.apply()` called from inside the isolate now
- * requires `applySyncPromise` (for async host functions) and the Reference must be persisted
- * on the global (not as a `$0` closure capture) to survive beyond the evalClosure call scope.
+ * `applySyncPromise` is the v6-correct method for invoking async host functions synchronously
+ * from inside the isolate worker thread.
  *
  * @example
  *   runExecuteCode('return api.get("/v1/organizations")', api)
@@ -76,10 +72,6 @@ export async function runExecuteCode(
     // Results are serialized as JSON strings — the only safe crossing medium.
     // Body args for write methods arrive pre-serialized; the host parses them before
     // forwarding to the actual api client.
-    //
-    // References are stored under __ivm_* names — NOT __api_get/__api_post/etc. — so the
-    // security tests confirm those specific named globals are absent. Calling .deref() from
-    // inside the isolate throws, preventing the Reference escape attack.
     const ref_get    = new ivm.Reference(async (path: string) =>
       JSON.stringify(await api.get(path) ?? null));
     const ref_post   = new ivm.Reference(async (path: string, bodyStr: string) =>
@@ -91,27 +83,28 @@ export async function runExecuteCode(
     const ref_delete = new ivm.Reference(async (path: string) =>
       JSON.stringify(await api.delete(path) ?? null));
 
-    // Set References as globals under internal names. These are NOT reachable via the names
-    // the security tests probe (__api_get, __api_post, etc.).
-    // In isolated-vm v6, `applySyncPromise` is the correct way to call an async host
-    // Reference from inside an isolate worker thread.
-    await context.global.set('__ivm_get',    ref_get);
-    await context.global.set('__ivm_post',   ref_post);
-    await context.global.set('__ivm_put',    ref_put);
-    await context.global.set('__ivm_patch',  ref_patch);
-    await context.global.set('__ivm_delete', ref_delete);
-
-    // Build the api object that user code calls. JSON.stringify/parse is the safe crossing
-    // medium for all arguments and return values.
-    await context.eval(`
-      globalThis.api = {
-        get:    (path)       => JSON.parse(__ivm_get.applySyncPromise(undefined, [path],                    { arguments: { copy: true } })),
-        post:   (path, body) => JSON.parse(__ivm_post.applySyncPromise(undefined, [path, JSON.stringify(body ?? null)], { arguments: { copy: true } })),
-        put:    (path, body) => JSON.parse(__ivm_put.applySyncPromise(undefined, [path, JSON.stringify(body ?? null)], { arguments: { copy: true } })),
-        patch:  (path, body) => JSON.parse(__ivm_patch.applySyncPromise(undefined, [path, JSON.stringify(body ?? null)], { arguments: { copy: true } })),
-        delete: (path)       => JSON.parse(__ivm_delete.applySyncPromise(undefined, [path],                    { arguments: { copy: true } })),
-      };
-    `);
+    // Build the api object using evalClosure. References are bound as $0–$4 — they are
+    // auto-detected as TransferableHandle objects and transferred into the isolate as
+    // ReferenceHandle instances. They are scoped only to this closure body and are never
+    // set as named globals on context.global. After this call returns, $0–$4 are not
+    // reachable from isolate code; only the api object methods hold them via closure.
+    //
+    // NOTE: Do NOT pass { arguments: { reference: true } } here. That option wraps the
+    // ivm.Reference object itself in another Reference (double-wrapping), causing
+    // $0.typeof to appear as "object" instead of "function" and all apply calls to fail
+    // with "Reference is not a function". The correct pattern is no arguments option —
+    // isolated-vm's default transfer logic unwraps TransferableHandle objects via
+    // ClassHandle::Unwrap, producing a proper function Reference inside the isolate.
+    await context.evalClosure(
+      `globalThis.api = {
+        get:    (path)       => JSON.parse($0.applySyncPromise(undefined, [path],                          { arguments: { copy: true } })),
+        post:   (path, body) => JSON.parse($1.applySyncPromise(undefined, [path, JSON.stringify(body ?? null)], { arguments: { copy: true } })),
+        put:    (path, body) => JSON.parse($2.applySyncPromise(undefined, [path, JSON.stringify(body ?? null)], { arguments: { copy: true } })),
+        patch:  (path, body) => JSON.parse($3.applySyncPromise(undefined, [path, JSON.stringify(body ?? null)], { arguments: { copy: true } })),
+        delete: (path)       => JSON.parse($4.applySyncPromise(undefined, [path],                          { arguments: { copy: true } })),
+      };`,
+      [ref_get, ref_post, ref_put, ref_patch, ref_delete]
+    );
 
     // Inject extra context (e.g. project_id) as top-level variables via JSON.
     if (Object.keys(extraContext).length > 0) {

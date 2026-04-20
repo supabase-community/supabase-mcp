@@ -122,30 +122,32 @@ describe('runExecuteCode — security', () => {
   // code as a springboard back into the Node.js process.
   // Fix: evalClosure binds References as $0-$4 scoped only to bootstrap — never as named globals.
 
-  test('ivm Reference objects are not accessible as globals in the isolate', async () => {
+  test('no isolated-vm Reference is exposed as a named global in the isolate', async () => {
     const api = mockApi();
     vi.mocked(api.get).mockResolvedValue([]);
 
     const result = await runExecuteCode(
       `
-      return {
-        hasApiGet:    typeof __api_get    !== 'undefined',
-        hasApiPost:   typeof __api_post   !== 'undefined',
-        hasApiPut:    typeof __api_put    !== 'undefined',
-        hasApiPatch:  typeof __api_patch  !== 'undefined',
-        hasApiDelete: typeof __api_delete !== 'undefined',
-      }
+      const names = Object.getOwnPropertyNames(globalThis);
+      const leaked = names.filter(n => {
+        const v = globalThis[n];
+        return v && typeof v === 'object' && typeof v.applySyncPromise === 'function';
+      });
+      return leaked;
       `,
       api
     );
 
-    expect(result).toEqual({
-      hasApiGet: false,
-      hasApiPost: false,
-      hasApiPut: false,
-      hasApiPatch: false,
-      hasApiDelete: false,
-    });
+    expect(result).toEqual([]);
+  });
+
+  test('plan-specified reference names (__api_*) are not exposed', async () => {
+    const api = mockApi();
+    const result = await runExecuteCode(
+      `return { hasApiGet: typeof __api_get, hasApiPost: typeof __api_post }`,
+      api
+    );
+    expect(result).toEqual({ hasApiGet: 'undefined', hasApiPost: 'undefined' });
   });
 
   test('Node.js process is not accessible inside the execute isolate', async () => {

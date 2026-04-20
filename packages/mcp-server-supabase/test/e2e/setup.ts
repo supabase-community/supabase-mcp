@@ -6,6 +6,7 @@ import {
   mockOrgs,
   mockProjects,
 } from '../mocks.js';
+import { invalidateSpec } from '../../src/executor/spec.js';
 
 let server: SetupServerApi | null = null;
 
@@ -18,6 +19,7 @@ beforeEach(() => {
   mockOrgs.clear();
   mockProjects.clear();
   mockBranches.clear();
+  invalidateSpec();
 });
 
 afterAll(() => {

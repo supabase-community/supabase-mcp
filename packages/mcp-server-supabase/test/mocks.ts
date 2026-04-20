@@ -932,6 +932,34 @@ export const mockManagementApi = [
       }
     }
   ),
+
+  /**
+   * Serve a minimal Management API OpenAPI spec fixture for executor tests.
+   * The real endpoint (https://api.supabase.com/api/v1-json) is not covered
+   * by the /v1/* handlers, so we intercept it here to keep tests offline.
+   */
+  http.get(`${API_URL}/api/v1-json`, () => {
+    return HttpResponse.json({
+      openapi: '3.0.0',
+      info: { title: 'Supabase Management API', version: '1.0' },
+      paths: {
+        '/v1/organizations': { get: { summary: 'List orgs' } },
+        '/v1/projects': { get: { summary: 'List projects' } },
+        '/v1/projects/{ref}/database/query': {
+          post: { summary: 'Execute SQL' },
+        },
+        '/v1/projects/{ref}/branches': {
+          get: { summary: 'List branches' },
+          post: { summary: 'Create branch' },
+        },
+        '/v1/branches/{id}': {
+          get: { summary: 'Get branch' },
+          delete: { summary: 'Delete branch' },
+        },
+        '/v1/branches/{id}/merge': { post: { summary: 'Merge branch' } },
+      },
+    });
+  }),
 ];
 
 export async function createOrganization(options: MockOrganizationOptions) {

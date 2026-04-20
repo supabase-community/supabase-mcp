@@ -102,6 +102,10 @@ export async function runExecuteCode(
     // with "Reference is not a function". The correct pattern is no arguments option —
     // isolated-vm's default transfer logic unwraps TransferableHandle objects via
     // ClassHandle::Unwrap, producing a proper function Reference inside the isolate.
+    // applySyncPromise blocks the isolate worker thread (and, via it, the Node
+    // event loop on the host side) for the full round-trip of each HTTP call.
+    // That is acceptable for a POC but unsuitable for high-throughput production
+    // use; revisit with a worker-thread delegation pattern before GA.
     await context.evalClosure(
       `globalThis.api = {
         get:    (path)       => JSON.parse($0.applySyncPromise(undefined, [path],                          { arguments: { copy: true } })),
@@ -115,6 +119,14 @@ export async function runExecuteCode(
 
     // Inject extra context (e.g. project_id) as top-level variables via JSON.
     if (Object.keys(extraContext).length > 0) {
+      // Keys become `const <k> = ...` inside the isolate, so they must be plain
+      // identifiers — reject anything that could inject statements via the key.
+      const VALID_IDENTIFIER = /^[a-zA-Z_$][a-zA-Z0-9_$]*$/;
+      for (const k of Object.keys(extraContext)) {
+        if (!VALID_IDENTIFIER.test(k)) {
+          throw new Error(`Invalid extraContext key: ${k}`);
+        }
+      }
       await context.global.set('__ctxJson', JSON.stringify(extraContext), {
         copy: true,
       });

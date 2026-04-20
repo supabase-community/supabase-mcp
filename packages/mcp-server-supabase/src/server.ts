@@ -46,7 +46,9 @@ export type SupabaseMcpServerOptions = {
 
   /**
    * Features to enable.
-   * Options: 'account', 'branching', 'database', 'debugging', 'development', 'docs', 'functions', 'storage'
+   * Options: 'account', 'branching', 'database', 'debugging', 'development', 'docs', 'executor', 'functions', 'storage'
+   *
+   * Note: 'executor' and 'storage' are not in DEFAULT_FEATURES — callers must opt in explicitly.
    */
   features?: string[];
 

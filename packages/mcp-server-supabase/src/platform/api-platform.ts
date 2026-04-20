@@ -31,6 +31,7 @@ import {
   type DebuggingOperations,
   type DeployEdgeFunctionOptions,
   type DevelopmentOperations,
+  type ExecutorOperations,
   type SuccessResponse,
   type EdgeFunction,
   type EdgeFunctionsOperations,
@@ -775,6 +776,11 @@ export function createSupabaseApiPlatform(
     },
   };
 
+  const executor: ExecutorOperations = {
+    accessToken,
+    apiUrl: managementApiUrl,
+  };
+
   const platform: SupabasePlatform = {
     async init(info: InitData) {
       const { clientInfo } = info;
@@ -798,6 +804,7 @@ export function createSupabaseApiPlatform(
     functions,
     branching,
     storage,
+    executor,
   };
 
   return platform;

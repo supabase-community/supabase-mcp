@@ -253,6 +253,13 @@ export type BranchingOperations = {
   rebaseBranch(branchId: string): Promise<void>;
 };
 
+export type ExecutorOperations = {
+  /** Bearer token for the Management API — used by the executor's fetch client. */
+  accessToken: string;
+  /** Base URL for the Management API (default: https://api.supabase.com). */
+  apiUrl: string;
+};
+
 export type SupabasePlatform = {
   init?(info: InitData): Promise<void>;
   account?: AccountOperations;
@@ -262,4 +269,5 @@ export type SupabasePlatform = {
   development?: DevelopmentOperations;
   storage?: StorageOperations;
   branching?: BranchingOperations;
+  executor?: ExecutorOperations;
 };

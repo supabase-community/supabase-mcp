@@ -9,6 +9,7 @@ export const CURRENT_FEATURE_GROUPS = [
   'functions',
   'branching',
   'storage',
+  'executor',
 ] as const;
 
 export const deprecatedFeatureGroupSchema = z.enum(['debug']);

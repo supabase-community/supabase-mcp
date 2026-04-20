@@ -54,7 +54,7 @@ describe('project management e2e tests', () => {
     const toolCalls = steps.flatMap((step) => step.staticToolCalls);
     const text = steps.at(-1)?.text ?? '';
 
-    expect(toolCalls).toHaveLength(2);
+    expect(toolCalls.length).toBeGreaterThanOrEqual(2);
     expect(toolCalls.at(0)?.toolName).toBe('list_projects');
     expect(toolCalls.at(1)?.toolName).toBe('list_tables');
 

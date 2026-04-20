@@ -1001,6 +1001,9 @@ describe('tools', () => {
         primary_keys: ['id'],
       },
     ]);
+    expect(listTablesResult.advisory).toEqual(
+      expect.objectContaining({ id: 'rls_disabled' })
+    );
   });
 
   test('list_tables returns compact summary by default', async () => {
@@ -1039,6 +1042,15 @@ describe('tools', () => {
           rows: 0,
         },
       ],
+      advisory: {
+        id: 'rls_disabled',
+        priority: 1,
+        level: 'critical',
+        title: 'Row Level Security is disabled',
+        message: expect.stringContaining('public.test'),
+        remediation_sql: 'ALTER TABLE public.test ENABLE ROW LEVEL SECURITY;',
+        doc_url: expect.stringContaining('row-level-security'),
+      },
     });
   });
 
@@ -1094,6 +1106,39 @@ describe('tools', () => {
         ],
       })
     );
+  });
+
+  test('list_tables omits advisory when all tables have RLS enabled', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    await project.db.exec(`
+      create table test (id serial primary key);
+      alter table test enable row level security;
+    `);
+
+    const result = await callTool({
+      name: 'list_tables',
+      arguments: {
+        project_id: project.id,
+        schemas: ['public'],
+      },
+    });
+
+    expect(result.tables[0].rls_enabled).toBe(true);
+    expect(result.advisory).toBeUndefined();
   });
 
   test('cannot apply migration in read-only mode', async () => {

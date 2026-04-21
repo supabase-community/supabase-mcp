@@ -142,8 +142,6 @@ export interface paths {
         /**
          * List all projects
          * @description Returns a list of all projects you've previously created.
-         *
-         *     Use `/v1/organizations/{slug}/projects` instead when possible to get more precise results and pagination support.
          */
         get: operations["v1-list-all-projects"];
         put?: never;
@@ -2146,34 +2144,6 @@ export interface components {
         BranchRestoreResponse: {
             /** @enum {string} */
             message: "Branch restoration initiated";
-        };
-        V1ListProjectsPaginatedResponse: {
-            projects: {
-                id: number;
-                cloud_provider: string;
-                inserted_at: string | null;
-                name: string;
-                organization_id: number;
-                organization_slug: string;
-                ref: string;
-                region: string;
-                status: string;
-                subscription_id: string | null;
-                is_branch_enabled: boolean;
-                is_physical_backups_enabled: boolean | null;
-                preview_branch_refs: string[];
-                disk_volume_size_gb?: number;
-                /** @enum {string} */
-                infra_compute_size?: "pico" | "nano" | "micro" | "small" | "medium" | "large" | "xlarge" | "2xlarge" | "4xlarge" | "8xlarge" | "12xlarge" | "16xlarge" | "24xlarge" | "24xlarge_optimized_memory" | "24xlarge_optimized_cpu" | "24xlarge_high_memory" | "48xlarge" | "48xlarge_optimized_memory" | "48xlarge_optimized_cpu" | "48xlarge_high_memory";
-            }[];
-            pagination: {
-                /** @description Total number of projects. Use this to calculate the total number of pages. */
-                count: number;
-                /** @description Maximum number of projects per page (actual number may be less) */
-                limit: number;
-                /** @description Number of projects skipped in this response */
-                offset: number;
-            };
         };
         V1ProjectWithDatabaseResponse: {
             /**

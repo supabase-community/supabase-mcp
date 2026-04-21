@@ -73,7 +73,6 @@ Here are guidelines for using Supabase tools effectively:
 - Before making schema changes, use \`list_tables\` to understand the existing structure
 - When debugging issues, start with \`get_logs\` and \`get_advisors\` before making changes
 - Use \`get_project_url\` and \`get_publishable_api_key\` when helping users configure client-side integrations
-- For cost-incurring operations (e.g. creating projects or branches), always call \`confirm_cost\` first
 
 If you have access to a local development environment with a filesystem and shell:
 - Install the Supabase agent skill for critical development and security guidance: \`npx skills add supabase/agent-skills\` (https://supabase.com/docs/guides/getting-started/ai-skills.md)

@@ -67,7 +67,7 @@ const DEFAULT_FEATURES: FeatureGroup[] = [
 
 export const PLATFORM_INDEPENDENT_FEATURES: FeatureGroup[] = ['docs'];
 
-const instructions = `
+export const instructions = `
 Here are guidelines for using Supabase tools effectively:
 
 - Before making schema changes, use \`list_tables\` to understand the existing structure

@@ -28,7 +28,7 @@ import {
 import { createSupabaseApiPlatform } from './platform/api-platform.js';
 import type { SupabasePlatform } from './platform/types.js';
 import { BRANCH_COST_HOURLY, PROJECT_COST_MONTHLY } from './pricing.js';
-import { createSupabaseMcpServer } from './server.js';
+import { createSupabaseMcpServer, instructions } from './server.js';
 import {
   createToolSchemas,
   supabaseMcpToolSchemas,
@@ -129,6 +129,13 @@ async function setup(options: SetupOptions = {}) {
 
   return { client, clientTransport, callTool, server, serverTransport };
 }
+
+describe('init', () => {
+  test('server returns instructions', async () => {
+    const { client } = await setup();
+    expect(client.getInstructions()).toBe(instructions);
+  });
+});
 
 describe('tools', () => {
   test('list organizations', async () => {

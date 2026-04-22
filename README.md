@@ -1,6 +1,7 @@
 # Supabase MCP Server
 
 [![MCP Registry Version](https://img.shields.io/badge/dynamic/json?url=https%3A%2F%2Fregistry.modelcontextprotocol.io%2Fv0.1%2Fservers%2Fcom.supabase%252Fmcp%2Fversions%2Flatest&query=%24.server.version&label=MCP%20Registry&logo=modelcontextprotocol)](https://registry.modelcontextprotocol.io/?q=com.supabase%2Fmcp)
+[![Add to Kiro](https://kiro.dev/images/add-to-kiro.svg)](https://kiro.dev/launch/mcp/add?name=supabase&config=%7B%22type%22%3A%22http%22%2C%22url%22%3A%22https%3A%2F%2Fmcp.supabase.com%2Fmcp%22%7D)
 
 > Connect your Supabase projects to Cursor, Claude, Windsurf, and other AI assistants.
 
@@ -35,6 +36,21 @@ Most MCP clients require the following information:
 ```
 
 If you don't see your MCP client listed in our documentation, check your client's MCP documentation and copy the above MCP information into their expected format (json, yaml, etc).
+
+#### Kiro
+
+To install in [Kiro](https://kiro.dev), click the badge above or manually add the following to your Kiro MCP config file (`.kiro/settings/mcp.json` or `~/.kiro/settings/mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "supabase": {
+      "type": "http",
+      "url": "https://mcp.supabase.com/mcp"
+    }
+  }
+}
+```
 
 #### CLI
 
@@ -247,8 +263,8 @@ for (const step of await result.steps) {
 `createToolSchemas()` accepts similar filtering options as the MCP server's URL parameters:
 
 - `features`: Restrict to specific [feature groups](#feature-groups) (e.g. `['database', 'docs']`). Defaults to all default feature groups.
-- `projectScoped`: When `true`, omits `project_id` from tool input schemas and excludes account-level tools — use when connecting to a server configured with `project_ref`. Defaults to `false`.
-- `readOnly`: When `true`, excludes mutating tools — use when connecting to a server configured with `read_only=true`. Defaults to `false`.
+- `projectScoped`: When `true`, omits `project_id` from tool input schemas and excludes account-level tools - use when connecting to a server configured with `project_ref`. Defaults to `false`.
+- `readOnly`: When `true`, excludes mutating tools - use when connecting to a server configured with `read_only=true`. Defaults to `false`.
 
 ```ts
 const mcpClient = await createMCPClient({

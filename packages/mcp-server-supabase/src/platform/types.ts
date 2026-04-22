@@ -109,10 +109,10 @@ export const deployEdgeFunctionOptionsSchema = z.object({
   verify_jwt: z.boolean().optional(),
   files: z.array(
     z.object({
-      name: z.string(),
-      content: z.string(),
+      name: z.string().max(255),
+      content: z.string().max(5 * 1024 * 1024),
     })
-  ),
+  ).max(50),
 });
 
 export const executeSqlOptionsSchema = z.object({

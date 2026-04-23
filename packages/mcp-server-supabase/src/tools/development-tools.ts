@@ -41,7 +41,7 @@ const generateTypescriptTypesOutputSchema = generateTypescriptTypesResultSchema;
 
 export const developmentToolDefs = {
   get_project_url: {
-    description: 'Gets the API URL for a project.',
+    description: 'Retrieve the API URL for a Supabase project to enable programmatic access. Use when the user wants to connect their application or configure API endpoints for database operations. Do not use when you need general project information like region or plan details (use get_project instead). Accepts `project_ref` (required), e.g., "abcdefghijklmnop". Returns the full API URL such as "https://abcdefghijklmnop.supabase.co". Raises an error if the project reference is invalid or the user lacks access permissions.',
     parameters: getProjectUrlInputSchema,
     outputSchema: getProjectUrlOutputSchema,
     annotations: {
@@ -54,7 +54,7 @@ export const developmentToolDefs = {
   },
   get_publishable_keys: {
     description:
-      'Gets all publishable API keys for a project, including legacy anon keys (JWT-based) and modern publishable keys (format: sb_publishable_...). Publishable keys are recommended for new applications due to better security and independent rotation. Legacy anon keys are included for compatibility, as many LLMs are pretrained on them. Disabled keys are indicated by the "disabled" field; only use keys where disabled is false or undefined.',
+      'Retrieve all publishable API keys for a Supabase project, including legacy anon keys and modern publishable keys. Use when the user wants to access API credentials for connecting applications or troubleshooting authentication issues. Do not use when you need general project information (use get_project instead). Accepts `project_id` (required). Returns both JWT-based anon keys and sb_publishable_ format keys, e.g., "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9..." or "sb_publishable_abc123...". Only use keys where disabled is false or undefined. Raises an error if the project does not exist or access is denied.',
     parameters: getPublishableKeysInputSchema,
     outputSchema: getPublishableKeysOutputSchema,
     annotations: {
@@ -66,7 +66,7 @@ export const developmentToolDefs = {
     },
   },
   generate_typescript_types: {
-    description: 'Generates TypeScript types for a project.',
+    description: 'Generate TypeScript type definitions for a project's codebase or configuration files. Use when the user wants to create type-safe interfaces, convert JavaScript to TypeScript, or generate types from existing schemas. Accepts `project_path` (required directory or file path) and `output_format` (optional: "interface" or "type"). e.g., project_path="./src" or output_format="interface". Do not use when you need to list available projects first (use list_projects instead). Raises an error if the specified path does not exist or contains invalid syntax.',
     parameters: generateTypescriptTypesInputSchema,
     outputSchema: generateTypescriptTypesOutputSchema,
     annotations: {

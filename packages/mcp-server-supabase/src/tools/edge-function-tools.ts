@@ -6,6 +6,7 @@ import {
   edgeFunctionWithBodySchema,
 } from '../platform/types.js';
 import { injectableTool, type ToolDefs } from './util.js';
+import path from 'path';
 
 type EdgeFunctionToolsOptions = {
   functions: EdgeFunctionsOperations;
@@ -48,7 +49,17 @@ const deployEdgeFunctionInputSchema = z.object({
   files: z
     .array(
       z.object({
-        name: z.string(),
+        name: z.string().refine(
+          (filePath) => {
+            const resolved = path.resolve(process.cwd(), filePath);
+            const normalized = path.normalize(resolved);
+            const cwd = process.cwd();
+            return normalized.startsWith(cwd + path.sep) || normalized === cwd;
+          },
+          {
+            message: 'Name must be a path inside the current working directory',
+          }
+        ),
         content: z.string(),
       })
     )

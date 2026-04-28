@@ -115,6 +115,4 @@ jobs:
       - name: Publish to MCP registry
         if: ${{ steps.release.outputs.releases_created }}
         working-directory: packages/mcp-server-supabase
-        run: |
-          pnpm registry:update
-          pnpm registry:publish
+        run: pnpm registry:publish

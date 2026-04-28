@@ -52,6 +52,8 @@ export type ResourceTemplate<Uri extends string = string, Result = unknown> = {
 
 export type Tool<
   Params extends z.ZodObject<any> = z.ZodObject<any>,
+  // MCP spec restricts outputSchema to type "object" at the root level:
+  // https://modelcontextprotocol.io/specification/2025-11-25/schema#tool-outputschema
   OutputSchema extends z.ZodObject<any> = z.ZodObject<any>,
 > = {
   description: Prop<string>;

@@ -261,7 +261,7 @@ describe('tools', () => {
       throw new Error('no content');
     }
 
-    const result = JSON.parse(firstContent.text);
+    const { result } = JSON.parse(firstContent.text);
 
     expect(result).toMatchInlineSnapshot([
       {
@@ -320,7 +320,7 @@ describe('tools', () => {
       throw new Error('no content');
     }
 
-    const [result] = JSON.parse(firstContent.text);
+    const [result] = JSON.parse(firstContent.text).result;
 
     expect(result).toMatchObject({
       title: 'Test',
@@ -355,7 +355,7 @@ describe('tools', () => {
       throw new Error('no content');
     }
 
-    const result = JSON.parse(firstContent.text);
+    const { result } = JSON.parse(firstContent.text);
 
     expect(Array.isArray(result)).toBe(true);
     expect(result[0]).toMatchObject({ title: 'Buy groceries' });

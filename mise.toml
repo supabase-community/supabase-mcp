@@ -4,5 +4,5 @@ lockfile = true
 
 [tools]
 node = "lts"
-pnpm = "latest"
+pnpm = "10"
 "github:modelcontextprotocol/registry" = "latest"

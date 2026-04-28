@@ -50,11 +50,11 @@ export type ResourceTemplate<Uri extends string = string, Result = unknown> = {
   ): Promise<Result>;
 };
 
-type RecordSchema = z.ZodObject<any> | z.ZodRecord<any, any>;
-
 export type Tool<
   Params extends z.ZodObject<any> = z.ZodObject<any>,
-  OutputSchema extends RecordSchema = RecordSchema,
+  // MCP spec restricts outputSchema to type "object" at the root level:
+  // https://modelcontextprotocol.io/specification/2025-11-25/schema#tool-outputschema
+  OutputSchema extends z.ZodObject<any> = z.ZodObject<any>,
 > = {
   description: Prop<string>;
   annotations?: Annotations;
@@ -169,7 +169,7 @@ export function jsonResourceResponse<Uri extends string, Response>(
  */
 export function tool<
   Params extends z.ZodObject<any>,
-  OutputSchema extends RecordSchema,
+  OutputSchema extends z.ZodObject<any>,
 >(tool: Tool<Params, OutputSchema>) {
   return tool;
 }

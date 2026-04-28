@@ -1,13 +1,14 @@
 {
   "scripts": {
-    "build": "pnpm --filter @supabase/mcp-utils --filter @supabase/mcp-server-supabase build",
-    "test": "pnpm --parallel --filter @supabase/mcp-utils --filter @supabase/mcp-server-supabase test",
+    "build": "pnpm --filter @supabase/mcp-utils --filter @supabase/mcp-server-supabase --filter @supabase/mcp-server-postgrest build",
+    "test": "pnpm --parallel --filter @supabase/mcp-utils --filter @supabase/mcp-server-supabase --filter @supabase/mcp-server-postgrest test",
     "test:coverage": "pnpm --filter @supabase/mcp-server-supabase test:coverage",
     "format": "biome check --write .",
     "format:check": "biome check ."
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
+    "pkg-pr-new": "^0.0.68",
     "supabase": "^2.1.1"
   }
 }

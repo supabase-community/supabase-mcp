@@ -74,6 +74,7 @@ export function createPostgrestMcpServer(options: PostgrestMcpServerOptions) {
             ])
             .optional(),
         }),
+        outputSchema: z.object({ result: z.unknown() }),
         async execute({ method, path, body }) {
           // normalize path concating to apiUrl
           const { pathname, search } = new URL(path, 'http://mock/');
@@ -92,7 +93,7 @@ export function createPostgrestMcpServer(options: PostgrestMcpServerOptions) {
             body: body ? JSON.stringify(body) : undefined,
           });
 
-          return await response.json();
+          return { result: await response.json() };
         },
       }),
       sqlToRest: tool({
@@ -100,6 +101,10 @@ export function createPostgrestMcpServer(options: PostgrestMcpServerOptions) {
           'Converts SQL query to a PostgREST API request (method, path)',
         parameters: z.object({
           sql: z.string(),
+        }),
+        outputSchema: z.object({
+          method: z.string(),
+          path: z.string(),
         }),
         execute: async ({ sql }) => {
           const statement = await processSql(sql);

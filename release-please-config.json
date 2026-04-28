@@ -10,7 +10,8 @@
       "package-name": "@supabase/mcp-utils",
       "changelog-path": "CHANGELOG.md",
       "bump-minor-pre-major": true,
-      "bump-patch-for-minor-pre-major": false
+      "bump-patch-for-minor-pre-major": false,
+      "skip-github-release": true
     },
     "packages/mcp-server-supabase": {
       "release-type": "node",
@@ -18,6 +19,7 @@
       "changelog-path": "CHANGELOG.md",
       "bump-minor-pre-major": true,
       "bump-patch-for-minor-pre-major": false,
+      "include-component-in-tag": false,
       "extra-files": [
         {
           "type": "json",
@@ -36,7 +38,8 @@
       "package-name": "@supabase/mcp-server-postgrest",
       "changelog-path": "CHANGELOG.md",
       "bump-minor-pre-major": true,
-      "bump-patch-for-minor-pre-major": false
+      "bump-patch-for-minor-pre-major": false,
+      "skip-github-release": true
     }
   }
 }

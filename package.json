@@ -8,6 +8,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "1.9.4",
+    "pkg-pr-new": "^0.0.68",
     "supabase": "^2.1.1"
   }
 }

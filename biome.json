@@ -9,6 +9,9 @@
     "ignoreUnknown": false,
     "ignore": [
       "**/dist",
+      "**/CHANGELOG.md",
+      ".release-please-manifest.json",
+      "**/package.json",
       "packages/mcp-server-supabase/src/management-api/types.ts"
     ]
   },

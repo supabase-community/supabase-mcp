@@ -31,7 +31,11 @@ jobs:
         with:
           token: ${{ steps.generate-token.outputs.token }}
 
-      # Everything below only runs when a release PR is merged
+      # Everything below only runs when a release PR is merged.
+      # Shared setup steps gate on releases_created (true if any package released).
+      # Per-package publish steps gate on <path>--release_created so only the
+      # released package(s) are published each run.
+      # Ref: https://github.com/googleapis/release-please-action#path-outputs
 
       - name: Checkout repository
         uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4.3.1
@@ -53,7 +57,7 @@ jobs:
         run: pnpm --filter @supabase/mcp-utils --filter @supabase/mcp-server-supabase --filter @supabase/mcp-server-postgrest build
 
       - name: Publish @supabase/mcp-utils to npm
-        if: ${{ steps.release.outputs.releases_created }}
+        if: ${{ steps.release.outputs['packages/mcp-utils--release_created'] }}
         working-directory: packages/mcp-utils
         run: |
           set -euo pipefail
@@ -73,7 +77,7 @@ jobs:
           pnpm publish --no-git-checks --ignore-scripts --access public --provenance
 
       - name: Publish @supabase/mcp-server-supabase to npm
-        if: ${{ steps.release.outputs.releases_created }}
+        if: ${{ steps.release.outputs['packages/mcp-server-supabase--release_created'] }}
         working-directory: packages/mcp-server-supabase
         run: |
           set -euo pipefail
@@ -93,7 +97,7 @@ jobs:
           pnpm publish --no-git-checks --ignore-scripts --access public --provenance
 
       - name: Publish @supabase/mcp-server-postgrest to npm
-        if: ${{ steps.release.outputs.releases_created }}
+        if: ${{ steps.release.outputs['packages/mcp-server-postgrest--release_created'] }}
         working-directory: packages/mcp-server-postgrest
         run: |
           set -euo pipefail
@@ -113,6 +117,6 @@ jobs:
           pnpm publish --no-git-checks --ignore-scripts --access public --provenance
 
       - name: Publish to MCP registry
-        if: ${{ steps.release.outputs.releases_created }}
+        if: ${{ steps.release.outputs['packages/mcp-server-supabase--release_created'] }}
         working-directory: packages/mcp-server-supabase
         run: pnpm registry:publish

@@ -1,7 +1,7 @@
 {
   "name": "@supabase/mcp-server-supabase",
   "mcpName": "com.supabase/mcp",
-  "version": "0.7.0",
+  "version": "0.8.0",
   "description": "MCP server for interacting with Supabase",
   "license": "Apache-2.0",
   "repository": {
@@ -28,7 +28,9 @@
     "test:coverage": "vitest --coverage",
     "generate:management-api-types": "openapi-typescript https://api.supabase.com/api/v1-json -o ./src/management-api/types.ts"
   },
-  "files": ["dist/**/*"],
+  "files": [
+    "dist/**/*"
+  ],
   "bin": {
     "mcp-server-supabase": "./dist/transports/stdio.js"
   },

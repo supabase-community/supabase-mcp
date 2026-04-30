@@ -2630,21 +2630,15 @@ export interface components {
         UpdateCustomHostnameBody: {
             custom_hostname: string;
         };
-        JitAccessResponse: {
-            /** Format: uuid */
-            user_id: string;
-            user_roles: {
-                role: string;
-                expires_at?: number;
-                allowed_networks?: {
-                    allowed_cidrs?: {
-                        cidr: string;
-                    }[];
-                    allowed_cidrs_v6?: {
-                        cidr: string;
-                    }[];
-                };
-            }[];
+        JitStateResponse: {
+            /** @enum {string} */
+            state: "enabled" | "disabled";
+            appliedSuccessfully?: boolean;
+        } | {
+            /** @enum {string} */
+            state: "unavailable";
+            /** @enum {string} */
+            unavailableReason: "manual_migration_required" | "postgres_upgrade_required" | "temporarily_unavailable";
         };
         /** @example {
          *       "state": "enabled"
@@ -3892,6 +3886,22 @@ export interface components {
         };
         V1UpdatePasswordResponse: {
             message: string;
+        };
+        JitAccessResponse: {
+            /** Format: uuid */
+            user_id: string;
+            user_roles: {
+                role: string;
+                expires_at?: number;
+                allowed_networks?: {
+                    allowed_cidrs?: {
+                        cidr: string;
+                    }[];
+                    allowed_cidrs_v6?: {
+                        cidr: string;
+                    }[];
+                };
+            }[];
         };
         /** @example {
          *       "role": "postgres",
@@ -6485,7 +6495,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["JitAccessResponse"];
+                    "application/json": components["schemas"]["JitStateResponse"];
                 };
             };
             /** @description Unauthorized */
@@ -6539,7 +6549,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["JitAccessResponse"];
+                    "application/json": components["schemas"]["JitStateResponse"];
                 };
             };
             /** @description Unauthorized */

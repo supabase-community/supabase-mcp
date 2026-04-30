@@ -1,4 +1,5 @@
 {
+  "bootstrap-sha": "0b10f58d11deb0afcb1c81020c6dfd933994c4a3",
   "packages": {
     "packages/mcp-utils": {
       "release-type": "node",

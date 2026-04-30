@@ -16,7 +16,7 @@ export const storageBucketSchema = z.object({
 });
 
 export const storageConfigSchema = z.object({
-  fileSizeLimit: z.number(),
+  fileSizeLimit: z.number().int().min(0).max(536_870_912_000), // 500GB
   features: z.object({
     imageTransformation: z.object({ enabled: z.boolean() }),
     s3Protocol: z.object({ enabled: z.boolean() }),
@@ -88,14 +88,14 @@ export const edgeFunctionWithBodySchema = edgeFunctionSchema.extend({
 });
 
 export const createProjectOptionsSchema = z.object({
-  name: z.string(),
+  name: z.string().min(1).max(256),
   organization_id: z.string(),
   region: z.enum(AWS_REGION_CODES),
   db_pass: z.string().optional(),
 });
 
 export const createBranchOptionsSchema = z.object({
-  name: z.string(),
+  name: z.string().min(1),
 });
 
 export const resetBranchOptionsSchema = z.object({
@@ -103,7 +103,7 @@ export const resetBranchOptionsSchema = z.object({
 });
 
 export const deployEdgeFunctionOptionsSchema = z.object({
-  name: z.string(),
+  name: z.string().regex(/^[A-Za-z][A-Za-z0-9_-]*$/),
   entrypoint_path: z.string(),
   import_map_path: z.string().optional(),
   verify_jwt: z.boolean().optional(),
@@ -116,14 +116,14 @@ export const deployEdgeFunctionOptionsSchema = z.object({
 });
 
 export const executeSqlOptionsSchema = z.object({
-  query: z.string(),
+  query: z.string().min(1),
   parameters: z.array(z.unknown()).optional(),
   read_only: z.boolean().optional(),
 });
 
 export const applyMigrationOptionsSchema = z.object({
-  name: z.string(),
-  query: z.string(),
+  name: z.string().min(1),
+  query: z.string().min(1),
 });
 
 export const migrationSchema = z.object({

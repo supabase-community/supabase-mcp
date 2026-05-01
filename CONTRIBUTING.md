@@ -60,13 +60,12 @@ This is only needed if the automated publish failed or needs to be re-run manual
 
 ### Dependencies
 
-You will need `mcp-publisher` installed ([quickstart](https://modelcontextprotocol.io/registry/quickstart)):
+You will need `mcp-publisher` installed ([quickstart](https://modelcontextprotocol.io/registry/quickstart)). Use the version pinned in `MCP_PUBLISHER_VERSION` in `.github/workflows/release.yml` (see [releases](https://github.com/modelcontextprotocol/registry/releases) for the latest):
 
 ```bash
-curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher && sudo mv mcp-publisher /usr/local/bin/
+VERSION=<MCP_PUBLISHER_VERSION>  # from .github/workflows/release.yml
+curl -L "https://github.com/modelcontextprotocol/registry/releases/download/v${VERSION}/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher && sudo mv mcp-publisher /usr/local/bin/
 ```
-
-For version consistency with CI, use the version pinned in `MCP_PUBLISHER_VERSION` in `.github/workflows/release.yml`.
 
 ### Steps
 

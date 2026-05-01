@@ -5,3 +5,14 @@ lockfile = true
 [tools]
 node = "lts"
 pnpm = "10"
+
+[tools."github:modelcontextprotocol/registry"]
+version = "latest"
+
+[tools."github:modelcontextprotocol/registry".platforms]
+linux-x64 = { asset_pattern = "mcp-publisher_linux_amd64.tar.gz" }
+linux-arm64 = { asset_pattern = "mcp-publisher_linux_arm64.tar.gz" }
+macos-x64 = { asset_pattern = "mcp-publisher_darwin_amd64.tar.gz" }
+macos-arm64 = { asset_pattern = "mcp-publisher_darwin_arm64.tar.gz" }
+windows-x64 = { asset_pattern = "mcp-publisher_windows_amd64.tar.gz" }
+windows-arm64 = { asset_pattern = "mcp-publisher_windows_arm64.tar.gz" }

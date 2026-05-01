@@ -10,6 +10,9 @@ permissions:
   pull-requests: write
   id-token: write # required for npm OIDC trusted publishing
 
+env:
+  MCP_PUBLISHER_VERSION: "1.7.2"
+
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
@@ -115,6 +118,16 @@ jobs:
           fi
           rm -f "$NPM_VIEW_STDERR"
           pnpm publish --no-git-checks --ignore-scripts --access public --provenance
+
+      - name: Install mcp-publisher
+        if: ${{ steps.release.outputs['packages/mcp-server-supabase--release_created'] }}
+        run: |
+          curl -fsSL "https://github.com/modelcontextprotocol/registry/releases/download/v${{ env.MCP_PUBLISHER_VERSION }}/mcp-publisher_linux_amd64.tar.gz" | tar xz mcp-publisher
+          sudo mv mcp-publisher /usr/local/bin/mcp-publisher
+
+      - name: Authenticate to MCP registry
+        if: ${{ steps.release.outputs['packages/mcp-server-supabase--release_created'] }}
+        run: mcp-publisher login github-oidc
 
       - name: Publish to MCP registry
         if: ${{ steps.release.outputs['packages/mcp-server-supabase--release_created'] }}

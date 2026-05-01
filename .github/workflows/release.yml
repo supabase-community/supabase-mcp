@@ -119,7 +119,10 @@ jobs:
 
       - name: Authenticate to MCP registry
         if: ${{ steps.release.outputs['packages/mcp-server-supabase--release_created'] }}
-        run: mcp-publisher login github-oidc
+        working-directory: packages/mcp-server-supabase
+        env:
+          DOMAIN_VERIFICATION_KEY: ${{ secrets.DOMAIN_VERIFICATION_KEY }}
+        run: pnpm registry:login
 
       - name: Publish to MCP registry
         if: ${{ steps.release.outputs['packages/mcp-server-supabase--release_created'] }}

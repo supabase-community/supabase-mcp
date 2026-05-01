@@ -52,13 +52,21 @@ Releases are automated via [release-please](https://github.com/googleapis/releas
 
 Most contributors don't need to do anything beyond merging the release PR.
 
+If the release PR gets into a bad state, close it and manually re-run the workflow from the [Actions tab](https://github.com/supabase-community/supabase-mcp/actions/workflows/release.yml) → **Run workflow**. release-please will recreate the PR from scratch.
+
 ## Manual MCP registry publish (optional)
 
 This is only needed if the automated publish failed or needs to be re-run manually. The MCP registry stores metadata about the server (defined in `packages/mcp-server-supabase/server.json`) — it does not host the server itself.
 
 ### Dependencies
 
-You will need `mcp-publisher` installed. See the [MCP registry quickstart](https://modelcontextprotocol.io/registry/quickstart) for installation instructions. For version consistency with CI, use the version pinned in `MCP_PUBLISHER_VERSION` in `.github/workflows/release.yml`.
+You will need `mcp-publisher` installed ([quickstart](https://modelcontextprotocol.io/registry/quickstart)):
+
+```bash
+curl -L "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher && sudo mv mcp-publisher /usr/local/bin/
+```
+
+For version consistency with CI, use the version pinned in `MCP_PUBLISHER_VERSION` in `.github/workflows/release.yml`.
 
 ### Steps
 

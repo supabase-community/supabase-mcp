@@ -13,11 +13,6 @@ export const graphqlRequestSchema = z.object({
   variables: z.record(z.string(), z.unknown()).optional(),
 });
 
-export const graphqlResponseSuccessSchema = z.object({
-  data: z.record(z.string(), z.unknown()),
-  errors: z.undefined(),
-});
-
 export const graphqlErrorSchema = z.object({
   message: z.string(),
   locations: z.array(
@@ -28,15 +23,10 @@ export const graphqlErrorSchema = z.object({
   ),
 });
 
-export const graphqlResponseErrorSchema = z.object({
-  data: z.undefined(),
-  errors: z.array(graphqlErrorSchema),
+export const graphqlResponseSchema = z.object({
+  data: z.record(z.string(), z.unknown()).nullish(),
+  errors: z.array(graphqlErrorSchema).optional(),
 });
-
-export const graphqlResponseSchema = z.union([
-  graphqlResponseSuccessSchema,
-  graphqlResponseErrorSchema,
-]);
 
 export type GraphQLRequest = z.infer<typeof graphqlRequestSchema>;
 export type GraphQLResponse = z.infer<typeof graphqlResponseSchema>;
@@ -195,7 +185,7 @@ export class GraphQLClient {
       );
     }
 
-    if (data.errors) {
+    if (data.errors?.length) {
       throw new Error(
         `Supabase Content API GraphQL error: ${data.errors
           .map(
@@ -204,6 +194,10 @@ export class GraphQLClient {
           )
           .join(', ')}`
       );
+    }
+
+    if (!data.data) {
+      throw new Error('Supabase Content API returned no data');
     }
 
     return data.data;

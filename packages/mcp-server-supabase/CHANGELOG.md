@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.1](https://github.com/supabase-community/supabase-mcp/compare/mcp-server-supabase-v0.8.0...mcp-server-supabase-v0.8.1) (2026-05-01)
+
+
+### Bug Fixes
+
+* tools not loading on stdio server ([#269](https://github.com/supabase-community/supabase-mcp/issues/269)) ([29acd6c](https://github.com/supabase-community/supabase-mcp/commit/29acd6c6efca82d1e1d2b55c160b74beb8dcc6ab)), closes [#261](https://github.com/supabase-community/supabase-mcp/issues/261)
+
 ## [0.8.0](https://github.com/supabase-community/supabase-mcp/compare/mcp-server-supabase-v0.7.0...mcp-server-supabase-v0.8.0) (2026-04-30)
 
 

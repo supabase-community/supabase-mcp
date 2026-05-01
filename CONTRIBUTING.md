@@ -46,7 +46,7 @@ Optionally, configure `--api-url` to point at a different Supabase instance (def
 
 Releases are automated via [release-please](https://github.com/googleapis/release-please). It tracks commits on `main` and opens a release PR when there are releasable changes (`fix:` or `feat:`). Merging that PR:
 
-1. Creates a GitHub release and git tag for each pacakge
+1. Creates a GitHub release and git tag for each package
 2. Publishes updated packages to npm
 3. Publishes the MCP server to the [MCP registry](https://registry.modelcontextprotocol.io)
 

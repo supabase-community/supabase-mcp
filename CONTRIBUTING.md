@@ -4,7 +4,7 @@
 
 This repo uses pnpm for package management and the active LTS version of Node.js. Node.js and pnpm versions are managed via [mise](https://mise.jdx.dev/) (see `mise.toml`).
 
-> **Why mise?** We use mise to ensure all contributors use consistent versions of tools, reducing instances where code behaves differently on different machines.
+> **Why mise?** We use mise to ensure all contributors use consistent versions of tools, reducing instances where code behaves differently on different machines. This is useful not only for managing Node.js and pnpm versions, but also binaries published outside of the npm ecosystem such as the [MCP Publisher CLI](https://modelcontextprotocol.io/registry/quickstart).
 
 Clone the repo and run:
 
@@ -60,11 +60,10 @@ This is only needed if the automated publish failed or needs to be re-run manual
 
 ### Dependencies
 
-You will need `mcp-publisher` installed ([quickstart](https://modelcontextprotocol.io/registry/quickstart)). Use the version pinned in `MCP_PUBLISHER_VERSION` in `.github/workflows/release.yml` (see [releases](https://github.com/modelcontextprotocol/registry/releases) for the latest):
+You will need `mcp-publisher` installed. It's already pinned in `mise.toml`, so if you have mise set up just run:
 
 ```bash
-VERSION=<MCP_PUBLISHER_VERSION>  # from .github/workflows/release.yml
-curl -L "https://github.com/modelcontextprotocol/registry/releases/download/v${VERSION}/mcp-publisher_$(uname -s | tr '[:upper:]' '[:lower:]')_$(uname -m | sed 's/x86_64/amd64/;s/aarch64/arm64/').tar.gz" | tar xz mcp-publisher && sudo mv mcp-publisher /usr/local/bin/
+mise install
 ```
 
 ### Steps

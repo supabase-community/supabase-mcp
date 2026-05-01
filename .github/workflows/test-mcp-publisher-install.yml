@@ -1,7 +1,7 @@
 name: Test mcp-publisher install
 
 on:
-  workflow_dispatch:
+  push:
 
 env:
   MCP_PUBLISHER_VERSION: "1.7.2"

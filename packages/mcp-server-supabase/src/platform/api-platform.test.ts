@@ -24,13 +24,11 @@ describe('createSupabaseApiPlatform with custom fetch', () => {
       fetch: app.fetch.bind(app),
     });
 
-    // Destructure so TypeScript can narrow the type after the guard below.
-    const { account } = platform;
-    if (!account) {
+    if (!platform.account) {
       throw new Error('account should be defined on the API platform');
     }
 
-    const result = await account.listProjects();
+    const result = await platform.account.listProjects();
     expect(result).toHaveLength(1);
     expect(result[0]?.name).toBe('Test Project');
   });

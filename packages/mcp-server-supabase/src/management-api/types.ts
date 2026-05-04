@@ -1941,6 +1941,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/projects/{ref}/database/backups/restore": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restores a physical backup for a database */
+        post: operations["v1-restore-physical-backup"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/projects/{ref}/database/backups/undo": {
         parameters: {
             query?: never;
@@ -4630,6 +4647,7 @@ export interface components {
             walg_enabled: boolean;
             pitr_enabled: boolean;
             backups: {
+                id: number;
                 is_physical_backup: boolean;
                 /** @enum {string} */
                 status: "COMPLETED" | "FAILED" | "PENDING" | "REMOVED" | "ARCHIVED" | "CANCELLED";
@@ -4659,6 +4677,12 @@ export interface components {
             status: "AVAILABLE" | "PENDING" | "REMOVED" | "FAILED";
             /** Format: date-time */
             completed_on: string | null;
+        };
+        /** @example {
+         *       "id": 12345
+         *     } */
+        V1RestoreBackupBody: {
+            id: number;
         };
         /** @example {
          *       "name": "before-upgrade"
@@ -12131,6 +12155,51 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["V1RestorePointResponse"];
                 };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden action */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "v1-restore-physical-backup": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Project ref */
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["V1RestoreBackupBody"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Unauthorized */
             401: {

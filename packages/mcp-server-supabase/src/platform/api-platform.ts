@@ -57,6 +57,12 @@ export type SupabaseApiPlatformOptions = {
    * The API URL for the Supabase Management API.
    */
   apiUrl?: string;
+
+  /**
+   * Custom fetch implementation. Useful for in-process transports (e.g. a
+   * Hono app's `app.fetch`) so callers can avoid binding a real TCP port.
+   */
+  fetch?: (request: Request) => Response | Promise<Response>;
 };
 
 /**
@@ -65,13 +71,15 @@ export type SupabaseApiPlatformOptions = {
 export function createSupabaseApiPlatform(
   options: SupabaseApiPlatformOptions
 ): SupabasePlatform {
-  const { accessToken, apiUrl } = options;
+  const { accessToken, apiUrl, fetch } = options;
 
   const managementApiUrl = apiUrl ?? 'https://api.supabase.com';
 
   let managementApiClient = createManagementApiClient(
     managementApiUrl,
-    accessToken
+    accessToken,
+    {},
+    fetch
   );
 
   const account: AccountOperations = {
@@ -788,7 +796,8 @@ export function createSupabaseApiPlatform(
         accessToken,
         {
           'User-Agent': `supabase-mcp/${version} (${clientInfo.name}/${clientInfo.version})`,
-        }
+        },
+        fetch
       );
     },
     account,

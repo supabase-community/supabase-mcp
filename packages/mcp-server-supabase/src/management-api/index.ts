@@ -14,7 +14,8 @@ import type { paths } from './types.js';
 export function createManagementApiClient(
   baseUrl: string,
   accessToken: string,
-  headers: Record<string, string> = {}
+  headers: Record<string, string> = {},
+  fetch?: (request: Request) => Response | Promise<Response>
 ) {
   return createClient<paths>({
     baseUrl,
@@ -22,6 +23,7 @@ export function createManagementApiClient(
       Authorization: `Bearer ${accessToken}`,
       ...headers,
     },
+    fetch: fetch ? (request) => Promise.resolve(fetch(request)) : undefined,
   });
 }
 

@@ -130,6 +130,9 @@ importers:
       dotenv:
         specifier: ^16.5.0
         version: 16.6.1
+      hono:
+        specifier: ^4.7.10
+        version: 4.11.3
       msw:
         specifier: ^2.7.3
         version: 2.10.5(@types/node@22.17.2)(typescript@5.9.2)

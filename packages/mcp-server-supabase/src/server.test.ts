@@ -1731,6 +1731,42 @@ describe('tools', () => {
     );
   });
 
+  test('deploy edge function with invalid slug throws an error', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'test-org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'test-app',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const functionSlug = '[DEPRECATED] hello-world';
+    const functionCode = 'console.log("Hello, world!");';
+
+    const result = callTool({
+      name: 'deploy_edge_function',
+      arguments: {
+        project_id: project.id,
+        name: functionSlug,
+        files: [
+          {
+            name: 'index.ts',
+            content: functionCode,
+          },
+        ],
+      },
+    });
+
+    await expect(result).rejects.toThrow('Invalid string: must match pattern');
+  });
+
   test('deploy new version of existing edge function', async () => {
     const { callTool } = await setup();
     const org = await createOrganization({

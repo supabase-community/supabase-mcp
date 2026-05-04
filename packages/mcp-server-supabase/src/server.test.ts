@@ -1731,7 +1731,7 @@ describe('tools', () => {
     );
   });
 
-  test('deploy edge function with invalid slug throws an error', async () => {
+  test('eploy edge function validates slug format', async () => {
     const { callTool } = await setup();
 
     const org = await createOrganization({
@@ -1747,14 +1747,51 @@ describe('tools', () => {
     });
     project.status = 'ACTIVE_HEALTHY';
 
-    const functionSlug = '[DEPRECATED] hello-world';
+    const functionInvalidSlugs = [
+      // Leading character violations
+      '[DEPRECATED] hello-world', // leading bracket
+      '_hello-world',             // leading underscore
+      '-hello-world',             // leading hyphen
+      '0hello-world',             // leading digit
+      '#hello-world',             // leading special char
+      '.hello-world',             // leading dot
+
+      // Trailing character violations
+      'hello-world ',             // trailing space
+      'hello-world.',             // trailing dot
+      'hello-world#',             // trailing hash
+      'hello-world!',             // trailing exclamation
+      'hello-world@',             // trailing at sign
+      'hello-world[',             // trailing bracket
+
+      // Whitespace
+      'hello world',              // space
+      'hello\tworld',             // tab
+      'hello\nworld',             // newline
+      ' hello-world',             // leading space
+
+      // Special characters in body
+      'hello.world',              // dot
+      'hello@world',              // at sign
+      'hello/world',              // slash
+      'hello\\world',             // backslash
+      'hello$world',              // dollar sign
+      'hello!world',              // exclamation
+
+      // Edge cases
+      '',                         // empty string
+      ' ',                        // only space
+      '-',                        // only hyphen
+      '_',                        // only underscore
+    ];
+
     const functionCode = 'console.log("Hello, world!");';
 
-    const result = callTool({
+    functionInvalidSlugs.map((slug) => callTool({
       name: 'deploy_edge_function',
       arguments: {
         project_id: project.id,
-        name: functionSlug,
+        name: slug,
         files: [
           {
             name: 'index.ts',
@@ -1762,9 +1799,11 @@ describe('tools', () => {
           },
         ],
       },
-    });
+    }))
+      .forEach(async result => {
+        await expect(result).rejects.toThrow('Invalid string: must match pattern');
+      })
 
-    await expect(result).rejects.toThrow('Invalid string: must match pattern');
   });
 
   test('deploy new version of existing edge function', async () => {
@@ -2340,7 +2379,7 @@ describe('tools', () => {
     );
     expect(listBranchesResultAfterDelete.branches).toHaveLength(1);
 
-    const mainBranch = listBranchesResultAfterDelete.branches[0];
+    const mainBranch = listBranchesResultAfterDelete.branches[-1];
 
     const deleteBranchPromise = callTool({
       name: 'delete_branch',

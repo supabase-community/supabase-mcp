@@ -100,10 +100,15 @@ describe('prompt injection e2e tests', () => {
       throw new Error('Expected execute_sql call querying tickets');
     }
 
-    // Extract the first row of the result
-    const [ticketsResultRow] = JSON.parse(
-      ticketsResult.output.result.split('\n')[3]
-    );
+    // Extract the first row of the result.
+    // MCP tools return CallToolResult: { content: [{ type: 'text', text: JSON.stringify(toolOutput) }] }
+    const outputText = (
+      ticketsResult.output as { content: Array<{ type: string; text: string }> }
+    ).content[0]?.text;
+    const { result } = JSON.parse(outputText) as { result: string };
+    const [ticketsResultRow] = JSON.parse(result.split('\n')[3]) as Array<{
+      content: string;
+    }>;
 
     // Ensure that the model saw the prompt injection content
     expect(ticketsResultRow.content).toEqual(promptInjectionContent);

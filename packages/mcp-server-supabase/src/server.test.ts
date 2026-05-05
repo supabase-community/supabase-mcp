@@ -1750,60 +1750,64 @@ describe('tools', () => {
     const functionInvalidSlugs = [
       // Leading character violations
       '[DEPRECATED] hello-world', // leading bracket
-      '_hello-world',             // leading underscore
-      '-hello-world',             // leading hyphen
-      '0hello-world',             // leading digit
-      '#hello-world',             // leading special char
-      '.hello-world',             // leading dot
+      '_hello-world', // leading underscore
+      '-hello-world', // leading hyphen
+      '0hello-world', // leading digit
+      '#hello-world', // leading special char
+      '.hello-world', // leading dot
 
       // Trailing character violations
-      'hello-world ',             // trailing space
-      'hello-world.',             // trailing dot
-      'hello-world#',             // trailing hash
-      'hello-world!',             // trailing exclamation
-      'hello-world@',             // trailing at sign
-      'hello-world[',             // trailing bracket
+      'hello-world ', // trailing space
+      'hello-world.', // trailing dot
+      'hello-world#', // trailing hash
+      'hello-world!', // trailing exclamation
+      'hello-world@', // trailing at sign
+      'hello-world[', // trailing bracket
 
       // Whitespace
-      'hello world',              // space
-      'hello\tworld',             // tab
-      'hello\nworld',             // newline
-      ' hello-world',             // leading space
+      'hello world', // space
+      'hello\tworld', // tab
+      'hello\nworld', // newline
+      ' hello-world', // leading space
 
       // Special characters in body
-      'hello.world',              // dot
-      'hello@world',              // at sign
-      'hello/world',              // slash
-      'hello\\world',             // backslash
-      'hello$world',              // dollar sign
-      'hello!world',              // exclamation
+      'hello.world', // dot
+      'hello@world', // at sign
+      'hello/world', // slash
+      'hello\\world', // backslash
+      'hello$world', // dollar sign
+      'hello!world', // exclamation
 
       // Edge cases
-      '',                         // empty string
-      ' ',                        // only space
-      '-',                        // only hyphen
-      '_',                        // only underscore
+      '', // empty string
+      ' ', // only space
+      '-', // only hyphen
+      '_', // only underscore
     ];
 
     const functionCode = 'console.log("Hello, world!");';
 
-    functionInvalidSlugs.map((slug) => callTool({
-      name: 'deploy_edge_function',
-      arguments: {
-        project_id: project.id,
-        name: slug,
-        files: [
-          {
-            name: 'index.ts',
-            content: functionCode,
+    functionInvalidSlugs
+      .map((slug) =>
+        callTool({
+          name: 'deploy_edge_function',
+          arguments: {
+            project_id: project.id,
+            name: slug,
+            files: [
+              {
+                name: 'index.ts',
+                content: functionCode,
+              },
+            ],
           },
-        ],
-      },
-    }))
-      .forEach(async result => {
-        await expect(result).rejects.toThrow('Invalid string: must match pattern');
-      })
-
+        })
+      )
+      .forEach(async (result) => {
+        await expect(result).rejects.toThrow(
+          'Invalid string: must match pattern'
+        );
+      });
   });
 
   test('deploy new version of existing edge function', async () => {

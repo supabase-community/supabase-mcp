@@ -1446,6 +1446,41 @@ describe('tools', () => {
     }
   });
 
+  test('get logs forwards filtering options', async () => {
+    const getLogs = vi.fn(async () => [{ message: 'filtered log' }]);
+    const { callTool } = await setup({
+      features: ['debugging'],
+      platform: {
+        debugging: {
+          getLogs,
+          getSecurityAdvisors: vi.fn(),
+          getPerformanceAdvisors: vi.fn(),
+        },
+      },
+    });
+
+    const result = await callTool({
+      name: 'get_logs',
+      arguments: {
+        project_id: 'project-ref',
+        service: 'edge-function',
+        iso_timestamp_start: '2026-01-01T00:00:00.000Z',
+        iso_timestamp_end: '2026-01-01T00:05:00.000Z',
+        search: 'billing-worker',
+        limit: 25,
+      },
+    });
+
+    expect(result).toEqual({ result: [{ message: 'filtered log' }] });
+    expect(getLogs).toHaveBeenCalledWith('project-ref', {
+      service: 'edge-function',
+      iso_timestamp_start: '2026-01-01T00:00:00.000Z',
+      iso_timestamp_end: '2026-01-01T00:05:00.000Z',
+      search: 'billing-worker',
+      limit: 25,
+    });
+  });
+
   test('get security advisors', async () => {
     const { callTool } = await setup();
 

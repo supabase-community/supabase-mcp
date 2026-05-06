@@ -13,6 +13,39 @@ type DebuggingToolsOptions = {
 const getLogsInputSchema = z.object({
   project_id: z.string(),
   service: logsServiceSchema.describe('The service to fetch logs for'),
+  last_minutes: z
+    .number()
+    .int()
+    .min(1)
+    .max(1440)
+    .optional()
+    .describe(
+      'Fetch logs from the last N minutes. Defaults to the last 24 hours when no explicit start timestamp is provided.'
+    ),
+  iso_timestamp_start: z
+    .string()
+    .optional()
+    .describe('The ISO timestamp to start fetching logs from.'),
+  iso_timestamp_end: z
+    .string()
+    .optional()
+    .describe('The ISO timestamp to stop fetching logs at. Defaults to now.'),
+  search: z
+    .string()
+    .trim()
+    .min(1)
+    .max(256)
+    .optional()
+    .describe(
+      'Filters logs to rows containing this text in common log fields such as messages, paths, or edge function IDs.'
+    ),
+  limit: z
+    .number()
+    .int()
+    .min(1)
+    .max(1000)
+    .default(100)
+    .describe('Maximum number of log rows to return. Defaults to 100.'),
 });
 
 const getLogsOutputSchema = z.object({
@@ -33,7 +66,7 @@ const getAdvisorsOutputSchema = z.object({
 export const debuggingToolDefs = {
   get_logs: {
     description:
-      'Gets logs for a Supabase project by service type. Use this to help debug problems with your app. This will return logs within the last 24 hours.',
+      'Gets logs for a Supabase project by service type. Use this to help debug problems with your app. Defaults to the last 24 hours, with optional time window, search, and limit filters for focused debugging.',
     parameters: getLogsInputSchema,
     outputSchema: getLogsOutputSchema,
     annotations: {
@@ -69,14 +102,34 @@ export function getDebuggingTools({
     get_logs: injectableTool({
       ...debuggingToolDefs.get_logs,
       inject: { project_id },
-      execute: async ({ project_id, service }) => {
-        const startTimestamp = new Date(Date.now() - 24 * 60 * 60 * 1000); // Last 24 hours
-        const endTimestamp = new Date();
+      execute: async ({
+        project_id,
+        service,
+        last_minutes,
+        iso_timestamp_start,
+        iso_timestamp_end,
+        search,
+        limit,
+      }) => {
+        const endTimestamp = parseTimestamp(iso_timestamp_end) ?? new Date();
+        const startTimestamp =
+          parseTimestamp(iso_timestamp_start) ??
+          new Date(
+            endTimestamp.getTime() - (last_minutes ?? 24 * 60) * 60 * 1000
+          );
+
+        if (startTimestamp > endTimestamp) {
+          throw new Error(
+            'iso_timestamp_start must be before iso_timestamp_end.'
+          );
+        }
 
         const result = await debugging.getLogs(project_id, {
           service,
           iso_timestamp_start: startTimestamp.toISOString(),
           iso_timestamp_end: endTimestamp.toISOString(),
+          limit,
+          search,
         });
         return { result };
       },
@@ -100,4 +153,15 @@ export function getDebuggingTools({
       },
     }),
   };
+}
+
+function parseTimestamp(value?: string) {
+  if (!value) return undefined;
+
+  const timestamp = new Date(value);
+  if (Number.isNaN(timestamp.getTime())) {
+    throw new Error(`Invalid ISO timestamp: ${value}`);
+  }
+
+  return timestamp;
 }

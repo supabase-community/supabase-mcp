@@ -145,6 +145,8 @@ export const getLogsOptionsSchema = z.object({
   service: logsServiceSchema,
   iso_timestamp_start: z.string().optional(),
   iso_timestamp_end: z.string().optional(),
+  limit: z.number().int().min(1).max(1000).optional(),
+  search: z.string().trim().min(1).max(256).optional(),
 });
 
 export const generateTypescriptTypesResultSchema = z.object({

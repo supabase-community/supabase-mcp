@@ -15,3 +15,4 @@ catalog:
   '@modelcontextprotocol/sdk': ^1.25.2
   ai: ^6.0.100
   zod: ^3.25.0 || ^4.0.0
+minimumReleaseAge: 4320

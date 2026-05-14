@@ -13,6 +13,32 @@ type DebuggingToolsOptions = {
 const getLogsInputSchema = z.object({
   project_id: z.string(),
   service: logsServiceSchema.describe('The service to fetch logs for'),
+  minutes: z
+    .number()
+    .int()
+    .min(1)
+    .max(24 * 60)
+    .optional()
+    .describe(
+      'Optional lookback window in minutes. Defaults to 1440 minutes (24 hours).'
+    ),
+  limit: z
+    .number()
+    .int()
+    .min(1)
+    .max(1000)
+    .optional()
+    .describe(
+      'Optional maximum number of log rows to return. Defaults to 100.'
+    ),
+  search: z
+    .string()
+    .min(1)
+    .max(200)
+    .optional()
+    .describe(
+      'Optional case-insensitive text filter matched against log messages and service-specific fields.'
+    ),
 });
 
 const getLogsOutputSchema = z.object({
@@ -33,7 +59,7 @@ const getAdvisorsOutputSchema = z.object({
 export const debuggingToolDefs = {
   get_logs: {
     description:
-      'Gets logs for a Supabase project by service type. Use this to help debug problems with your app. This will return logs within the last 24 hours.',
+      'Gets logs for a Supabase project by service type. Use this to help debug problems with your app. Supports narrowing the lookback window, row limit, and text search to reduce noisy log output.',
     parameters: getLogsInputSchema,
     outputSchema: getLogsOutputSchema,
     annotations: {
@@ -69,14 +95,18 @@ export function getDebuggingTools({
     get_logs: injectableTool({
       ...debuggingToolDefs.get_logs,
       inject: { project_id },
-      execute: async ({ project_id, service }) => {
-        const startTimestamp = new Date(Date.now() - 24 * 60 * 60 * 1000); // Last 24 hours
+      execute: async ({ project_id, service, minutes, limit, search }) => {
+        const startTimestamp = new Date(
+          Date.now() - (minutes ?? 24 * 60) * 60 * 1000
+        );
         const endTimestamp = new Date();
 
         const result = await debugging.getLogs(project_id, {
           service,
           iso_timestamp_start: startTimestamp.toISOString(),
           iso_timestamp_end: endTimestamp.toISOString(),
+          limit,
+          search,
         });
         return { result };
       },

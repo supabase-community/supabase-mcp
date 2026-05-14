@@ -265,6 +265,15 @@ export type McpServerOptions = {
    * that can change after the server has started.
    */
   tools?: Prop<Record<string, Tool>>;
+
+  /**
+   * Optional tool subset to expose from `tools/list`.
+   *
+   * When omitted, `tools/list` uses the same tool set as tool calls. This lets
+   * servers hide tools from planning while still returning a clear runtime
+   * error if an older client calls a previously listed tool.
+   */
+  listedTools?: Prop<Record<string, Tool>>;
 };
 
 /**
@@ -314,6 +323,17 @@ export function createMcpServer(options: McpServerOptions) {
     return typeof options.tools === 'function'
       ? await options.tools()
       : options.tools;
+  }
+
+  async function getListedTools() {
+    if (!options.tools) {
+      throw new Error('tools not available');
+    }
+
+    const listedTools = options.listedTools ?? options.tools;
+    return typeof listedTools === 'function'
+      ? await listedTools()
+      : listedTools;
   }
 
   server.oninitialized = async () => {
@@ -449,7 +469,7 @@ export function createMcpServer(options: McpServerOptions) {
     server.setRequestHandler(
       ListToolsRequestSchema,
       async (): Promise<ListToolsResult> => {
-        const tools = await getTools();
+        const tools = await getListedTools();
 
         return {
           tools: await Promise.all(

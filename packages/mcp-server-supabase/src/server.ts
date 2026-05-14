@@ -67,6 +67,14 @@ const DEFAULT_FEATURES: FeatureGroup[] = [
 
 export const PLATFORM_INDEPENDENT_FEATURES: FeatureGroup[] = ['docs'];
 
+function removeWriteTools(tools: Record<string, Tool>) {
+  return Object.fromEntries(
+    Object.entries(tools).filter(
+      ([, tool]) => tool.annotations?.readOnlyHint !== false
+    )
+  );
+}
+
 export const instructions = `
 Here are guidelines for using Supabase tools effectively:
 
@@ -114,6 +122,68 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
     features ?? availableDefaultFeatures
   );
 
+  async function getTools() {
+    const contentApiClient = await contentApiClientPromise;
+    const tools: Record<string, Tool> = {};
+
+    const {
+      account,
+      database,
+      functions,
+      debugging,
+      development,
+      storage,
+      branching,
+    } = platform;
+
+    if (enabledFeatures.has('docs')) {
+      Object.assign(tools, getDocsTools({ contentApiClient }));
+    }
+
+    if (!projectId && account && enabledFeatures.has('account')) {
+      Object.assign(tools, getAccountTools({ account, readOnly }));
+    }
+
+    if (database && enabledFeatures.has('database')) {
+      Object.assign(
+        tools,
+        getDatabaseTools({
+          database,
+          projectId,
+          readOnly,
+        })
+      );
+    }
+
+    if (debugging && enabledFeatures.has('debugging')) {
+      Object.assign(tools, getDebuggingTools({ debugging, projectId }));
+    }
+
+    if (development && enabledFeatures.has('development')) {
+      Object.assign(tools, getDevelopmentTools({ development, projectId }));
+    }
+
+    if (functions && enabledFeatures.has('functions')) {
+      Object.assign(
+        tools,
+        getEdgeFunctionTools({ functions, projectId, readOnly })
+      );
+    }
+
+    if (branching && enabledFeatures.has('branching')) {
+      Object.assign(
+        tools,
+        getBranchingTools({ branching, projectId, readOnly })
+      );
+    }
+
+    if (storage && enabledFeatures.has('storage')) {
+      Object.assign(tools, getStorageTools({ storage, projectId, readOnly }));
+    }
+
+    return tools;
+  }
+
   const server = createMcpServer({
     name: 'supabase',
     title: 'Supabase',
@@ -133,66 +203,10 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       ]);
     },
     onToolCall,
-    tools: async () => {
-      const contentApiClient = await contentApiClientPromise;
-      const tools: Record<string, Tool> = {};
-
-      const {
-        account,
-        database,
-        functions,
-        debugging,
-        development,
-        storage,
-        branching,
-      } = platform;
-
-      if (enabledFeatures.has('docs')) {
-        Object.assign(tools, getDocsTools({ contentApiClient }));
-      }
-
-      if (!projectId && account && enabledFeatures.has('account')) {
-        Object.assign(tools, getAccountTools({ account, readOnly }));
-      }
-
-      if (database && enabledFeatures.has('database')) {
-        Object.assign(
-          tools,
-          getDatabaseTools({
-            database,
-            projectId,
-            readOnly,
-          })
-        );
-      }
-
-      if (debugging && enabledFeatures.has('debugging')) {
-        Object.assign(tools, getDebuggingTools({ debugging, projectId }));
-      }
-
-      if (development && enabledFeatures.has('development')) {
-        Object.assign(tools, getDevelopmentTools({ development, projectId }));
-      }
-
-      if (functions && enabledFeatures.has('functions')) {
-        Object.assign(
-          tools,
-          getEdgeFunctionTools({ functions, projectId, readOnly })
-        );
-      }
-
-      if (branching && enabledFeatures.has('branching')) {
-        Object.assign(
-          tools,
-          getBranchingTools({ branching, projectId, readOnly })
-        );
-      }
-
-      if (storage && enabledFeatures.has('storage')) {
-        Object.assign(tools, getStorageTools({ storage, projectId, readOnly }));
-      }
-
-      return tools;
+    tools: getTools,
+    listedTools: async () => {
+      const tools = await getTools();
+      return readOnly ? removeWriteTools(tools) : tools;
     },
   });
 

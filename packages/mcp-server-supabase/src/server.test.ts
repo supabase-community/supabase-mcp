@@ -3016,6 +3016,38 @@ describe('tools', () => {
     }
   });
 
+  test('read-only mode excludes write tools from tools/list', async () => {
+    const { client } = await setup({
+      readOnly: true,
+      features: [
+        'docs',
+        'account',
+        'database',
+        'debugging',
+        'development',
+        'functions',
+        'branching',
+        'storage',
+      ],
+    });
+
+    const { tools } = await client.listTools();
+    const toolNames = tools.map((tool) => tool.name);
+
+    expect(toolNames).toContain('execute_sql');
+    expect(toolNames).not.toContain('apply_migration');
+    expect(toolNames).not.toContain('deploy_edge_function');
+    expect(toolNames).not.toContain('create_branch');
+    expect(toolNames).not.toContain('delete_branch');
+    expect(toolNames).not.toContain('update_storage_config');
+
+    expect(
+      tools
+        .filter((tool) => tool.annotations?.readOnlyHint === false)
+        .map((tool) => tool.name)
+    ).toEqual([]);
+  });
+
   test('tool result content is valid JSON', async () => {
     const org = await createOrganization({
       name: 'My Org',

@@ -87,6 +87,50 @@ We recommend enabling this setting by default. This prevents write operations on
 `rebase_branch`
 `update_storage_config`.
 
+
+
+
+### Using multiple projects simultaneously
+
+If you work across multiple Supabase projects (in the same org or different orgs), 
+you can run multiple named MCP server instances — one per project — rather than 
+switching a single server between projects.
+
+Create a `.mcp.json` file at your project root:
+
+```json
+{
+  "mcpServers": {
+    "supabase-staging": {
+      "type": "stdio",
+      "command": "npx",
+      "args": ["-y", "@supabase/mcp-server-supabase@latest", "--project-ref=<staging-ref>"],
+      "env": { "SUPABASE_ACCESS_TOKEN": "<your-pat>" }
+    },
+    "supabase-prod": {
+      "type": "stdio",
+      "command": "npx",
+      "args": [
+          "-y",
+          "@supabase/mcp-server-supabase@latest",
+          "--project-ref=<staging-ref>"
+        ],
+      "env": { "SUPABASE_ACCESS_TOKEN": "<your-pat>" }
+    }
+  }
+}
+```
+
+A few things worth knowing:
+
+- **One PAT covers all projects** — Personal Access Tokens are org-scoped, so the same token works for every project in your org.
+- **`--project-ref` locks the server at startup** — each process only ever talks to one project. In clients like Claude Code, tools get namespaced automatically: `mcp__supabase-staging__*` vs `mcp__supabase-prod__*`, so you can tell the agent exactly which server to use.
+- **Use `--read-only` on production** — this restricts to SELECT queries at the protocol level, preventing accidental DDL against prod.
+- **Why not a single server?** — Project scope is resolved at startup. A single server switching projects mid-session must re-authenticate each time, causing the OAuth loop. Two separate processes sidestep this entirely.
+
+Generate a Personal Access Token at `supabase.com/dashboard/account/tokens` and use it as `SUPABASE_ACCESS_TOKEN` to avoid OAuth prompts altogether.
+
+
 ### Feature groups
 
 You can enable or disable specific tool groups by passing the `features` query parameter to the MCP server. This allows you to customize which tools are available to the LLM. For example, to enable only the [database](#database) and [docs](#knowledge-base) tools, you would specify the server URL as:

@@ -113,6 +113,7 @@ Create a `.mcp.json` file at your project root:
       "args": [
           "-y",
           "@supabase/mcp-server-supabase@latest",
+          "--read-only",
           "--project-ref=<staging-ref>"
         ],
       "env": { "SUPABASE_ACCESS_TOKEN": "<your-pat>" }

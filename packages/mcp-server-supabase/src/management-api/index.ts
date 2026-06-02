@@ -39,6 +39,9 @@ export type SuccessResponseType<
 
 const errorSchema = z.object({
   message: z.string(),
+  code: z.string().nullish(),
+  details: z.string().nullish(),
+  hint: z.string().nullish(),
 });
 
 export function assertSuccess<
@@ -59,7 +62,12 @@ export function assertSuccess<
     const { data: errorContent } = errorSchema.safeParse(response.error);
 
     if (errorContent) {
-      throw new Error(errorContent.message);
+      const lines = [errorContent.message];
+      if (errorContent.code) lines.push(`Code: ${errorContent.code}`);
+      if (errorContent.details) lines.push(`Details: ${errorContent.details}`);
+      if (errorContent.hint) lines.push(`Hint: ${errorContent.hint}`);
+
+      throw new Error(lines.join('\n'));
     }
 
     throw new Error(fallbackMessage);

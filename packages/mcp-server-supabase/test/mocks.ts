@@ -28,6 +28,14 @@ export const MCP_CLIENT_VERSION = '1.0.0';
 export const ACCESS_TOKEN = 'dummy-token';
 export const COUNTRY_CODE = 'US';
 export const CLOSEST_REGION = 'us-east-2';
+const TABLE_WITHOUT_DATA_API_GRANTS = 'todos';
+
+function readsTableWithoutDataApiGrants(query: string) {
+  return new RegExp(
+    String.raw`\bselect\b[\s\S]*\bfrom\s+(?:"public"\.|public\.)?"?${TABLE_WITHOUT_DATA_API_GRANTS}"?\b`,
+    'i'
+  ).test(query);
+}
 
 export const contentApiMockSchema = source`
   schema {
@@ -314,6 +322,18 @@ export const mockManagementApi = [
       }
       const { db } = project;
       const { query, parameters, read_only } = await request.json();
+
+      if (readsTableWithoutDataApiGrants(query)) {
+        return HttpResponse.json(
+          {
+            code: '42501',
+            message: `permission denied for table ${TABLE_WITHOUT_DATA_API_GRANTS}`,
+            details: null,
+            hint: `Grant the required privileges to the current role with: GRANT SELECT ON public.${TABLE_WITHOUT_DATA_API_GRANTS} TO anon;`,
+          },
+          { status: 403 }
+        );
+      }
 
       try {
         // Use transaction to prevent race conditions if tests are parallelized

@@ -631,6 +631,9 @@ describe('tools', () => {
       organization_id: org.id,
     });
     project.status = 'ACTIVE_HEALTHY';
+    await project.db.exec(
+      'create table todos_archive (id integer generated always as identity primary key)'
+    );
 
     const result = await callTool({
       name: 'get_project_url',
@@ -1405,6 +1408,114 @@ describe('tools', () => {
     await expect(executeSqlPromise).rejects.toThrow(
       'syntax error at or near "invalid"'
     );
+  });
+
+  test('PostgREST errors for execute_sql include hints', async () => {
+    const { client } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const query = 'select * from public.todos';
+
+    const output = await client.callTool({
+      name: 'execute_sql',
+      arguments: {
+        project_id: project.id,
+        query,
+      },
+    });
+    expect(output.isError).toBe(true);
+
+    const { content } = CallToolResultSchema.parse(output);
+    const [textContent] = content;
+    if (!textContent || textContent.type !== 'text') {
+      throw new Error('Expected execute_sql to return a text error result');
+    }
+
+    const result = JSON.parse(textContent.text);
+
+    expect(result.error.message).toContain('permission denied for table todos');
+    expect(result.error.message).toContain('Code: 42501');
+    expect(result.error.message).toContain(
+      'Hint: Grant the required privileges to the current role with: GRANT SELECT ON public.todos TO anon;'
+    );
+    expect(result.error.message).not.toContain('Details: null');
+  });
+
+  test('reads from table without Data API grants trigger hint', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    for (const query of [
+      'select * from todos',
+      'select id from public.todos',
+      'select id\nfrom "public"."todos"',
+    ]) {
+      await expect(
+        callTool({
+          name: 'execute_sql',
+          arguments: {
+            project_id: project.id,
+            query,
+          },
+        })
+      ).rejects.toThrow(
+        'Hint: Grant the required privileges to the current role with: GRANT SELECT ON public.todos TO anon;'
+      );
+    }
+  });
+
+  test('similarly named table does not trigger Data API grants hint', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+    await project.db.exec(
+      'create table todos_archive (id integer generated always as identity primary key)'
+    );
+
+    const result = await callTool({
+      name: 'execute_sql',
+      arguments: {
+        project_id: project.id,
+        query: 'select * from todos_archive',
+      },
+    });
+
+    expect(result.result).toContain('[]');
   });
 
   test('get logs for each service type', async () => {

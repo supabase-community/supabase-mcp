@@ -1958,6 +1958,27 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/projects/{ref}/database/backups/schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Gets the backup schedule for a project */
+        get: operations["v1-get-backup-schedule"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Updates the backup schedule time for a project
+         * @description Sets the time at which the daily backup runs. The change takes effect on the next backup window that includes the new time. If the new time has already passed for today, the first backup at the new time will occur the following day. It can only be updated 3 times per 24 hours.
+         */
+        patch: operations["v1-update-backup-schedule"];
+        trace?: never;
+    };
     "/v1/projects/{ref}/database/backups/undo": {
         parameters: {
             query?: never;
@@ -2127,7 +2148,11 @@ export interface components {
              */
             latest_check_run_id?: number;
             persistent: boolean;
-            /** @enum {string} */
+            /**
+             * @deprecated
+             * @description This field is deprecated. List action runs to get branch status instead.
+             * @enum {string}
+             */
             status: "CREATING_PROJECT" | "RUNNING_MIGRATIONS" | "MIGRATIONS_PASSED" | "MIGRATIONS_FAILED" | "FUNCTIONS_DEPLOYED" | "FUNCTIONS_FAILED";
             /** Format: date-time */
             created_at: string;
@@ -2973,7 +2998,14 @@ export interface components {
             } | {
                 /** @enum {string} */
                 type: "x86_architecture";
+            } | {
+                /** @enum {string} */
+                type: "project_hibernating";
             })[];
+            warnings: {
+                /** @enum {string} */
+                type: "pg_graphql_introspection_change";
+            }[];
         };
         DatabaseUpgradeStatusResponse: {
             databaseUpgradeStatus: {
@@ -4318,6 +4350,19 @@ export interface components {
         PostgresConfigResponse: {
             effective_cache_size?: string;
             logical_decoding_work_mem?: string;
+            "cron.log_statement"?: boolean;
+            /** @description Default unit: ms */
+            log_autovacuum_min_duration?: string;
+            log_checkpoints?: boolean;
+            log_connections?: boolean;
+            log_disconnections?: boolean;
+            log_duration?: boolean;
+            log_lock_waits?: boolean;
+            log_recovery_conflict_waits?: boolean;
+            log_replication_commands?: boolean;
+            /** @description Default unit: ms */
+            log_startup_progress_interval?: string;
+            log_temp_files?: string;
             maintenance_work_mem?: string;
             track_activity_query_size?: string;
             max_connections?: number;
@@ -4355,6 +4400,19 @@ export interface components {
         UpdatePostgresConfigBody: {
             effective_cache_size?: string;
             logical_decoding_work_mem?: string;
+            "cron.log_statement"?: boolean;
+            /** @description Default unit: ms */
+            log_autovacuum_min_duration?: string;
+            log_checkpoints?: boolean;
+            log_connections?: boolean;
+            log_disconnections?: boolean;
+            log_duration?: boolean;
+            log_lock_waits?: boolean;
+            log_recovery_conflict_waits?: boolean;
+            log_replication_commands?: boolean;
+            /** @description Default unit: ms */
+            log_startup_progress_interval?: string;
+            log_temp_files?: string;
             maintenance_work_mem?: string;
             track_activity_query_size?: string;
             max_connections?: number;
@@ -4692,6 +4750,29 @@ export interface components {
         V1RestoreBackupBody: {
             id: number;
         };
+        V1BackupScheduleResponse: {
+            /**
+             * @description Time of day to schedule daily backups, in UTC. Format: HH:MM:SS.
+             * @example 04:00:00
+             */
+            schedule_for: string;
+            /**
+             * Format: date-time
+             * @description Timestamp of when the backup schedule was last updated.
+             * @example 2026-05-04T14:40:44+00:00
+             */
+            updated_at: string;
+        };
+        /** @example {
+         *       "schedule_for": "04:00:00"
+         *     } */
+        V1UpdateBackupScheduleBody: {
+            /**
+             * @description Time of day to schedule daily backups, in UTC. Format: HH:MM:SS.
+             * @example 04:00:00
+             */
+            schedule_for: string;
+        };
         /** @example {
          *       "name": "before-upgrade"
          *     } */
@@ -4702,7 +4783,7 @@ export interface components {
             entitlements: {
                 feature: {
                     /** @enum {string} */
-                    key: "instances.compute_update_available_sizes" | "instances.read_replicas" | "instances.disk_modifications" | "instances.high_availability" | "instances.orioledb" | "replication.etl" | "storage.max_file_size" | "storage.max_file_size.configurable" | "storage.image_transformations" | "storage.vector_buckets" | "storage.iceberg_catalog" | "security.audit_logs_days" | "security.questionnaire" | "security.soc2_report" | "security.iso27001_certificate" | "security.private_link" | "security.enforce_mfa" | "log.retention_days" | "custom_domain" | "vanity_subdomain" | "ipv4" | "pitr.available_variants" | "log_drains" | "branching_limit" | "branching_persistent" | "auth.mfa_phone" | "auth.mfa_web_authn" | "auth.mfa_enhanced_security" | "auth.hooks" | "auth.platform.sso" | "auth.custom_jwt_template" | "auth.saml_2" | "auth.user_sessions" | "auth.leaked_password_protection" | "auth.advanced_auth_settings" | "auth.performance_settings" | "auth.password_hibp" | "auth.custom_oauth.max_providers" | "backup.retention_days" | "backup.restore_to_new_project" | "function.max_count" | "function.size_limit_mb" | "realtime.max_concurrent_users" | "realtime.max_events_per_second" | "realtime.max_joins_per_second" | "realtime.max_channels_per_client" | "realtime.max_bytes_per_second" | "realtime.max_presence_events_per_second" | "realtime.max_payload_size_in_kb" | "project_scoped_roles" | "security.member_roles" | "project_pausing" | "project_cloning" | "project_restore_after_expiry" | "assistant.advance_model" | "integrations.github_connections" | "dedicated_pooler" | "observability.dashboard_advanced_metrics";
+                    key: "instances.compute_update_available_sizes" | "instances.read_replicas" | "instances.disk_modifications" | "instances.high_availability" | "instances.orioledb" | "replication.etl" | "storage.max_file_size" | "storage.max_file_size.configurable" | "storage.image_transformations" | "storage.vector_buckets" | "storage.iceberg_catalog" | "security.audit_logs_days" | "security.questionnaire" | "security.soc2_report" | "security.iso27001_certificate" | "security.private_link" | "security.enforce_mfa" | "log.retention_days" | "custom_domain" | "vanity_subdomain" | "ipv4" | "pitr.available_variants" | "log_drains" | "audit_log_drains" | "branching_limit" | "branching_persistent" | "auth.mfa_phone" | "auth.mfa_web_authn" | "auth.mfa_enhanced_security" | "auth.hooks" | "auth.platform.sso" | "auth.custom_jwt_template" | "auth.saml_2" | "auth.user_sessions" | "auth.leaked_password_protection" | "auth.advanced_auth_settings" | "auth.performance_settings" | "auth.password_hibp" | "auth.custom_oauth.max_providers" | "backup.retention_days" | "backup.restore_to_new_project" | "backup.schedule" | "function.max_count" | "function.size_limit_mb" | "realtime.max_concurrent_users" | "realtime.max_events_per_second" | "realtime.max_joins_per_second" | "realtime.max_channels_per_client" | "realtime.max_bytes_per_second" | "realtime.max_presence_events_per_second" | "realtime.max_payload_size_in_kb" | "project_scoped_roles" | "security.member_roles" | "project_pausing" | "project_cloning" | "project_restore_after_expiry" | "assistant.advance_model" | "integrations.github_connections" | "dedicated_pooler" | "observability.dashboard_advanced_metrics";
                     /** @enum {string} */
                     type: "boolean" | "numeric" | "set";
                 };
@@ -5321,7 +5402,7 @@ export interface operations {
             };
         };
         responses: {
-            201: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -7612,6 +7693,13 @@ export interface operations {
                     "application/json": components["schemas"]["VanitySubdomainConfigResponse"];
                 };
             };
+            /** @description This feature requires the Pro, Team, or Enterprise organization plan. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Unauthorized */
             401: {
                 headers: {
@@ -7714,6 +7802,13 @@ export interface operations {
                     "application/json": components["schemas"]["SubdomainAvailabilityResponse"];
                 };
             };
+            /** @description This feature requires the Pro, Team, or Enterprise organization plan. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Unauthorized */
             401: {
                 headers: {
@@ -7767,6 +7862,13 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["ActivateVanitySubdomainResponse"];
                 };
+            };
+            /** @description This feature requires the Pro, Team, or Enterprise organization plan. */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
             /** @description Unauthorized */
             401: {
@@ -8076,6 +8178,13 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description This feature requires the Pro, Team, or Enterprise organization plan. */
+            402: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -12228,6 +12337,145 @@ export interface operations {
             };
             /** @description Rate limit exceeded */
             429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "v1-get-backup-schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Project ref */
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["V1BackupScheduleResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description This feature requires the Enterprise organization plan. */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden action */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Project or backup schedule not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Failed to retrieve backup schedule */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "v1-update-backup-schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Project ref */
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["V1UpdateBackupScheduleBody"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["V1BackupScheduleResponse"];
+                };
+            };
+            /** @description Invalid schedule_for format */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description This feature requires the Enterprise organization plan. */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden action */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Project or backup schedule not found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Failed to update backup schedule */
+            500: {
                 headers: {
                     [name: string]: unknown;
                 };

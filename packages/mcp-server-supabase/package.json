@@ -6,7 +6,11 @@
   "license": "Apache-2.0",
   "repository": {
     "type": "git",
-    "url": "https://github.com/supabase-community/supabase-mcp.git"
+    "url": "https://github.com/supabase/mcp.git"
+  },
+  "homepage": "https://github.com/supabase/mcp#readme",
+  "bugs": {
+    "url": "https://github.com/supabase/mcp/issues"
   },
   "type": "module",
   "main": "dist/index.cjs",

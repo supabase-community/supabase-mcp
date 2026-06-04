@@ -52,7 +52,7 @@ Releases are automated via [release-please](https://github.com/googleapis/releas
 
 Most contributors don't need to do anything beyond merging the release PR and updating downstream apps.
 
-If the release PR gets into a bad state, close it and manually re-run the workflow from the [Actions tab](https://github.com/supabase-community/supabase-mcp/actions/workflows/release.yml) → **Run workflow**. release-please will recreate the PR from scratch.
+If the release PR gets into a bad state, close it and manually re-run the workflow from the [Actions tab](https://github.com/supabase/mcp/actions/workflows/release.yml) → **Run workflow**. release-please will recreate the PR from scratch.
 
 ## Manual MCP registry publish (optional)
 

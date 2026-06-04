@@ -55,7 +55,7 @@
     }
   ],
   "repository": {
-    "url": "https://github.com/supabase-community/supabase-mcp",
+    "url": "https://github.com/supabase/mcp",
     "source": "github",
     "subfolder": "packages/mcp-server-supabase"
   },

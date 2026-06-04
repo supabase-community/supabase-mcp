@@ -10,7 +10,7 @@ on:
 jobs:
   preview:
     if: >
-      github.repository == 'supabase-community/supabase-mcp' &&
+      github.repository == 'supabase/mcp' &&
       github.event_name == 'pull_request' &&
       contains(github.event.pull_request.labels.*.name, 'publish-preview')
     runs-on: ubuntu-latest

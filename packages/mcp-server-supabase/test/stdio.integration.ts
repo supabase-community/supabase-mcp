@@ -1,3 +1,4 @@
+import { spawnSync } from 'node:child_process';
 import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
 import { describe, expect, test } from 'vitest';
@@ -57,6 +58,12 @@ async function setup(options: SetupOptions = {}) {
   return { client, clientTransport };
 }
 
+function runStdioCli(args: string[]) {
+  return spawnSync('node', ['dist/transports/stdio.js', ...args], {
+    encoding: 'utf8',
+  });
+}
+
 describe('stdio', () => {
   test('server connects and lists tools', async () => {
     const { client } = await setup();
@@ -70,5 +77,28 @@ describe('stdio', () => {
     const setupPromise = setup({ accessToken: null as any });
 
     await expect(setupPromise).rejects.toThrow('MCP error -32000');
+  });
+
+  test('prints help for long and short flags', () => {
+    for (const flag of ['--help', '-h']) {
+      const result = runStdioCli([flag]);
+
+      expect(result.status).toBe(0);
+      expect(result.stdout).toContain('Usage: mcp-server-supabase [options]');
+      expect(result.stdout).toContain('--access-token <token>');
+      expect(result.stdout).toContain('-h, --help');
+      expect(result.stderr).toBe('');
+    }
+  });
+
+  test('rejects unknown flags without a stack trace', () => {
+    const result = runStdioCli(['--unknown-flag']);
+
+    expect(result.status).toBe(1);
+    expect(result.stdout).toBe('');
+    expect(result.stderr).toContain("Unknown option '--unknown-flag'");
+    expect(result.stderr).toContain('Usage: mcp-server-supabase [options]');
+    expect(result.stderr).not.toContain('ERR_PARSE_ARGS_UNKNOWN_OPTION');
+    expect(result.stderr).not.toContain('TypeError');
   });
 });

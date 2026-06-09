@@ -217,7 +217,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** [Beta] Exchange auth code for user's access and refresh token */
+        /**
+         * [Beta] Exchange auth code for user's access and refresh token
+         * @description Supports `authorization_code`, `refresh_token`, and `urn:ietf:params:oauth:grant-type:jwt-bearer` grant types. The `jwt-bearer` grant type (IDJAG — identity-directed JWT assertion) is in beta and available on Team and Enterprise plans only.
+         */
         post: operations["v1-exchange-oauth-token"];
         delete?: never;
         options?: never;
@@ -2396,7 +2399,7 @@ export interface components {
          *     } */
         OAuthTokenBody: {
             /** @enum {string} */
-            grant_type?: "authorization_code" | "refresh_token";
+            grant_type?: "authorization_code" | "refresh_token" | "urn:ietf:params:oauth:grant-type:jwt-bearer";
             /** Format: uuid */
             client_id?: string;
             client_secret?: string;
@@ -2404,6 +2407,8 @@ export interface components {
             code_verifier?: string;
             redirect_uri?: string;
             refresh_token?: string;
+            /** @description IDJAG assertion JWT for grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer. Beta - available on Team and Enterprise plans only. */
+            assertion?: string;
             /**
              * Format: uri
              * @description Resource indicator for MCP (Model Context Protocol) clients
@@ -2413,7 +2418,8 @@ export interface components {
         };
         OAuthTokenResponse: {
             access_token: string;
-            refresh_token: string;
+            /** @description The `urn:ietf:params:oauth:grant-type:jwt-bearer` grant type issues access tokens only, no refresh token is returned and the token cannot be revoked via `/v1/oauth/revoke`. */
+            refresh_token?: string;
             expires_in: number;
             /** @enum {string} */
             token_type: "Bearer";

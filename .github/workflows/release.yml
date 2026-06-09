@@ -10,6 +10,10 @@ on:
         description: 'Skip release-please and publish current package.json versions'
         type: boolean
         default: false
+      release_ref:
+        description: 'Required with force_publish. Release tag or commit SHA to publish from.'
+        type: string
+        default: ''
 
 permissions:
   contents: write
@@ -37,6 +41,28 @@ jobs:
         with:
           token: ${{ steps.generate-token.outputs.token }}
 
+      - name: Validate force publish inputs
+        if: ${{ inputs.force_publish == true }}
+        env:
+          RELEASE_REF: ${{ inputs.release_ref }}
+          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+        run: |
+          set -euo pipefail
+          if [ -z "$RELEASE_REF" ]; then
+            echo "release_ref is required when force_publish is enabled."
+            echo "Use the release tag or commit SHA from the failed publish."
+            exit 1
+          fi
+          if [[ "$RELEASE_REF" =~ ^[0-9a-fA-F]{40}$ ]]; then
+            exit 0
+          fi
+          RELEASE_TAG="${RELEASE_REF#refs/tags/}"
+          if git ls-remote --exit-code --tags "$REPO_URL" "$RELEASE_TAG" >/dev/null; then
+            exit 0
+          fi
+          echo "release_ref must be an existing tag or full commit SHA."
+          exit 1
+
       # Everything below runs when a release PR is merged, or when
       # force_publish is manually enabled for retrying current package versions.
       # Shared setup steps gate on releases_created (true if any package released)
@@ -50,6 +76,8 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
         if: ${{ steps.release.outputs.releases_created || inputs.force_publish == true }}
+        with:
+          ref: ${{ inputs.force_publish == true && inputs.release_ref || github.ref }}
 
       - name: Setup tools
         uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3.6.3

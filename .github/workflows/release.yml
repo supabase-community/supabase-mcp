@@ -45,7 +45,7 @@ jobs:
         if: ${{ inputs.force_publish == true }}
         env:
           RELEASE_REF: ${{ inputs.release_ref }}
-          REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
           if [ -z "$RELEASE_REF" ]; then
@@ -54,10 +54,11 @@ jobs:
             exit 1
           fi
           if [[ "$RELEASE_REF" =~ ^[0-9a-fA-F]{40}$ ]]; then
-            exit 0
+            COMMIT_REF="$RELEASE_REF"
+          else
+            COMMIT_REF="tags/${RELEASE_REF#refs/tags/}"
           fi
-          RELEASE_TAG="${RELEASE_REF#refs/tags/}"
-          if git ls-remote --exit-code --tags "$REPO_URL" "$RELEASE_TAG" >/dev/null; then
+          if gh api --silent "repos/$GITHUB_REPOSITORY/commits/$COMMIT_REF"; then
             exit 0
           fi
           echo "release_ref must be an existing tag or full commit SHA."

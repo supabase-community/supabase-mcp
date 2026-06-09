@@ -43,7 +43,8 @@ jobs:
       # or force_publish.
       # Per-package publish steps gate on <path>--release_created so only the
       # released package(s) are published each run. force_publish runs all
-      # publish steps; already-published npm versions are skipped below.
+      # publish steps; already-published npm versions and MCP registry
+      # versions are skipped below.
       # Ref: https://github.com/googleapis/release-please-action#path-outputs
 
       - name: Checkout repository
@@ -125,14 +126,48 @@ jobs:
           rm -f "$NPM_VIEW_STDERR"
           pnpm publish --no-git-checks --ignore-scripts --access public --provenance
 
-      - name: Authenticate to MCP registry
+      # The MCP registry rejects re-publishing an existing version, so (unlike
+      # npm) it isn't idempotent on its own. Probe the registry first and gate
+      # both login and publish on the result so force_publish stays re-runnable.
+      - name: Check MCP registry version
+        id: mcp-registry-check
         if: ${{ steps.release.outputs['packages/mcp-server-supabase--release_created'] || inputs.force_publish == true }}
+        working-directory: packages/mcp-server-supabase
+        run: |
+          set -euo pipefail
+          ALREADY_PUBLISHED=$(node -e '
+            const { name, version } = require("./server.json");
+            const url = `https://registry.modelcontextprotocol.io/v0/servers?search=${encodeURIComponent(name)}&version=${encodeURIComponent(version)}`;
+            fetch(url)
+              .then((res) => {
+                if (!res.ok) throw new Error(`Registry query failed: ${res.status} ${res.statusText}`);
+                return res.json();
+              })
+              .then((data) => {
+                const exists = (data.servers ?? []).some(
+                  (entry) => entry.server?.name === name && entry.server?.version === version
+                );
+                process.stdout.write(exists ? "true" : "false");
+              })
+              .catch((err) => {
+                console.error(err.message);
+                process.exit(1);
+              });
+          ')
+          echo "already_published=$ALREADY_PUBLISHED" >> "$GITHUB_OUTPUT"
+          if [ "$ALREADY_PUBLISHED" = "true" ]; then
+            VERSION=$(node -p "require('./server.json').version")
+            echo "MCP registry version $VERSION already published, skipping."
+          fi
+
+      - name: Authenticate to MCP registry
+        if: ${{ steps.mcp-registry-check.outputs.already_published == 'false' }}
         working-directory: packages/mcp-server-supabase
         env:
           DOMAIN_VERIFICATION_KEY: ${{ secrets.DOMAIN_VERIFICATION_KEY }}
         run: pnpm registry:login
 
       - name: Publish to MCP registry
-        if: ${{ steps.release.outputs['packages/mcp-server-supabase--release_created'] || inputs.force_publish == true }}
+        if: ${{ steps.mcp-registry-check.outputs.already_published == 'false' }}
         working-directory: packages/mcp-server-supabase
         run: pnpm registry:publish

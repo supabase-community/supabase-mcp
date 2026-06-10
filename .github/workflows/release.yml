@@ -40,15 +40,20 @@ jobs:
       - name: Validate force publish ref
         if: ${{ inputs.force_publish == true }}
         env:
+          GH_TOKEN: ${{ github.token }}
           REF_TYPE: ${{ github.ref_type }}
           REF_NAME: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          if [ "$REF_TYPE" = "tag" ]; then
+          if [ "$REF_TYPE" != "tag" ]; then
+            echo "Select a release tag instead of a branch when running force_publish."
+            exit 1
+          fi
+          if gh api --silent "repos/$GITHUB_REPOSITORY/releases/tags/$REF_NAME"; then
             echo "Force publishing from release tag $REF_NAME."
             exit 0
           fi
-          echo "force_publish must be run from the release tag selected in the workflow ref picker."
+          echo "Selected tag $REF_NAME is not associated with a GitHub Release."
           exit 1
 
       # Everything below runs when a release PR is merged, or when

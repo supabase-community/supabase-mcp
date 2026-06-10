@@ -54,7 +54,7 @@ Most contributors don't need to do anything beyond merging the release PR and up
 
 If the release PR gets into a bad state, close it and manually re-run the workflow from the [Actions tab](https://github.com/supabase/mcp/actions/workflows/release.yml) → **Run workflow**. release-please will recreate the PR from scratch.
 
-If the workflow creates GitHub releases and tags but fails before publishing to npm or the MCP registry, re-run the workflow with `force_publish` enabled and set `release_ref` to the release tag or commit SHA from the failed workflow run.
+If the workflow creates GitHub releases and tags but fails before publishing to npm or the MCP registry, re-run the workflow from one of the release tags created by the failed workflow run and enable `force_publish`.
 
 ## Manual MCP registry publish (optional)
 

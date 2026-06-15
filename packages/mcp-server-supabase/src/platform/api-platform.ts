@@ -239,10 +239,10 @@ export function createSupabaseApiPlatform(
 
   const debugging: DebuggingOperations = {
     async getLogs(projectId: string, options: GetLogsOptions) {
-      const { service, iso_timestamp_start, iso_timestamp_end } =
+      const { service, iso_timestamp_start, iso_timestamp_end, limit, search } =
         getLogsOptionsSchema.parse(options);
 
-      const sql = getLogQuery(service);
+      const sql = getLogQuery(service, { limit, search });
 
       const response = await managementApiClient.GET(
         '/v1/projects/{ref}/analytics/endpoints/logs.all',

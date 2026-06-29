@@ -1,5 +1,11 @@
 # Contributing
 
+Before opening an issue or PR, please read this guide.
+
+- **Issues** should describe a bug or request a feature. Issues that promote unaffiliated products or services will be closed.
+- **PRs** should address an accepted issue. Open an issue first for new features or behavior changes so we can agree on the approach before you invest time coding. PRs that promote unaffiliated products or services will be closed.
+- AI-assisted contributions are welcome, but a human must review and verify the output. Include verification steps and evidence (screenshots, test output, etc.) in the PR description.
+
 ## Development setup
 
 This repo uses pnpm for package management and the active LTS version of Node.js. Node.js and pnpm versions are managed via [mise](https://mise.jdx.dev/) (see `mise.toml`).

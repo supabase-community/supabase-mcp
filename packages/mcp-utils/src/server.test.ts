@@ -332,6 +332,7 @@ describe('tools', () => {
     expect(result.structuredContent).toEqual({ value: 'hi' });
     // text side is the verbatim formatResult string, NOT JSON of it
     const [content] = result.content;
+    expect(content?.type).toBe('text');
     if (content?.type === 'text') {
       expect(content.text).toBe('PREFIX:hi');
     }

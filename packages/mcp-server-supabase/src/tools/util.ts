@@ -1,4 +1,4 @@
-import { type Annotations, type Tool, type ToolInput, tool } from '@supabase/mcp-utils';
+import { type Annotations, type ToolInput, tool } from '@supabase/mcp-utils';
 import { z } from 'zod/v4';
 
 export type ToolDef = {

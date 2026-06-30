@@ -920,6 +920,7 @@ describe('tools', () => {
 
     // Text side: fence present, rows encoded exactly once (4 backslashes, never 8).
     const [content] = result.content;
+    expect(content?.type).toBe('text');
     if (content?.type === 'text') {
       expect(content.text).toContain('untrusted user data');
       expect(content.text).toContain(String.raw`E'\\\\'`); // one JSON layer

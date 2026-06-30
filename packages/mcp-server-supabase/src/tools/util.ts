@@ -1,4 +1,4 @@
-import { type Annotations, type Tool, tool } from '@supabase/mcp-utils';
+import { type Annotations, type Tool, type ToolInput, tool } from '@supabase/mcp-utils';
 import { z } from 'zod/v4';
 
 export type ToolDef = {
@@ -20,7 +20,7 @@ export type InjectableTool<
   Params extends z.ZodObject,
   OutputSchema extends z.ZodObject,
   Injected extends Partial<z.infer<Params>> = {},
-> = Tool<Params, OutputSchema> & {
+> = ToolInput<Params, OutputSchema> & {
   /**
    * Optionally injects static parameter values into the tool's
    * execute function and removes them from the parameter schema.
@@ -42,6 +42,7 @@ export function injectableTool<
   outputSchema,
   inject,
   execute,
+  formatResult,
 }: InjectableTool<Params, OutputSchema, Injected>) {
   // If all injected parameters are undefined, return the original tool
   if (!inject || Object.values(inject).every((value) => value === undefined)) {
@@ -51,6 +52,7 @@ export function injectableTool<
       parameters,
       outputSchema,
       execute,
+      formatResult,
     });
   }
 
@@ -77,5 +79,6 @@ export function injectableTool<
     parameters: cleanParametersSchema,
     outputSchema,
     execute: executeWithInjection,
+    formatResult,
   });
 }

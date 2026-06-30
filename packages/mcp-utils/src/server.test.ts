@@ -258,6 +258,30 @@ describe('tools', () => {
     }
   });
 
+  test('listTools advertises outputSchema', async () => {
+    const server = createMcpServer({
+      name: 'test-server',
+      version: '0.0.0',
+      tools: {
+        echo: tool({
+          description: 'Echo',
+          parameters: z.object({ value: z.string() }),
+          outputSchema: z.object({ value: z.string() }),
+          execute: async ({ value }) => ({ value }),
+        }),
+      },
+    });
+    const { client } = await setup({ server });
+
+    const { tools } = await client.listTools();
+    const echo = tools.find((t) => t.name === 'echo');
+
+    expect(echo?.outputSchema).toMatchObject({
+      type: 'object',
+      properties: { value: { type: 'string' } },
+    });
+  });
+
   test('returns structuredContent equal to the tool result', async () => {
     const server = createMcpServer({
       name: 'test-server',

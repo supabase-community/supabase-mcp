@@ -116,6 +116,12 @@ async function setup(options: SetupOptions = {}) {
       throw new Error(message ?? 'tool call failed');
     }
 
+    const schema = supabaseMcpToolSchemas[params.name as keyof typeof supabaseMcpToolSchemas]?.outputSchema;
+    if (schema) {
+      // Throws if the tool's structuredContent drifts from its declared schema.
+      schema.parse(structuredContent);
+    }
+
     return structuredContent;
   }
 

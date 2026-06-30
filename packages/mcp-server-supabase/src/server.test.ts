@@ -869,6 +869,111 @@ describe('tools', () => {
     );
   });
 
+  // Repro for https://github.com/supabase/mcp/issues/311
+  // Round-trips a PL/pgSQL function body containing E-string backslash
+  // literals through execute_sql to check whether the MCP server layer
+  // corrupts (doubles) backslash sequences.
+  test('round-trips backslash escaping in function bodies', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    /** Extracts the JSON rows from inside the untrusted-data boundary. */
+    function extractRows(result: { result: string }) {
+      const match = result.result.match(
+        /<untrusted-data-[^>]+>\s*(\[[\s\S]*?\])\s*<\/untrusted-data-/
+      );
+      if (!match) {
+        throw new Error('could not find untrusted-data block in result');
+      }
+      return JSON.parse(match[1]!);
+    }
+
+    async function execute(query: string) {
+      return await callTool({
+        name: 'execute_sql',
+        arguments: { project_id: project.id, query },
+      });
+    }
+
+    // A function body (dollar-quoted) with an E-string backslash literal
+    // and a comment containing a `\x` sequence, mirroring the issue.
+    // String.raw keeps backslashes literal so the SQL really contains E'\\'.
+    const createFn = String.raw`
+      CREATE OR REPLACE FUNCTION public.has_leading_backslash(input text)
+      RETURNS boolean
+      LANGUAGE plpgsql
+      AS $function$
+      BEGIN
+        -- compares first char against a literal backslash (\x5c)
+        IF left(input, 1) != E'\\' THEN
+          RETURN false;
+        END IF;
+        RETURN true;
+      END;
+      $function$;
+    `;
+
+    const readDef = `SELECT pg_get_functiondef('public.has_leading_backslash'::regproc) AS def;`;
+    const readHash = `SELECT md5(pg_get_functiondef('public.has_leading_backslash'::regproc)) AS hash;`;
+
+    // ----- Step 1: the function already exists in the database. -----
+    await execute(createFn);
+    const originalHash: string = extractRows(await execute(readHash))[0].hash;
+
+    // ----- Steps 2-3 (their exact steps, done faithfully): read the
+    // definition via execute_sql, take the returned CREATE OR REPLACE
+    // statement, and execute it again via execute_sql. -----
+    const firstReadResult = await execute(readDef);
+    const returnedDef: string = extractRows(firstReadResult)[0].def;
+    await execute(returnedDef);
+
+    // ----- Steps 4-5: compare the md5 of the stored body. -----
+    const roundTrippedHash: string = extractRows(
+      await execute(readHash)
+    )[0].hash;
+
+    // RESULT: following their steps literally, the hash MATCHES. The
+    // JSON -> openapi-fetch -> MCP -> Postgres pipe does not corrupt
+    // backslashes. The returned definition still has a single escape.
+    expect(returnedDef).toContain(String.raw`E'\\'`);
+    expect(returnedDef).not.toContain(String.raw`E'\\\\'`);
+    expect(roundTrippedHash).toBe(originalHash);
+
+    // WHY THEY STILL HIT IT: a *parser* (JSON.parse, above) recovers the true
+    // value. But the model never sees that value - it sees the rendered tool
+    // text, where rows are embedded via `${JSON.stringify(result)}`. That
+    // serialization escapes every backslash, so the body the model reads shows
+    // DOUBLED backslashes: a function authored with E'\\' is displayed as E'\\\\'.
+    expect(firstReadResult.result).toContain(String.raw`E'\\\\'`);
+
+    // When the model reproduces what it was shown (correctly turning the
+    // escaped \n back into newlines, but leaving the backslash run doubled),
+    // it sends back E'\\\\'. That executes fine and Postgres stores the
+    // DOUBLED body - the hash now differs. This is the corruption in #311,
+    // and it originates above the MCP server, in the model.
+    const asModelReproducesIt = createFn.replace(
+      String.raw`E'\\'`,
+      String.raw`E'\\\\'`
+    );
+    await execute(asModelReproducesIt);
+    const corruptedHash: string = extractRows(
+      await execute(readHash)
+    )[0].hash;
+    expect(corruptedHash).not.toBe(originalHash);
+  });
+
   test('can run read queries in read-only mode', async () => {
     const { callTool } = await setup({ readOnly: true });
 

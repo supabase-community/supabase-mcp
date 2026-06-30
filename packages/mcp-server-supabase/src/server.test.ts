@@ -101,30 +101,22 @@ async function setup(options: SetupOptions = {}) {
    *
    * Wrapper around the `client.callTool` method to handle the response and errors.
    */
-  async function callTool(params: CallToolRequest['params']) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async function callTool(params: CallToolRequest['params']): Promise<any> {
     const output = await client.callTool(params);
-    const { content } = CallToolResultSchema.parse(output);
-    const [textContent] = content;
+    const { content, structuredContent, isError } =
+      CallToolResultSchema.parse(output);
 
-    if (!textContent) {
-      return undefined;
+    if (isError) {
+      const [textContent] = content;
+      const message =
+        textContent?.type === 'text'
+          ? JSON.parse(textContent.text).error?.message
+          : undefined;
+      throw new Error(message ?? 'tool call failed');
     }
 
-    if (textContent.type !== 'text') {
-      throw new Error('tool result content is not text');
-    }
-
-    if (textContent.text === '') {
-      throw new Error('tool result content is empty');
-    }
-
-    const result = JSON.parse(textContent.text);
-
-    if (output.isError) {
-      throw new Error(result.error.message);
-    }
-
-    return result;
+    return structuredContent;
   }
 
   return { client, clientTransport, callTool, server, serverTransport };

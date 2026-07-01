@@ -3218,6 +3218,29 @@ describe('tools', () => {
     const parsedContent = JSON.parse(firstContent.text);
     expect(parsedContent).toBeTypeOf('object');
   });
+
+  test('list_tables verbose returns correct column pairs for composite foreign keys', async () => {
+    const { callTool } = await setup();
+    const org = await createOrganization({ name: 'My Org', plan: 'free', allowed_release_channels: ['ga'] });
+    const project = await createProject({ name: 'Project 1', region: 'us-east-1', organization_id: org.id });
+    project.status = 'ACTIVE_HEALTHY';
+    await project.db.exec(`
+      create table public.parent (a int not null, b int not null, primary key (a, b));
+      create table public.child (
+        a int not null, b int not null,
+        constraint child_parent_fk foreign key (a, b) references public.parent (a, b)
+      );
+    `);
+    const result = await callTool({ name: 'list_tables', arguments: { project_id: project.id, schemas: ['public'], verbose: true } });
+    const child = result.tables.find((t) => t.name === 'public.child');
+    const fks = child.foreign_key_constraints ?? [];
+    const pairs = fks.map((f) => `${f.source}=>${f.target}`).sort();
+    expect(pairs).toEqual([
+      'public.child.a=>public.parent.a',
+      'public.child.b=>public.parent.b',
+    ]);
+  });
+
 });
 
 describe('feature groups', () => {

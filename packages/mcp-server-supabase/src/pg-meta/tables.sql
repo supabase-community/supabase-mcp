@@ -62,16 +62,17 @@ FROM
       ta.attname as target_column_name
     from
       pg_constraint c
+    join lateral unnest(c.conkey, c.confkey) with ordinality as cols(conkey, confkey, ord) on true
     join (
       pg_attribute sa
       join pg_class csa on sa.attrelid = csa.oid
       join pg_namespace nsa on csa.relnamespace = nsa.oid
-    ) on sa.attrelid = c.conrelid and sa.attnum = any (c.conkey)
+    ) on sa.attrelid = c.conrelid and sa.attnum = cols.conkey
     join (
       pg_attribute ta
       join pg_class cta on ta.attrelid = cta.oid
       join pg_namespace nta on cta.relnamespace = nta.oid
-    ) on ta.attrelid = c.confrelid and ta.attnum = any (c.confkey)
+    ) on ta.attrelid = c.confrelid and ta.attnum = cols.confkey
     where
       c.contype = 'f'
   ) as relationships

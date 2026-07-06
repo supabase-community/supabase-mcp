@@ -1111,6 +1111,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/projects/{ref}/restart": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Restarts the given project */
+        post: operations["v1-restart-a-project"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/projects/{ref}/restore": {
         parameters: {
             query?: never;
@@ -1260,6 +1277,7 @@ export interface paths {
         };
         /**
          * Gets project's logs
+         * @deprecated
          * @description Executes a SQL query on the project's logs.
          *
          *     Either the `iso_timestamp_start` and `iso_timestamp_end` parameters must be provided.
@@ -1267,6 +1285,35 @@ export interface paths {
          *     The timestamp range must be no more than 24 hours and is rounded to the nearest minute. If the range is more than 24 hours, a validation error will be thrown.
          *
          *     Note: Unless the `sql` parameter is provided, only edge_logs will be queried. See the [log query docs](/docs/guides/telemetry/logs?queryGroups=product&product=postgres&queryGroups=source&source=edge_logs#querying-with-the-logs-explorer:~:text=logs%20from%20the-,Sources,-drop%2Ddown%3A) for all available sources.
+         *
+         */
+        get: operations["v1-get-project-logs-all"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/projects/{ref}/analytics/endpoints/logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Gets all project's logs in a single log stream
+         * @description Executes an SQL or LQL query on the project's unified logs stream.
+         *
+         *     Either the `iso_timestamp_start` and `iso_timestamp_end` parameters must be provided.
+         *     If both are not provided, only the last 1 minute of logs will be queried.
+         *     The timestamp range must be no more than 24 hours and is rounded to the nearest minute. If the range is more than 24 hours, a validation error will be thrown.
+         *
+         *     Filter by the `source` column to specify specific log sources, such as edge_logs, postgres_logs, etc.
+         *
+         *     Note: SQL must be written in **ClickHouse SQL dialect**.
          *
          */
         get: operations["v1-get-project-logs"];
@@ -1538,6 +1585,66 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/projects/{ref}/database/jit/invite": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Invites an external user to a database for JIT access
+         * @description Invites the external user and sets initial roles that can be assumed and for how long
+         */
+        post: operations["v1-invite-external-jit-access"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/projects/{ref}/database/jit/invite/accept": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Accepts invitation for JIT database access
+         * @description Accepts the invitation to JIT database access
+         */
+        post: operations["v1-accept-invite-external-jit-access"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/v1/projects/{ref}/database/jit/invite/{invite_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /**
+         * Deletes the invite for an external user to a database for JIT access
+         * @description Revokes and deletes the invitation
+         */
+        delete: operations["v1-delete-invite-external-jit-access"];
         options?: never;
         head?: never;
         patch?: never;
@@ -2296,6 +2403,8 @@ export interface components {
              * @description Template URL used to create the project from the CLI.
              */
             template_url?: string;
+            /** @description [Experimental] Whether to enable high availability for the project. */
+            high_availability?: boolean;
         };
         V1ProjectResponse: {
             /**
@@ -2686,7 +2795,7 @@ export interface components {
             /** @enum {string} */
             state: "unavailable";
             /** @enum {string} */
-            unavailableReason: "manual_migration_required" | "postgres_upgrade_required" | "temporarily_unavailable";
+            unavailableReason: "postgres_upgrade_required" | "temporarily_unavailable";
         };
         /** @example {
          *       "state": "enabled"
@@ -2826,6 +2935,8 @@ export interface components {
             db_extra_search_path: string;
             /** @description If `null`, the value is automatically configured based on compute size. */
             db_pool: number | null;
+            /** @description If `null`, the value is automatically configured to 10. */
+            db_pool_acquisition_timeout: number | null;
             jwt_secret?: string;
         };
         /** @example {
@@ -2838,6 +2949,7 @@ export interface components {
             db_schema?: string;
             max_rows?: number;
             db_pool?: number;
+            db_pool_acquisition_timeout?: number;
         };
         V1PostgrestConfigResponse: {
             db_schema: string;
@@ -2845,6 +2957,8 @@ export interface components {
             db_extra_search_path: string;
             /** @description If `null`, the value is automatically configured based on compute size. */
             db_pool: number | null;
+            /** @description If `null`, the value is automatically configured to 10. */
+            db_pool_acquisition_timeout: number | null;
         };
         V1ProjectRefResponse: {
             id: number;
@@ -3008,10 +3122,16 @@ export interface components {
                 /** @enum {string} */
                 type: "project_hibernating";
             })[];
-            warnings: {
+            warnings: ({
                 /** @enum {string} */
                 type: "pg_graphql_introspection_change";
-            }[];
+            } | {
+                /** @enum {string} */
+                type: "ltree_reindex_required";
+            } | {
+                /** @enum {string} */
+                type: "operator_estimator_gate";
+            })[];
         };
         DatabaseUpgradeStatusResponse: {
             databaseUpgradeStatus: {
@@ -3713,9 +3833,9 @@ export interface components {
         ListProjectAddonsResponse: {
             selected_addons: {
                 /** @enum {string} */
-                type: "custom_domain" | "compute_instance" | "pitr" | "ipv4" | "auth_mfa_phone" | "auth_mfa_web_authn" | "log_drain";
+                type: "custom_domain" | "compute_instance" | "pitr" | "ipv4" | "auth_mfa_phone" | "auth_mfa_web_authn" | "log_drain" | "etl_pipeline";
                 variant: {
-                    id: ("ci_micro" | "ci_small" | "ci_medium" | "ci_large" | "ci_xlarge" | "ci_2xlarge" | "ci_4xlarge" | "ci_8xlarge" | "ci_12xlarge" | "ci_16xlarge" | "ci_24xlarge" | "ci_24xlarge_optimized_cpu" | "ci_24xlarge_optimized_memory" | "ci_24xlarge_high_memory" | "ci_48xlarge" | "ci_48xlarge_optimized_cpu" | "ci_48xlarge_optimized_memory" | "ci_48xlarge_high_memory") | "cd_default" | ("pitr_7" | "pitr_14" | "pitr_28") | "ipv4_default" | "auth_mfa_phone_default" | "auth_mfa_web_authn_default" | "log_drain_default";
+                    id: ("ci_micro" | "ci_small" | "ci_medium" | "ci_large" | "ci_xlarge" | "ci_2xlarge" | "ci_4xlarge" | "ci_8xlarge" | "ci_12xlarge" | "ci_16xlarge" | "ci_24xlarge" | "ci_24xlarge_optimized_cpu" | "ci_24xlarge_optimized_memory" | "ci_24xlarge_high_memory" | "ci_48xlarge" | "ci_48xlarge_optimized_cpu" | "ci_48xlarge_optimized_memory" | "ci_48xlarge_high_memory") | "cd_default" | ("pitr_7" | "pitr_14" | "pitr_28") | "ipv4_default" | "auth_mfa_phone_default" | "auth_mfa_web_authn_default" | "log_drain_default" | "etl_pipeline_default";
                     name: string;
                     price: {
                         description: string;
@@ -3731,10 +3851,10 @@ export interface components {
             }[];
             available_addons: {
                 /** @enum {string} */
-                type: "custom_domain" | "compute_instance" | "pitr" | "ipv4" | "auth_mfa_phone" | "auth_mfa_web_authn" | "log_drain";
+                type: "custom_domain" | "compute_instance" | "pitr" | "ipv4" | "auth_mfa_phone" | "auth_mfa_web_authn" | "log_drain" | "etl_pipeline";
                 name: string;
                 variants: {
-                    id: ("ci_micro" | "ci_small" | "ci_medium" | "ci_large" | "ci_xlarge" | "ci_2xlarge" | "ci_4xlarge" | "ci_8xlarge" | "ci_12xlarge" | "ci_16xlarge" | "ci_24xlarge" | "ci_24xlarge_optimized_cpu" | "ci_24xlarge_optimized_memory" | "ci_24xlarge_high_memory" | "ci_48xlarge" | "ci_48xlarge_optimized_cpu" | "ci_48xlarge_optimized_memory" | "ci_48xlarge_high_memory") | "cd_default" | ("pitr_7" | "pitr_14" | "pitr_28") | "ipv4_default" | "auth_mfa_phone_default" | "auth_mfa_web_authn_default" | "log_drain_default";
+                    id: ("ci_micro" | "ci_small" | "ci_medium" | "ci_large" | "ci_xlarge" | "ci_2xlarge" | "ci_4xlarge" | "ci_8xlarge" | "ci_12xlarge" | "ci_16xlarge" | "ci_24xlarge" | "ci_24xlarge_optimized_cpu" | "ci_24xlarge_optimized_memory" | "ci_24xlarge_high_memory" | "ci_48xlarge" | "ci_48xlarge_optimized_cpu" | "ci_48xlarge_optimized_memory" | "ci_48xlarge_high_memory") | "cd_default" | ("pitr_7" | "pitr_14" | "pitr_28") | "ipv4_default" | "auth_mfa_phone_default" | "auth_mfa_web_authn_default" | "log_drain_default" | "etl_pipeline_default";
                     name: string;
                     price: {
                         description: string;
@@ -3756,7 +3876,7 @@ export interface components {
         ApplyProjectAddonBody: {
             addon_variant: ("ci_micro" | "ci_small" | "ci_medium" | "ci_large" | "ci_xlarge" | "ci_2xlarge" | "ci_4xlarge" | "ci_8xlarge" | "ci_12xlarge" | "ci_16xlarge" | "ci_24xlarge" | "ci_24xlarge_optimized_cpu" | "ci_24xlarge_optimized_memory" | "ci_24xlarge_high_memory" | "ci_48xlarge" | "ci_48xlarge_optimized_cpu" | "ci_48xlarge_optimized_memory" | "ci_48xlarge_high_memory") | "cd_default" | ("pitr_7" | "pitr_14" | "pitr_28") | "ipv4_default";
             /** @enum {string} */
-            addon_type: "custom_domain" | "compute_instance" | "pitr" | "ipv4" | "auth_mfa_phone" | "auth_mfa_web_authn" | "log_drain";
+            addon_type: "custom_domain" | "compute_instance" | "pitr" | "ipv4" | "auth_mfa_phone" | "auth_mfa_web_authn" | "log_drain" | "etl_pipeline";
         };
         ProjectClaimTokenResponse: {
             token_alias: string;
@@ -3947,7 +4067,7 @@ export interface components {
         };
         JitAccessResponse: {
             /** Format: uuid */
-            user_id: string;
+            user_id?: string;
             user_roles: {
                 role: string;
                 expires_at?: number;
@@ -3988,9 +4108,12 @@ export interface components {
             };
         };
         JitListAccessResponse: {
-            items: {
+            items: ({
                 /** Format: uuid */
                 user_id: string;
+                primary_email: string | null;
+                invite_id: null;
+                expires_at: null;
                 user_roles: {
                     role: string;
                     expires_at?: number;
@@ -4004,7 +4127,26 @@ export interface components {
                     };
                     branches_only?: boolean;
                 }[];
-            }[];
+            } | {
+                user_id: null;
+                primary_email: string;
+                /** Format: uuid */
+                invite_id: string;
+                expires_at: string;
+                user_roles: {
+                    role: string;
+                    expires_at?: number;
+                    allowed_networks?: {
+                        allowed_cidrs?: {
+                            cidr: string;
+                        }[];
+                        allowed_cidrs_v6?: {
+                            cidr: string;
+                        }[];
+                    };
+                    branches_only?: boolean;
+                }[];
+            })[];
         };
         /** @example {
          *       "user_id": "55555555-5555-4555-8555-555555555555",
@@ -4039,6 +4181,68 @@ export interface components {
                 };
                 branches_only?: boolean;
             }[];
+        };
+        /** @example {
+         *       "email": "external-user@somedomain.xyz",
+         *       "roles": [
+         *         {
+         *           "role": "postgres",
+         *           "expires_at": 1740787200,
+         *           "allowed_networks": {
+         *             "allowed_cidrs": [
+         *               {
+         *                 "cidr": "203.0.113.0/24"
+         *               }
+         *             ]
+         *           },
+         *           "branches_only": false
+         *         }
+         *       ]
+         *     } */
+        InviteExternalUserJitAccessBody: {
+            /** Format: email */
+            email: string;
+            roles: {
+                role: string;
+                expires_at?: number;
+                allowed_networks?: {
+                    allowed_cidrs?: {
+                        cidr: string;
+                    }[];
+                    allowed_cidrs_v6?: {
+                        cidr: string;
+                    }[];
+                };
+                branches_only?: boolean;
+            }[];
+        };
+        InviteExternalUserJitResponse: {
+            /** Format: email */
+            email: string;
+            /** Format: uuid */
+            invite_id: string;
+            user_roles: {
+                role: string;
+                expires_at?: number;
+                allowed_networks?: {
+                    allowed_cidrs?: {
+                        cidr: string;
+                    }[];
+                    allowed_cidrs_v6?: {
+                        cidr: string;
+                    }[];
+                };
+                branches_only?: boolean;
+            }[];
+        };
+        /** @example {
+         *       "email": "external-user@somedomain.xyz",
+         *       "token": ""
+         *     } */
+        AcceptInviteExternalUserJitAccessBody: {
+            /** Format: email */
+            email: string;
+            token: string;
         };
         FunctionResponse: {
             id: string;
@@ -4250,6 +4454,9 @@ export interface components {
                 s3Protocol: {
                     enabled: boolean;
                 };
+                purgeCache: {
+                    enabled: boolean;
+                };
                 icebergCatalog: {
                     enabled: boolean;
                     maxNamespaces: number;
@@ -4289,6 +4496,9 @@ export interface components {
                     enabled: boolean;
                 };
                 s3Protocol?: {
+                    enabled: boolean;
+                };
+                purgeCache?: {
                     enabled: boolean;
                 };
                 icebergCatalog?: {
@@ -4789,7 +4999,7 @@ export interface components {
             entitlements: {
                 feature: {
                     /** @enum {string} */
-                    key: "instances.compute_update_available_sizes" | "instances.read_replicas" | "instances.disk_modifications" | "instances.high_availability" | "instances.orioledb" | "replication.etl" | "storage.max_file_size" | "storage.max_file_size.configurable" | "storage.image_transformations" | "storage.vector_buckets" | "storage.iceberg_catalog" | "security.audit_logs_days" | "security.questionnaire" | "security.soc2_report" | "security.iso27001_certificate" | "security.private_link" | "security.enforce_mfa" | "log.retention_days" | "custom_domain" | "vanity_subdomain" | "ipv4" | "pitr.available_variants" | "log_drains" | "audit_log_drains" | "branching_limit" | "branching_persistent" | "auth.mfa_phone" | "auth.mfa_web_authn" | "auth.mfa_enhanced_security" | "auth.hooks" | "auth.platform.sso" | "auth.custom_jwt_template" | "auth.saml_2" | "auth.user_sessions" | "auth.leaked_password_protection" | "auth.advanced_auth_settings" | "auth.performance_settings" | "auth.password_hibp" | "auth.custom_oauth.max_providers" | "backup.retention_days" | "backup.restore_to_new_project" | "backup.schedule" | "function.max_count" | "function.size_limit_mb" | "realtime.max_concurrent_users" | "realtime.max_events_per_second" | "realtime.max_joins_per_second" | "realtime.max_channels_per_client" | "realtime.max_bytes_per_second" | "realtime.max_presence_events_per_second" | "realtime.max_payload_size_in_kb" | "project_scoped_roles" | "security.member_roles" | "project_pausing" | "project_cloning" | "project_restore_after_expiry" | "assistant.advance_model" | "integrations.github_connections" | "dedicated_pooler" | "observability.dashboard_advanced_metrics";
+                    key: "instances.compute_update_available_sizes" | "instances.read_replicas" | "instances.disk_modifications" | "instances.high_availability" | "instances.orioledb" | "replication.etl" | "storage.max_file_size" | "storage.max_file_size.configurable" | "storage.image_transformations" | "storage.vector_buckets" | "storage.iceberg_catalog" | "storage.purge_cache" | "security.audit_logs_days" | "security.questionnaire" | "security.soc2_report" | "security.iso27001_certificate" | "security.private_link" | "security.enforce_mfa" | "log.retention_days" | "custom_domain" | "vanity_subdomain" | "ipv4" | "pitr.available_variants" | "log_drains" | "audit_log_drains" | "branching_limit" | "branching_persistent" | "auth.mfa_phone" | "auth.mfa_web_authn" | "auth.mfa_enhanced_security" | "auth.hooks" | "auth.platform.sso" | "auth.custom_jwt_template" | "auth.saml_2" | "auth.user_sessions" | "auth.leaked_password_protection" | "auth.advanced_auth_settings" | "auth.performance_settings" | "auth.password_hibp" | "auth.custom_oauth.max_providers" | "backup.retention_days" | "backup.restore_to_new_project" | "backup.schedule" | "function.max_count" | "function.size_limit_mb" | "realtime.max_concurrent_users" | "realtime.max_events_per_second" | "realtime.max_joins_per_second" | "realtime.max_channels_per_client" | "realtime.max_bytes_per_second" | "realtime.max_presence_events_per_second" | "realtime.max_payload_size_in_kb" | "project_scoped_roles" | "security.member_roles" | "project_pausing" | "project_cloning" | "project_restore_after_expiry" | "assistant.advance_model" | "integrations.github_connections" | "dedicated_pooler" | "observability.dashboard_advanced_metrics" | "api.members.invitations" | "api.members.roles";
                     /** @enum {string} */
                     type: "boolean" | "numeric" | "set";
                 };
@@ -4815,6 +5025,7 @@ export interface components {
             email?: string;
             role_name: string;
             mfa_enabled: boolean;
+            avatar_url: string | null;
         };
         V1OrganizationSlugResponse: {
             id: string;
@@ -5378,6 +5589,7 @@ export interface operations {
                 code_challenge_method?: "plain" | "sha256" | "S256";
                 /** @description Organization slug */
                 organization_slug?: string;
+                target_flow?: string;
                 /** @description Resource indicator for MCP (Model Context Protocol) clients */
                 resource?: string;
             };
@@ -8176,7 +8388,7 @@ export interface operations {
             };
         };
         responses: {
-            201: {
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -8235,7 +8447,7 @@ export interface operations {
             };
         };
         responses: {
-            201: {
+            204: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -8959,6 +9171,47 @@ export interface operations {
             };
         };
     };
+    "v1-restart-a-project": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Project ref */
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden action */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     "v1-list-available-restore-versions": {
         parameters: {
             query?: never;
@@ -9450,6 +9703,61 @@ export interface operations {
             };
         };
     };
+    "v1-get-project-logs-all": {
+        parameters: {
+            query?: {
+                /** @description Custom SQL query to execute on the logs. See [querying logs](/docs/guides/telemetry/logs?queryGroups=product&product=postgres&queryGroups=source&source=edge_logs#querying-with-the-logs-explorer) for more details. */
+                sql?: string;
+                iso_timestamp_start?: string;
+                iso_timestamp_end?: string;
+            };
+            header?: never;
+            path: {
+                /** @description Project ref */
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AnalyticsResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Usage exceeded. Enable additional usage to continue querying */
+            402: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden action */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
     "v1-get-project-logs": {
         parameters: {
             query?: {
@@ -9477,6 +9785,13 @@ export interface operations {
             };
             /** @description Unauthorized */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Usage exceeded. Enable additional usage to continue querying */
+            402: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -10416,7 +10731,7 @@ export interface operations {
                 };
                 content?: never;
             };
-            /** @description Failed to upsert database migration */
+            /** @description Failed to update JIT access */
             500: {
                 headers: {
                     [name: string]: unknown;
@@ -10521,6 +10836,142 @@ export interface operations {
                 content?: never;
             };
             /** @description Failed to list database jit access */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "v1-invite-external-jit-access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Project ref */
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["InviteExternalUserJitAccessBody"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["InviteExternalUserJitResponse"];
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden action */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Failed to invite external user */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "v1-accept-invite-external-jit-access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Project ref */
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AcceptInviteExternalUserJitAccessBody"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JitAccessResponse"];
+                };
+            };
+            /** @description Failed to accept invitation */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "v1-delete-invite-external-jit-access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Project ref */
+                ref: string;
+                invite_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden action */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Failed to revoke invite for external user */
             500: {
                 headers: {
                     [name: string]: unknown;

@@ -1473,6 +1473,46 @@ describe('tools', () => {
     expect(result).toEqual({ lints: [] });
   });
 
+  test('get advisors supports paging large lint results', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+    project.security_advisors = Array.from({ length: 5 }, (_, index) => ({
+      name: `lint_${index}`,
+    }));
+
+    const { result } = await callTool({
+      name: 'get_advisors',
+      arguments: {
+        project_id: project.id,
+        type: 'security',
+        limit: 2,
+        offset: 1,
+      },
+    });
+
+    expect(result).toEqual({
+      lints: [{ name: 'lint_1' }, { name: 'lint_2' }],
+      pagination: {
+        total: 5,
+        offset: 1,
+        limit: 2,
+        next_offset: 3,
+      },
+    });
+  });
+
   test('get performance advisors', async () => {
     const { callTool } = await setup();
 

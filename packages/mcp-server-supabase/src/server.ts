@@ -136,6 +136,14 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
     tools: async () => {
       const contentApiClient = await contentApiClientPromise;
       const tools: Record<string, Tool> = {};
+      const addTools = (next: Record<string, Tool>) =>
+        Object.entries(next).forEach(([name, tool]) => {
+          if (readOnly && tool.annotations?.readOnlyHint === false) {
+            return;
+          }
+
+          tools[name] = tool;
+        });
 
       const {
         account,
@@ -148,16 +156,15 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       } = platform;
 
       if (enabledFeatures.has('docs')) {
-        Object.assign(tools, getDocsTools({ contentApiClient }));
+        addTools(getDocsTools({ contentApiClient }));
       }
 
       if (!projectId && account && enabledFeatures.has('account')) {
-        Object.assign(tools, getAccountTools({ account, readOnly }));
+        addTools(getAccountTools({ account, readOnly }));
       }
 
       if (database && enabledFeatures.has('database')) {
-        Object.assign(
-          tools,
+        addTools(
           getDatabaseTools({
             database,
             projectId,
@@ -167,29 +174,41 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       }
 
       if (debugging && enabledFeatures.has('debugging')) {
-        Object.assign(tools, getDebuggingTools({ debugging, projectId }));
+        addTools(getDebuggingTools({ debugging, projectId }));
       }
 
       if (development && enabledFeatures.has('development')) {
-        Object.assign(tools, getDevelopmentTools({ development, projectId }));
+        addTools(getDevelopmentTools({ development, projectId }));
       }
 
       if (functions && enabledFeatures.has('functions')) {
-        Object.assign(
-          tools,
-          getEdgeFunctionTools({ functions, projectId, readOnly })
+        addTools(
+          getEdgeFunctionTools({
+            functions,
+            projectId,
+            readOnly,
+          })
         );
       }
 
       if (branching && enabledFeatures.has('branching')) {
-        Object.assign(
-          tools,
-          getBranchingTools({ branching, projectId, readOnly })
+        addTools(
+          getBranchingTools({
+            branching,
+            projectId,
+            readOnly,
+          })
         );
       }
 
       if (storage && enabledFeatures.has('storage')) {
-        Object.assign(tools, getStorageTools({ storage, projectId, readOnly }));
+        addTools(
+          getStorageTools({
+            storage,
+            projectId,
+            readOnly,
+          })
+        );
       }
 
       return tools;

@@ -66,6 +66,21 @@ describe('stdio', () => {
     expect(tools.length).toBeGreaterThan(0);
   });
 
+  test('read-only mode filters mutating tools from tool list', async () => {
+    const { client } = await setup({ readOnly: true });
+
+    const { tools } = await client.listTools();
+    const toolNames = new Set(tools.map((tool) => tool.name));
+
+    expect(toolNames.has('apply_migration')).toBe(false);
+    expect(toolNames.has('deploy_edge_function')).toBe(false);
+    expect(toolNames.has('create_branch')).toBe(false);
+    expect(toolNames.has('delete_branch')).toBe(false);
+
+    expect(toolNames.has('list_tables')).toBe(true);
+    expect(toolNames.has('execute_sql')).toBe(true);
+  });
+
   test('missing access token fails', async () => {
     const setupPromise = setup({ accessToken: null as any });
 

@@ -1,5 +1,9 @@
 import type { z } from 'zod/v4';
-import { CURRENT_FEATURE_GROUPS, type FeatureGroup } from '../types.js';
+import {
+  CURRENT_FEATURE_GROUPS,
+  featureGroupSchema,
+  type FeatureGroup,
+} from '../types.js';
 import { accountToolDefs } from './account-tools.js';
 import { branchingToolDefs } from './branching-tools.js';
 import { databaseToolDefs } from './database-operation-tools.js';
@@ -247,7 +251,9 @@ export function createToolSchemas<
   readOnly?: ReadOnly;
 }): ToolSchemasFor<Features[number], ProjectScoped, ReadOnly> {
   const enabledFeatures = new Set<string>(
-    options?.features ?? CURRENT_FEATURE_GROUPS
+    (options?.features ?? CURRENT_FEATURE_GROUPS).map((feature) =>
+      featureGroupSchema.parse(feature)
+    )
   );
   const projectScoped = options?.projectScoped ?? false;
   const readOnly = options?.readOnly ?? false;

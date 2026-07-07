@@ -51,6 +51,21 @@ describe('createToolSchemas', () => {
       expectTypeOf(schemas).toHaveProperty('search_docs');
       expectTypeOf(schemas).not.toHaveProperty('execute_sql');
     });
+
+    test('normalizes deprecated feature names', () => {
+      const deprecatedSchemas = createToolSchemas({
+        features: ['debug'] as any,
+      });
+      const currentSchemas = createToolSchemas({ features: ['debugging'] });
+
+      expect(Object.keys(deprecatedSchemas).sort()).toEqual(
+        Object.keys(currentSchemas).sort()
+      );
+      expect(Object.keys(deprecatedSchemas).sort()).toEqual([
+        'get_advisors',
+        'get_logs',
+      ]);
+    });
   });
 
   describe('PROJECT_SCOPED_OVERRIDES completeness', () => {

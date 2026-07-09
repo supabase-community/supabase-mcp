@@ -1,27 +1,17 @@
-import { Server } from '@modelcontextprotocol/sdk/server/index.js';
-import {
-  CallToolRequestSchema,
-  ListResourcesRequestSchema,
-  ListResourceTemplatesRequestSchema,
-  ListToolsRequestSchema,
-  ReadResourceRequestSchema,
-  type ClientCapabilities,
-  type Implementation,
-  type ListResourcesResult,
-  type ListResourceTemplatesResult,
-  type ReadResourceResult,
-  type ServerCapabilities,
-  type ListToolsResult,
-  type Tool as McpTool,
-} from '@modelcontextprotocol/sdk/types.js';
-import { z } from 'zod/v4';
+import { Server } from '@modelcontextprotocol/server';
 import type {
-  ExpandRecursively,
-  ExtractNotification,
-  ExtractParams,
-  ExtractRequest,
-  ExtractResult,
-} from './types.js';
+  ClientCapabilities,
+  Implementation,
+  ListResourcesResult,
+  ListResourceTemplatesResult,
+  ListToolsResult,
+  Tool as McpTool,
+  ReadResourceResult,
+  ServerCapabilities,
+} from '@modelcontextprotocol/server';
+import { z } from 'zod/v4';
+
+import type { ExtractParams } from './types.js';
 import { assertValidUri, compareUris, matchUriTemplate } from './util.js';
 
 export type Scheme = string;
@@ -338,7 +328,7 @@ export function createMcpServer(options: McpServerOptions) {
 
   if (options.resources) {
     server.setRequestHandler(
-      ListResourcesRequestSchema,
+      'resources/list',
       async (): Promise<ListResourcesResult> => {
         const allResources = await getResources();
         return {
@@ -357,7 +347,7 @@ export function createMcpServer(options: McpServerOptions) {
     );
 
     server.setRequestHandler(
-      ListResourceTemplatesRequestSchema,
+      'resources/templates/list',
       async (): Promise<ListResourceTemplatesResult> => {
         const allResources = await getResources();
         return {
@@ -376,7 +366,7 @@ export function createMcpServer(options: McpServerOptions) {
     );
 
     server.setRequestHandler(
-      ReadResourceRequestSchema,
+      'resources/read',
       async (request): Promise<ReadResourceResult> => {
         try {
           const allResources = await getResources();
@@ -447,7 +437,7 @@ export function createMcpServer(options: McpServerOptions) {
 
   if (options.tools) {
     server.setRequestHandler(
-      ListToolsRequestSchema,
+      'tools/list',
       async (): Promise<ListToolsResult> => {
         const tools = await getTools();
 
@@ -477,7 +467,7 @@ export function createMcpServer(options: McpServerOptions) {
       }
     );
 
-    server.setRequestHandler(CallToolRequestSchema, async (request) => {
+    server.setRequestHandler('tools/call', async (request) => {
       try {
         const tools = await getTools();
         const toolName = request.params.name;
@@ -525,7 +515,7 @@ export function createMcpServer(options: McpServerOptions) {
 
         const content =
           result != null
-            ? [{ type: 'text', text: JSON.stringify(result) }]
+            ? [{ type: 'text' as const, text: JSON.stringify(result) }]
             : [];
 
         return {
@@ -545,12 +535,7 @@ export function createMcpServer(options: McpServerOptions) {
     });
   }
 
-  // Expand types recursively for better intellisense
-  type Request = ExpandRecursively<ExtractRequest<typeof server>>;
-  type Notification = ExpandRecursively<ExtractNotification<typeof server>>;
-  type Result = ExpandRecursively<ExtractResult<typeof server>>;
-
-  return server as Server<Request, Notification, Result>;
+  return server;
 }
 
 function enumerateError(error: unknown) {

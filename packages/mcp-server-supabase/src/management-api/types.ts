@@ -4583,6 +4583,7 @@ export interface components {
             track_activity_query_size?: string;
             max_connections?: number;
             max_locks_per_transaction?: number;
+            max_logical_replication_workers?: number;
             max_parallel_maintenance_workers?: number;
             max_parallel_workers?: number;
             max_parallel_workers_per_gather?: number;
@@ -4590,6 +4591,7 @@ export interface components {
             max_slot_wal_keep_size?: string;
             max_standby_archive_delay?: string;
             max_standby_streaming_delay?: string;
+            max_sync_workers_per_subscription?: number;
             max_wal_size?: string;
             max_wal_senders?: number;
             max_worker_processes?: number;
@@ -4633,6 +4635,7 @@ export interface components {
             track_activity_query_size?: string;
             max_connections?: number;
             max_locks_per_transaction?: number;
+            max_logical_replication_workers?: number;
             max_parallel_maintenance_workers?: number;
             max_parallel_workers?: number;
             max_parallel_workers_per_gather?: number;
@@ -4640,6 +4643,7 @@ export interface components {
             max_slot_wal_keep_size?: string;
             max_standby_archive_delay?: string;
             max_standby_streaming_delay?: string;
+            max_sync_workers_per_subscription?: number;
             max_wal_size?: string;
             max_wal_senders?: number;
             max_worker_processes?: number;

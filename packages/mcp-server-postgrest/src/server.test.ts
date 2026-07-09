@@ -1,7 +1,8 @@
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { Client } from '@modelcontextprotocol/client';
 import { AuthClient } from '@supabase/auth-js';
 import { StreamTransport } from '@supabase/mcp-utils';
 import { describe, expect, test } from 'vitest';
+
 import { createPostgrestMcpServer } from './server.js';
 
 // Requires local Supabase stack running

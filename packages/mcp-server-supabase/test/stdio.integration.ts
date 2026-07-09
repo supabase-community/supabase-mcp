@@ -1,6 +1,6 @@
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import { LoggingMessageNotificationSchema } from '@modelcontextprotocol/sdk/types.js';
+import { Client } from '@modelcontextprotocol/client';
+import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
+import { LoggingMessageNotificationSchema } from '@modelcontextprotocol/client';
 import gqlmin from 'gqlmin';
 import { createServer, type Server } from 'node:http';
 import { afterEach, describe, expect, test } from 'vitest';
@@ -38,7 +38,7 @@ async function setup(options: SetupOptions = {}) {
     }
   );
 
-  client.setNotificationHandler(LoggingMessageNotificationSchema, (message) => {
+  client.setNotificationHandler('notifications/message', (message) => {
     const { level, data } = message.params;
     if (level === 'error') {
       console.error(data);
@@ -120,7 +120,9 @@ describe('stdio', () => {
   test('missing access token fails', async () => {
     const setupPromise = setup({ accessToken: null as any });
 
-    await expect(setupPromise).rejects.toThrow('MCP error -32000');
+    // v2 SDK change: a stdio server that exits during init surfaces a transport
+    // 'Connection closed' error to the client rather than v1's JSON-RPC 'MCP error -32000'.
+    await expect(setupPromise).rejects.toThrow('Connection closed');
   });
 });
 

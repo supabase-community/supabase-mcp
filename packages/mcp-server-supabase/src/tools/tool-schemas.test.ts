@@ -24,6 +24,7 @@ describe('createToolSchemas', () => {
       expect(Object.keys(schemas).sort()).toEqual([
         'apply_migration',
         'execute_sql',
+        'generate_schema_docs',
         'list_extensions',
         'list_migrations',
         'list_tables',
@@ -132,6 +133,7 @@ describe('createToolSchemas', () => {
       const keys = Object.keys(schemas);
 
       expect(keys).toContain('execute_sql');
+      expect(keys).toContain('generate_schema_docs');
       expect(keys).toContain('search_docs');
       expect(keys).toContain('list_tables');
       expect(keys).toContain('list_organizations');
@@ -198,6 +200,7 @@ describe('createToolSchemas', () => {
       // Only database read tools + docs
       expect(keys).toEqual([
         'execute_sql',
+        'generate_schema_docs',
         'list_extensions',
         'list_migrations',
         'list_tables',

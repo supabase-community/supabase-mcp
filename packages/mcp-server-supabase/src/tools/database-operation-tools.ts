@@ -13,6 +13,7 @@ import {
 import type { DatabaseOperations } from '../platform/types.js';
 import { migrationSchema } from '../platform/types.js';
 import { injectableTool, type ToolDefs } from './util.js';
+import { getDatabaseDocsTools } from './database-docs-tools.js';
 
 type DatabaseOperationToolsOptions = {
   database: DatabaseOperations;
@@ -386,5 +387,8 @@ export function getDatabaseTools({
     }),
   };
 
-  return databaseOperationTools;
+  return {
+    ...databaseOperationTools,
+    ...getDatabaseDocsTools({ database, projectId }),
+  };
 }

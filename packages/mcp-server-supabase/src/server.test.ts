@@ -1332,6 +1332,317 @@ describe('tools', () => {
     `);
   });
 
+  test('generate schema docs returns markdown and structured data', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    await project.db.exec(`
+      create table public.users (
+        id integer generated always as identity primary key,
+        email text not null
+      );
+      alter table public.users enable row level security;
+
+      create policy "Users can read users"
+        on public.users
+        for select
+        using (true);
+
+      create function public.format_email(email text)
+      returns text
+      language sql
+      stable
+      as $$
+        select lower(email);
+      $$;
+
+      create function public.touch_users()
+      returns trigger
+      language plpgsql
+      as $$
+      begin
+        new.email := lower(new.email);
+        return new;
+      end;
+      $$;
+
+      create trigger users_touch_users
+      before insert or update on public.users
+      for each row
+      execute function public.touch_users();
+    `);
+
+    const result = await callTool({
+      name: 'generate_schema_docs',
+      arguments: {
+        project_id: project.id,
+        schemas: ['public'],
+        format: 'both',
+      },
+    });
+
+    expect(result.summary).toEqual({
+      table_count: 1,
+      policy_count: 1,
+      trigger_count: 1,
+      function_count: 2,
+      standalone_function_count: 1,
+      trigger_function_count: 1,
+    });
+
+    expect(result.data.tables).toEqual([
+      expect.objectContaining({
+        full_name: 'public.users',
+        rls_enabled: true,
+        primary_keys: ['id'],
+      }),
+    ]);
+    expect(result.data.policies).toEqual([
+      expect.objectContaining({
+        full_table_name: 'public.users',
+        policy_name: 'Users can read users',
+        command: 'SELECT',
+      }),
+    ]);
+    expect(result.data.triggers).toEqual([
+      expect.objectContaining({
+        full_table_name: 'public.users',
+        trigger_name: 'users_touch_users',
+        full_function_name: 'public.touch_users',
+      }),
+    ]);
+    expect(result.data.functions).toEqual([
+      expect.objectContaining({
+        full_name: 'public.format_email',
+        result_type: 'text',
+        is_trigger_function: false,
+      }),
+    ]);
+    expect(result.data.trigger_functions).toEqual([
+      expect.objectContaining({
+        full_name: 'public.touch_users',
+        result_type: 'trigger',
+        is_trigger_function: true,
+      }),
+    ]);
+
+    expect(result.markdown).toContain('# Database Documentation');
+    expect(result.markdown).toContain('## Tables');
+    expect(result.markdown).toContain('public.users');
+    expect(result.markdown).toContain('| Name | Type | Options | Default | Comment |');
+    expect(result.markdown).toContain('| id | integer | identity, updatable |  |  |');
+    expect(result.markdown).toContain('#### RLS Policies');
+    expect(result.markdown).toContain('#### Triggers');
+    expect(result.markdown).not.toContain('\n## RLS Policies\n');
+    expect(result.markdown).not.toContain('\n## Triggers\n');
+    expect(result.markdown).toContain('## Functions');
+    expect(result.markdown).toContain('- Standalone Functions: 1');
+    expect(result.markdown).toContain('- Trigger Functions: 1');
+    expect(result.markdown).toContain('### Standalone Functions');
+    expect(result.markdown).toContain('### Trigger Functions');
+    expect(result.markdown).toContain('#### public.format_email(email text) -> text');
+    expect(result.markdown).toContain('#### public.touch_users() -> trigger');
+    expect(result.markdown).toContain('Users can read users');
+    expect(result.markdown).toContain('users_touch_users');
+  });
+
+  test('generate schema docs format json returns only structured data', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    await project.db.exec(`
+      create table public.items (
+        id integer generated always as identity primary key,
+        name text not null
+      );
+    `);
+
+    const result = await callTool({
+      name: 'generate_schema_docs',
+      arguments: {
+        project_id: project.id,
+        schemas: ['public'],
+        format: 'json',
+      },
+    });
+
+    expect(result.data).toBeDefined();
+    expect(result.markdown).toBeUndefined();
+    expect(result.summary.table_count).toBe(1);
+  });
+
+  test('generate schema docs format markdown returns only markdown', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    await project.db.exec(`
+      create table public.items (
+        id integer generated always as identity primary key,
+        name text not null
+      );
+    `);
+
+    const result = await callTool({
+      name: 'generate_schema_docs',
+      arguments: {
+        project_id: project.id,
+        schemas: ['public'],
+        format: 'markdown',
+      },
+    });
+
+    expect(result.markdown).toBeDefined();
+    expect(result.data).toBeUndefined();
+    expect(result.markdown).toContain('# Database Documentation');
+    expect(result.markdown).toContain('public.items');
+  });
+
+  test('generate schema docs include_tables false shows standalone RLS policy section', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    await project.db.exec(`
+      create table public.items (
+        id integer generated always as identity primary key
+      );
+      alter table public.items enable row level security;
+      create policy "Items are public"
+        on public.items
+        for select
+        using (true);
+    `);
+
+    const result = await callTool({
+      name: 'generate_schema_docs',
+      arguments: {
+        project_id: project.id,
+        schemas: ['public'],
+        include_tables: false,
+        include_policies: true,
+        format: 'markdown',
+      },
+    });
+
+    expect(result.markdown).toContain('## RLS Policies');
+    expect(result.markdown).not.toContain('## Tables');
+    expect(result.markdown).toContain('Items are public');
+  });
+
+  test('generate schema docs include_functions false omits functions from result', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    await project.db.exec(`
+      create function public.greet(name text)
+      returns text
+      language sql
+      stable
+      as $$
+        select 'Hello, ' || name;
+      $$;
+    `);
+
+    const result = await callTool({
+      name: 'generate_schema_docs',
+      arguments: {
+        project_id: project.id,
+        schemas: ['public'],
+        include_functions: false,
+        format: 'both',
+      },
+    });
+
+    expect(result.summary.function_count).toBe(0);
+    expect(result.data.functions).toEqual([]);
+    expect(result.data.trigger_functions).toEqual([]);
+    expect(result.markdown).not.toContain('## Functions');
+  });
+
+  test('generate schema docs returns empty message for schema with no objects', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const result = await callTool({
+      name: 'generate_schema_docs',
+      arguments: {
+        project_id: project.id,
+        schemas: ['nonexistent_schema'],
+        format: 'markdown',
+      },
+    });
+
+    expect(result.markdown).toContain('No matching schema objects were found');
+    expect(result.summary.table_count).toBe(0);
+    expect(result.summary.function_count).toBe(0);
+  });
+
   test('invalid access token', async () => {
     const { callTool } = await setup({ accessToken: 'bad-token' });
 
@@ -3085,6 +3396,7 @@ describe('feature groups', () => {
       'list_migrations',
       'apply_migration',
       'execute_sql',
+      'generate_schema_docs',
     ]);
   });
 
@@ -3228,6 +3540,7 @@ describe('feature groups', () => {
       'list_migrations',
       'apply_migration',
       'execute_sql',
+      'generate_schema_docs',
     ]);
   });
 

@@ -2,7 +2,8 @@ import type { z } from 'zod/v4';
 import { CURRENT_FEATURE_GROUPS, type FeatureGroup } from '../types.js';
 import { accountToolDefs } from './account-tools.js';
 import { branchingToolDefs } from './branching-tools.js';
-import { databaseToolDefs } from './database-operation-tools.js';
+import * as databaseDocs from './database-docs-tools.js';
+import * as databaseOps from './database-operation-tools.js';
 import { debuggingToolDefs } from './debugging-tools.js';
 import { developmentToolDefs } from './development-tools.js';
 import { docsToolDefs } from './docs-tools.js';
@@ -33,6 +34,10 @@ function defsToSchemas<const T extends ToolDefs>(defs: T): DefsToSchemas<T> {
     )
   ) as DefsToSchemas<T>;
 }
+const databaseToolDefs = {
+  ...databaseOps.databaseToolDefs,
+  ...databaseDocs.databaseDocsToolDefs,
+} as const;
 
 type SchemaEntry = {
   inputSchema: z.ZodObject<any>;

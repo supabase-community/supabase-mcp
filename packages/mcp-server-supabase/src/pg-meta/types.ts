@@ -73,8 +73,42 @@ export const postgresExtensionSchema = z.object({
   comment: z.union([z.string(), z.null()]),
 });
 
+export const postgresPolicySchema = z.object({
+  schema_name: z.string(),
+  table_name: z.string(),
+  policy_name: z.string(),
+  permissive: z.string(),
+  roles: z.array(z.string()).catch([]),
+  cmd: z.string(),
+  qual: z.string().nullable(),
+  with_check: z.string().nullable(),
+});
+
+export const postgresTriggerSchema = z.object({
+  table_schema: z.string(),
+  table_name: z.string(),
+  trigger_name: z.string(),
+  function_schema: z.string(),
+  function_name: z.string(),
+  trigger_definition: z.string(),
+});
+
+export const postgresFunctionSchema = z.object({
+  schema_name: z.string(),
+  function_name: z.string(),
+  identity_arguments: z.string(),
+  result_type: z.string(),
+  language: z.string(),
+  volatility: z.string(),
+  security_definer: z.boolean(),
+  comment: z.string().nullable(),
+});
+
 export type PostgresPrimaryKey = z.infer<typeof postgresPrimaryKeySchema>;
 export type PostgresRelationship = z.infer<typeof postgresRelationshipSchema>;
 export type PostgresColumn = z.infer<typeof postgresColumnSchema>;
 export type PostgresTable = z.infer<typeof postgresTableSchema>;
 export type PostgresExtension = z.infer<typeof postgresExtensionSchema>;
+export type PostgresPolicy = z.infer<typeof postgresPolicySchema>;
+export type PostgresTrigger = z.infer<typeof postgresTriggerSchema>;
+export type PostgresFunction = z.infer<typeof postgresFunctionSchema>;

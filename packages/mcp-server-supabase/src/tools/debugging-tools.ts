@@ -33,7 +33,7 @@ const getAdvisorsOutputSchema = z.object({
 export const debuggingToolDefs = {
   get_logs: {
     description:
-      'Gets logs for a Supabase project by service type. Use this to help debug problems with your app. This will return logs within the last 24 hours.',
+      'Retrieve logs for a Supabase project filtered by service type to debug application issues. Use when the user wants to investigate errors, monitor performance, or troubleshoot problems with their Supabase application. Accepts `project_id` (required) and `service_type` (optional: "api", "auth", "realtime", "storage", or "edge-functions"). Returns logs from the last 24 hours only. e.g., service_type="api" to view API gateway logs or service_type="auth" for authentication errors. Raises an error if the project does not exist or you lack access permissions. Do not use when you need general project information (use get_project instead).',
     parameters: getLogsInputSchema,
     outputSchema: getLogsOutputSchema,
     annotations: {
@@ -46,7 +46,7 @@ export const debuggingToolDefs = {
   },
   get_advisors: {
     description:
-      "Gets a list of advisory notices for the Supabase project. Use this to check for security vulnerabilities or performance improvements. Include the remediation URL as a clickable link so that the user can reference the issue themselves. It's recommended to run this tool regularly, especially after making DDL changes to the database since it will catch things like missing RLS policies.",
+      "Retrieve advisory notices for a Supabase project to identify security vulnerabilities and performance issues. Use when the user wants to audit their database for missing RLS policies, security gaps, or optimization opportunities. Accepts `project_id` (required) and returns notices with clickable remediation URLs. e.g., checking for missing row-level security after schema changes. Raises an error if the project does not exist or access is denied. Do not use when you need general project information (use get_project instead).",
     parameters: getAdvisorsInputSchema,
     outputSchema: getAdvisorsOutputSchema,
     annotations: {

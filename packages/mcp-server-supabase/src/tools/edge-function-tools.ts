@@ -61,7 +61,7 @@ const deployEdgeFunctionOutputSchema = edgeFunctionSchema;
 
 export const edgeFunctionToolDefs = {
   list_edge_functions: {
-    description: 'Lists all Edge Functions in a Supabase project.',
+    description: 'List all Edge Functions deployed in a Supabase project. Use when the user wants to view, review, or inventory existing serverless functions for debugging or management purposes. Accepts `project_ref` (required project identifier). e.g., project_ref="abcd1234efgh5678". Do not use when you need to create or deploy new functions (use appropriate deployment tools instead). Returns an error if the project reference is invalid or you lack access permissions.',
     parameters: listEdgeFunctionsInputSchema,
     outputSchema: listEdgeFunctionsOutputSchema,
     annotations: {
@@ -74,7 +74,7 @@ export const edgeFunctionToolDefs = {
   },
   get_edge_function: {
     description:
-      'Retrieves file contents for an Edge Function in a Supabase project.',
+      'Retrieve the source code and configuration of a specific Edge Function deployed in a Supabase project. Use when the user wants to examine, debug, or review the implementation of an existing serverless function. Accepts `project_ref` (required) and `function_slug` (required string identifier). e.g., function_slug="hello-world" or "user-authentication". Do not use when you need to see all available functions (use list_edge_functions instead). Raises an error if the function does not exist or the project reference is invalid.',
     parameters: getEdgeFunctionInputSchema,
     outputSchema: getEdgeFunctionOutputSchema,
     annotations: {
@@ -86,7 +86,7 @@ export const edgeFunctionToolDefs = {
     },
   },
   deploy_edge_function: {
-    description: `Deploys an Edge Function to a Supabase project. If the function already exists, this will create a new version. Example:\n\n${edgeFunctionExample}`,
+    description: `Deploy an Edge Function to a Supabase project, creating a new version if the function already exists. Use when the user wants to publish serverless functions for real-time data processing or API endpoints. Do not use when you need to list existing functions or manage project-level deployments (use list_projects or create_project instead). Accepts `project_ref` (required), `function_name` (required), and `function_code` (required TypeScript/JavaScript string), e.g., function_name="hello-world" with basic HTTP handler code. Raises an error if the project reference is invalid or the function code contains syntax errors.`,
     parameters: deployEdgeFunctionInputSchema,
     outputSchema: deployEdgeFunctionOutputSchema,
     annotations: {

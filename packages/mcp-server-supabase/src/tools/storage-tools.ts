@@ -40,7 +40,7 @@ const updateStorageConfigOutputSchema = z.object({
 
 export const storageToolDefs = {
   list_storage_buckets: {
-    description: 'Lists all storage buckets in a Supabase project.',
+    description: 'List all storage buckets in a Supabase project. Use when the user wants to view, audit, or manage existing storage containers and their configurations. Accepts `project_ref` (required) to specify which Supabase project to query. e.g., project_ref="abcd1234efgh5678". Do not use when you need to create a new bucket or manage bucket contents (use appropriate bucket management tools instead). Raises an error if the project reference is invalid or the user lacks storage access permissions.',
     parameters: listStorageBucketsInputSchema,
     outputSchema: listStorageBucketsOutputSchema,
     annotations: {
@@ -52,7 +52,7 @@ export const storageToolDefs = {
     },
   },
   get_storage_config: {
-    description: 'Get the storage config for a Supabase project.',
+    description: 'Retrieve the storage configuration settings for a Supabase project. Use when the user wants to view current storage limits, file size restrictions, or bucket policies. Do not use when you need general project details (use get_project instead). Accepts `project_id` (required string), e.g., "abc123def456". Returns configuration including max file size, allowed MIME types, and storage quotas. Raises an error if the project does not exist or you lack storage access permissions.',
     parameters: getStorageConfigInputSchema,
     outputSchema: getStorageConfigOutputSchema,
     annotations: {
@@ -64,7 +64,7 @@ export const storageToolDefs = {
     },
   },
   update_storage_config: {
-    description: 'Update the storage config for a Supabase project.',
+    description: 'Update the storage configuration settings for a Supabase project. Use when the user wants to modify storage limits, file size restrictions, or bucket policies for their project. Accepts `project_ref` (required) and configuration parameters such as `file_size_limit`, `storage_limit`, and `allowed_mime_types`. Do not use when you need to create or manage individual storage buckets (use bucket management tools instead). e.g., updating file_size_limit to "50MB" or storage_limit to "10GB". Raises an error if the project is paused or if the specified limits exceed the subscription plan allowances.',
     parameters: updateStorageConfigInputSchema,
     outputSchema: updateStorageConfigOutputSchema,
     annotations: {

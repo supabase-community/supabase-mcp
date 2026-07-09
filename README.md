@@ -12,7 +12,7 @@ The [Model Context Protocol](https://modelcontextprotocol.io/introduction) (MCP)
 
 ### 1. Follow our security best practices
 
-Before setting up the MCP server, we recommend you read our [security best practices](#security-risks) to understand the risks of connecting an LLM to your Supabase projects and how to mitigate them.
+Before setting up the MCP server, we recommend you read our [security best practices](https://supabase.com/docs/guides/ai-tools/mcp#security-risks) to understand the risks of connecting an LLM to your Supabase projects and how to mitigate them.
 
 
 ### 2. Configure your MCP client
@@ -178,11 +178,6 @@ Disabled by default to reduce tool count. Use `storage` to target this group of 
 - `list_storage_buckets`: Lists all storage buckets in a Supabase project.
 - `get_storage_config`: Gets the storage config for a Supabase project.
 - `update_storage_config`: Updates the storage config for a Supabase project (requires a paid plan).
-
-## Security risks
-
-> [!TIP]
-> Before using the MCP server, review the security risks and recommended mitigations in the [Supabase Docs](https://supabase.com/docs/guides/ai-tools/mcp#security-risks).
 
 ## Usage with AI SDK's MCP Client
 

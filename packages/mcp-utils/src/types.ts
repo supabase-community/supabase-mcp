@@ -1,5 +1,3 @@
-import type { Server } from '@modelcontextprotocol/sdk/server/index.js';
-
 /**
  * A web stream that can be both read from and written to.
  */
@@ -32,20 +30,3 @@ export type ExtractParams<Path extends string> =
   Path extends `${string}{${infer P}}${infer Rest}`
     ? P | ExtractParams<Rest>
     : never;
-
-/**
- * Extracts the request type from an MCP server.
- */
-export type ExtractRequest<S> = S extends Server<infer R, any, any> ? R : never;
-
-/**
- * Extracts the notification type from an MCP server.
- */
-export type ExtractNotification<S> = S extends Server<any, infer N, any>
-  ? N
-  : never;
-
-/**
- * Extracts the result type from an MCP server.
- */
-export type ExtractResult<S> = S extends Server<any, any, infer R> ? R : never;

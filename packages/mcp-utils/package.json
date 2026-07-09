@@ -31,11 +31,12 @@
     }
   },
   "peerDependencies": {
-    "@modelcontextprotocol/sdk": "catalog:",
+    "@modelcontextprotocol/server": "catalog:",
     "zod": "catalog:"
   },
   "devDependencies": {
-    "@modelcontextprotocol/sdk": "catalog:",
+    "@modelcontextprotocol/client": "catalog:",
+    "@modelcontextprotocol/server": "catalog:",
     "@total-typescript/tsconfig": "^1.0.4",
     "@types/node": "^22.8.6",
     "prettier": "^3.3.3",

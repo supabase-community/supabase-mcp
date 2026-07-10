@@ -13,11 +13,11 @@ catalogs:
       specifier: ^1.0.21
       version: 1.0.21
     '@modelcontextprotocol/client':
-      specifier: 2.0.0-beta.2
-      version: 2.0.0-beta.2
+      specifier: 2.0.0-beta.3
+      version: 2.0.0-beta.3
     '@modelcontextprotocol/server':
-      specifier: 2.0.0-beta.2
-      version: 2.0.0-beta.2
+      specifier: 2.0.0-beta.3
+      version: 2.0.0-beta.3
     ai:
       specifier: ^6.0.100
       version: 6.0.100
@@ -50,10 +50,10 @@ importers:
     devDependencies:
       '@modelcontextprotocol/client':
         specifier: 'catalog:'
-        version: 2.0.0-beta.2
+        version: 2.0.0-beta.3
       '@modelcontextprotocol/server':
         specifier: 'catalog:'
-        version: 2.0.0-beta.2
+        version: 2.0.0-beta.3
       '@supabase/auth-js':
         specifier: ^2.67.3
         version: 2.71.1
@@ -114,10 +114,10 @@ importers:
         version: 0.2.17
       '@modelcontextprotocol/client':
         specifier: 'catalog:'
-        version: 2.0.0-beta.2
+        version: 2.0.0-beta.3
       '@modelcontextprotocol/server':
         specifier: 'catalog:'
-        version: 2.0.0-beta.2
+        version: 2.0.0-beta.3
       '@total-typescript/tsconfig':
         specifier: ^1.0.4
         version: 1.0.4
@@ -177,10 +177,10 @@ importers:
     devDependencies:
       '@modelcontextprotocol/client':
         specifier: 'catalog:'
-        version: 2.0.0-beta.2
+        version: 2.0.0-beta.3
       '@modelcontextprotocol/server':
         specifier: 'catalog:'
-        version: 2.0.0-beta.2
+        version: 2.0.0-beta.3
       '@total-typescript/tsconfig':
         specifier: ^1.0.4
         version: 1.0.4
@@ -701,12 +701,12 @@ packages:
   '@mjackson/multipart-parser@0.10.1':
     resolution: {integrity: sha512-cHMD6+ErH/DrEfC0N6Ru/+1eAdavxdV0C35PzSb5/SD7z3XoaDMc16xPJcb8CahWjSpqHY+Too9sAb6/UNuq7A==}
 
-  '@modelcontextprotocol/client@2.0.0-beta.2':
-    resolution: {integrity: sha512-IKEJQmvM2g7HLSOofLXECjQyeryB1YWgjazHcYygyH3ERSe7b8cFS3WHlupMxees5URNXcqBLVlbDRgodaBQ9A==}
+  '@modelcontextprotocol/client@2.0.0-beta.3':
+    resolution: {integrity: sha512-o9z9YCGNxWNdklPdjcD0tr8pocC9OgjdArqgx3OjPMlTe0M/SSPC2olOJs5ueq77HSpz36mND0f0KteqEhKF3A==}
     engines: {node: '>=20'}
 
-  '@modelcontextprotocol/server@2.0.0-beta.2':
-    resolution: {integrity: sha512-XK+sgFntT5ZzeqtTGpT9uti+Sqmq7YJZdx/N76eLJv9UA9vKvP04Qh9Hc45LCeIHGfTKRwDG6eh4C1Hs4omyIg==}
+  '@modelcontextprotocol/server@2.0.0-beta.3':
+    resolution: {integrity: sha512-EQxVIWf2XMAgjR38ZRZnX1iiOWH42tT/YJG8N4dVjAnrEGSEfPirR6FYfDC72yuNSvVYbPDTD1H3KHLLHPd18A==}
     engines: {node: '>=20'}
 
   '@mswjs/interceptors@0.39.6':
@@ -2282,7 +2282,7 @@ snapshots:
     dependencies:
       '@mjackson/headers': 0.11.1
 
-  '@modelcontextprotocol/client@2.0.0-beta.2':
+  '@modelcontextprotocol/client@2.0.0-beta.3':
     dependencies:
       cross-spawn: 7.0.6
       eventsource: 3.0.7
@@ -2291,7 +2291,7 @@ snapshots:
       pkce-challenge: 5.0.0
       zod: 4.2.1
 
-  '@modelcontextprotocol/server@2.0.0-beta.2':
+  '@modelcontextprotocol/server@2.0.0-beta.3':
     dependencies:
       zod: 4.2.1
 

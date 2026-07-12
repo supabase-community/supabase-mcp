@@ -14,6 +14,7 @@ import { getDevelopmentTools } from './tools/development-tools.js';
 import { getDocsTools } from './tools/docs-tools.js';
 import { getEdgeFunctionTools } from './tools/edge-function-tools.js';
 import { getStorageTools } from './tools/storage-tools.js';
+import { writeToolSet } from './tools/tool-schemas.js';
 import type { FeatureGroup } from './types.js';
 import { parseFeatureGroups } from './util.js';
 
@@ -69,9 +70,7 @@ export const PLATFORM_INDEPENDENT_FEATURES: FeatureGroup[] = ['docs'];
 
 function removeWriteTools(tools: Record<string, Tool>) {
   return Object.fromEntries(
-    Object.entries(tools).filter(
-      ([, tool]) => tool.annotations?.readOnlyHint !== false
-    )
+    Object.entries(tools).filter(([name]) => !writeToolSet.has(name))
   );
 }
 

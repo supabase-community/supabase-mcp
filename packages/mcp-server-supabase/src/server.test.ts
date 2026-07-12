@@ -3017,7 +3017,7 @@ describe('tools', () => {
   });
 
   test('read-only mode excludes write tools from tools/list', async () => {
-    const { client } = await setup({
+    const { callTool, client } = await setup({
       readOnly: true,
       features: [
         'docs',
@@ -3046,6 +3046,19 @@ describe('tools', () => {
         .filter((tool) => tool.annotations?.readOnlyHint === false)
         .map((tool) => tool.name)
     ).toEqual([]);
+
+    const result = callTool({
+      name: 'apply_migration',
+      arguments: {
+        project_id: 'test-project-ref',
+        name: 'test-migration',
+        query: 'create table test (id int)',
+      },
+    });
+
+    await expect(result).rejects.toThrow(
+      'Cannot apply migration in read-only mode.'
+    );
   });
 
   test('tool result content is valid JSON', async () => {

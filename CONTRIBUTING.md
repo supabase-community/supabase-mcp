@@ -66,33 +66,32 @@ If the workflow creates GitHub releases and tags but fails before publishing to 
 
 Treat `tools/list` as a public API contract.
 
-ChatGPT snapshots MCP metadata during plugin submission. These fields are frozen for published ChatGPT users until a new plugin version is scanned, reviewed, and published:
+ChatGPT snapshots MCP metadata during plugin submission. Several fields are frozen for published ChatGPT users until a new plugin version is published, including:
 
 - Tool list, names, titles, and descriptions
 - Input and output schemas
 - Tool annotations
-- Tool security schemes
 - Tool `_meta` fields
 - MCP server `instructions`
 
-Claude Connectors don't have this constraint. Claude picks up server changes on the next connection, no resubmission or review required ([docs](https://claude.com/docs/connectors/building/after-publishing#update-your-mcp-server)).
+See OpenAI's [Ongoing Maintenance](https://developers.openai.com/apps-sdk/deploy/submission#ongoing-maintenance) docs for a more complete overview of frozen fields.
+
+Claude Connectors don't have this constraint, and will pick up server changes on the next connection without needing resubmission ([docs](https://claude.com/docs/connectors/building/after-publishing#update-your-mcp-server)).
 
 **Keep breaking changes backward compatible**
 
-- Add new tools/fields before removing old ones.
-- Make new response fields optional unless every client is ready.
-- Do not rename/remove tools or make schemas stricter in a single release.
+Follow the [expand and contract pattern](https://martinfowler.com/bliki/ParallelChange.html) (aka Parallel Change):
+
+- **Expand:** add new tools/fields alongside the old ones. New fields must be optional, so clients still on the frozen schema keep validating. Don't touch the optionality of existing fields.
+- **Contract:** only remove the old tools/fields once the new version is published, so no frozen client can still depend on them.
 
 **Update docs when the MCP surface changes**
 
-- [supabase.com/mcp](https://supabase.com/mcp) owns the canonical tool list.
-- README should link to that list, not duplicate it.
-- Grep agent skills for exact tool names only when names or behavior change.
+[supabase.com/mcp](https://supabase.com/mcp) owns the canonical tool list, update it as needed for changes to tools or configuration options. [Agent skills](https://github.com/supabase/agent-skills) should generally reference MCP workflows instead of specific tool names, but double check for wording when names or behavior change.
 
-**Update the ChatGPT plugin submission when published metadata must change**
+**Update the ChatGPT plugin submission when published metadata changes**
 
-- Batch small metadata-only edits (wording tweaks) into the next submission unless they're misleading, safety-relevant, or needed for correct tool selection.
-- To publish: deploy the server change, open the [OpenAI plugin dashboard](https://platform.openai.com/plugins), update the existing Supabase plugin draft, scan the production MCP endpoint, fix validation issues, submit for review, then publish after approval.
+Create a new plugin submission via the [OpenAI plugin dashboard](https://platform.openai.com/plugins). OpenAI's [chatgpt-app-submission skill](https://github.com/openai/plugins/blob/main/plugins/openai-developers/skills/chatgpt-app-submission/SKILL.md) can help prepare the submission metadata.
 
 Server-only fixes that preserve the published contract don't need resubmission.
 

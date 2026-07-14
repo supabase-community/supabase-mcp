@@ -46,7 +46,7 @@ For [self-hosted Supabase](https://supabase.com/docs/guides/self-hosting/docker)
 
 ## Configuration options and tools
 
-The Supabase MCP server provides tools for your agents to manage Supabase projects, query and migrate databases, deploy Edge Functions, check advisors, and more. See the [Supabase MCP Server](https://supabase.com/mcp) docs for the full list of [available tools](https://supabase.com/mcp#available-tools) and [configuration options](https://supabase.com/mcp#configuration-options).
+See the [Supabase MCP Server](https://supabase.com/mcp) docs for the full list of [available tools](https://supabase.com/mcp#available-tools) and [configuration options](https://supabase.com/mcp#configuration-options).
 
 The docs also feature an interactive URL builder to populate configuration options for you.
 

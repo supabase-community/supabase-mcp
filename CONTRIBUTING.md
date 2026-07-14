@@ -62,6 +62,42 @@ If the release PR gets into a bad state, close it and manually re-run the workfl
 
 If the workflow creates GitHub releases and tags but fails before publishing to npm or the MCP registry, re-run the workflow from one of the release tags created by the failed workflow run and enable `force_publish`.
 
+## Breaking changes
+
+Treat `tools/list` as a public API contract.
+
+ChatGPT snapshots MCP metadata during plugin submission. These fields are frozen for published ChatGPT users until a new plugin version is scanned, reviewed, and published:
+
+- Tool list, names, titles, and descriptions
+- Input and output schemas
+- Tool annotations
+- Tool security schemes
+- Tool `_meta` fields
+- MCP server `instructions`
+
+Claude Connectors don't have this constraint. Claude picks up server changes on the next connection, no resubmission or review required ([docs](https://claude.com/docs/connectors/building/after-publishing#update-your-mcp-server)).
+
+**Keep breaking changes backward compatible**
+
+- Add new tools/fields before removing old ones.
+- Make new response fields optional unless every client is ready.
+- Do not rename/remove tools or make schemas stricter in a single release.
+
+**Update docs when the MCP surface changes**
+
+- [supabase.com/mcp](https://supabase.com/mcp) owns the canonical tool list.
+- README should link to that list, not duplicate it.
+- Grep agent skills for exact tool names only when names or behavior change.
+
+**Update the ChatGPT plugin submission when published metadata must change**
+
+- Batch small metadata-only edits (wording tweaks) into the next submission unless they're misleading, safety-relevant, or needed for correct tool selection.
+- To publish: deploy the server change, open the [OpenAI plugin dashboard](https://platform.openai.com/plugins), update the existing Supabase plugin draft, scan the production MCP endpoint, fix validation issues, submit for review, then publish after approval.
+
+Server-only fixes that preserve the published contract don't need resubmission.
+
+If a deployed change breaks the published ChatGPT contract, roll back the server change rather than waiting on review.
+
 ## Manual MCP registry publish (optional)
 
 This is only needed if the automated publish failed or needs to be re-run manually. The MCP registry stores metadata about the server (defined in `packages/mcp-server-supabase/server.json`) — it does not host the server itself.

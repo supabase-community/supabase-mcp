@@ -6,6 +6,7 @@ import {
 import { StreamTransport } from '@supabase/mcp-utils';
 import { codeBlock, stripIndent } from 'common-tags';
 import gqlmin from 'gqlmin';
+import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { globalRegistry } from 'zod/v4';
@@ -1341,6 +1342,81 @@ describe('tools', () => {
     });
 
     await expect(listOrganizationsPromise).rejects.toThrow('Unauthorized.');
+  });
+
+  test('permission denied for execute_sql suggests checking organization', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    mockServer?.use(
+      http.post(`${API_URL}/v1/projects/:projectId/database/query`, () =>
+        HttpResponse.json(
+          { message: 'You do not have permission to perform this action' },
+          { status: 403 }
+        )
+      )
+    );
+
+    const executeSqlPromise = callTool({
+      name: 'execute_sql',
+      arguments: {
+        project_id: project.id,
+        query: 'select 1;',
+      },
+    });
+
+    await expect(executeSqlPromise).rejects.toThrow(
+      `You do not have permission to perform this action. Access to project '${project.id}' was denied. If this project exists, your access token may be scoped to a different organization: re-authenticate with the MCP server and select the organization that owns this project.`
+    );
+  });
+
+  test('permission denied for list_tables suggests checking organization', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    mockServer?.use(
+      http.post(`${API_URL}/v1/projects/:projectId/database/query`, () =>
+        HttpResponse.json(
+          { message: 'You do not have permission to perform this action' },
+          { status: 403 }
+        )
+      )
+    );
+
+    const listTablesPromise = callTool({
+      name: 'list_tables',
+      arguments: {
+        project_id: project.id,
+      },
+    });
+
+    await expect(listTablesPromise).rejects.toThrow(
+      /Access to project '.+' was denied.*select the organization that owns this project/
+    );
   });
 
   test('invalid sql for apply_migration', async () => {

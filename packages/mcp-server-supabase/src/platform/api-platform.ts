@@ -8,6 +8,7 @@ import packageJson from '../../package.json' with { type: 'json' };
 import { getDeploymentId, normalizeFilename } from '../edge-function.js';
 import { getLogQuery } from '../logs.js';
 import {
+  assertProjectScopedSuccess,
   assertSuccess,
   createManagementApiClient,
 } from '../management-api/index.js';
@@ -191,7 +192,11 @@ export function createSupabaseApiPlatform(
         }
       );
 
-      assertSuccess(response, 'Failed to execute SQL query');
+      assertProjectScopedSuccess(
+        response,
+        'Failed to execute SQL query',
+        projectId
+      );
 
       return response.data as unknown as T[];
     },
@@ -207,7 +212,11 @@ export function createSupabaseApiPlatform(
         }
       );
 
-      assertSuccess(response, 'Failed to fetch migrations');
+      assertProjectScopedSuccess(
+        response,
+        'Failed to fetch migrations',
+        projectId
+      );
 
       return response.data;
     },
@@ -229,7 +238,11 @@ export function createSupabaseApiPlatform(
         }
       );
 
-      assertSuccess(response, 'Failed to apply migration');
+      assertProjectScopedSuccess(
+        response,
+        'Failed to apply migration',
+        projectId
+      );
 
       // Intentionally don't return the result of the migration
       // to avoid prompt injection attacks. If the migration failed,

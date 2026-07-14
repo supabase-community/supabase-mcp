@@ -91,7 +91,7 @@ Follow the [expand and contract pattern](https://martinfowler.com/bliki/Parallel
 
 **Update the ChatGPT plugin submission when published metadata changes**
 
-Create a new plugin submission via the [OpenAI plugin dashboard](https://platform.openai.com/plugins). OpenAI's [chatgpt-app-submission skill](https://github.com/openai/plugins/blob/main/plugins/openai-developers/skills/chatgpt-app-submission/SKILL.md) can help prepare the submission metadata.
+Create a new plugin submission via the [OpenAI plugin dashboard](https://platform.openai.com/plugins). Note the submission file can contain sensitive test credentials, so prefer making updates by hand.
 
 Server-only fixes that preserve the published contract don't need resubmission.
 

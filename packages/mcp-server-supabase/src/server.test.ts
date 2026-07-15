@@ -1438,8 +1438,8 @@ describe('tools', () => {
     });
     project.status = 'ACTIVE_HEALTHY';
 
-    // The real wrong-org 403 from the /v1 API carries no JSON message body,
-    // so the fallback message is used as the prefix.
+    // A 403 whose body has no `message` field (the missing-message wrong-org
+    // case) falls back to the generic prefix.
     mockServer?.use(
       http.post(`${API_URL}/v1/projects/:projectId/database/query`, () =>
         HttpResponse.json({}, { status: 403 })

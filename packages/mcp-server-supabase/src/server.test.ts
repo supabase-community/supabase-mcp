@@ -102,30 +102,28 @@ async function setup(options: SetupOptions = {}) {
    *
    * Wrapper around the `client.callTool` method to handle the response and errors.
    */
-  async function callTool(params: CallToolRequest['params']) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  async function callTool(params: CallToolRequest['params']): Promise<any> {
     const output = await client.callTool(params);
-    const { content } = CallToolResultSchema.parse(output);
-    const [textContent] = content;
+    const { content, structuredContent, isError } =
+      CallToolResultSchema.parse(output);
 
-    if (!textContent) {
-      return undefined;
+    if (isError) {
+      const [textContent] = content;
+      const message =
+        textContent?.type === 'text'
+          ? JSON.parse(textContent.text).error?.message
+          : undefined;
+      throw new Error(message ?? 'tool call failed');
     }
 
-    if (textContent.type !== 'text') {
-      throw new Error('tool result content is not text');
+    const schema = supabaseMcpToolSchemas[params.name as keyof typeof supabaseMcpToolSchemas]?.outputSchema;
+    if (schema) {
+      // Throws if the tool's structuredContent drifts from its declared schema.
+      schema.parse(structuredContent);
     }
 
-    if (textContent.text === '') {
-      throw new Error('tool result content is empty');
-    }
-
-    const result = JSON.parse(textContent.text);
-
-    if (output.isError) {
-      throw new Error(result.error.message);
-    }
-
-    return result;
+    return structuredContent;
   }
 
   return { client, clientTransport, callTool, server, serverTransport };
@@ -835,14 +833,13 @@ describe('tools', () => {
   });
 
   test('execute sql', async () => {
-    const { callTool } = await setup();
+    const { client } = await setup();
 
     const org = await createOrganization({
       name: 'My Org',
       plan: 'free',
       allowed_release_channels: ['ga'],
     });
-
     const project = await createProject({
       name: 'Project 1',
       region: 'us-east-1',
@@ -850,24 +847,86 @@ describe('tools', () => {
     });
     project.status = 'ACTIVE_HEALTHY';
 
-    const query = 'select 1+1 as sum';
+    const output = await client.callTool({
+      name: 'execute_sql',
+      arguments: { project_id: project.id, query: 'select 1+1 as sum' },
+    });
+    const result = CallToolResultSchema.parse(output);
 
-    const result = await callTool({
+    // Structured side: clean rows.
+    expect(result.structuredContent).toEqual({ rows: [{ sum: 2 }] });
+
+    // Text side: prompt-injection fence around the rows.
+    const [content] = result.content;
+    expect(content?.type).toBe('text');
+    if (content?.type === 'text') {
+      expect(content.text).toContain('untrusted user data');
+      expect(content.text).toMatch(/<untrusted-data-\w{8}-\w{4}-\w{4}-\w{4}-\w{12}>/);
+      expect(content.text).toMatch(/<\/untrusted-data-\w{8}-\w{4}-\w{4}-\w{4}-\w{12}>/);
+      expect(content.text).toContain(JSON.stringify([{ sum: 2 }]));
+    }
+  });
+
+  // Regression for https://github.com/supabase/mcp/issues/311 (AI-869).
+  // structuredContent carries clean rows (single backslash); the fenced text
+  // is single-encoded so the model no longer sees doubled backslashes.
+  test('execute_sql does not double-encode backslashes in results', async () => {
+    const { client } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    // String.raw keeps backslashes literal so the SQL really contains E'\\'.
+    const createFn = String.raw`
+    CREATE OR REPLACE FUNCTION public.has_leading_backslash(input text)
+    RETURNS boolean
+    LANGUAGE plpgsql
+    AS $function$
+    BEGIN
+      IF left(input, 1) != E'\\' THEN
+        RETURN false;
+      END IF;
+      RETURN true;
+    END;
+    $function$;
+  `;
+
+    await client.callTool({
+      name: 'execute_sql',
+      arguments: { project_id: project.id, query: createFn },
+    });
+
+    const output = await client.callTool({
       name: 'execute_sql',
       arguments: {
         project_id: project.id,
-        query,
+        query: `SELECT pg_get_functiondef('public.has_leading_backslash'::regproc) AS def;`,
       },
     });
+    const result = CallToolResultSchema.parse(output);
 
-    expect(result.result).toContain('untrusted user data');
-    expect(result.result).toMatch(
-      /<untrusted-data-\w{8}-\w{4}-\w{4}-\w{4}-\w{12}>/
-    );
-    expect(result.result).toContain(JSON.stringify([{ sum: 2 }]));
-    expect(result.result).toMatch(
-      /<\/untrusted-data-\w{8}-\w{4}-\w{4}-\w{4}-\w{12}>/
-    );
+    // Structured side: a single, un-doubled backslash escape.
+    const rows = (result.structuredContent as { rows: { def: string }[] }).rows;
+    expect(rows[0]?.def).toContain(String.raw`E'\\'`);
+    expect(rows[0]?.def).not.toContain(String.raw`E'\\\\'`);
+
+    // Text side: fence present, rows encoded exactly once (4 backslashes, never 8).
+    const [content] = result.content;
+    expect(content?.type).toBe('text');
+    if (content?.type === 'text') {
+      expect(content.text).toContain('untrusted user data');
+      expect(content.text).toContain(String.raw`E'\\\\'`); // one JSON layer
+      expect(content.text).not.toContain(String.raw`E'\\\\\\\\'`); // never two
+    }
   });
 
   test('can run read queries in read-only mode', async () => {
@@ -890,20 +949,10 @@ describe('tools', () => {
 
     const result = await callTool({
       name: 'execute_sql',
-      arguments: {
-        project_id: project.id,
-        query,
-      },
+      arguments: { project_id: project.id, query },
     });
 
-    expect(result.result).toContain('untrusted user data');
-    expect(result.result).toMatch(
-      /<untrusted-data-\w{8}-\w{4}-\w{4}-\w{4}-\w{12}>/
-    );
-    expect(result.result).toContain(JSON.stringify([{ sum: 2 }]));
-    expect(result.result).toMatch(
-      /<\/untrusted-data-\w{8}-\w{4}-\w{4}-\w{4}-\w{12}>/
-    );
+    expect(result.rows).toEqual([{ sum: 2 }]);
   });
 
   test('cannot run write queries in read-only mode', async () => {

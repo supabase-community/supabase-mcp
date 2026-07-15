@@ -872,6 +872,7 @@ export const mockManagementApi = [
         (bucket) => ({
           id: bucket.id,
           name: bucket.name,
+          owner: '',
           public: bucket.public,
           created_at: bucket.created_at.toISOString(),
           updated_at: bucket.updated_at.toISOString(),

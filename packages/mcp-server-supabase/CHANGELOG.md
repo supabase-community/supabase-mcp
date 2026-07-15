@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.8.3](https://github.com/supabase/mcp/compare/mcp-server-supabase-v0.8.2...mcp-server-supabase-v0.8.3) (2026-07-15)
+
+
+### Bug Fixes
+
+* actionable error for wrong-org permission failures on database tools ([#329](https://github.com/supabase/mcp/issues/329)) ([add45f5](https://github.com/supabase/mcp/commit/add45f53d83e452ca9d4b338b2990fb629e46cba))
+
 ## [0.8.2](https://github.com/supabase/mcp/compare/mcp-server-supabase-v0.8.1...mcp-server-supabase-v0.8.2) (2026-06-05)
 
 

@@ -6,7 +6,7 @@ import type { InitData } from '@supabase/mcp-utils';
 import { fileURLToPath } from 'node:url';
 import packageJson from '../../package.json' with { type: 'json' };
 import { getDeploymentId, normalizeFilename } from '../edge-function.js';
-import { getLogQuery } from '../logs.js';
+import { getClickHouseLogQuery } from '../logs.js';
 import {
   assertProjectScopedSuccess,
   assertSuccess,
@@ -255,10 +255,10 @@ export function createSupabaseApiPlatform(
       const { service, iso_timestamp_start, iso_timestamp_end } =
         getLogsOptionsSchema.parse(options);
 
-      const sql = getLogQuery(service);
+      const sql = getClickHouseLogQuery(service);
 
       const response = await managementApiClient.GET(
-        '/v1/projects/{ref}/analytics/endpoints/logs.all',
+        '/v1/projects/{ref}/analytics/endpoints/logs',
         {
           params: {
             path: {

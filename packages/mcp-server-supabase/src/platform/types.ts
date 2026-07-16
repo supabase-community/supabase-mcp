@@ -136,6 +136,7 @@ export const logsServiceSchema = z.enum([
   'branch-action',
   'postgres',
   'edge-function',
+  'edge-function-runtime',
   'auth',
   'storage',
   'realtime',

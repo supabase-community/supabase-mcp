@@ -3,7 +3,11 @@ import {
   logsServiceSchema,
   type DebuggingOperations,
 } from '../platform/types.js';
-import { injectableTool, type ToolDefs } from './util.js';
+import {
+  injectableTool,
+  type ToolDefs,
+  wrapWithUntrustedDataBoundary,
+} from './util.js';
 
 type DebuggingToolsOptions = {
   debugging: DebuggingOperations;
@@ -13,6 +17,18 @@ type DebuggingToolsOptions = {
 const getLogsInputSchema = z.object({
   project_id: z.string(),
   service: logsServiceSchema.describe('The service to fetch logs for'),
+  iso_timestamp_start: z
+    .string()
+    .optional()
+    .describe(
+      'The start of the log window as an ISO 8601 timestamp. The API caps the requested range at 24 hours.'
+    ),
+  iso_timestamp_end: z
+    .string()
+    .optional()
+    .describe(
+      'The end of the log window as an ISO 8601 timestamp. The API caps the requested range at 24 hours.'
+    ),
 });
 
 const getLogsOutputSchema = z.object({
@@ -33,7 +49,7 @@ const getAdvisorsOutputSchema = z.object({
 export const debuggingToolDefs = {
   get_logs: {
     description:
-      'Gets logs for a Supabase project by service type. Use this to help debug problems with your app. This will return logs within the last 24 hours.',
+      'Gets logs for a Supabase project by service type. Each call returns logs from the last 24 hours by default. Provide a custom iso_timestamp_start/iso_timestamp_end window up to 24 hours. Edge Function logs are split by kind: `edge-function` returns invocation/request logs, while `edge-function-runtime` returns console output from inside the function. Query one service first, then correlate with other services by timestamp or error anchors. Do not poll get_logs in a loop.',
     parameters: getLogsInputSchema,
     outputSchema: getLogsOutputSchema,
     annotations: {
@@ -69,16 +85,24 @@ export function getDebuggingTools({
     get_logs: injectableTool({
       ...debuggingToolDefs.get_logs,
       inject: { project_id },
-      execute: async ({ project_id, service }) => {
-        const startTimestamp = new Date(Date.now() - 24 * 60 * 60 * 1000); // Last 24 hours
+      execute: async ({
+        project_id,
+        service,
+        iso_timestamp_start,
+        iso_timestamp_end,
+      }) => {
         const endTimestamp = new Date();
+        const startTimestamp = new Date(
+          endTimestamp.getTime() - 24 * 60 * 60 * 1000
+        ); // Last 24 hours
 
         const result = await debugging.getLogs(project_id, {
           service,
-          iso_timestamp_start: startTimestamp.toISOString(),
-          iso_timestamp_end: endTimestamp.toISOString(),
+          iso_timestamp_start:
+            iso_timestamp_start ?? startTimestamp.toISOString(),
+          iso_timestamp_end: iso_timestamp_end ?? endTimestamp.toISOString(),
         });
-        return { result };
+        return { result: wrapWithUntrustedDataBoundary(result) };
       },
     }),
     get_advisors: injectableTool({

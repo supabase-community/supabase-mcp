@@ -1376,6 +1376,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/projects/{ref}/analytics/endpoints/metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Scrape a project's metrics
+         * @description Prometheus scrape endpoint. Returns metrics of a customer project in the Prometheus open exposition format.
+         */
+        get: operations["v1-scrape-project-metrics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/projects/{ref}/cli/login-role": {
         parameters: {
             query?: never;
@@ -2795,7 +2815,7 @@ export interface components {
             /** @enum {string} */
             state: "unavailable";
             /** @enum {string} */
-            unavailableReason: "postgres_upgrade_required" | "temporarily_unavailable";
+            unavailableReason: "postgres_upgrade_required" | "ssl_enforcement_required" | "temporarily_unavailable";
         };
         /** @example {
          *       "state": "enabled"
@@ -9964,6 +9984,58 @@ export interface operations {
                 content?: never;
             };
             /** @description Failed to get project's function combined statistics */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "v1-scrape-project-metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Project ref */
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Prometheus / OpenMetrics text exposition */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                    "application/openmetrics-text": string;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden action */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Failed to fetch project's metrics */
             500: {
                 headers: {
                     [name: string]: unknown;

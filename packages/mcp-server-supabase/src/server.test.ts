@@ -1544,6 +1544,7 @@ describe('tools', () => {
       'branch-action',
       'postgres',
       'edge-function',
+      'edge-function-runtime',
       'auth',
       'storage',
       'realtime',
@@ -1558,8 +1559,62 @@ describe('tools', () => {
         },
       });
 
-      expect(result).toEqual([]);
+      expect(result).toContain('untrusted-data');
+      expect(result).toContain(JSON.stringify([]));
     }
+  });
+
+  test('get logs forwards custom timestamp window', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const capturedSearchParams: URLSearchParams[] = [];
+
+    mockServer?.use(
+      http.get<{ projectId: string }>(
+        `${API_URL}/v1/projects/:projectId/analytics/endpoints/logs`,
+        ({ params, request }) => {
+          expect(params.projectId).toBe(project.id);
+          capturedSearchParams.push(new URL(request.url).searchParams);
+
+          return HttpResponse.json([]);
+        }
+      )
+    );
+
+    const isoTimestampStart = '2024-02-01T10:00:00.000Z';
+    const isoTimestampEnd = '2024-02-01T11:00:00.000Z';
+
+    const { result } = await callTool({
+      name: 'get_logs',
+      arguments: {
+        project_id: project.id,
+        service: 'edge-function-runtime',
+        iso_timestamp_start: isoTimestampStart,
+        iso_timestamp_end: isoTimestampEnd,
+      },
+    });
+
+    expect(result).toContain('untrusted-data');
+    expect(capturedSearchParams).toHaveLength(1);
+    expect(capturedSearchParams[0]?.get('iso_timestamp_start')).toBe(
+      isoTimestampStart
+    );
+    expect(capturedSearchParams[0]?.get('iso_timestamp_end')).toBe(
+      isoTimestampEnd
+    );
   });
 
   test('get security advisors', async () => {

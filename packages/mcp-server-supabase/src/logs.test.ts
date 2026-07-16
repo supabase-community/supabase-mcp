@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { getClickHouseLogQuery, getLogQuery } from './logs.js';
+import { getClickHouseLogQuery } from './logs.js';
 import type { LogsService } from './platform/types.js';
 
 const serviceSources = {
@@ -36,25 +36,5 @@ describe('getClickHouseLogQuery', () => {
     expect(query).toContain("log_attributes['execution_id'] as execution_id");
     expect(query).not.toContain("log_attributes['request.method']");
     expect(query).not.toContain("log_attributes['response.status_code']");
-  });
-});
-
-describe('getLogQuery', () => {
-  test.each(Object.keys(serviceSources))(
-    'builds a BigQuery query for %s logs',
-    (service) => {
-      const query = getLogQuery(service as LogsService);
-
-      expect(query).toContain('order by timestamp desc');
-      expect(query).toContain('limit 100');
-    }
-  );
-
-  test('builds a BigQuery query for runtime logs', () => {
-    const query = getLogQuery('edge-function-runtime');
-
-    expect(query).toContain('from function_logs');
-    expect(query).toContain('cross join unnest(metadata) as m');
-    expect(query).toContain('m.execution_id');
   });
 });

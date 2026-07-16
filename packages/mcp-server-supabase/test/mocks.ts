@@ -557,24 +557,6 @@ export const mockManagementApi = [
    * Get logs for a project
    */
   http.get<{ projectId: string }, { sql: string }>(
-    `${API_URL}/v1/projects/:projectId/analytics/endpoints/logs.all`,
-    async ({ params }) => {
-      const project = mockProjects.get(params.projectId);
-      if (!project) {
-        return HttpResponse.json(
-          { message: 'Project not found' },
-          { status: 404 }
-        );
-      }
-
-      return HttpResponse.json([]);
-    }
-  ),
-
-  /**
-   * Get logs for a project
-   */
-  http.get<{ projectId: string }, { sql: string }>(
     `${API_URL}/v1/projects/:projectId/analytics/endpoints/logs`,
     async ({ params }) => {
       const project = mockProjects.get(params.projectId);

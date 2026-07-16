@@ -148,6 +148,12 @@ export const getLogsOptionsSchema = z.object({
   iso_timestamp_end: z.string().optional(),
 });
 
+export const queryLogsOptionsSchema = z.object({
+  sql: z.string(),
+  iso_timestamp_start: z.string().optional(),
+  iso_timestamp_end: z.string().optional(),
+});
+
 export const generateTypescriptTypesResultSchema = z.object({
   types: z.string(),
 });
@@ -172,6 +178,7 @@ export type ListMigrationsResult = z.infer<typeof migrationSchema>;
 
 export type LogsService = z.infer<typeof logsServiceSchema>;
 export type GetLogsOptions = z.infer<typeof getLogsOptionsSchema>;
+export type QueryLogsOptions = z.infer<typeof queryLogsOptionsSchema>;
 export type GenerateTypescriptTypesResult = z.infer<
   typeof generateTypescriptTypesResultSchema
 >;
@@ -212,6 +219,7 @@ export type EdgeFunctionsOperations = {
 
 export type DebuggingOperations = {
   getLogs(projectId: string, options: GetLogsOptions): Promise<unknown>;
+  queryLogs(projectId: string, options: QueryLogsOptions): Promise<unknown>;
   getSecurityAdvisors(projectId: string): Promise<unknown>;
   getPerformanceAdvisors(projectId: string): Promise<unknown>;
 };

@@ -35,6 +35,31 @@ const getLogsOutputSchema = z.object({
   result: z.unknown(),
 });
 
+const queryLogsInputSchema = z.object({
+  project_id: z.string(),
+  sql: z
+    .string()
+    .describe(
+      "A read-only ClickHouse SQL query to run against the project's unified logs stream. Must start with SELECT or WITH. Logs are exposed through a `logs` table; filter by `source` (e.g. 'edge_logs', 'postgres_logs', 'function_logs', 'auth_logs', 'storage_logs', 'realtime_logs', 'workflow_run_logs') and read nested fields via `log_attributes['<key>']`."
+    ),
+  iso_timestamp_start: z
+    .string()
+    .optional()
+    .describe(
+      'The start of the log window as an ISO 8601 timestamp. The API caps the requested range at 24 hours.'
+    ),
+  iso_timestamp_end: z
+    .string()
+    .optional()
+    .describe(
+      'The end of the log window as an ISO 8601 timestamp. The API caps the requested range at 24 hours.'
+    ),
+});
+
+const queryLogsOutputSchema = z.object({
+  result: z.unknown(),
+});
+
 const getAdvisorsInputSchema = z.object({
   project_id: z.string(),
   type: z
@@ -54,6 +79,19 @@ export const debuggingToolDefs = {
     outputSchema: getLogsOutputSchema,
     annotations: {
       title: 'Get project logs',
+      readOnlyHint: true,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: false,
+    },
+  },
+  query_logs: {
+    description:
+      "Runs a custom read-only ClickHouse SQL query against a Supabase project's unified logs stream. Use this when `get_logs` (service presets) is too coarse and you need to filter, aggregate, or join across log fields. Queries the last 24 hours by default; provide a custom iso_timestamp_start/iso_timestamp_end window up to 24 hours. Only SELECT/WITH queries are allowed. Do not poll this tool in a loop.",
+    parameters: queryLogsInputSchema,
+    outputSchema: queryLogsOutputSchema,
+    annotations: {
+      title: 'Query project logs',
       readOnlyHint: true,
       destructiveHint: false,
       idempotentHint: true,
@@ -98,6 +136,29 @@ export function getDebuggingTools({
 
         const result = await debugging.getLogs(project_id, {
           service,
+          iso_timestamp_start:
+            iso_timestamp_start ?? startTimestamp.toISOString(),
+          iso_timestamp_end: iso_timestamp_end ?? endTimestamp.toISOString(),
+        });
+        return { result: wrapWithUntrustedDataBoundary(result) };
+      },
+    }),
+    query_logs: injectableTool({
+      ...debuggingToolDefs.query_logs,
+      inject: { project_id },
+      execute: async ({
+        project_id,
+        sql,
+        iso_timestamp_start,
+        iso_timestamp_end,
+      }) => {
+        const endTimestamp = new Date();
+        const startTimestamp = new Date(
+          endTimestamp.getTime() - 24 * 60 * 60 * 1000
+        ); // Last 24 hours
+
+        const result = await debugging.queryLogs(project_id, {
+          sql,
           iso_timestamp_start:
             iso_timestamp_start ?? startTimestamp.toISOString(),
           iso_timestamp_end: iso_timestamp_end ?? endTimestamp.toISOString(),

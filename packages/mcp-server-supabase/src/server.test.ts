@@ -3741,7 +3741,7 @@ describe('feature groups', () => {
     const { tools } = await client.listTools();
     const toolNames = tools.map((tool) => tool.name);
 
-    expect(toolNames).toEqual(['get_logs', 'get_advisors']);
+    expect(toolNames).toEqual(['get_logs', 'query_logs', 'get_advisors']);
   });
 
   test('development tools', async () => {

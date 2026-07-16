@@ -1,5 +1,5 @@
 import { describe, expect, test } from 'vitest';
-import { assertReadOnlyLogQuery, getClickHouseLogQuery } from './logs.js';
+import { getClickHouseLogQuery } from './logs.js';
 import type { LogsService } from './platform/types.js';
 
 const serviceSources = {
@@ -36,36 +36,5 @@ describe('getClickHouseLogQuery', () => {
     expect(query).toContain("log_attributes['execution_id'] as execution_id");
     expect(query).not.toContain("log_attributes['request.method']");
     expect(query).not.toContain("log_attributes['response.status_code']");
-  });
-});
-
-describe('assertReadOnlyLogQuery', () => {
-  test('allows SELECT and WITH queries, ignoring comments and casing', () => {
-    expect(() =>
-      assertReadOnlyLogQuery('select id from logs limit 10')
-    ).not.toThrow();
-    expect(() =>
-      assertReadOnlyLogQuery('  WITH x as (select 1) select * from x  ')
-    ).not.toThrow();
-    expect(() =>
-      assertReadOnlyLogQuery('-- comment\nselect id from logs;')
-    ).not.toThrow();
-  });
-
-  test('rejects non-read statements', () => {
-    for (const sql of [
-      "insert into logs values ('x')",
-      'delete from logs',
-      'drop table logs',
-      '/* select */ update logs set id = 1',
-    ]) {
-      expect(() => assertReadOnlyLogQuery(sql)).toThrow(/read-only/);
-    }
-  });
-
-  test('rejects multiple statements', () => {
-    expect(() => assertReadOnlyLogQuery('select 1; drop table logs')).toThrow(
-      /single/
-    );
   });
 });

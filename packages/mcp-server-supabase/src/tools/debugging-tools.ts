@@ -40,7 +40,7 @@ const queryLogsInputSchema = z.object({
   sql: z
     .string()
     .describe(
-      "A read-only ClickHouse SQL query to run against the project's unified logs stream. Must start with SELECT or WITH. Logs are exposed through a `logs` table; filter by `source` (e.g. 'edge_logs', 'postgres_logs', 'function_logs', 'auth_logs', 'storage_logs', 'realtime_logs', 'workflow_run_logs') and read nested fields via `log_attributes['<key>']`."
+      "A read-only ClickHouse SQL query to run against the project's unified logs stream. Logs are exposed through a `logs` table; filter by `source` (e.g. 'edge_logs', 'postgres_logs', 'function_logs', 'auth_logs', 'storage_logs', 'realtime_logs', 'workflow_run_logs') and read nested fields via `log_attributes['<key>']`."
     ),
   iso_timestamp_start: z
     .string()
@@ -87,7 +87,7 @@ export const debuggingToolDefs = {
   },
   query_logs: {
     description:
-      "Runs a custom read-only ClickHouse SQL query against a Supabase project's unified logs stream. Use this when `get_logs` (service presets) is too coarse and you need to filter, aggregate, or join across log fields. Queries the last 24 hours by default; provide a custom iso_timestamp_start/iso_timestamp_end window up to 24 hours. Only SELECT/WITH queries are allowed. Do not poll this tool in a loop.",
+      "Runs a custom read-only ClickHouse SQL query against a Supabase project's unified logs stream. Use this when `get_logs` (service presets) is too coarse and you need to filter, aggregate, or join across log fields. Queries the last 24 hours by default; provide a custom iso_timestamp_start/iso_timestamp_end window up to 24 hours. Do not poll this tool in a loop.",
     parameters: queryLogsInputSchema,
     outputSchema: queryLogsOutputSchema,
     annotations: {

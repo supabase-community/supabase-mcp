@@ -1,24 +1,6 @@
 import { stripIndent } from 'common-tags';
 import type { LogsService } from './platform/types.js';
 
-export function assertReadOnlyLogQuery(sql: string) {
-  const stripped = sql
-    .replace(/--[^\n]*/g, '')
-    .replace(/\/\*[\s\S]*?\*\//g, '')
-    .trim()
-    .replace(/;\s*$/, '');
-
-  if (stripped.includes(';')) {
-    throw new Error('Only a single log query statement is allowed.');
-  }
-
-  if (!/^(select|with)\b/i.test(stripped)) {
-    throw new Error(
-      'Only read-only log queries are allowed. The query must start with SELECT or WITH.'
-    );
-  }
-}
-
 export function getClickHouseLogQuery(
   service: LogsService,
   limit: number = 100

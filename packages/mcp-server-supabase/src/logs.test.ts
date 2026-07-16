@@ -64,8 +64,8 @@ describe('assertReadOnlyLogQuery', () => {
   });
 
   test('rejects multiple statements', () => {
-    expect(() =>
-      assertReadOnlyLogQuery('select 1; drop table logs')
-    ).toThrow(/single/);
+    expect(() => assertReadOnlyLogQuery('select 1; drop table logs')).toThrow(
+      /single/
+    );
   });
 });

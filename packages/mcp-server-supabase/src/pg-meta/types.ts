@@ -12,10 +12,10 @@ export const postgresRelationshipSchema = z.object({
   constraint_name: z.string(),
   source_schema: z.string(),
   source_table_name: z.string(),
-  source_column_name: z.string(),
+  source_columns: z.array(z.string()),
   target_table_schema: z.string(),
   target_table_name: z.string(),
-  target_column_name: z.string(),
+  target_columns: z.array(z.string()),
 });
 
 export const postgresColumnSchema = z.object({

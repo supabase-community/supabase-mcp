@@ -85,6 +85,10 @@ Follow the [expand and contract pattern](https://martinfowler.com/bliki/Parallel
 - **Expand:** add new tools/fields alongside the old ones. New fields must be optional, so clients still on the frozen schema keep validating. Don't touch the optionality of existing fields.
 - **Contract:** only remove the old tools/fields once the new version is published, so no frozen client can still depend on them.
 
+**Version the break at contract, not expand**
+
+The expand step adds things without removing anything, so it's safe to release as a normal `feat`/`fix` commit - nothing that already worked stops working. The contract step is the one that actually removes a tool/field, so that's where the real break happens: mark that commit accordingly (e.g. `feat!:` or a `BREAKING CHANGE:` footer) so the changelog and version bump reflect it, even though the wire-level (`tools/list`) change may have quietly landed one or more releases earlier at expand time.
+
 **Deprecating a tool**
 
 1. **Expand:** add the replacement tool, then mark the old one `hidden: true` (with a comment noting its replacement) instead of removing it right away:

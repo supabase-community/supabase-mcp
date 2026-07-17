@@ -1,5 +1,34 @@
+import { z } from 'zod/v4';
 import { describe, expect, expectTypeOf, test } from 'vitest';
-import { createToolSchemas, supabaseMcpToolSchemas } from './tool-schemas.js';
+import {
+  createToolSchemas,
+  defsToSchemas,
+  supabaseMcpToolSchemas,
+} from './tool-schemas.js';
+import type { ToolDefs } from './util.js';
+
+describe('defsToSchemas', () => {
+  test('propagates hidden from a tool def into its schema entry', () => {
+    const defs = {
+      visible_tool: {
+        parameters: z.object({}),
+        outputSchema: z.object({}),
+        annotations: { title: 'Visible tool' },
+      },
+      hidden_tool: {
+        parameters: z.object({}),
+        outputSchema: z.object({}),
+        annotations: { title: 'Hidden tool' },
+        hidden: true,
+      },
+    } satisfies ToolDefs;
+
+    const schemas = defsToSchemas(defs);
+
+    expect(schemas.visible_tool.hidden).toBeUndefined();
+    expect(schemas.hidden_tool.hidden).toBe(true);
+  });
+});
 
 describe('createToolSchemas', () => {
   describe('no options (default)', () => {

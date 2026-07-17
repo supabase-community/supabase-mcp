@@ -3673,7 +3673,6 @@ describe('tools', () => {
     const parsedContent = JSON.parse(firstContent.text);
     expect(parsedContent).toBeTypeOf('object');
   });
-
 });
 
 describe('feature groups', () => {

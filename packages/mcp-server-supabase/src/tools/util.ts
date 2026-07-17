@@ -9,6 +9,8 @@ export type ToolDef = {
   annotations: Annotations;
   /** 'adapt' = stays available in read-only mode, adapts behavior. 'exclude' (default) = removed from tool list. */
   readOnlyBehavior?: 'exclude' | 'adapt';
+  /** If true, excludes the tool from `tools/list` while keeping it callable via `tools/call`. */
+  hidden?: boolean;
 };
 
 export type ToolDefs = Record<string, ToolDef>;
@@ -41,6 +43,7 @@ export function injectableTool<
   annotations,
   parameters,
   outputSchema,
+  hidden,
   inject,
   execute,
 }: InjectableTool<Params, OutputSchema, Injected>) {
@@ -51,6 +54,7 @@ export function injectableTool<
       annotations,
       parameters,
       outputSchema,
+      hidden,
       execute,
     });
   }
@@ -77,6 +81,7 @@ export function injectableTool<
     annotations,
     parameters: cleanParametersSchema,
     outputSchema,
+    hidden,
     execute: executeWithInjection,
   });
 }

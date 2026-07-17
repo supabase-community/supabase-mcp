@@ -56,24 +56,26 @@ FROM
       c.conname as constraint_name,
       nsa.nspname as source_schema,
       csa.relname as source_table_name,
-      sa.attname as source_column_name,
+      array_agg(sa.attname order by cols.ord) as source_columns,
       nta.nspname as target_table_schema,
       cta.relname as target_table_name,
-      ta.attname as target_column_name
+      array_agg(ta.attname order by cols.ord) as target_columns
     from
       pg_constraint c
-    join (
-      pg_attribute sa
-      join pg_class csa on sa.attrelid = csa.oid
-      join pg_namespace nsa on csa.relnamespace = nsa.oid
-    ) on sa.attrelid = c.conrelid and sa.attnum = any (c.conkey)
-    join (
-      pg_attribute ta
-      join pg_class cta on ta.attrelid = cta.oid
-      join pg_namespace nta on cta.relnamespace = nta.oid
-    ) on ta.attrelid = c.confrelid and ta.attnum = any (c.confkey)
+      join lateral unnest(c.conkey, c.confkey)
+        with ordinality as cols(conkey, confkey, ord) on true
+      join pg_class csa on csa.oid = c.conrelid
+      join pg_namespace nsa on nsa.oid = csa.relnamespace
+      join pg_attribute sa
+        on sa.attrelid = c.conrelid and sa.attnum = cols.conkey
+      join pg_class cta on cta.oid = c.confrelid
+      join pg_namespace nta on nta.oid = cta.relnamespace
+      join pg_attribute ta
+        on ta.attrelid = c.confrelid and ta.attnum = cols.confkey
     where
       c.contype = 'f'
+    group by
+      c.oid, c.conname, nsa.nspname, csa.relname, nta.nspname, cta.relname
   ) as relationships
   on (relationships.source_schema = nc.nspname and relationships.source_table_name = c.relname)
   or (relationships.target_table_schema = nc.nspname and relationships.target_table_name = c.relname)

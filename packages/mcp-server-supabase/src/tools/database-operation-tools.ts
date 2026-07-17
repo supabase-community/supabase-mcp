@@ -65,8 +65,10 @@ const listTablesOutputSchema = z.object({
         .array(
           z.object({
             name: z.string(),
-            source: z.string(),
-            target: z.string(),
+            source_table: z.string(),
+            source_columns: z.array(z.string()),
+            target_table: z.string(),
+            target_columns: z.array(z.string()),
           })
         )
         .optional(),
@@ -238,14 +240,16 @@ export function getDatabaseTools({
                   constraint_name,
                   source_schema,
                   source_table_name,
-                  source_column_name,
+                  source_columns,
                   target_table_schema,
                   target_table_name,
-                  target_column_name,
+                  target_columns,
                 }) => ({
                   name: constraint_name,
-                  source: `${source_schema}.${source_table_name}.${source_column_name}`,
-                  target: `${target_table_schema}.${target_table_name}.${target_column_name}`,
+                  source_table: `${source_schema}.${source_table_name}`,
+                  source_columns,
+                  target_table: `${target_table_schema}.${target_table_name}`,
+                  target_columns,
                 })
               );
 

@@ -1174,6 +1174,403 @@ describe('tools', () => {
     );
   });
 
+  test('single-column FK is represented with one-element arrays', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    await project.db.exec(`
+      create table parent (
+        id int primary key
+      );
+      create table child (
+        parent_id int,
+        constraint child_parent_fk
+          foreign key (parent_id) references parent (id)
+      );
+    `);
+
+    const result = await callTool({
+      name: 'list_tables',
+      arguments: {
+        project_id: project.id,
+        schemas: ['public'],
+        verbose: true,
+      },
+    });
+
+    const childTable = result.tables.find(
+      (t: { name: string }) => t.name === 'public.child'
+    );
+
+    expect(childTable.foreign_key_constraints).toHaveLength(1);
+    expect(childTable.foreign_key_constraints[0]).toEqual(
+      expect.objectContaining({
+        name: 'child_parent_fk',
+        source_table: 'public.child',
+        source_columns: ['parent_id'],
+        target_table: 'public.parent',
+        target_columns: ['id'],
+      })
+    );
+  });
+
+  test('self-referential composite FK is reported once with correct pairing', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    await project.db.exec(`
+      create table node (
+        a int,
+        b int,
+        parent_a int,
+        parent_b int,
+        primary key (a, b),
+        constraint node_parent_fk
+          foreign key (parent_a, parent_b) references node (a, b)
+      );
+    `);
+
+    const result = await callTool({
+      name: 'list_tables',
+      arguments: {
+        project_id: project.id,
+        schemas: ['public'],
+        verbose: true,
+      },
+    });
+
+    const nodeTable = result.tables.find(
+      (t: { name: string }) => t.name === 'public.node'
+    );
+
+    const selfFk = nodeTable.foreign_key_constraints.filter(
+      (fk: { name: string }) => fk.name === 'node_parent_fk'
+    );
+    expect(selfFk).toHaveLength(1);
+    expect(selfFk[0]).toEqual(
+      expect.objectContaining({
+        source_table: 'public.node',
+        source_columns: ['parent_a', 'parent_b'],
+        target_table: 'public.node',
+        target_columns: ['a', 'b'],
+      })
+    );
+  });
+
+  test('two independent composite FKs between the same tables stay separate', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    await project.db.exec(`
+      create table parent (
+        x int,
+        y int,
+        primary key (x, y)
+      );
+      create table child (
+        a1 int,
+        a2 int,
+        b1 int,
+        b2 int,
+        constraint child_fk_a
+          foreign key (a1, a2) references parent (x, y),
+        constraint child_fk_b
+          foreign key (b1, b2) references parent (x, y)
+      );
+    `);
+
+    const result = await callTool({
+      name: 'list_tables',
+      arguments: {
+        project_id: project.id,
+        schemas: ['public'],
+        verbose: true,
+      },
+    });
+
+    const childTable = result.tables.find(
+      (t: { name: string }) => t.name === 'public.child'
+    );
+
+    const fkA = childTable.foreign_key_constraints.find(
+      (fk: { name: string }) => fk.name === 'child_fk_a'
+    );
+    const fkB = childTable.foreign_key_constraints.find(
+      (fk: { name: string }) => fk.name === 'child_fk_b'
+    );
+    expect(fkA).toEqual(
+      expect.objectContaining({
+        source_columns: ['a1', 'a2'],
+        target_columns: ['x', 'y'],
+      })
+    );
+    expect(fkB).toEqual(
+      expect.objectContaining({
+        source_columns: ['b1', 'b2'],
+        target_columns: ['x', 'y'],
+      })
+    );
+  });
+
+  test('three-column composite FK preserves column order', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    await project.db.exec(`
+      create table parent (
+        p int,
+        q int,
+        r int,
+        primary key (p, q, r)
+      );
+      create table child (
+        c int,
+        b int,
+        a int,
+        constraint child_parent_fk
+          foreign key (c, b, a) references parent (p, q, r)
+      );
+    `);
+
+    const result = await callTool({
+      name: 'list_tables',
+      arguments: {
+        project_id: project.id,
+        schemas: ['public'],
+        verbose: true,
+      },
+    });
+
+    const childTable = result.tables.find(
+      (t: { name: string }) => t.name === 'public.child'
+    );
+
+    expect(childTable.foreign_key_constraints).toHaveLength(1);
+    expect(childTable.foreign_key_constraints[0]).toEqual(
+      expect.objectContaining({
+        source_columns: ['c', 'b', 'a'],
+        target_columns: ['p', 'q', 'r'],
+      })
+    );
+  });
+
+  test('cross-schema composite FK is schema-qualified on both sides', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    await project.db.exec(`
+      create schema other;
+      create table other.parent (
+        x int,
+        y int,
+        primary key (x, y)
+      );
+      create table child (
+        a int,
+        b int,
+        constraint child_parent_fk
+          foreign key (a, b) references other.parent (x, y)
+      );
+    `);
+
+    const result = await callTool({
+      name: 'list_tables',
+      arguments: {
+        project_id: project.id,
+        schemas: ['public', 'other'],
+        verbose: true,
+      },
+    });
+
+    const childTable = result.tables.find(
+      (t: { name: string }) => t.name === 'public.child'
+    );
+
+    expect(childTable.foreign_key_constraints).toHaveLength(1);
+    expect(childTable.foreign_key_constraints[0]).toEqual(
+      expect.objectContaining({
+        source_table: 'public.child',
+        source_columns: ['a', 'b'],
+        target_table: 'other.parent',
+        target_columns: ['x', 'y'],
+      })
+    );
+  });
+
+  test('composite FK referencing a non-primary unique constraint is grouped correctly', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    await project.db.exec(`
+      create table parent (
+        id int primary key,
+        x int,
+        y int,
+        constraint parent_xy_unique unique (x, y)
+      );
+      create table child (
+        a int,
+        b int,
+        constraint child_parent_fk
+          foreign key (a, b) references parent (x, y)
+      );
+    `);
+
+    const result = await callTool({
+      name: 'list_tables',
+      arguments: {
+        project_id: project.id,
+        schemas: ['public'],
+        verbose: true,
+      },
+    });
+
+    const childTable = result.tables.find(
+      (t: { name: string }) => t.name === 'public.child'
+    );
+
+    expect(childTable.foreign_key_constraints).toHaveLength(1);
+    expect(childTable.foreign_key_constraints[0]).toEqual(
+      expect.objectContaining({
+        name: 'child_parent_fk',
+        source_columns: ['a', 'b'],
+        target_columns: ['x', 'y'],
+      })
+    );
+  });
+
+  test('same constraint name on different tables is not merged', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    await project.db.exec(`
+      create table parent (
+        id int primary key
+      );
+      create table child_a (
+        parent_id int,
+        constraint fk_parent
+          foreign key (parent_id) references parent (id)
+      );
+      create table child_b (
+        parent_id int,
+        constraint fk_parent
+          foreign key (parent_id) references parent (id)
+      );
+    `);
+
+    const result = await callTool({
+      name: 'list_tables',
+      arguments: {
+        project_id: project.id,
+        schemas: ['public'],
+        verbose: true,
+      },
+    });
+
+    const childA = result.tables.find(
+      (t: { name: string }) => t.name === 'public.child_a'
+    );
+    const childB = result.tables.find(
+      (t: { name: string }) => t.name === 'public.child_b'
+    );
+
+    expect(
+      childA.foreign_key_constraints.filter(
+        (fk: { name: string }) => fk.name === 'fk_parent'
+      )
+    ).toHaveLength(1);
+    expect(
+      childB.foreign_key_constraints.filter(
+        (fk: { name: string }) => fk.name === 'fk_parent'
+      )
+    ).toHaveLength(1);
+  });
+
   test('list_tables omits advisory when all tables have RLS enabled', async () => {
     const { callTool } = await setup();
 

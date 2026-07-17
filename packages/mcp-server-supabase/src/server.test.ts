@@ -3112,7 +3112,7 @@ describe('tools', () => {
     }
   });
 
-  test('all tools are included in supabaseMcpToolSchemas registry', async () => {
+  test('all tools are included in supabaseMcpToolSchemas registry, including hidden tools', async () => {
     // Enable all features to ensure we check all possible tools
     const { client } = await setup({
       features: [
@@ -3137,8 +3137,11 @@ describe('tools', () => {
       ).toHaveProperty(tool.name);
     }
 
-    // Also verify that the registry doesn't have extra entries
-    // (tools that don't exist in the server)
+    // Also verify that the registry doesn't have unexpected extra entries
+    // (tools that don't exist in the server). A registry entry is allowed to
+    // be missing from tools/list only if its tool def is marked `hidden` —
+    // it stays in the registry for typed access while being delisted from
+    // live discovery (see CONTRIBUTING.md's tool deprecation guidance).
     const registryToolNames = Object.keys(supabaseMcpToolSchemas);
     const serverToolNames = tools.map((t) => t.name);
 
@@ -3146,9 +3149,15 @@ describe('tools', () => {
       (name) => !serverToolNames.includes(name)
     );
 
+    const unexpectedExtraTools = extraToolsInRegistry.filter(
+      (name) =>
+        !supabaseMcpToolSchemas[name as keyof typeof supabaseMcpToolSchemas]
+          .hidden
+    );
+
     expect(
-      extraToolsInRegistry,
-      'Registry should not contain tools that are not in the MCP server when all features are enabled'
+      unexpectedExtraTools,
+      'Registry should not contain tools that are not in the MCP server when all features are enabled, unless the tool is marked `hidden`'
     ).toEqual([]);
   });
 

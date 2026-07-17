@@ -227,6 +227,47 @@ describe('tools', () => {
     expect(onToolCall.mock.results[0]?.type).toBe('throw');
   });
 
+  test('hidden tool is excluded from tools/list but still callable via tools/call', async () => {
+    const server = createMcpServer({
+      name: 'test-server',
+      version: '0.0.0',
+      tools: {
+        visible_tool: tool({
+          description: 'A visible tool',
+          parameters: z.object({ foo: z.string() }),
+          outputSchema: z.object({ value: z.string() }),
+          execute: async ({ foo }) => {
+            return { value: foo };
+          },
+        }),
+        hidden_tool: tool({
+          description: 'A hidden tool',
+          hidden: true,
+          parameters: z.object({ foo: z.string() }),
+          outputSchema: z.object({ value: z.string() }),
+          execute: async ({ foo }) => {
+            return { value: foo };
+          },
+        }),
+      },
+    });
+
+    const { client, callTool } = await setup({ server });
+
+    const { tools } = await client.listTools();
+    const toolNames = tools.map((tool) => tool.name);
+
+    expect(toolNames).toEqual(['visible_tool']);
+    expect(toolNames).not.toContain('hidden_tool');
+
+    const result = await callTool({
+      name: 'hidden_tool',
+      arguments: { foo: 'bar' },
+    });
+
+    expect(result).toEqual({ value: 'bar' });
+  });
+
   test('tools use draft-07 JSON Schema', async () => {
     const server = createMcpServer({
       name: 'test-server',

@@ -2940,13 +2940,18 @@ export interface components {
             /** @enum {string} */
             status: "stored" | "applied";
         };
+        /** @example {
+         *       "root_key": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+         *     } */
         PgsodiumConfigResponse: {
+            /** @description The pgsodium root key: 32 bytes, hex-encoded (64 characters). */
             root_key: string;
         };
         /** @example {
-         *       "root_key": "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
+         *       "root_key": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
          *     } */
         UpdatePgsodiumConfigBody: {
+            /** @description The pgsodium root key: 32 bytes, hex-encoded (64 characters). */
             root_key: string;
         };
         PostgrestConfigWithJWTSecretResponse: {
@@ -3038,6 +3043,22 @@ export interface components {
             /** @enum {string} */
             status: "not-used" | "custom-domain-used" | "active";
             custom_domain?: string;
+        };
+        PlanGateErrorBody: {
+            /** @description Human-readable explanation of the plan gate */
+            message: string;
+            /** @description Present on entitlement denials. Other errors with this status code (validation, billing state) carry only message. */
+            error?: {
+                /**
+                 * @description Machine-readable marker for plan-gated denials
+                 * @enum {string}
+                 */
+                code: "entitlement_required";
+                /** @description Entitlement feature key that failed the check */
+                feature: string;
+                /** @description Billing page URL for the organization, present when the org is resolvable */
+                upgrade_url?: string;
+            };
         };
         /** @example {
          *       "vanity_subdomain": "acme-prod"
@@ -7940,7 +7961,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["PlanGateErrorBody"];
+                };
             };
             /** @description Unauthorized */
             401: {
@@ -8049,7 +8072,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["PlanGateErrorBody"];
+                };
             };
             /** @description Unauthorized */
             401: {
@@ -8110,7 +8135,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["PlanGateErrorBody"];
+                };
             };
             /** @description Unauthorized */
             401: {
@@ -8430,7 +8457,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["PlanGateErrorBody"];
+                };
             };
             /** @description Forbidden action */
             403: {
@@ -12909,7 +12938,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["PlanGateErrorBody"];
+                };
             };
             /** @description Forbidden action */
             403: {
@@ -12984,7 +13015,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["PlanGateErrorBody"];
+                };
             };
             /** @description Forbidden action */
             403: {

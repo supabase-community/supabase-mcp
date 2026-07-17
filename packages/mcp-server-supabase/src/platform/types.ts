@@ -149,7 +149,7 @@ export const getLogsOptionsSchema = z.object({
 });
 
 export const queryLogsOptionsSchema = z.object({
-  sql: z.string(),
+  sql: z.string().min(1),
   iso_timestamp_start: z.string().optional(),
   iso_timestamp_end: z.string().optional(),
 });

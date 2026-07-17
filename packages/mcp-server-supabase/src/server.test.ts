@@ -2072,6 +2072,131 @@ describe('tools', () => {
     );
   });
 
+  test('query logs forwards custom sql and defaults the timestamp window', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const capturedSearchParams: URLSearchParams[] = [];
+
+    mockServer?.use(
+      http.get<{ projectId: string }>(
+        `${API_URL}/v1/projects/:projectId/analytics/endpoints/logs`,
+        ({ params, request }) => {
+          expect(params.projectId).toBe(project.id);
+          capturedSearchParams.push(new URL(request.url).searchParams);
+
+          return HttpResponse.json([]);
+        }
+      )
+    );
+
+    const sql =
+      "select id, timestamp, event_message from logs where source = 'postgres_logs' order by timestamp desc limit 10";
+
+    const { result } = await callTool({
+      name: 'query_logs',
+      arguments: {
+        project_id: project.id,
+        sql,
+      },
+    });
+
+    expect(result).toContain('untrusted-data');
+    expect(capturedSearchParams).toHaveLength(1);
+    expect(capturedSearchParams[0]?.get('sql')).toBe(sql);
+    expect(capturedSearchParams[0]?.get('iso_timestamp_start')).toBeTruthy();
+    expect(capturedSearchParams[0]?.get('iso_timestamp_end')).toBeTruthy();
+  });
+
+  test('query logs forwards a custom timestamp window', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const capturedSearchParams: URLSearchParams[] = [];
+
+    mockServer?.use(
+      http.get<{ projectId: string }>(
+        `${API_URL}/v1/projects/:projectId/analytics/endpoints/logs`,
+        ({ request }) => {
+          capturedSearchParams.push(new URL(request.url).searchParams);
+          return HttpResponse.json([]);
+        }
+      )
+    );
+
+    const isoTimestampStart = '2024-02-01T10:00:00.000Z';
+    const isoTimestampEnd = '2024-02-01T11:00:00.000Z';
+
+    await callTool({
+      name: 'query_logs',
+      arguments: {
+        project_id: project.id,
+        sql: 'select id from logs limit 1',
+        iso_timestamp_start: isoTimestampStart,
+        iso_timestamp_end: isoTimestampEnd,
+      },
+    });
+
+    expect(capturedSearchParams).toHaveLength(1);
+    expect(capturedSearchParams[0]?.get('iso_timestamp_start')).toBe(
+      isoTimestampStart
+    );
+    expect(capturedSearchParams[0]?.get('iso_timestamp_end')).toBe(
+      isoTimestampEnd
+    );
+  });
+
+  test('query logs rejects an empty sql query', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    await expect(
+      callTool({
+        name: 'query_logs',
+        arguments: {
+          project_id: project.id,
+          sql: '',
+        },
+      })
+    ).rejects.toThrow();
+  });
+
   test('get security advisors', async () => {
     const { callTool } = await setup();
 

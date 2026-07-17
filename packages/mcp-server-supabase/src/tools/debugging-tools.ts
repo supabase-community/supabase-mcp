@@ -39,8 +39,9 @@ const queryLogsInputSchema = z.object({
   project_id: z.string(),
   sql: z
     .string()
+    .min(1)
     .describe(
-      "A read-only ClickHouse SQL query to run against the project's unified logs stream. Logs are exposed through a `logs` table; filter by `source` (e.g. 'edge_logs', 'postgres_logs', 'function_logs', 'auth_logs', 'storage_logs', 'realtime_logs', 'workflow_run_logs') and read nested fields via `log_attributes['<key>']`."
+      "A read-only ClickHouse SQL query to run against the project's unified logs stream. Logs are exposed through a `logs` table; filter by `source` (e.g. 'edge_logs', 'postgres_logs', 'function_edge_logs', 'function_logs', 'auth_logs', 'storage_logs', 'realtime_logs', 'workflow_run_logs') and read nested fields via `log_attributes['<key>']`."
     ),
   iso_timestamp_start: z
     .string()

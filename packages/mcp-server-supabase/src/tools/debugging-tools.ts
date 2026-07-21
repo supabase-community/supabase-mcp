@@ -21,13 +21,13 @@ const getLogsInputSchema = z.object({
     .string()
     .optional()
     .describe(
-      'The start of the log window as an ISO 8601 timestamp. The API caps the requested range at 24 hours.'
+      'The start of the log window as an ISO 8601 timestamp. Defaults to 24 hours before the end of the window. The API caps the requested range at 24 hours.'
     ),
   iso_timestamp_end: z
     .string()
     .optional()
     .describe(
-      'The end of the log window as an ISO 8601 timestamp. The API caps the requested range at 24 hours.'
+      'The end of the log window as an ISO 8601 timestamp. Defaults to the current time. The API caps the requested range at 24 hours.'
     ),
 });
 
@@ -47,13 +47,13 @@ const queryLogsInputSchema = z.object({
     .string()
     .optional()
     .describe(
-      'The start of the log window as an ISO 8601 timestamp. The API caps the requested range at 24 hours.'
+      'The start of the log window as an ISO 8601 timestamp. Defaults to 24 hours before the end of the window. The API caps the requested range at 24 hours.'
     ),
   iso_timestamp_end: z
     .string()
     .optional()
     .describe(
-      'The end of the log window as an ISO 8601 timestamp. The API caps the requested range at 24 hours.'
+      'The end of the log window as an ISO 8601 timestamp. Defaults to the current time. The API caps the requested range at 24 hours.'
     ),
 });
 

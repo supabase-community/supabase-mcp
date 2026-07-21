@@ -6,8 +6,9 @@ import type { InitData } from '@supabase/mcp-utils';
 import { fileURLToPath } from 'node:url';
 import packageJson from '../../package.json' with { type: 'json' };
 import { getDeploymentId, normalizeFilename } from '../edge-function.js';
-import { getLogQuery } from '../logs.js';
+import { getClickHouseLogQuery } from '../logs.js';
 import {
+  assertProjectScopedSuccess,
   assertSuccess,
   createManagementApiClient,
 } from '../management-api/index.js';
@@ -191,7 +192,11 @@ export function createSupabaseApiPlatform(
         }
       );
 
-      assertSuccess(response, 'Failed to execute SQL query');
+      assertProjectScopedSuccess(
+        response,
+        'Failed to execute SQL query',
+        projectId
+      );
 
       return response.data as unknown as T[];
     },
@@ -207,7 +212,11 @@ export function createSupabaseApiPlatform(
         }
       );
 
-      assertSuccess(response, 'Failed to fetch migrations');
+      assertProjectScopedSuccess(
+        response,
+        'Failed to fetch migrations',
+        projectId
+      );
 
       return response.data;
     },
@@ -229,7 +238,11 @@ export function createSupabaseApiPlatform(
         }
       );
 
-      assertSuccess(response, 'Failed to apply migration');
+      assertProjectScopedSuccess(
+        response,
+        'Failed to apply migration',
+        projectId
+      );
 
       // Intentionally don't return the result of the migration
       // to avoid prompt injection attacks. If the migration failed,
@@ -242,10 +255,10 @@ export function createSupabaseApiPlatform(
       const { service, iso_timestamp_start, iso_timestamp_end } =
         getLogsOptionsSchema.parse(options);
 
-      const sql = getLogQuery(service);
+      const sql = getClickHouseLogQuery(service);
 
       const response = await managementApiClient.GET(
-        '/v1/projects/{ref}/analytics/endpoints/logs.all',
+        '/v1/projects/{ref}/analytics/endpoints/logs',
         {
           params: {
             path: {

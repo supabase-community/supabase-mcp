@@ -62,6 +62,63 @@ If the release PR gets into a bad state, close it and manually re-run the workfl
 
 If the workflow creates GitHub releases and tags but fails before publishing to npm or the MCP registry, re-run the workflow from one of the release tags created by the failed workflow run and enable `force_publish`.
 
+## Breaking changes
+
+Treat `tools/list` as a public API contract.
+
+ChatGPT snapshots MCP metadata during plugin submission. Several fields are frozen for published ChatGPT users until a new plugin version is published, including:
+
+- Tool list, names, titles, and descriptions
+- Input and output schemas
+- Tool annotations
+- Tool `_meta` fields
+- MCP server `instructions`
+
+See OpenAI's [Ongoing Maintenance](https://developers.openai.com/apps-sdk/deploy/submission#ongoing-maintenance) docs for a more complete overview of frozen fields.
+
+Claude Connectors don't have this constraint, and will pick up server changes on the next connection without needing resubmission ([docs](https://claude.com/docs/connectors/building/after-publishing#update-your-mcp-server)).
+
+**Keep breaking changes backward compatible**
+
+Follow the [expand and contract pattern](https://martinfowler.com/bliki/ParallelChange.html) (aka Parallel Change):
+
+- **Expand:** add new tools/fields alongside the old ones. New fields must be optional, so clients still on the frozen schema keep validating. Don't touch the optionality of existing fields.
+- **Contract:** only remove the old tools/fields once the new version is published, so no frozen client can still depend on them.
+
+**Version the break at contract, not expand**
+
+The expand step adds things without removing anything, so it's safe to release as a normal `feat`/`fix` commit - nothing that already worked stops working. The contract step is the one that actually removes a tool/field, so that's where the real break happens: mark that commit accordingly (e.g. `feat!:` or a `BREAKING CHANGE:` footer) so the changelog and version bump reflect it, even though the wire-level (`tools/list`) change may have quietly landed one or more releases earlier at expand time.
+
+**Deprecating a tool**
+
+1. **Expand:** add the replacement tool, then mark the old one `hidden: true` (with a comment noting its replacement) instead of removing it right away:
+
+   ```ts
+   export const someToolDefs = {
+     new_tool: { ... },
+     old_tool: {
+       ...,
+       hidden: true, // replaced by new_tool, remove once a new ChatGPT submission has gone out
+     },
+   } satisfies ToolDefs;
+   ```
+
+   This drops the old tool from `tools/list` for live clients while keeping it fully callable via `tools/call`, so the frozen ChatGPT plugin keeps working.
+
+2. **Contract:** once a new ChatGPT plugin submission has gone out, delete the old tool definition entirely.
+
+**Update docs when the MCP surface changes**
+
+[supabase.com/mcp](https://supabase.com/mcp) owns the canonical tool list, update it as needed for changes to tools or configuration options. [Agent skills](https://github.com/supabase/agent-skills) should generally reference MCP workflows instead of specific tool names, but double check for wording when names or behavior change.
+
+**Update the ChatGPT plugin submission when published metadata changes**
+
+Create a new plugin submission via the [OpenAI plugin dashboard](https://platform.openai.com/plugins). Note the submission file can contain sensitive test credentials, so prefer making updates by hand.
+
+Server-only fixes that preserve the published contract don't need resubmission.
+
+If a deployed change breaks the published ChatGPT contract, roll back the server change rather than waiting on review.
+
 ## Manual MCP registry publish (optional)
 
 This is only needed if the automated publish failed or needs to be re-run manually. The MCP registry stores metadata about the server (defined in `packages/mcp-server-supabase/server.json`) — it does not host the server itself.

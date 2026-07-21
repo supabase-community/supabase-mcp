@@ -1376,6 +1376,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/v1/projects/{ref}/analytics/endpoints/metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Scrape a project's metrics
+         * @description Prometheus scrape endpoint. Returns metrics of a customer project in the Prometheus open exposition format.
+         */
+        get: operations["v1-scrape-project-metrics"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/v1/projects/{ref}/cli/login-role": {
         parameters: {
             query?: never;
@@ -2795,7 +2815,7 @@ export interface components {
             /** @enum {string} */
             state: "unavailable";
             /** @enum {string} */
-            unavailableReason: "postgres_upgrade_required" | "temporarily_unavailable";
+            unavailableReason: "postgres_upgrade_required" | "ssl_enforcement_required" | "temporarily_unavailable";
         };
         /** @example {
          *       "state": "enabled"
@@ -2920,13 +2940,18 @@ export interface components {
             /** @enum {string} */
             status: "stored" | "applied";
         };
+        /** @example {
+         *       "root_key": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
+         *     } */
         PgsodiumConfigResponse: {
+            /** @description The pgsodium root key: 32 bytes, hex-encoded (64 characters). */
             root_key: string;
         };
         /** @example {
-         *       "root_key": "MDEyMzQ1Njc4OWFiY2RlZjAxMjM0NTY3ODlhYmNkZWY="
+         *       "root_key": "0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef"
          *     } */
         UpdatePgsodiumConfigBody: {
+            /** @description The pgsodium root key: 32 bytes, hex-encoded (64 characters). */
             root_key: string;
         };
         PostgrestConfigWithJWTSecretResponse: {
@@ -3018,6 +3043,22 @@ export interface components {
             /** @enum {string} */
             status: "not-used" | "custom-domain-used" | "active";
             custom_domain?: string;
+        };
+        PlanGateErrorBody: {
+            /** @description Human-readable explanation of the plan gate */
+            message: string;
+            /** @description Present on entitlement denials. Other errors with this status code (validation, billing state) carry only message. */
+            error?: {
+                /**
+                 * @description Machine-readable marker for plan-gated denials
+                 * @enum {string}
+                 */
+                code: "entitlement_required";
+                /** @description Entitlement feature key that failed the check */
+                feature: string;
+                /** @description Billing page URL for the organization, present when the org is resolvable */
+                upgrade_url?: string;
+            };
         };
         /** @example {
          *       "vanity_subdomain": "acme-prod"
@@ -4583,6 +4624,7 @@ export interface components {
             track_activity_query_size?: string;
             max_connections?: number;
             max_locks_per_transaction?: number;
+            max_logical_replication_workers?: number;
             max_parallel_maintenance_workers?: number;
             max_parallel_workers?: number;
             max_parallel_workers_per_gather?: number;
@@ -4590,6 +4632,7 @@ export interface components {
             max_slot_wal_keep_size?: string;
             max_standby_archive_delay?: string;
             max_standby_streaming_delay?: string;
+            max_sync_workers_per_subscription?: number;
             max_wal_size?: string;
             max_wal_senders?: number;
             max_worker_processes?: number;
@@ -4633,6 +4676,7 @@ export interface components {
             track_activity_query_size?: string;
             max_connections?: number;
             max_locks_per_transaction?: number;
+            max_logical_replication_workers?: number;
             max_parallel_maintenance_workers?: number;
             max_parallel_workers?: number;
             max_parallel_workers_per_gather?: number;
@@ -4640,6 +4684,7 @@ export interface components {
             max_slot_wal_keep_size?: string;
             max_standby_archive_delay?: string;
             max_standby_streaming_delay?: string;
+            max_sync_workers_per_subscription?: number;
             max_wal_size?: string;
             max_wal_senders?: number;
             max_worker_processes?: number;
@@ -7916,7 +7961,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["PlanGateErrorBody"];
+                };
             };
             /** @description Unauthorized */
             401: {
@@ -8025,7 +8072,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["PlanGateErrorBody"];
+                };
             };
             /** @description Unauthorized */
             401: {
@@ -8086,7 +8135,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["PlanGateErrorBody"];
+                };
             };
             /** @description Unauthorized */
             401: {
@@ -8406,7 +8457,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["PlanGateErrorBody"];
+                };
             };
             /** @description Forbidden action */
             403: {
@@ -9960,6 +10013,58 @@ export interface operations {
                 content?: never;
             };
             /** @description Failed to get project's function combined statistics */
+            500: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    "v1-scrape-project-metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Project ref */
+                ref: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Prometheus / OpenMetrics text exposition */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                    "application/openmetrics-text": string;
+                };
+            };
+            /** @description Unauthorized */
+            401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Forbidden action */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Rate limit exceeded */
+            429: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Failed to fetch project's metrics */
             500: {
                 headers: {
                     [name: string]: unknown;
@@ -12833,7 +12938,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["PlanGateErrorBody"];
+                };
             };
             /** @description Forbidden action */
             403: {
@@ -12908,7 +13015,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["PlanGateErrorBody"];
+                };
             };
             /** @description Forbidden action */
             403: {

@@ -20,10 +20,14 @@ type DefsToSchemas<T extends ToolDefs> = {
     }
       ? R
       : undefined;
+    hidden: T[K] extends { hidden: infer H extends boolean } ? H : undefined;
   };
 };
 
-function defsToSchemas<const T extends ToolDefs>(defs: T): DefsToSchemas<T> {
+/** Exported for testing */
+export function defsToSchemas<const T extends ToolDefs>(
+  defs: T
+): DefsToSchemas<T> {
   return Object.fromEntries(
     Object.entries(defs).map(
       ([name, { parameters: inputSchema, description: _, ...rest }]) => [
@@ -39,6 +43,8 @@ type SchemaEntry = {
   outputSchema: z.ZodObject<any>;
   annotations: ToolDefs[string]['annotations'];
   readOnlyBehavior?: 'exclude' | 'adapt';
+  /** If true, the tool is excluded from `tools/list` but kept in this registry for typed access. */
+  hidden?: boolean;
 };
 
 /**

@@ -1,5 +1,19 @@
 # Changelog
 
+## [0.9.0](https://github.com/supabase/mcp/compare/mcp-server-supabase-v0.8.3...mcp-server-supabase-v0.9.0) (2026-07-16)
+
+
+### Features
+
+* support edge function runtime logs in get_logs ([#326](https://github.com/supabase/mcp/issues/326)) ([b9675aa](https://github.com/supabase/mcp/commit/b9675aabee68ea703565e06a1887a95dd2124f77))
+
+## [0.8.3](https://github.com/supabase/mcp/compare/mcp-server-supabase-v0.8.2...mcp-server-supabase-v0.8.3) (2026-07-15)
+
+
+### Bug Fixes
+
+* actionable error for wrong-org permission failures on database tools ([#329](https://github.com/supabase/mcp/issues/329)) ([add45f5](https://github.com/supabase/mcp/commit/add45f53d83e452ca9d4b338b2990fb629e46cba))
+
 ## [0.8.2](https://github.com/supabase/mcp/compare/mcp-server-supabase-v0.8.1...mcp-server-supabase-v0.8.2) (2026-06-05)
 
 

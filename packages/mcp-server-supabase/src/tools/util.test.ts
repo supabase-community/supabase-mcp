@@ -1,8 +1,5 @@
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import {
-  CallToolResultSchema,
-  type CallToolRequest,
-} from '@modelcontextprotocol/sdk/types.js';
+import { Client } from '@modelcontextprotocol/client';
+import type { CallToolRequestParams } from '@modelcontextprotocol/client';
 import { createMcpServer, StreamTransport } from '@supabase/mcp-utils';
 import { describe, expect, test } from 'vitest';
 import { z } from 'zod/v4';
@@ -38,9 +35,9 @@ async function setup(tools: Record<string, ReturnType<typeof injectableTool>>) {
    *
    * Wrapper around the `client.callTool` method to handle the response and errors.
    */
-  async function callTool(params: CallToolRequest['params']) {
+  async function callTool(params: CallToolRequestParams) {
     const output = await client.callTool(params);
-    const { content } = CallToolResultSchema.parse(output);
+    const { content } = output;
     const [textContent] = content;
 
     if (!textContent || textContent.type !== 'text') {

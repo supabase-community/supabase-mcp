@@ -1,6 +1,5 @@
 import { Client } from '@modelcontextprotocol/client';
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
-import { LoggingMessageNotificationSchema } from '@modelcontextprotocol/client';
 import gqlmin from 'gqlmin';
 import { createServer, type Server } from 'node:http';
 import { afterEach, describe, expect, test } from 'vitest';

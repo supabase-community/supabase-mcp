@@ -75,7 +75,7 @@ const getAdvisorsOutputSchema = z.object({
 export const debuggingToolDefs = {
   get_logs: {
     description:
-      'Gets logs for a Supabase project by service type. Each call returns logs from the last 24 hours by default. Provide a custom iso_timestamp_start/iso_timestamp_end window up to 24 hours. Edge Function logs are split by kind: `edge-function` returns invocation/request logs, while `edge-function-runtime` returns console output from inside the function. Query one service first, then correlate with other services by timestamp or error anchors. Do not poll get_logs in a loop. Deprecated on hosted (production) projects in favour of `query_logs`, which supports custom ClickHouse queries; prefer `query_logs` there. Continue using `get_logs` on local (CLI) and self-hosted projects until ClickHouse-backed querying is available for them.',
+      'Gets logs for a Supabase project by service type. When the user asks about a specific time range, always pass iso_timestamp_start and iso_timestamp_end to match it; otherwise each call defaults to the last 24 hours and will return logs from a wider window than intended. The window can be up to 24 hours. Edge Function logs are split by kind: `edge-function` returns invocation/request logs, while `edge-function-runtime` returns console output from inside the function. Query one service first, then correlate with other services by timestamp or error anchors. Do not poll get_logs in a loop. Deprecated on hosted (production) projects in favour of `query_logs`, which supports custom ClickHouse queries; prefer `query_logs` there. Continue using `get_logs` on local (CLI) and self-hosted projects until ClickHouse-backed querying is available for them.',
     parameters: getLogsInputSchema,
     outputSchema: getLogsOutputSchema,
     annotations: {
@@ -88,7 +88,7 @@ export const debuggingToolDefs = {
   },
   query_logs: {
     description:
-      "Runs a custom read-only ClickHouse SQL query against a Supabase project's unified logs stream. Use this when `get_logs` (service presets) is too coarse and you need to filter, aggregate, or join across log fields. Queries the last 24 hours by default; provide a custom iso_timestamp_start/iso_timestamp_end window up to 24 hours. Do not poll this tool in a loop. Only available on hosted (production) Supabase projects; ClickHouse-backed querying is not yet available for local (CLI) or self-hosted projects, where you should use `get_logs` instead.",
+      "Runs a custom read-only ClickHouse SQL query against a Supabase project's unified logs stream. Use this when `get_logs` (service presets) is too coarse and you need to filter, aggregate, or join across log fields. When the user asks about a specific time range, always pass iso_timestamp_start and iso_timestamp_end to match it; otherwise the query defaults to the last 24 hours and will return results from a wider window than intended. The window can be up to 24 hours. Do not poll this tool in a loop. Only available on hosted (production) Supabase projects; ClickHouse-backed querying is not yet available for local (CLI) or self-hosted projects, where you should use `get_logs` instead.",
     parameters: queryLogsInputSchema,
     outputSchema: queryLogsOutputSchema,
     annotations: {

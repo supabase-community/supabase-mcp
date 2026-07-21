@@ -2170,6 +2170,57 @@ describe('tools', () => {
     );
   });
 
+  test('query logs anchors the default start to a supplied end', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const capturedSearchParams: URLSearchParams[] = [];
+
+    mockServer?.use(
+      http.get<{ projectId: string }>(
+        `${API_URL}/v1/projects/:projectId/analytics/endpoints/logs`,
+        ({ request }) => {
+          capturedSearchParams.push(new URL(request.url).searchParams);
+          return HttpResponse.json([]);
+        }
+      )
+    );
+
+    const isoTimestampEnd = '2024-02-01T11:00:00.000Z';
+
+    await callTool({
+      name: 'query_logs',
+      arguments: {
+        project_id: project.id,
+        sql: 'select id from logs limit 1',
+        iso_timestamp_end: isoTimestampEnd,
+      },
+    });
+
+    expect(capturedSearchParams).toHaveLength(1);
+    expect(capturedSearchParams[0]?.get('iso_timestamp_end')).toBe(
+      isoTimestampEnd
+    );
+    const expectedStart = new Date(
+      new Date(isoTimestampEnd).getTime() - 24 * 60 * 60 * 1000
+    ).toISOString();
+    expect(capturedSearchParams[0]?.get('iso_timestamp_start')).toBe(
+      expectedStart
+    );
+  });
+
   test('query logs rejects an empty sql query', async () => {
     const { callTool } = await setup();
 

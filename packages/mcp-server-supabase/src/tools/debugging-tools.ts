@@ -114,6 +114,19 @@ export const debuggingToolDefs = {
   },
 } as const satisfies ToolDefs;
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+
+function resolveLogWindow(
+  iso_timestamp_start?: string,
+  iso_timestamp_end?: string
+) {
+  const end = iso_timestamp_end ?? new Date().toISOString();
+  const start =
+    iso_timestamp_start ??
+    new Date(new Date(end).getTime() - DAY_MS).toISOString();
+  return { iso_timestamp_start: start, iso_timestamp_end: end };
+}
+
 export function getDebuggingTools({
   debugging,
   projectId,
@@ -130,16 +143,9 @@ export function getDebuggingTools({
         iso_timestamp_start,
         iso_timestamp_end,
       }) => {
-        const endTimestamp = new Date();
-        const startTimestamp = new Date(
-          endTimestamp.getTime() - 24 * 60 * 60 * 1000
-        ); // Last 24 hours
-
         const result = await debugging.getLogs(project_id, {
           service,
-          iso_timestamp_start:
-            iso_timestamp_start ?? startTimestamp.toISOString(),
-          iso_timestamp_end: iso_timestamp_end ?? endTimestamp.toISOString(),
+          ...resolveLogWindow(iso_timestamp_start, iso_timestamp_end),
         });
         return { result: wrapWithUntrustedDataBoundary(result) };
       },
@@ -153,16 +159,9 @@ export function getDebuggingTools({
         iso_timestamp_start,
         iso_timestamp_end,
       }) => {
-        const endTimestamp = new Date();
-        const startTimestamp = new Date(
-          endTimestamp.getTime() - 24 * 60 * 60 * 1000
-        ); // Last 24 hours
-
         const result = await debugging.queryLogs(project_id, {
           sql,
-          iso_timestamp_start:
-            iso_timestamp_start ?? startTimestamp.toISOString(),
-          iso_timestamp_end: iso_timestamp_end ?? endTimestamp.toISOString(),
+          ...resolveLogWindow(iso_timestamp_start, iso_timestamp_end),
         });
         return { result: wrapWithUntrustedDataBoundary(result) };
       },

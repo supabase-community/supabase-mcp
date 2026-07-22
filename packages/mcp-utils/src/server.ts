@@ -62,6 +62,13 @@ export type Tool<
   outputSchema: OutputSchema;
   /** If true, excludes the tool from `tools/list` while keeping it callable via `tools/call`. */
   hidden?: boolean;
+  /**
+   * Optional serializer for the result's text content, sent verbatim in
+   * place of the default `JSON.stringify(output)`. The output object is then
+   * also returned as `structuredContent` for typed clients. Prevents double
+   * JSON-encoding of display text (https://github.com/supabase/mcp/issues/311).
+   */
+  textContent?(output: z.infer<OutputSchema>): string;
   execute(params: z.infer<Params>): Promise<z.infer<OutputSchema>>;
 };
 
@@ -524,6 +531,16 @@ export function createMcpServer(options: McpServerOptions) {
         };
 
         const result = await executeWithCallback(tool);
+
+        if (result != null && tool.textContent) {
+          // Text is sent verbatim (already serialized by the tool); the raw
+          // output goes in structuredContent for typed clients.
+          const output = result as Record<string, unknown>;
+          return {
+            content: [{ type: 'text', text: tool.textContent(output) }],
+            structuredContent: output,
+          };
+        }
 
         const content =
           result != null

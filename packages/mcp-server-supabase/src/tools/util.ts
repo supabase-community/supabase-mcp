@@ -44,6 +44,7 @@ export function injectableTool<
   parameters,
   outputSchema,
   hidden,
+  textContent,
   inject,
   execute,
 }: InjectableTool<Params, OutputSchema, Injected>) {
@@ -55,6 +56,7 @@ export function injectableTool<
       parameters,
       outputSchema,
       hidden,
+      textContent,
       execute,
     });
   }
@@ -82,10 +84,17 @@ export function injectableTool<
     parameters: cleanParametersSchema,
     outputSchema,
     hidden,
+    textContent,
     execute: executeWithInjection,
   });
 }
 
+/**
+ * Wraps untrusted data in a prompt-injection boundary.
+ *
+ * The data is JSON-encoded exactly once here. Tools returning this string
+ * must extract it via `textContent` so it is not encoded a second time.
+ */
 export function wrapWithUntrustedDataBoundary(result: unknown) {
   const uuid = crypto.randomUUID();
 

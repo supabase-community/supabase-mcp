@@ -119,6 +119,39 @@ describe('tools', () => {
     });
   });
 
+  test('textContent sends text verbatim and returns structured content', async () => {
+    const message = 'Line one\nContains a backslash: \\ and "quotes"';
+
+    const server = createMcpServer({
+      name: 'test-server',
+      version: '0.0.0',
+      tools: {
+        echo: tool({
+          description: 'Echo a message',
+          parameters: z.object({}),
+          outputSchema: z.object({ message: z.string() }),
+          textContent: ({ message }) => message,
+          execute: async () => ({ message }),
+        }),
+      },
+    });
+
+    const { client } = await setup({ server });
+
+    const output = await client.callTool({ name: 'echo', arguments: {} });
+    const result = CallToolResultSchema.parse(output);
+    const [textContent] = result.content;
+
+    if (!textContent || textContent.type !== 'text') {
+      throw new Error('expected text content');
+    }
+
+    // Sent verbatim — not JSON-encoded a second time
+    expect(textContent.text).toBe(message);
+
+    expect(result.structuredContent).toEqual({ message });
+  });
+
   test('tool callback is called for success and errors', async () => {
     const onToolCall = vi.fn();
 

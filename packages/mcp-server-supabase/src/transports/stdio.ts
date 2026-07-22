@@ -16,6 +16,7 @@ async function main() {
       ['project-ref']: projectId,
       ['read-only']: readOnly,
       ['api-url']: apiUrl,
+      ['content-api-url']: cliContentApiUrl,
       ['version']: showVersion,
       ['features']: cliFeatures,
     },
@@ -32,6 +33,9 @@ async function main() {
         default: false,
       },
       ['api-url']: {
+        type: 'string',
+      },
+      ['content-api-url']: {
         type: 'string',
       },
       ['version']: {
@@ -59,6 +63,9 @@ async function main() {
 
   const features = cliFeatures ? parseList(cliFeatures) : undefined;
 
+  const contentApiUrl =
+    cliContentApiUrl ?? process.env.SUPABASE_CONTENT_API_URL;
+
   const platform = createSupabaseApiPlatform({
     accessToken,
     apiUrl,
@@ -69,6 +76,7 @@ async function main() {
     projectId,
     readOnly,
     features,
+    contentApiUrl,
   });
 
   const transport = new StdioServerTransport();

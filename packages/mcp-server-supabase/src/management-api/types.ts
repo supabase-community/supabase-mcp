@@ -4801,7 +4801,6 @@ export interface components {
         CreateProviderResponse: {
             id: string;
             saml?: {
-                id: string;
                 entity_id: string;
                 metadata_url?: string;
                 metadata_xml?: string;
@@ -4819,7 +4818,6 @@ export interface components {
                 name_id_format?: "urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified" | "urn:oasis:names:tc:SAML:2.0:nameid-format:transient" | "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress" | "urn:oasis:names:tc:SAML:2.0:nameid-format:persistent";
             };
             domains?: {
-                id: string;
                 domain?: string;
                 created_at?: string;
                 updated_at?: string;
@@ -4831,7 +4829,6 @@ export interface components {
             items: {
                 id: string;
                 saml?: {
-                    id: string;
                     entity_id: string;
                     metadata_url?: string;
                     metadata_xml?: string;
@@ -4849,7 +4846,6 @@ export interface components {
                     name_id_format?: "urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified" | "urn:oasis:names:tc:SAML:2.0:nameid-format:transient" | "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress" | "urn:oasis:names:tc:SAML:2.0:nameid-format:persistent";
                 };
                 domains?: {
-                    id: string;
                     domain?: string;
                     created_at?: string;
                     updated_at?: string;
@@ -4861,7 +4857,6 @@ export interface components {
         GetProviderResponse: {
             id: string;
             saml?: {
-                id: string;
                 entity_id: string;
                 metadata_url?: string;
                 metadata_xml?: string;
@@ -4879,7 +4874,6 @@ export interface components {
                 name_id_format?: "urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified" | "urn:oasis:names:tc:SAML:2.0:nameid-format:transient" | "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress" | "urn:oasis:names:tc:SAML:2.0:nameid-format:persistent";
             };
             domains?: {
-                id: string;
                 domain?: string;
                 created_at?: string;
                 updated_at?: string;
@@ -4914,7 +4908,6 @@ export interface components {
         UpdateProviderResponse: {
             id: string;
             saml?: {
-                id: string;
                 entity_id: string;
                 metadata_url?: string;
                 metadata_xml?: string;
@@ -4932,7 +4925,6 @@ export interface components {
                 name_id_format?: "urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified" | "urn:oasis:names:tc:SAML:2.0:nameid-format:transient" | "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress" | "urn:oasis:names:tc:SAML:2.0:nameid-format:persistent";
             };
             domains?: {
-                id: string;
                 domain?: string;
                 created_at?: string;
                 updated_at?: string;
@@ -4943,7 +4935,6 @@ export interface components {
         DeleteProviderResponse: {
             id: string;
             saml?: {
-                id: string;
                 entity_id: string;
                 metadata_url?: string;
                 metadata_xml?: string;
@@ -4961,7 +4952,6 @@ export interface components {
                 name_id_format?: "urn:oasis:names:tc:SAML:1.1:nameid-format:unspecified" | "urn:oasis:names:tc:SAML:2.0:nameid-format:transient" | "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress" | "urn:oasis:names:tc:SAML:2.0:nameid-format:persistent";
             };
             domains?: {
-                id: string;
                 domain?: string;
                 created_at?: string;
                 updated_at?: string;

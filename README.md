@@ -12,7 +12,7 @@ The [Model Context Protocol](https://modelcontextprotocol.io/introduction) (MCP)
 
 ### 1. Follow our security best practices
 
-Before setting up the MCP server, we recommend you read our [security best practices](#security-risks) to understand the risks of connecting an LLM to your Supabase projects and how to mitigate them.
+Before setting up the MCP server, we recommend you read our [security best practices](https://supabase.com/docs/guides/ai-tools/mcp#security-risks) to understand the risks of connecting an LLM to your Supabase projects and how to mitigate them.
 
 
 ### 2. Configure your MCP client
@@ -49,11 +49,6 @@ For [self-hosted Supabase](https://supabase.com/docs/guides/self-hosting/docker)
 See the [Supabase MCP Server](https://supabase.com/mcp) docs for the full list of [available tools](https://supabase.com/mcp#available-tools) and [configuration options](https://supabase.com/mcp#configuration-options).
 
 The docs also feature an interactive URL builder to populate configuration options for you.
-
-## Security risks
-
-> [!TIP]
-> Before using the MCP server, review the security risks and recommended mitigations in the [Supabase Docs](https://supabase.com/docs/guides/ai-tools/mcp#security-risks).
 
 ## Usage with AI SDK's MCP Client
 

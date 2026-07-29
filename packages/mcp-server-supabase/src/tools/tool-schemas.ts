@@ -139,7 +139,7 @@ const PROJECT_SCOPED_OVERRIDES: Record<string, SchemaEntry> =
  * Derived from tool defs: any tool with `readOnlyHint: false` and no
  * `readOnlyBehavior: 'adapt'` annotation.
  */
-const writeToolSet = new Set(
+export const writeToolSet = new Set(
   Object.entries(supabaseMcpToolSchemas)
     .filter(
       ([, entry]) =>

@@ -3616,41 +3616,6 @@ describe('tools', () => {
     ).toEqual([]);
   });
 
-  test('all write tools (readOnlyHint: false) are excluded from readOnly schemas', async () => {
-    // Use readOnly server so dynamic annotations (e.g. execute_sql) reflect
-    // read-only mode correctly — execute_sql reports readOnlyHint: true when
-    // the server is read-only, so it won't be incorrectly caught by the filter below.
-    const { client } = await setup({
-      readOnly: true,
-      features: [
-        'docs',
-        'account',
-        'database',
-        'debugging',
-        'development',
-        'functions',
-        'branching',
-        'storage',
-      ],
-    });
-
-    const { tools } = await client.listTools();
-
-    const writeToolNames = tools
-      .filter((tool) => tool.annotations?.readOnlyHint === false)
-      .map((tool) => tool.name);
-
-    const readOnlySchemas = createToolSchemas({ readOnly: true });
-    const readOnlySchemaKeys = Object.keys(readOnlySchemas);
-
-    for (const name of writeToolNames) {
-      expect(
-        readOnlySchemaKeys,
-        `Write tool "${name}" (readOnlyHint: false) is missing from WRITE_TOOLS — add it to WRITE_TOOLS in tool-schemas.ts`
-      ).not.toContain(name);
-    }
-  });
-
   test('tool result content is valid JSON', async () => {
     const org = await createOrganization({
       name: 'My Org',
@@ -3681,6 +3646,51 @@ describe('tools', () => {
     }
     const parsedContent = JSON.parse(firstContent.text);
     expect(parsedContent).toBeTypeOf('object');
+  });
+
+  test('read-only mode excludes write tools from tools/list', async () => {
+    const { callTool, client } = await setup({
+      readOnly: true,
+      features: [
+        'docs',
+        'account',
+        'database',
+        'debugging',
+        'development',
+        'functions',
+        'branching',
+        'storage',
+      ],
+    });
+
+    const { tools } = await client.listTools();
+    const toolNames = tools.map((tool) => tool.name);
+
+    expect(toolNames).toContain('execute_sql');
+    expect(toolNames).not.toContain('apply_migration');
+    expect(toolNames).not.toContain('deploy_edge_function');
+    expect(toolNames).not.toContain('create_branch');
+    expect(toolNames).not.toContain('delete_branch');
+    expect(toolNames).not.toContain('update_storage_config');
+
+    expect(
+      tools
+        .filter((tool) => tool.annotations?.readOnlyHint === false)
+        .map((tool) => tool.name)
+    ).toEqual([]);
+
+    const result = callTool({
+      name: 'apply_migration',
+      arguments: {
+        project_id: 'test-project-ref',
+        name: 'test-migration',
+        query: 'create table test (id int)',
+      },
+    });
+
+    await expect(result).rejects.toThrow(
+      'Cannot apply migration in read-only mode.'
+    );
   });
 });
 

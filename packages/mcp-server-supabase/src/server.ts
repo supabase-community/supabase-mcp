@@ -14,6 +14,7 @@ import { getDevelopmentTools } from './tools/development-tools.js';
 import { getDocsTools } from './tools/docs-tools.js';
 import { getEdgeFunctionTools } from './tools/edge-function-tools.js';
 import { getStorageTools } from './tools/storage-tools.js';
+import { writeToolSet } from './tools/tool-schemas.js';
 import type { FeatureGroup } from './types.js';
 import { parseFeatureGroups } from './util.js';
 
@@ -190,6 +191,14 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
 
       if (storage && enabledFeatures.has('storage')) {
         Object.assign(tools, getStorageTools({ storage, projectId, readOnly }));
+      }
+
+      if (readOnly) {
+        for (const [name, tool] of Object.entries(tools)) {
+          if (writeToolSet.has(name)) {
+            tools[name] = { ...tool, hidden: true };
+          }
+        }
       }
 
       return tools;

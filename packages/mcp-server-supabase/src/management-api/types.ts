@@ -2756,9 +2756,7 @@ export interface components {
             notify_url?: string;
         };
         /** @description Any JSON-serializable value */
-        UpdateCustomHostnameResponseJsonValue: ((string | number | boolean) | null) | components["schemas"]["UpdateCustomHostnameResponseJsonValue"][] | {
-            [key: string]: components["schemas"]["UpdateCustomHostnameResponseJsonValue"];
-        };
+        UpdateCustomHostnameResponseJsonValue: unknown;
         UpdateCustomHostnameResponse: {
             /** @enum {string} */
             status: "1_not_started" | "2_initiated" | "3_challenge_verified" | "4_origin_setup_completed" | "5_services_reconfigured";
@@ -3861,9 +3859,7 @@ export interface components {
             }[];
         };
         /** @description Any JSON-serializable value */
-        ListProjectAddonsResponseJsonValue: ((string | number | boolean) | null) | components["schemas"]["ListProjectAddonsResponseJsonValue"][] | {
-            [key: string]: components["schemas"]["ListProjectAddonsResponseJsonValue"];
-        };
+        ListProjectAddonsResponseJsonValue: unknown;
         ListProjectAddonsResponse: {
             selected_addons: {
                 /** @enum {string} */

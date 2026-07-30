@@ -325,7 +325,7 @@ export function createSupabaseApiPlatform(
               ref: projectId,
             },
             query: {
-              reveal: false,
+              reveal: 'false',
             },
           },
         }

@@ -26,7 +26,7 @@
     "test:e2e": "vitest --project e2e",
     "test:integration": "vitest --project integration",
     "test:coverage": "vitest --coverage",
-    "generate:management-api-types": "openapi-typescript https://api.supabase.com/api/v1-json -o ./src/management-api/types.ts"
+    "generate:management-api-types": "node scripts/generate-management-api-types.mjs"
   },
   "files": [
     "dist/**/*"

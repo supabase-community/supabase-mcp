@@ -1421,25 +1421,13 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * List applied migration versions
-         * @description Only available to selected partner OAuth apps
-         */
+        /** List applied migration versions */
         get: operations["v1-list-migration-history"];
-        /**
-         * Upsert a database migration without applying
-         * @description Only available to selected partner OAuth apps
-         */
+        /** Upsert a database migration without applying */
         put: operations["v1-upsert-a-migration"];
-        /**
-         * Apply a database migration
-         * @description Only available to selected partner OAuth apps
-         */
+        /** Apply a database migration */
         post: operations["v1-apply-a-migration"];
-        /**
-         * Rollback database migrations and remove them from history table
-         * @description Only available to selected partner OAuth apps
-         */
+        /** Rollback database migrations and remove them from history table */
         delete: operations["v1-rollback-migrations"];
         options?: never;
         head?: never;
@@ -1453,20 +1441,14 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /**
-         * Fetch an existing entry from migration history
-         * @description Only available to selected partner OAuth apps
-         */
+        /** Fetch an existing entry from migration history */
         get: operations["v1-get-a-migration"];
         put?: never;
         post?: never;
         delete?: never;
         options?: never;
         head?: never;
-        /**
-         * Patch an existing entry in migration history
-         * @description Only available to selected partner OAuth apps
-         */
+        /** Patch an existing entry in migration history */
         patch: operations["v1-patch-a-migration"];
         trace?: never;
     };
@@ -2423,6 +2405,10 @@ export interface components {
              * @description Template URL used to create the project from the CLI.
              */
             template_url?: string;
+            /** @deprecated */
+            release_channel?: null;
+            /** @deprecated */
+            postgres_engine?: null;
             /** @description [Experimental] Whether to enable high availability for the project. */
             high_availability?: boolean;
         };
@@ -2769,14 +2755,18 @@ export interface components {
              */
             notify_url?: string;
         };
+        /** @description Any JSON-serializable value */
+        UpdateCustomHostnameResponseJsonValue: ((string | number | boolean) | null) | components["schemas"]["UpdateCustomHostnameResponseJsonValue"][] | {
+            [key: string]: components["schemas"]["UpdateCustomHostnameResponseJsonValue"];
+        };
         UpdateCustomHostnameResponse: {
             /** @enum {string} */
             status: "1_not_started" | "2_initiated" | "3_challenge_verified" | "4_origin_setup_completed" | "5_services_reconfigured";
             custom_hostname: string;
             data: {
                 success: boolean;
-                errors: unknown[];
-                messages: unknown[];
+                errors: components["schemas"]["UpdateCustomHostnameResponseJsonValue"][];
+                messages: components["schemas"]["UpdateCustomHostnameResponseJsonValue"][];
                 result: {
                     id: string;
                     hostname: string;
@@ -2806,16 +2796,6 @@ export interface components {
          *     } */
         UpdateCustomHostnameBody: {
             custom_hostname: string;
-        };
-        JitStateResponse: {
-            /** @enum {string} */
-            state: "enabled" | "disabled";
-            appliedSuccessfully?: boolean;
-        } | {
-            /** @enum {string} */
-            state: "unavailable";
-            /** @enum {string} */
-            unavailableReason: "postgres_upgrade_required" | "ssl_enforcement_required" | "temporarily_unavailable";
         };
         /** @example {
          *       "state": "enabled"
@@ -2853,7 +2833,17 @@ export interface components {
         NetworkRestrictionsResponse: {
             /** @enum {string} */
             entitlement: "disallowed" | "allowed";
-            /** @description At any given point in time, this is the config that the user has requested be applied to their project. The `status` field indicates if it has been applied to the project, or is pending. When an updated config is received, the applied config is moved to `old_config`. */
+            /**
+             * @description At any given point in time, this is the config that the user has requested be applied to their project. The `status` field indicates if it has been applied to the project, or is pending. When an updated config is received, the applied config is moved to `old_config`.
+             * @example {
+             *       "dbAllowedCidrs": [
+             *         "203.0.113.0/24"
+             *       ],
+             *       "dbAllowedCidrsV6": [
+             *         "2001:db8::/32"
+             *       ]
+             *     }
+             */
             config: {
                 dbAllowedCidrs?: string[];
                 dbAllowedCidrsV6?: string[];
@@ -3148,7 +3138,6 @@ export interface components {
             } | {
                 /** @enum {string} */
                 type: "user_defined_objects_in_internal_schemas";
-                /** @enum {string} */
                 obj_type: "table" | "function";
                 schema_name: string;
                 obj_name: string;
@@ -3243,7 +3232,7 @@ export interface components {
             algorithm: "EdDSA" | "ES256" | "RS256" | "HS256";
             /** @enum {string} */
             status: "in_use" | "previously_used" | "revoked" | "standby";
-            public_jwk?: unknown;
+            public_jwk: unknown;
             /** Format: date-time */
             created_at: string;
             /** Format: date-time */
@@ -3335,7 +3324,7 @@ export interface components {
                 algorithm: "EdDSA" | "ES256" | "RS256" | "HS256";
                 /** @enum {string} */
                 status: "in_use" | "previously_used" | "revoked" | "standby";
-                public_jwk?: unknown;
+                public_jwk: unknown;
                 /** Format: date-time */
                 created_at: string;
                 /** Format: date-time */
@@ -3871,6 +3860,10 @@ export interface components {
                 postgres_engine: "13" | "14" | "15" | "17" | "17-oriole";
             }[];
         };
+        /** @description Any JSON-serializable value */
+        ListProjectAddonsResponseJsonValue: ((string | number | boolean) | null) | components["schemas"]["ListProjectAddonsResponseJsonValue"][] | {
+            [key: string]: components["schemas"]["ListProjectAddonsResponseJsonValue"];
+        };
         ListProjectAddonsResponse: {
             selected_addons: {
                 /** @enum {string} */
@@ -3886,8 +3879,7 @@ export interface components {
                         interval: "monthly" | "hourly";
                         amount: number;
                     };
-                    /** @description Any JSON-serializable value */
-                    meta?: unknown;
+                    meta?: components["schemas"]["ListProjectAddonsResponseJsonValue"];
                 };
             }[];
             available_addons: {
@@ -3905,8 +3897,7 @@ export interface components {
                         interval: "monthly" | "hourly";
                         amount: number;
                     };
-                    /** @description Any JSON-serializable value */
-                    meta?: unknown;
+                    meta?: components["schemas"]["ListProjectAddonsResponseJsonValue"];
                 }[];
             }[];
         };
@@ -4114,9 +4105,11 @@ export interface components {
                 expires_at?: number;
                 allowed_networks?: {
                     allowed_cidrs?: {
+                        /** Format: cidrv4 */
                         cidr: string;
                     }[];
                     allowed_cidrs_v6?: {
+                        /** Format: cidrv6 */
                         cidr: string;
                     }[];
                 };
@@ -4139,9 +4132,11 @@ export interface components {
                 expires_at?: number;
                 allowed_networks?: {
                     allowed_cidrs?: {
+                        /** Format: cidrv4 */
                         cidr: string;
                     }[];
                     allowed_cidrs_v6?: {
+                        /** Format: cidrv6 */
                         cidr: string;
                     }[];
                 };
@@ -4160,9 +4155,11 @@ export interface components {
                     expires_at?: number;
                     allowed_networks?: {
                         allowed_cidrs?: {
+                            /** Format: cidrv4 */
                             cidr: string;
                         }[];
                         allowed_cidrs_v6?: {
+                            /** Format: cidrv6 */
                             cidr: string;
                         }[];
                     };
@@ -4179,9 +4176,11 @@ export interface components {
                     expires_at?: number;
                     allowed_networks?: {
                         allowed_cidrs?: {
+                            /** Format: cidrv4 */
                             cidr: string;
                         }[];
                         allowed_cidrs_v6?: {
+                            /** Format: cidrv6 */
                             cidr: string;
                         }[];
                     };
@@ -4214,9 +4213,11 @@ export interface components {
                 expires_at?: number;
                 allowed_networks?: {
                     allowed_cidrs?: {
+                        /** Format: cidrv4 */
                         cidr: string;
                     }[];
                     allowed_cidrs_v6?: {
+                        /** Format: cidrv6 */
                         cidr: string;
                     }[];
                 };
@@ -4248,9 +4249,11 @@ export interface components {
                 expires_at?: number;
                 allowed_networks?: {
                     allowed_cidrs?: {
+                        /** Format: cidrv4 */
                         cidr: string;
                     }[];
                     allowed_cidrs_v6?: {
+                        /** Format: cidrv6 */
                         cidr: string;
                     }[];
                 };
@@ -4267,9 +4270,11 @@ export interface components {
                 expires_at?: number;
                 allowed_networks?: {
                     allowed_cidrs?: {
+                        /** Format: cidrv4 */
                         cidr: string;
                     }[];
                     allowed_cidrs_v6?: {
+                        /** Format: cidrv6 */
                         cidr: string;
                     }[];
                 };
@@ -4370,7 +4375,7 @@ export interface components {
          *       }
          *     } */
         FunctionDeployBody: {
-            file?: string[];
+            file: string[];
             metadata: {
                 entrypoint_path: string;
                 import_map_path?: string;
@@ -5181,7 +5186,7 @@ export interface operations {
         parameters: {
             query?: {
                 /** @description If set to false, schedule deletion with 1-hour grace period (only when soft deletion is enabled). */
-                force?: boolean;
+                force?: string;
             };
             header?: never;
             path: {
@@ -5374,8 +5379,13 @@ export interface operations {
         parameters: {
             query?: {
                 included_schemas?: string;
-                /** @description Use pg-delta instead of Migra for diffing when true */
-                pgdelta?: boolean;
+                /** @description Use pg-delta instead of Migra for diffing when true.
+                 *     Boolean string.
+                 *
+                 *     Truthy values: `true`, `1`, `yes`, `on`, `y`, `enabled`
+                 *
+                 *     Falsy values: `false`, `0`, `no`, `off`, `n`, `disabled` */
+                pgdelta?: string;
             };
             header?: never;
             path: {
@@ -6122,8 +6132,12 @@ export interface operations {
     "v1-get-project-api-keys": {
         parameters: {
             query?: {
-                /** @description Boolean string, true or false */
-                reveal?: boolean;
+                /** @description Boolean string.
+                 *
+                 *     Truthy values: `true`, `1`, `yes`, `on`, `y`, `enabled`
+                 *
+                 *     Falsy values: `false`, `0`, `no`, `off`, `n`, `disabled` */
+                reveal?: string;
             };
             header?: never;
             path: {
@@ -6168,8 +6182,12 @@ export interface operations {
     "v1-create-project-api-key": {
         parameters: {
             query?: {
-                /** @description Boolean string, true or false */
-                reveal?: boolean;
+                /** @description Boolean string.
+                 *
+                 *     Truthy values: `true`, `1`, `yes`, `on`, `y`, `enabled`
+                 *
+                 *     Falsy values: `false`, `0`, `no`, `off`, `n`, `disabled` */
+                reveal?: string;
             };
             header?: never;
             path: {
@@ -6261,8 +6279,12 @@ export interface operations {
     "v1-update-project-legacy-api-keys": {
         parameters: {
             query: {
-                /** @description Boolean string, true or false */
-                enabled: boolean;
+                /** @description Boolean string.
+                 *
+                 *     Truthy values: `true`, `1`, `yes`, `on`, `y`, `enabled`
+                 *
+                 *     Falsy values: `false`, `0`, `no`, `off`, `n`, `disabled` */
+                enabled: string;
             };
             header?: never;
             path: {
@@ -6307,8 +6329,12 @@ export interface operations {
     "v1-get-project-api-key": {
         parameters: {
             query?: {
-                /** @description Boolean string, true or false */
-                reveal?: boolean;
+                /** @description Boolean string.
+                 *
+                 *     Truthy values: `true`, `1`, `yes`, `on`, `y`, `enabled`
+                 *
+                 *     Falsy values: `false`, `0`, `no`, `off`, `n`, `disabled` */
+                reveal?: string;
             };
             header?: never;
             path: {
@@ -6355,9 +6381,9 @@ export interface operations {
         parameters: {
             query?: {
                 /** @description Boolean string, true or false */
-                reveal?: boolean;
+                reveal?: string;
                 /** @description Boolean string, true or false */
-                was_compromised?: boolean;
+                was_compromised?: string;
                 reason?: string;
             };
             header?: never;
@@ -6404,8 +6430,12 @@ export interface operations {
     "v1-update-project-api-key": {
         parameters: {
             query?: {
-                /** @description Boolean string, true or false */
-                reveal?: boolean;
+                /** @description Boolean string.
+                 *
+                 *     Truthy values: `true`, `1`, `yes`, `on`, `y`, `enabled`
+                 *
+                 *     Falsy values: `false`, `0`, `no`, `off`, `n`, `disabled` */
+                reveal?: string;
             };
             header?: never;
             path: {
@@ -6646,7 +6676,7 @@ export interface operations {
         parameters: {
             query?: {
                 /** @description If true, also removes the custom domain add-on from the project subscription. */
-                remove_addon?: boolean;
+                remove_addon?: string;
             };
             header?: never;
             path: {
@@ -6864,7 +6894,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["JitStateResponse"];
+                    "application/json": {
+                        /** @enum {string} */
+                        state: "enabled" | "disabled";
+                        appliedSuccessfully?: boolean;
+                    } | {
+                        /** @constant */
+                        state: "unavailable";
+                        /** @enum {string} */
+                        unavailableReason: "postgres_upgrade_required" | "ssl_enforcement_required" | "temporarily_unavailable";
+                    };
                 };
             };
             /** @description Unauthorized */
@@ -6918,7 +6957,16 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["JitStateResponse"];
+                    "application/json": {
+                        /** @enum {string} */
+                        state: "enabled" | "disabled";
+                        appliedSuccessfully?: boolean;
+                    } | {
+                        /** @constant */
+                        state: "unavailable";
+                        /** @enum {string} */
+                        unavailableReason: "postgres_upgrade_required" | "ssl_enforcement_required" | "temporarily_unavailable";
+                    };
                 };
             };
             /** @description Unauthorized */
@@ -8529,7 +8577,8 @@ export interface operations {
     "v1-get-services-health": {
         parameters: {
             query: {
-                services: ("auth" | "db" | "db_postgres_user" | "pooler" | "realtime" | "rest" | "storage" | "pg_bouncer")[];
+                /** @description Comma-separated list of enums or array of enums. */
+                services: string | ("auth" | "db" | "db_postgres_user" | "pooler" | "realtime" | "rest" | "storage" | "pg_bouncer")[];
                 timeout_ms?: number;
             };
             header?: never;
@@ -11293,10 +11342,8 @@ export interface operations {
             query?: {
                 slug?: string;
                 name?: string;
-                /** @description Boolean string, true or false */
-                verify_jwt?: boolean;
-                /** @description Boolean string, true or false */
-                import_map?: boolean;
+                verify_jwt?: string;
+                import_map?: string;
                 entrypoint_path?: string;
                 import_map_path?: string;
                 ezbr_sha256?: string;
@@ -11364,8 +11411,7 @@ export interface operations {
         parameters: {
             query?: {
                 slug?: string;
-                /** @description Boolean string, true or false */
-                bundleOnly?: boolean;
+                bundleOnly?: string;
             };
             header?: never;
             path: {
@@ -11532,10 +11578,8 @@ export interface operations {
             query?: {
                 slug?: string;
                 name?: string;
-                /** @description Boolean string, true or false */
-                verify_jwt?: boolean;
-                /** @description Boolean string, true or false */
-                import_map?: boolean;
+                verify_jwt?: string;
+                import_map?: string;
                 entrypoint_path?: string;
                 import_map_path?: string;
                 ezbr_sha256?: string;

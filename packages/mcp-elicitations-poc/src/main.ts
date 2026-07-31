@@ -3,7 +3,7 @@ import { createServer } from "node:http";
 import { toNodeHandler } from "@modelcontextprotocol/node";
 
 import { createManagementProjectCreator } from "./management.js";
-import { createPoc } from "./server.js";
+import { createPoc, InMemoryJtiStore } from "./server.js";
 
 const managementApiUrl = process.env.MANAGEMENT_API_URL;
 const managementApiToken = process.env.MANAGEMENT_API_TOKEN;
@@ -61,7 +61,7 @@ const projectCreator =
 
 if (projectCreator) {
   console.log(
-    `Real Management API project creation ENABLED against ${managementApiUrl}`,
+    `Real Management API project creation ENABLED against ${managementApiUrl}; single-use enforcement ENABLED (in-memory, single instance)`,
   );
 } else {
   console.log(
@@ -69,7 +69,10 @@ if (projectCreator) {
   );
 }
 
-const { handler } = createPoc({ projectCreator });
+const { handler } = createPoc({
+  projectCreator,
+  jtiStore: projectCreator ? new InMemoryJtiStore() : undefined,
+});
 const server = createServer(toNodeHandler(handler));
 
 server.listen(3900, () => {

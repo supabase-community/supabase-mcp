@@ -46,11 +46,11 @@ neither `MANAGEMENT_API_URL` nor `MANAGEMENT_API_TOKEN` is set, and the server
 prints an explicit mock-mode startup line. Setting exactly one variable prints
 an error and exits with status 1.
 
-**Replay warning: `src/main.ts` configures no `jti` consumption store. Replaying
-an accepted request with the same `requestState` and `inputResponses` within its
-TTL will POST twice and create duplicate real staging projects. Do not replay
-accepted requests against staging unless intentionally validating the residual
-documented in [FINDINGS.md](FINDINGS.md#3-replay-residual-and-dedupe).**
+**Replay protection: when staging variables are set, the development server uses
+an in-memory `jti` store and rejects replay of an accepted request. This enforces
+single use within one server instance.** The duplicate-POST residual applies to
+store-less deployments (mock mode by default) and multi-instance deployments
+without a shared store. See [FINDINGS.md risk 3](FINDINGS.md#3-replay-residual-and-dedupe).
 
 Set `POC_STATE_KEY` to the same value (at least 32 bytes) when multiple
 development instances need to accept each other's request states. Otherwise,

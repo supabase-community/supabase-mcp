@@ -200,7 +200,9 @@ export function createPoc(opts: PocOptions = {}): Poc {
     server.registerTool(
       "create_project",
       {
-        description: "Create a mock Supabase project.",
+        description: opts.projectCreator
+          ? "Create a Supabase project via the configured Management API."
+          : "Create a mock Supabase project.",
         inputSchema,
       },
       async ({ name, organization_id, confirm_cost_token }, ctx) => {

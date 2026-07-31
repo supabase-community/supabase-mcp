@@ -1,4 +1,4 @@
-import { createHash, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from "node:crypto";
 
 import {
   CLIENT_CAPABILITIES_META_KEY,
@@ -41,7 +41,7 @@ export type Poc = {
 };
 
 export const DEFAULT_STATE_KEY =
-  "mcp-elicitations-poc-state-key-2026-07-28";
+  process.env.POC_STATE_KEY ?? randomBytes(32).toString("hex");
 export const PROJECT_COST = { amount: 10, recurrence: "monthly" } as const;
 
 type State = {

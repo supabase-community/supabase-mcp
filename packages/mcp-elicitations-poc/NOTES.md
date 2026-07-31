@@ -40,3 +40,6 @@
 - `createMcpHandler` returns the documented web-standard
   `{ fetch, close, notify, bus }`. `@modelcontextprotocol/node` exports
   `toNodeHandler` for the runnable `node:http` entry.
+- The request-state key comes from `POC_STATE_KEY` or is generated once per
+  process. A repo literal was unacceptable because it let clients mint valid
+  request states without possessing a deployed server's key.

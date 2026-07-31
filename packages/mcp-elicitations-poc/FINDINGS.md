@@ -68,4 +68,4 @@ This is pinned by `pins the SDK's observed intermediate result discriminator` in
 
 ## Scope
 
-URL-mode elicitation, the real Supabase Management API, and legacy stateful transports were out of scope. Only project creation at $10/month was exercised; branch pricing at $0.01344/hour was not. This package pins SDK 2.0.0, while the rest of the PR #327 base monorepo remains on 2.0.0-beta.3.
+The PoC's tests are fully mocked, but an env-gated opt-in adapter (`MANAGEMENT_API_URL`/`MANAGEMENT_API_TOKEN`, restricted to HTTPS and `*.supabase.green` hosts) was added for manual staging validation; it is off by default and exercised only by stubbed-fetch tests. URL-mode elicitation and legacy stateful transports were out of scope. Only project creation at $10/month was exercised; branch pricing at $0.01344/hour was not. This package pins SDK 2.0.0, while the rest of the PR #327 base monorepo remains on 2.0.0-beta.3.

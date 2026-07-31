@@ -22,8 +22,35 @@ Run the tests:
 pnpm --filter @supabase/mcp-elicitations-poc test
 ```
 
-The development server listens at `http://localhost:3900/mcp`. All project
-operations use an in-memory mock registry.
+The development server listens at `http://localhost:3900/mcp`. By default,
+project operations use an in-memory mock registry. Setting both staging
+Management API variables enables real project creation instead.
+
+## Optional: real staging creation
+
+Set both required Management API variables to create projects on staging:
+
+```sh
+MANAGEMENT_API_URL="https://api.supabase.green" \
+MANAGEMENT_API_TOKEN="<staging PAT>" \
+MANAGEMENT_API_REGION="us-east-1" \
+POC_STATE_KEY="at-least-32-bytes-of-development-key" \
+  pnpm --filter @supabase/mcp-elicitations-poc dev
+```
+
+`MANAGEMENT_API_REGION` is optional and defaults to `us-east-1`.
+
+**Warning: this creates real projects on the target host. It is intended for
+staging (`supabase.green`) only, never production.** Mock mode applies when
+neither `MANAGEMENT_API_URL` nor `MANAGEMENT_API_TOKEN` is set, and the server
+prints an explicit mock-mode startup line. Setting exactly one variable prints
+an error and exits with status 1.
+
+**Replay warning: `src/main.ts` configures no `jti` consumption store. Replaying
+an accepted request with the same `requestState` and `inputResponses` within its
+TTL will POST twice and create duplicate real staging projects. Do not replay
+accepted requests against staging unless intentionally validating the residual
+documented in [FINDINGS.md](FINDINGS.md#3-replay-residual-and-dedupe).**
 
 Set `POC_STATE_KEY` to the same value (at least 32 bytes) when multiple
 development instances need to accept each other's request states. Otherwise,

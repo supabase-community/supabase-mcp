@@ -317,3 +317,32 @@ connectivity, schema discovery, protocol-era checks, and verifying the
 non-capable-client fallback. Headless CI coverage of the real MRTR path needs
 a capable programmatic client unless a later Inspector CLI adds capability
 and response flags.
+
+## Web UI verification (2026-07-31 follow-up, orchestrator-driven browser session)
+
+The gap above ("web UI not independently verified") is now closed. A headless
+Chromium session drove Inspector 2.0.0's web UI end to end against
+`http://localhost:3900/mcp`:
+
+1. Added the server manually (transport `streamable-http`), Server Settings →
+   Protocol Era → "Modern (2026-07-28, sessionless)" (default is Legacy; the
+   first connect negotiated `MCP 2025-11-25` until the era was switched and
+   the server reconnected, after which the card showed `MCP 2026-07-28`).
+2. Tools tab → `create_project` → name `inspector-demo`, organization_id
+   `org-1` → Execute Tool.
+3. The call paused ("Awaiting input"); the monitoring sidebar showed an
+   "MRTR conversation" entry carrying the `v1.<payload>.<mac>` requestState.
+4. A modal `dialog "Elicitation Request"` appeared with: the exact server
+   message (`Creating project "inspector-demo" costs $10/month. Do you
+   confirm?`), an `input_required` tag ("your answer is sent back as a retry
+   of the original request (MRTR)"), the `confirm` checkbox (Submit disabled
+   until checked — required-field enforcement from requestedSchema), a trust
+   warning naming the requesting server, and Cancel / Decline / Submit.
+5. Checking `confirm` and submitting completed the retry: Results panel
+   showed `Created project "inspector-demo".` and the MRTR conversation
+   settled at 2 rounds, completed.
+
+Verdict update: Inspector 2.0.0 **web UI** fully supports the 2026-07-28
+form-elicitation MRTR flow, verified against this PoC. The principal was
+`anonymous` (no Authorization header configured in the UI session), so
+principal binding was consistent across both legs.

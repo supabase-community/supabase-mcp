@@ -28,11 +28,11 @@ The PoC supports proceeding to an RFC: form-mode multi round-trip request (MRTR)
 
 **Surprises and RFC impact:** Gating is handler policy based on per-request client metadata, not an automatic SDK rejection. The current policy prioritizes elicitation for capable clients and ignores a supplied legacy token. A cross-capability redemption is also ignored and returns a fresh legacy confirmation rather than an error. The RFC should make both choices explicit.
 
-## 5. Inspector stretch: PASS-WITH-SURPRISES
+## 5. Inspector stretch: PASS
 
-**Asserted/observed:** This risk has no automated test suite. [`NOTES.risk5.md`](NOTES.risk5.md) records a manual Inspector 2.0.0 CLI run: it connected over Streamable HTTP, listed `create_project`, and negotiated MCP `2026-07-28` when configured with `protocolEra: "modern"`.
+**Asserted/observed:** This risk has no automated test suite. [`NOTES.risk5.md`](NOTES.risk5.md) records two manual Inspector 2.0.0 runs. CLI: connected over Streamable HTTP, listed `create_project`, and negotiated MCP `2026-07-28` when configured with `protocolEra: "modern"`. Web UI (browser-driven follow-up): with the server's Protocol Era set to Modern, `create_project` paused at an "Elicitation Request" modal showing the `$10/month` message, `input_required` tag, and required `confirm` checkbox; accepting completed the MRTR retry and created the mock project (2 rounds, completed).
 
-**Surprises and RFC impact:** The CLI does not advertise form elicitation, so the server correctly falls back to the legacy path. It has no CLI option to advertise the capability or submit a form response. The packaged web UI documents a pending-form flow, but that behavior was not independently verified in this PoC. Manual MRTR testing therefore needs the Inspector web UI or another capable client.
+**Surprises and RFC impact:** The CLI does not advertise form elicitation, so the server correctly falls back to the legacy path; it has no option to advertise the capability or submit a form response, so headless CI needs a capable programmatic client. The web UI completes the form-elicitation MRTR flow end to end, but its Protocol Era defaults to Legacy per server: manual testers must switch it to Modern or they will silently exercise the 2025-era path.
 
 ## Explicit RFC flags
 
@@ -64,7 +64,7 @@ This is pinned by `pins the SDK's observed intermediate result discriminator` in
 - Single-use `jti` enforcement requires an atomic shared consumption store in multi-instance deployments. The two-instance tests prove the gap and the shared-store semantics.
 - Fail-closed behavior during consumption-store outage was not implemented here. The RFC must specify it.
 - The PoC key comes from `POC_STATE_KEY` or one random per-process value. Production needs a real server-held secret and a rotation design. All instances that redeem the same state need compatible keys during rotation.
-- Inspector CLI can negotiate `2026-07-28` but sends no form-elicitation capability and therefore exercises only the legacy path. Manual MRTR testing needs the web UI or another capable client.
+- Inspector CLI can negotiate `2026-07-28` but sends no form-elicitation capability and therefore exercises only the legacy path. The web UI completes the form MRTR flow end to end (verified against this PoC); its per-server Protocol Era defaults to Legacy and must be set to Modern.
 
 ## Scope
 

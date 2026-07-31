@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 
 import { createManagementProjectCreator } from "../src/management.js";
-import { createPoc } from "../src/server.js";
+import { createPoc, InMemoryJtiStore } from "../src/server.js";
 import { rawToolCall } from "./harness.js";
 
 const args = { name: "staging-project", organization_id: "org-slug" };
@@ -79,6 +79,46 @@ describe("Management API project creation", () => {
     expect(response.body.result.structuredContent.project.id).toBe(
       "real-project-ref",
     );
+    expect(poc.registry.list()).toHaveLength(1);
+  });
+
+  it("rejects replay when real creation uses an in-memory jti store", async () => {
+    const projectCreator = vi.fn().mockResolvedValue({ id: "real-project-ref" });
+    const poc = createPoc({
+      projectCreator,
+      jtiStore: new InMemoryJtiStore(),
+    });
+    const initial = await rawToolCall({
+      poc,
+      declareElicitation: true,
+      args,
+    });
+    const confirmed = {
+      poc,
+      declareElicitation: true,
+      args,
+      inputResponses: {
+        confirm_cost: {
+          action: "accept" as const,
+          content: { confirm: true },
+        },
+      },
+      requestState: initial.body.result.requestState as string,
+    };
+
+    const created = await rawToolCall(confirmed);
+    const replay = await rawToolCall(confirmed);
+
+    expect(created.body.result.structuredContent.status).toBe("created");
+    expect(projectCreator).toHaveBeenCalledOnce();
+    expect(replay.body.result).toMatchObject({
+      isError: true,
+      content: [
+        {
+          text: expect.stringMatching(/replay|consumed/i),
+        },
+      ],
+    });
     expect(poc.registry.list()).toHaveLength(1);
   });
 

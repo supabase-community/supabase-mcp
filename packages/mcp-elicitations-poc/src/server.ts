@@ -33,6 +33,10 @@ export type PocOptions = {
   stateKey?: string;
   ttlSeconds?: number;
   jtiStore?: JtiStore | null;
+  projectCreator?: (input: {
+    name: string;
+    organization_id: string;
+  }) => Promise<{ id: string }>;
 };
 
 export type Poc = {
@@ -142,6 +146,25 @@ export function createPoc(opts: PocOptions = {}): Poc {
       ctx,
     );
 
+  const createProject = async (name: string, organization_id: string) => {
+    try {
+      const created = await opts.projectCreator?.({ name, organization_id });
+      const project = registry.createProject({
+        name,
+        organization_id,
+        cost: PROJECT_COST,
+      });
+      if (created) project.id = created.id;
+      return result(
+        { status: "created", project },
+        `Created project "${name}".`,
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      return result({ status: "error" }, message, true);
+    }
+  };
+
   const askForConfirmation = async (
     ctx: ServerContext,
     sub: string,
@@ -201,15 +224,7 @@ export function createPoc(opts: PocOptions = {}): Poc {
               true,
             );
           }
-          const project = registry.createProject({
-            name,
-            organization_id,
-            cost: PROJECT_COST,
-          });
-          return result(
-            { status: "created", project },
-            `Created project "${name}".`,
-          );
+          return createProject(name, organization_id);
         }
 
         const state = ctx.mcpReq.requestState<State>();
@@ -276,15 +291,7 @@ export function createPoc(opts: PocOptions = {}): Poc {
           );
         }
 
-        const project = registry.createProject({
-          name,
-          organization_id,
-          cost: PROJECT_COST,
-        });
-        return result(
-          { status: "created", project },
-          `Created project "${name}".`,
-        );
+        return createProject(name, organization_id);
       },
     );
 

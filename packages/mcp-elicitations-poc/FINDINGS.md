@@ -90,10 +90,15 @@ Consequences for the RFC and for external wording:
   through a conforming client, which is what the design already says.
 - The gap is not closed by the legacy sunset. Capability downgrade and client-side
   auto-answer are separate paths, and only the first is measured by adoption telemetry.
-- Asymmetry: form acceptance is a boolean a client can synthesise, whereas Secret
-  Collection completion depends on a credential arriving through a separate authenticated
-  channel. If attested human approval is ever required, an out-of-band Supabase-hosted
-  page is closer to it than a client-rendered form.
+- Asymmetry, stated carefully: form acceptance is a boolean a client can synthesise,
+  whereas Secret Collection completion attests that **an authenticated out-of-band write
+  occurred**. That is a stronger statement about the side effect, but it is still not
+  human presence: a companion process holding a valid session could read a secret from
+  the environment or a keychain and POST it to the connect endpoint without a person and
+  without exposing it to the model. Moving the interaction out of band does not by itself
+  produce attested human approval. That requires an explicit human-presence control on
+  the page, such as reauthentication or a WebAuthn step-up, which nothing in this PoC
+  implements or tests.
 
 ### Design consequences
 

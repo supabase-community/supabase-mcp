@@ -2221,6 +2221,63 @@ describe('tools', () => {
     );
   });
 
+  test('query logs rejects a malformed iso_timestamp_end', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    await expect(
+      callTool({
+        name: 'query_logs',
+        arguments: {
+          project_id: project.id,
+          sql: 'select id from logs limit 1',
+          iso_timestamp_end: 'not-a-timestamp',
+        },
+      })
+    ).rejects.toThrow();
+  });
+
+  test('query logs rejects a start at or after the end', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    await expect(
+      callTool({
+        name: 'query_logs',
+        arguments: {
+          project_id: project.id,
+          sql: 'select id from logs limit 1',
+          iso_timestamp_start: '2024-02-01T11:00:00.000Z',
+          iso_timestamp_end: '2024-02-01T10:00:00.000Z',
+        },
+      })
+    ).rejects.toThrow();
+  });
+
   test('query logs rejects an empty sql query', async () => {
     const { callTool } = await setup();
 

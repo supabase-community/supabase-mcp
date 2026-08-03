@@ -121,9 +121,25 @@ function resolveLogWindow(
   iso_timestamp_end?: string
 ) {
   const end = iso_timestamp_end ?? new Date().toISOString();
-  const start =
-    iso_timestamp_start ??
-    new Date(new Date(end).getTime() - DAY_MS).toISOString();
+  const endMs = Date.parse(end);
+  if (Number.isNaN(endMs)) {
+    throw new Error(
+      `Invalid iso_timestamp_end: "${end}". Expected an ISO 8601 timestamp.`
+    );
+  }
+
+  const start = iso_timestamp_start ?? new Date(endMs - DAY_MS).toISOString();
+  const startMs = Date.parse(start);
+  if (Number.isNaN(startMs)) {
+    throw new Error(
+      `Invalid iso_timestamp_start: "${start}". Expected an ISO 8601 timestamp.`
+    );
+  }
+
+  if (startMs >= endMs) {
+    throw new Error('iso_timestamp_start must be before iso_timestamp_end.');
+  }
+
   return { iso_timestamp_start: start, iso_timestamp_end: end };
 }
 

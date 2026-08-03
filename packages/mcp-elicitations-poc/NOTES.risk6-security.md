@@ -3,7 +3,7 @@
 ## Assertion outcomes
 
 - **Secret isolation: pass after correction.** The original result returned `last4`, so four credential characters reached model context. The result now returns only an opaque `secret_ref`.
-- **Wire scan: pass.** The test applies `JSON.stringify` to every captured request and response frame. It rejects all sentinel substrings of at least four characters, plus base64, base64url, and URI encodings of the full value and its last eight characters.
+- **Wire scan: pass, and finite.** The test applies `JSON.stringify` to every captured request and response frame in both directions. It rejects all sentinel substrings of at least four characters, plus base64, base64url, and URI encodings of the full value and its last eight characters. Shorter plaintext fragments and encodings of arbitrary slices are outside the scan, so it is regression detection for the design choice (opaque ref only), not a proof of absence.
 - **Opaque URL: pass.** The connect URL has one `i` query parameter. It contains no bearer, subject, or secret text.
 - **Server-side storage: pass.** The secret store returns Alice's reference and last four characters after the browser submission.
 - **Phishing binding: pass.** Bob and an unknown session cannot open or submit against Alice's interaction. Each rejection leaves the interaction pending and stores nothing.

@@ -66,6 +66,35 @@ input_required
 
 This is pinned by `pins the SDK's observed intermediate result discriminator` in [`test/capability-gating.test.ts`](test/capability-gating.test.ts) and also observed in the happy-path suite.
 
+### What Human Confirmation does and does not prove
+
+The PoC proves the server side of the claim and bounds it precisely. Continuation State
+verification establishes **integrity and binding**: the state was minted by this server,
+has not been tampered with, has not expired, is presented by the same Approver, matches
+the same Confirmed Action, and has not already been redeemed on this process. None of
+that establishes **human presence**.
+
+MRTR moves the interaction to the client by design, so the client decides whether a human
+is involved. Claude Code's MCP documentation describes an `Elicitation` hook that can
+return `accept` with form content and skip the dialog, and an `ElicitationResult` hook
+that can override a user's response. Default behaviour is interactive, but automation is a
+supported client feature, not an abuse of one. This is read from vendor documentation and
+was not exercised against this PoC.
+
+Consequences for the RFC and for external wording:
+
+- "The approval cannot be forged or precomputed" is supportable: it is a cryptographic
+  property of the state, and the precompute contrast test demonstrates it.
+- "A real human approved this" is not supportable from the server alone. It requires an
+  explicit trusted-client-policy assumption, and should be worded as approval conveyed
+  through a conforming client, which is what the design already says.
+- The gap is not closed by the legacy sunset. Capability downgrade and client-side
+  auto-answer are separate paths, and only the first is measured by adoption telemetry.
+- Asymmetry: form acceptance is a boolean a client can synthesise, whereas Secret
+  Collection completion depends on a credential arriving through a separate authenticated
+  channel. If attested human approval is ever required, an out-of-band Supabase-hosted
+  page is closer to it than a client-rendered form.
+
 ### Design consequences
 
 - State-in-token works without server-side conversation state. [`src/server.ts`](src/server.ts) embeds version, principal, tool, argument digest, cost, `jti`, and issue time; the codec adds expiry and method binding.

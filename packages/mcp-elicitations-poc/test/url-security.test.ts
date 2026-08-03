@@ -10,6 +10,22 @@ import {
 
 const SENTINEL = "sk-live-SENTINEL-9f3a2b";
 
+function leakCandidates(value: string): Set<string> {
+  const candidates = new Set<string>();
+  for (let start = 0; start <= value.length - 4; start += 1) {
+    for (let end = start + 4; end <= value.length; end += 1) {
+      candidates.add(value.slice(start, end));
+    }
+  }
+
+  for (const part of [value, value.slice(-8)]) {
+    candidates.add(Buffer.from(part).toString("base64"));
+    candidates.add(Buffer.from(part).toString("base64url"));
+    candidates.add(encodeURIComponent(part));
+  }
+  return candidates;
+}
+
 function elicitation(result: any) {
   return result.body.result.inputRequests.provide_api_key.params;
 }
@@ -46,16 +62,24 @@ describe("URL-mode security", () => {
           name: "store_api_key",
           arguments: { name: "github" },
         });
-        const frames = testClient.wire.map((frame) => JSON.stringify(frame));
-        expect(frames.every((frame) => !frame.includes(SENTINEL))).toBe(true);
+        expect(new Set(testClient.wire.map((frame) => frame.direction))).toEqual(
+          new Set(["request", "response"]),
+        );
+        const candidates = leakCandidates(SENTINEL);
+        for (const frame of testClient.wire) {
+          const serialized = JSON.stringify(frame);
+          for (const candidate of candidates) {
+            expect(serialized).not.toContain(candidate);
+          }
+        }
 
         expect(final.structuredContent).toEqual({
           status: "stored",
           name: "github",
           secret_ref: expect.any(String),
-          last4: "3a2b",
         });
-        expect(JSON.stringify(final)).not.toContain(SENTINEL);
+        expect(final.structuredContent).not.toHaveProperty("last4");
+        expect(final.structuredContent).toHaveProperty("secret_ref");
 
         const url = new URL(connectUrl);
         expect(url.searchParams.size).toBe(1);
@@ -130,9 +154,12 @@ describe("URL-mode security", () => {
       expect(complete.body.result.structuredContent).toMatchObject({
         status: "stored",
         secret_ref: expect.any(String),
+      });
+      expect(complete.body.result.structuredContent).not.toHaveProperty("last4");
+      expect(poc.secrets.get("user-alice", "github")).toEqual({
+        ref: complete.body.result.structuredContent.secret_ref,
         last4: "3a2b",
       });
-      expect(poc.secrets.get("user-alice", "github")).toBeDefined();
     });
   });
 

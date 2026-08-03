@@ -162,8 +162,9 @@ export function createUrlPoc(opts: UrlPocOptions = {}): UrlPoc {
         }
         const secret = secrets.get(sub, name);
         if (!secret) return result({ status: "error" }, "The stored secret reference is missing.", true);
+        // Any suffix is credential material in model context. Fingerprints need an RFC decision, not a PoC default.
         return result(
-          { status: "stored", name, secret_ref: secret.ref, last4: secret.last4 },
+          { status: "stored", name, secret_ref: secret.ref },
           `Stored API key "${name}".`,
         );
       },

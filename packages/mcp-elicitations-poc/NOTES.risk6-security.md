@@ -2,8 +2,8 @@
 
 ## Assertion outcomes
 
-- **Secret isolation: pass.** A successful client-driven flow stored the sentinel and returned only `secret_ref` plus `last4: "3a2b"` as secret metadata.
-- **Wire scan: pass.** The test applies `JSON.stringify` to every captured request and response frame. No serialized frame contains `sk-live-SENTINEL-9f3a2b`.
+- **Secret isolation: pass after correction.** The original result returned `last4`, so four credential characters reached model context. The result now returns only an opaque `secret_ref`.
+- **Wire scan: pass.** The test applies `JSON.stringify` to every captured request and response frame. It rejects all sentinel substrings of at least four characters, plus base64, base64url, and URI encodings of the full value and its last eight characters.
 - **Opaque URL: pass.** The connect URL has one `i` query parameter. It contains no bearer, subject, or secret text.
 - **Server-side storage: pass.** The secret store returns Alice's reference and last four characters after the browser submission.
 - **Phishing binding: pass.** Bob and an unknown session cannot open or submit against Alice's interaction. Each rejection leaves the interaction pending and stores nothing.
@@ -22,3 +22,5 @@
 The server must store the interaction ID, principal, tool, argument digest, expiry, and completion state. It must also store the secret by principal and name.
 
 The real connect page needs the dashboard's authenticated session. The server must derive the principal from that session and compare it with the interaction record. The URL stays an opaque locator and grants no authority.
+
+The RFC must decide whether any credential fingerprint belongs in a tool result. A fingerprint helps a user identify a stored key, but it remains credential material in model context, transcripts, and logs.

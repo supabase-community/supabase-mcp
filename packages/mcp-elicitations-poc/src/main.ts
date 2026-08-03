@@ -4,6 +4,7 @@ import { toNodeHandler } from "@modelcontextprotocol/node";
 
 import { createManagementProjectCreator } from "./management.js";
 import { createPoc, InMemoryJtiStore } from "./server.js";
+import { createUrlPoc } from "./url-server.js";
 
 const managementApiUrl = process.env.MANAGEMENT_API_URL;
 const managementApiToken = process.env.MANAGEMENT_API_TOKEN;
@@ -77,4 +78,16 @@ const server = createServer(toNodeHandler(handler));
 
 server.listen(3900, () => {
   console.log("MCP Elicitations PoC listening on http://localhost:3900/mcp");
+});
+
+const urlPoc = createUrlPoc();
+const urlMcpServer = createServer(toNodeHandler(urlPoc.handler));
+const connectServer = createServer(toNodeHandler(urlPoc.connect));
+
+urlMcpServer.listen(3902, () => {
+  console.log("URL-mode MCP PoC listening on http://localhost:3902/mcp");
+});
+
+connectServer.listen(3901, () => {
+  console.log("Mock connect page listening on http://localhost:3901/connect");
 });

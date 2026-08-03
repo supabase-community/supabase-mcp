@@ -90,8 +90,8 @@ describe("URL-mode lifecycle", () => {
       expect(complete.body.result.structuredContent).toMatchObject({
         status: "stored",
         name: "github",
-        last4: "1234",
       });
+      expect(poc.secrets.get("user-alice", "github")?.last4).toBe("1234");
     });
 
     for (const [label, responses] of [
@@ -152,8 +152,8 @@ describe("URL-mode lifecycle", () => {
       const complete = await finish(poc, fresh, "sk-fresh-5678");
       expect(complete.body.result.structuredContent).toMatchObject({
         status: "stored",
-        last4: "5678",
       });
+      expect(poc.secrets.get("user-alice", "github")?.last4).toBe("5678");
     });
   });
 

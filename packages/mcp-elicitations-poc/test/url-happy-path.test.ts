@@ -46,7 +46,6 @@ describe("URL-mode elicitation happy path", () => {
       status: "stored",
       name: "github",
       secret_ref: expect.any(String),
-      last4: "1234",
     });
     expect(JSON.stringify(complete.body)).not.toContain("sk-test-1234");
     expect(poc.secrets.get("user-alice", "github")).toEqual({

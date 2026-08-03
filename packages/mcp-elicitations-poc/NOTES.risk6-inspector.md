@@ -82,9 +82,9 @@ The "NOT verified" gap above is closed. Both browser flows completed by hand:
   clicking "I've completed it". So the manual completion control does close the
   round; my earlier headless failure was automation flakiness, not a defect.
 
-## Browser support: Safari does not work
+## Browser support: Inspector's Tools view hung in Safari in this run
 
-The earlier "empty Tools panel" symptom was **Safari-specific**. In Safari,
+The earlier "empty Tools panel" symptom appeared in **Safari** and not in Chrome. In Safari,
 `server/discover` succeeds and the follow-up `tools/list` hangs client-side, so no
 tool is ever listed. Ruled out by elimination against the live server: `tools/list`
 answers in 10-20ms over fresh and keep-alive connections, on both IPv4 and IPv6,

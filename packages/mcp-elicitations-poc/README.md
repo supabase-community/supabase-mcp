@@ -60,3 +60,12 @@ See [FINDINGS.md](FINDINGS.md) for the RFC findings. Supporting observations are
 in [NOTES.md](NOTES.md), [NOTES.risk2.md](NOTES.risk2.md),
 [NOTES.risk3.md](NOTES.risk3.md), [NOTES.risk4.md](NOTES.risk4.md), and
 [NOTES.risk5.md](NOTES.risk5.md).
+
+## URL-mode PoC
+
+The same `dev` command starts a separate URL-mode MCP endpoint at
+`http://localhost:3902/mcp`. Its connect page runs at
+`http://localhost:3901/connect`.
+
+The connect page uses a mock `poc_session=<principal>` cookie. This cookie stands
+in for a dashboard session and provides no production authentication.

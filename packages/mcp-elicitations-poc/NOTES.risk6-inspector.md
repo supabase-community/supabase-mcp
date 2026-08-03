@@ -70,3 +70,36 @@ returned "expired" and been inconclusive. Not attempted.
 - URL mode needs the **web UI**; the CLI declares no elicitation capability at all.
 - The demo has two windows by nature: the client (modal) and the browser (connect page).
   Inspector's "I've completed it" is the hand-off point between them.
+
+## Manual confirmation, 2026-08-03 (by Barry, in Chrome)
+
+The "NOT verified" gap above is closed. Both browser flows completed by hand:
+
+- **Form mode:** `Created project "test_project".`, MRTR conversation 2 rounds,
+  round 1 `INPUT REQUIRED` 13:24:08 (26ms), round 2 `COMPLETE` 13:24:28 (10ms).
+- **URL mode:** `Stored API key "openai-key".`, MRTR 2 rounds, round 1
+  `INPUT REQUIRED` 13:27:30 (19ms), round 2 `COMPLETE` 13:30:25 (24ms), after
+  clicking "I've completed it". So the manual completion control does close the
+  round; my earlier headless failure was automation flakiness, not a defect.
+
+## Browser support: Safari does not work
+
+The earlier "empty Tools panel" symptom was **Safari-specific**. In Safari,
+`server/discover` succeeds and the follow-up `tools/list` hangs client-side, so no
+tool is ever listed. Ruled out by elimination against the live server: `tools/list`
+answers in 10-20ms over fresh and keep-alive connections, on both IPv4 and IPv6,
+with and without `logLevel`/`progressToken`; `subscriptions/listen` returns
+immediately; discover advertises only `tools` (so the `prompts/list` and
+`resources/list` errors are expected `-32601`s). The identical flow renders
+correctly in Chromium against the same Inspector process and the same server.
+
+Runbook consequence: the canary and any demo must specify Chrome. A Safari user sees
+"no tools available" and would reasonably blame the server.
+
+## Timing observation worth carrying to the RFC
+
+The URL round above spent ~175s between rounds at an ordinary human pace. The PoC's
+URL flow allows 300s (`src/url-server.ts:75,81`); form mode uses 120s
+(`src/server.ts:126`). Under the approved design's fixed 120s cap this run would
+have expired. Single observation, not a measured minimum: it argues for a
+per-policy lifetime decision, not for a specific number.

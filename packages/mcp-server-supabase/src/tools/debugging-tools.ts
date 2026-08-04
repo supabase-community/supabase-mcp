@@ -148,6 +148,7 @@ export function getDebuggingTools({
   projectId,
 }: DebuggingToolsOptions) {
   const project_id = projectId;
+  const { queryLogs } = debugging;
 
   return {
     get_logs: injectableTool({
@@ -166,21 +167,23 @@ export function getDebuggingTools({
         return { result: wrapWithUntrustedDataBoundary(result) };
       },
     }),
-    query_logs: injectableTool({
-      ...debuggingToolDefs.query_logs,
-      inject: { project_id },
-      execute: async ({
-        project_id,
-        sql,
-        iso_timestamp_start,
-        iso_timestamp_end,
-      }) => {
-        const result = await debugging.queryLogs(project_id, {
+    ...(queryLogs && {
+      query_logs: injectableTool({
+        ...debuggingToolDefs.query_logs,
+        inject: { project_id },
+        execute: async ({
+          project_id,
           sql,
-          ...resolveLogWindow(iso_timestamp_start, iso_timestamp_end),
-        });
-        return { result: wrapWithUntrustedDataBoundary(result) };
-      },
+          iso_timestamp_start,
+          iso_timestamp_end,
+        }) => {
+          const result = await queryLogs(project_id, {
+            sql,
+            ...resolveLogWindow(iso_timestamp_start, iso_timestamp_end),
+          });
+          return { result: wrapWithUntrustedDataBoundary(result) };
+        },
+      }),
     }),
     get_advisors: injectableTool({
       ...debuggingToolDefs.get_advisors,

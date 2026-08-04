@@ -219,7 +219,7 @@ export type EdgeFunctionsOperations = {
 
 export type DebuggingOperations = {
   getLogs(projectId: string, options: GetLogsOptions): Promise<unknown>;
-  queryLogs(projectId: string, options: QueryLogsOptions): Promise<unknown>;
+  queryLogs?(projectId: string, options: QueryLogsOptions): Promise<unknown>;
   getSecurityAdvisors(projectId: string): Promise<unknown>;
   getPerformanceAdvisors(projectId: string): Promise<unknown>;
 };

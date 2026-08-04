@@ -3977,6 +3977,28 @@ describe('feature groups', () => {
     expect(toolNames).toEqual(['get_logs', 'query_logs', 'get_advisors']);
   });
 
+  test('debugging tools omit query_logs when the platform does not implement it', async () => {
+    const platform: SupabasePlatform = {
+      debugging: {
+        getLogs() {
+          throw new Error('Not implemented');
+        },
+        getSecurityAdvisors() {
+          throw new Error('Not implemented');
+        },
+        getPerformanceAdvisors() {
+          throw new Error('Not implemented');
+        },
+      },
+    };
+
+    const { client } = await setup({ platform, features: ['debugging'] });
+    const { tools } = await client.listTools();
+    const toolNames = tools.map((tool) => tool.name);
+
+    expect(toolNames).toEqual(['get_logs', 'get_advisors']);
+  });
+
   test('development tools', async () => {
     const { client } = await setup({
       features: ['development'],

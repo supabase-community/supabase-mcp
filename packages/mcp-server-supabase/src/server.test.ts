@@ -2105,6 +2105,7 @@ describe('tools', () => {
     const sql =
       "select id, timestamp, event_message from logs where source = 'postgres_logs' order by timestamp desc limit 10";
 
+    const before = Date.now();
     const { result } = await callTool({
       name: 'query_logs',
       arguments: {
@@ -2112,12 +2113,19 @@ describe('tools', () => {
         sql,
       },
     });
+    const after = Date.now();
 
     expect(result).toContain('untrusted-data');
     expect(capturedSearchParams).toHaveLength(1);
     expect(capturedSearchParams[0]?.get('sql')).toBe(sql);
-    expect(capturedSearchParams[0]?.get('iso_timestamp_start')).toBeTruthy();
-    expect(capturedSearchParams[0]?.get('iso_timestamp_end')).toBeTruthy();
+
+    const end = capturedSearchParams[0]?.get('iso_timestamp_end');
+    const start = capturedSearchParams[0]?.get('iso_timestamp_start');
+    const endMs = Date.parse(end!);
+
+    expect(endMs).toBeGreaterThanOrEqual(before);
+    expect(endMs).toBeLessThanOrEqual(after);
+    expect(start).toBe(new Date(endMs - 24 * 60 * 60 * 1000).toISOString());
   });
 
   test('query logs forwards a custom timestamp window', async () => {
@@ -2246,7 +2254,7 @@ describe('tools', () => {
           iso_timestamp_end: 'not-a-timestamp',
         },
       })
-    ).rejects.toThrow();
+    ).rejects.toThrow(/Invalid ISO datetime/);
   });
 
   test('query logs rejects a start at or after the end', async () => {
@@ -2275,7 +2283,19 @@ describe('tools', () => {
           iso_timestamp_end: '2024-02-01T10:00:00.000Z',
         },
       })
-    ).rejects.toThrow();
+    ).rejects.toThrow(/must be before/);
+
+    await expect(
+      callTool({
+        name: 'query_logs',
+        arguments: {
+          project_id: project.id,
+          sql: 'select id from logs limit 1',
+          iso_timestamp_start: '2024-02-01T10:00:00.000Z',
+          iso_timestamp_end: '2024-02-01T10:00:00.000Z',
+        },
+      })
+    ).rejects.toThrow(/must be before/);
   });
 
   test('query logs rejects an empty sql query', async () => {
@@ -2302,7 +2322,7 @@ describe('tools', () => {
           sql: '',
         },
       })
-    ).rejects.toThrow();
+    ).rejects.toThrow(/too_small|at least 1 character/);
   });
 
   test('get security advisors', async () => {

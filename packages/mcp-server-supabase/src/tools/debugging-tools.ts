@@ -17,17 +17,17 @@ type DebuggingToolsOptions = {
 const getLogsInputSchema = z.object({
   project_id: z.string(),
   service: logsServiceSchema.describe('The service to fetch logs for'),
-  iso_timestamp_start: z
-    .string()
+  iso_timestamp_start: z.iso
+    .datetime({ offset: true })
     .optional()
     .describe(
-      'The start of the log window as an ISO 8601 timestamp. Defaults to 24 hours before the end of the window. The API caps the requested range at 24 hours.'
+      'The start of the log window as an ISO 8601 timestamp, including a UTC "Z" suffix or explicit offset. Defaults to 24 hours before the end of the window. The API caps the requested range at 24 hours.'
     ),
-  iso_timestamp_end: z
-    .string()
+  iso_timestamp_end: z.iso
+    .datetime({ offset: true })
     .optional()
     .describe(
-      'The end of the log window as an ISO 8601 timestamp. Defaults to the current time. The API caps the requested range at 24 hours.'
+      'The end of the log window as an ISO 8601 timestamp, including a UTC "Z" suffix or explicit offset. Defaults to the current time. The API caps the requested range at 24 hours.'
     ),
 });
 
@@ -43,17 +43,17 @@ const queryLogsInputSchema = z.object({
     .describe(
       "A read-only ClickHouse SQL query to run against the project's unified logs stream. Logs are exposed through a `logs` table; filter by `source` (e.g. 'edge_logs', 'postgres_logs', 'function_edge_logs', 'function_logs', 'auth_logs', 'storage_logs', 'realtime_logs', 'workflow_run_logs') and read nested fields via `log_attributes['<key>']`."
     ),
-  iso_timestamp_start: z
-    .string()
+  iso_timestamp_start: z.iso
+    .datetime({ offset: true })
     .optional()
     .describe(
-      'The start of the log window as an ISO 8601 timestamp. Defaults to 24 hours before the end of the window. The API caps the requested range at 24 hours.'
+      'The start of the log window as an ISO 8601 timestamp, including a UTC "Z" suffix or explicit offset. Defaults to 24 hours before the end of the window. The API caps the requested range at 24 hours.'
     ),
-  iso_timestamp_end: z
-    .string()
+  iso_timestamp_end: z.iso
+    .datetime({ offset: true })
     .optional()
     .describe(
-      'The end of the log window as an ISO 8601 timestamp. Defaults to the current time. The API caps the requested range at 24 hours.'
+      'The end of the log window as an ISO 8601 timestamp, including a UTC "Z" suffix or explicit offset. Defaults to the current time. The API caps the requested range at 24 hours.'
     ),
 });
 
@@ -114,25 +114,25 @@ export const debuggingToolDefs = {
   },
 } as const satisfies ToolDefs;
 
-const DAY_MS = 24 * 60 * 60 * 1000;
+export const DAY_MS = 24 * 60 * 60 * 1000;
 
-function resolveLogWindow(
+export function resolveLogWindow(
   iso_timestamp_start?: string,
   iso_timestamp_end?: string
 ) {
-  const end = iso_timestamp_end ?? new Date().toISOString();
-  const endMs = Date.parse(end);
+  const endMs = iso_timestamp_end ? Date.parse(iso_timestamp_end) : Date.now();
   if (Number.isNaN(endMs)) {
     throw new Error(
-      `Invalid iso_timestamp_end: "${end}". Expected an ISO 8601 timestamp.`
+      `Invalid iso_timestamp_end: "${iso_timestamp_end}". Expected an ISO 8601 timestamp.`
     );
   }
 
-  const start = iso_timestamp_start ?? new Date(endMs - DAY_MS).toISOString();
-  const startMs = Date.parse(start);
+  const startMs = iso_timestamp_start
+    ? Date.parse(iso_timestamp_start)
+    : endMs - DAY_MS;
   if (Number.isNaN(startMs)) {
     throw new Error(
-      `Invalid iso_timestamp_start: "${start}". Expected an ISO 8601 timestamp.`
+      `Invalid iso_timestamp_start: "${iso_timestamp_start}". Expected an ISO 8601 timestamp.`
     );
   }
 
@@ -140,7 +140,14 @@ function resolveLogWindow(
     throw new Error('iso_timestamp_start must be before iso_timestamp_end.');
   }
 
-  return { iso_timestamp_start: start, iso_timestamp_end: end };
+  if (endMs - startMs > DAY_MS) {
+    throw new Error('The log window can be at most 24 hours.');
+  }
+
+  return {
+    iso_timestamp_start: new Date(startMs).toISOString(),
+    iso_timestamp_end: new Date(endMs).toISOString(),
+  };
 }
 
 export function getDebuggingTools({

@@ -2458,7 +2458,7 @@ export interface components {
                     /** @enum {string} */
                     type: "specific";
                     /** @enum {string} */
-                    provider: "AWS" | "FLY" | "AWS_K8S" | "AWS_NIMBUS";
+                    provider: "AWS" | "AWS_K8S" | "AWS_NIMBUS";
                     /** @enum {string} */
                     status?: "capacity" | "other";
                 }[];
@@ -2478,7 +2478,7 @@ export interface components {
                     /** @enum {string} */
                     type: "specific";
                     /** @enum {string} */
-                    provider: "AWS" | "FLY" | "AWS_K8S" | "AWS_NIMBUS";
+                    provider: "AWS" | "AWS_K8S" | "AWS_NIMBUS";
                     /** @enum {string} */
                     status?: "capacity" | "other";
                 }[];

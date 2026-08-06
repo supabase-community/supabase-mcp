@@ -3847,11 +3847,15 @@ describe('tools', () => {
 
     // Also verify that the registry doesn't have unexpected extra entries
     // (tools that don't exist in the server). A registry entry is allowed to
-    // be missing from tools/list only if its tool def is marked `hidden` —
-    // it stays in the registry for typed access while being delisted from
-    // live discovery (see CONTRIBUTING.md's tool deprecation guidance).
+    // be missing from tools/list if its tool def is marked `hidden` — it
+    // stays in the registry for typed access while being delisted from live
+    // discovery (see CONTRIBUTING.md's tool deprecation guidance) — or if
+    // its visibility is capability-dependent rather than a static def
+    // property, like get_logs (hidden only when the platform also offers
+    // query_logs).
     const registryToolNames = Object.keys(supabaseMcpToolSchemas);
     const serverToolNames = tools.map((t) => t.name);
+    const conditionallyHiddenToolNames = new Set(['get_logs']);
 
     const extraToolsInRegistry = registryToolNames.filter(
       (name) => !serverToolNames.includes(name)
@@ -3860,7 +3864,7 @@ describe('tools', () => {
     const unexpectedExtraTools = extraToolsInRegistry.filter(
       (name) =>
         !supabaseMcpToolSchemas[name as keyof typeof supabaseMcpToolSchemas]
-          .hidden
+          .hidden && !conditionallyHiddenToolNames.has(name)
     );
 
     expect(
@@ -3986,7 +3990,7 @@ describe('feature groups', () => {
     ]);
   });
 
-  test('debugging tools', async () => {
+  test('debugging tools hide get_logs in favor of query_logs when the platform supports it', async () => {
     const { client } = await setup({
       features: ['debugging'],
     });
@@ -3994,10 +3998,39 @@ describe('feature groups', () => {
     const { tools } = await client.listTools();
     const toolNames = tools.map((tool) => tool.name);
 
-    expect(toolNames).toEqual(['get_logs', 'query_logs', 'get_advisors']);
+    expect(toolNames).toEqual(['query_logs', 'get_advisors']);
   });
 
-  test('debugging tools omit query_logs when the platform does not implement it', async () => {
+  test('get_logs stays callable via tools/call even while hidden from tools/list', async () => {
+    const { callTool } = await setup({
+      features: ['debugging'],
+    });
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const { result } = await callTool({
+      name: 'get_logs',
+      arguments: {
+        project_id: project.id,
+        service: 'api',
+      },
+    });
+
+    expect(result).toContain('untrusted-data');
+  });
+
+  test('debugging tools show get_logs when the platform does not implement query_logs', async () => {
     const platform: SupabasePlatform = {
       debugging: {
         getLogs() {

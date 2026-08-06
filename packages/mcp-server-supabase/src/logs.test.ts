@@ -29,4 +29,12 @@ describe('getLogQuery', () => {
 
     expect(query).toContain("event_message ilike '%worker''s path%'");
   });
+
+  test('casts numeric auth status before applying a text filter', () => {
+    const query = getLogQuery('auth', {
+      search: '500',
+    });
+
+    expect(query).toContain("cast(metadata.status as text) ilike '%500%'");
+  });
 });

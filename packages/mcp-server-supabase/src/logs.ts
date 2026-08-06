@@ -97,7 +97,7 @@ export function getLogQuery(
       const searchFilter = buildSearchFilter(search, [
         'event_message',
         'metadata.level',
-        'metadata.status',
+        'cast(metadata.status as text)',
         'metadata.path',
         'metadata.msg',
         'metadata.error',

@@ -20,6 +20,7 @@ import {
   deployEdgeFunctionOptionsSchema,
   executeSqlOptionsSchema,
   getLogsOptionsSchema,
+  queryLogsOptionsSchema,
   resetBranchOptionsSchema,
   type AccountOperations,
   type ApiKey,
@@ -38,6 +39,7 @@ import {
   type EdgeFunctionWithBody,
   type ExecuteSqlOptions,
   type GetLogsOptions,
+  type QueryLogsOptions,
   type ResetBranchOptions,
   type StorageConfig,
   type StorageOperations,
@@ -274,6 +276,30 @@ export function createSupabaseApiPlatform(
       );
 
       assertSuccess(response, 'Failed to fetch logs');
+
+      return response.data;
+    },
+    async queryLogs(projectId: string, options: QueryLogsOptions) {
+      const { sql, iso_timestamp_start, iso_timestamp_end } =
+        queryLogsOptionsSchema.parse(options);
+
+      const response = await managementApiClient.GET(
+        '/v1/projects/{ref}/analytics/endpoints/logs',
+        {
+          params: {
+            path: {
+              ref: projectId,
+            },
+            query: {
+              sql,
+              iso_timestamp_start,
+              iso_timestamp_end,
+            },
+          },
+        }
+      );
+
+      assertSuccess(response, 'Failed to query logs');
 
       return response.data;
     },

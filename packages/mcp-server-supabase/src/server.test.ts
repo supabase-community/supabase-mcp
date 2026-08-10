@@ -2072,6 +2072,259 @@ describe('tools', () => {
     );
   });
 
+  test('query logs forwards custom sql and defaults the timestamp window', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const capturedSearchParams: URLSearchParams[] = [];
+
+    mockServer?.use(
+      http.get<{ projectId: string }>(
+        `${API_URL}/v1/projects/:projectId/analytics/endpoints/logs`,
+        ({ params, request }) => {
+          expect(params.projectId).toBe(project.id);
+          capturedSearchParams.push(new URL(request.url).searchParams);
+
+          return HttpResponse.json([]);
+        }
+      )
+    );
+
+    const sql =
+      "select id, timestamp, event_message from logs where source = 'postgres_logs' order by timestamp desc limit 10";
+
+    const before = Date.now();
+    const { result } = await callTool({
+      name: 'query_logs',
+      arguments: {
+        project_id: project.id,
+        sql,
+      },
+    });
+    const after = Date.now();
+
+    expect(result).toContain('untrusted-data');
+    expect(capturedSearchParams).toHaveLength(1);
+    expect(capturedSearchParams[0]?.get('sql')).toBe(sql);
+
+    const end = capturedSearchParams[0]?.get('iso_timestamp_end');
+    const start = capturedSearchParams[0]?.get('iso_timestamp_start');
+    const endMs = Date.parse(end!);
+
+    expect(endMs).toBeGreaterThanOrEqual(before);
+    expect(endMs).toBeLessThanOrEqual(after);
+    expect(start).toBe(new Date(endMs - 24 * 60 * 60 * 1000).toISOString());
+  });
+
+  test('query logs forwards a custom timestamp window', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const capturedSearchParams: URLSearchParams[] = [];
+
+    mockServer?.use(
+      http.get<{ projectId: string }>(
+        `${API_URL}/v1/projects/:projectId/analytics/endpoints/logs`,
+        ({ request }) => {
+          capturedSearchParams.push(new URL(request.url).searchParams);
+          return HttpResponse.json([]);
+        }
+      )
+    );
+
+    const isoTimestampStart = '2024-02-01T10:00:00.000Z';
+    const isoTimestampEnd = '2024-02-01T11:00:00.000Z';
+
+    await callTool({
+      name: 'query_logs',
+      arguments: {
+        project_id: project.id,
+        sql: 'select id from logs limit 1',
+        iso_timestamp_start: isoTimestampStart,
+        iso_timestamp_end: isoTimestampEnd,
+      },
+    });
+
+    expect(capturedSearchParams).toHaveLength(1);
+    expect(capturedSearchParams[0]?.get('iso_timestamp_start')).toBe(
+      isoTimestampStart
+    );
+    expect(capturedSearchParams[0]?.get('iso_timestamp_end')).toBe(
+      isoTimestampEnd
+    );
+  });
+
+  test('query logs anchors the default start to a supplied end', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const capturedSearchParams: URLSearchParams[] = [];
+
+    mockServer?.use(
+      http.get<{ projectId: string }>(
+        `${API_URL}/v1/projects/:projectId/analytics/endpoints/logs`,
+        ({ request }) => {
+          capturedSearchParams.push(new URL(request.url).searchParams);
+          return HttpResponse.json([]);
+        }
+      )
+    );
+
+    const isoTimestampEnd = '2024-02-01T11:00:00.000Z';
+
+    await callTool({
+      name: 'query_logs',
+      arguments: {
+        project_id: project.id,
+        sql: 'select id from logs limit 1',
+        iso_timestamp_end: isoTimestampEnd,
+      },
+    });
+
+    expect(capturedSearchParams).toHaveLength(1);
+    expect(capturedSearchParams[0]?.get('iso_timestamp_end')).toBe(
+      isoTimestampEnd
+    );
+    const expectedStart = new Date(
+      new Date(isoTimestampEnd).getTime() - 24 * 60 * 60 * 1000
+    ).toISOString();
+    expect(capturedSearchParams[0]?.get('iso_timestamp_start')).toBe(
+      expectedStart
+    );
+  });
+
+  test('query logs rejects a malformed iso_timestamp_end', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    await expect(
+      callTool({
+        name: 'query_logs',
+        arguments: {
+          project_id: project.id,
+          sql: 'select id from logs limit 1',
+          iso_timestamp_end: 'not-a-timestamp',
+        },
+      })
+    ).rejects.toThrow(/Invalid ISO datetime/);
+  });
+
+  test('query logs rejects a start at or after the end', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    await expect(
+      callTool({
+        name: 'query_logs',
+        arguments: {
+          project_id: project.id,
+          sql: 'select id from logs limit 1',
+          iso_timestamp_start: '2024-02-01T11:00:00.000Z',
+          iso_timestamp_end: '2024-02-01T10:00:00.000Z',
+        },
+      })
+    ).rejects.toThrow(/must be before/);
+
+    await expect(
+      callTool({
+        name: 'query_logs',
+        arguments: {
+          project_id: project.id,
+          sql: 'select id from logs limit 1',
+          iso_timestamp_start: '2024-02-01T10:00:00.000Z',
+          iso_timestamp_end: '2024-02-01T10:00:00.000Z',
+        },
+      })
+    ).rejects.toThrow(/must be before/);
+  });
+
+  test('query logs rejects an empty sql query', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    await expect(
+      callTool({
+        name: 'query_logs',
+        arguments: {
+          project_id: project.id,
+          sql: '',
+        },
+      })
+    ).rejects.toThrow(/too_small|at least 1 character/);
+  });
+
   test('get security advisors', async () => {
     const { callTool } = await setup();
 
@@ -3594,11 +3847,15 @@ describe('tools', () => {
 
     // Also verify that the registry doesn't have unexpected extra entries
     // (tools that don't exist in the server). A registry entry is allowed to
-    // be missing from tools/list only if its tool def is marked `hidden` —
-    // it stays in the registry for typed access while being delisted from
-    // live discovery (see CONTRIBUTING.md's tool deprecation guidance).
+    // be missing from tools/list if its tool def is marked `hidden` — it
+    // stays in the registry for typed access while being delisted from live
+    // discovery (see CONTRIBUTING.md's tool deprecation guidance) — or if
+    // its visibility is capability-dependent rather than a static def
+    // property, like get_logs (hidden only when the platform also offers
+    // query_logs).
     const registryToolNames = Object.keys(supabaseMcpToolSchemas);
     const serverToolNames = tools.map((t) => t.name);
+    const conditionallyHiddenToolNames = new Set(['get_logs']);
 
     const extraToolsInRegistry = registryToolNames.filter(
       (name) => !serverToolNames.includes(name)
@@ -3607,7 +3864,7 @@ describe('tools', () => {
     const unexpectedExtraTools = extraToolsInRegistry.filter(
       (name) =>
         !supabaseMcpToolSchemas[name as keyof typeof supabaseMcpToolSchemas]
-          .hidden
+          .hidden && !conditionallyHiddenToolNames.has(name)
     );
 
     expect(
@@ -3733,11 +3990,62 @@ describe('feature groups', () => {
     ]);
   });
 
-  test('debugging tools', async () => {
+  test('debugging tools hide get_logs in favor of query_logs when the platform supports it', async () => {
     const { client } = await setup({
       features: ['debugging'],
     });
 
+    const { tools } = await client.listTools();
+    const toolNames = tools.map((tool) => tool.name);
+
+    expect(toolNames).toEqual(['query_logs', 'get_advisors']);
+  });
+
+  test('get_logs stays callable via tools/call even while hidden from tools/list', async () => {
+    const { callTool } = await setup({
+      features: ['debugging'],
+    });
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const { result } = await callTool({
+      name: 'get_logs',
+      arguments: {
+        project_id: project.id,
+        service: 'api',
+      },
+    });
+
+    expect(result).toContain('untrusted-data');
+  });
+
+  test('debugging tools show get_logs when the platform does not implement query_logs', async () => {
+    const platform: SupabasePlatform = {
+      debugging: {
+        getLogs() {
+          throw new Error('Not implemented');
+        },
+        getSecurityAdvisors() {
+          throw new Error('Not implemented');
+        },
+        getPerformanceAdvisors() {
+          throw new Error('Not implemented');
+        },
+      },
+    };
+
+    const { client } = await setup({ platform, features: ['debugging'] });
     const { tools } = await client.listTools();
     const toolNames = tools.map((tool) => tool.name);
 

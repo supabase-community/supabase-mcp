@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.10.0](https://github.com/supabase/mcp/compare/mcp-server-supabase-v0.9.0...mcp-server-supabase-v0.10.0) (2026-08-10)
+
+
+### ⚠ BREAKING CHANGES
+
+* add query_logs tool for custom log queries ([#333](https://github.com/supabase/mcp/issues/333))
+
+### Features
+
+* add --content-api-url flag and SUPABASE_CONTENT_API_URL env var ([#343](https://github.com/supabase/mcp/issues/343)) ([6fcaaa3](https://github.com/supabase/mcp/commit/6fcaaa39061545d21aeae9f19672437f4b1f617d))
+* add query_logs tool for custom log queries ([#333](https://github.com/supabase/mcp/issues/333)) ([798806b](https://github.com/supabase/mcp/commit/798806b4a4c132be39d5578a77186ad0e5e4c875))
+* hide tools from tools/list ([#334](https://github.com/supabase/mcp/issues/334)) ([d80471a](https://github.com/supabase/mcp/commit/d80471a13b9ceafbdadfec30a0d38c80baa7e718))
+
+
+### Bug Fixes
+
+* hide read-only mode ([#349](https://github.com/supabase/mcp/issues/349)) ([5cda067](https://github.com/supabase/mcp/commit/5cda0672702c65fe672280ee4cf306593e643fb6))
+* **pg-meta:** pair composite FK columns positionally to avoid cartesi… ([#317](https://github.com/supabase/mcp/issues/317)) ([10af00b](https://github.com/supabase/mcp/commit/10af00bbce7ff1dc116be36a78670119220fb2da))
+* select query_logs dialect via logsDialect ([#357](https://github.com/supabase/mcp/issues/357)) ([80ff453](https://github.com/supabase/mcp/commit/80ff4538afe5385db6c896fe851c4f5b7f66eb3b))
+
 ## [0.9.0](https://github.com/supabase/mcp/compare/mcp-server-supabase-v0.8.3...mcp-server-supabase-v0.9.0) (2026-07-16)
 
 

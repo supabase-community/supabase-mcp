@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.6.0](https://github.com/supabase/mcp/compare/mcp-utils-v0.5.1...mcp-utils-v0.6.0) (2026-08-10)
+
+
+### Features
+
+* hide tools from tools/list ([#334](https://github.com/supabase/mcp/issues/334)) ([d80471a](https://github.com/supabase/mcp/commit/d80471a13b9ceafbdadfec30a0d38c80baa7e718))
+
 ## [0.5.1](https://github.com/supabase/mcp/compare/mcp-utils-v0.5.0...mcp-utils-v0.5.1) (2026-06-05)
 
 

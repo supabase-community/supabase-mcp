@@ -59,20 +59,23 @@ function buildQueryLogsInputSchema(sqlDescription: string) {
 
 /**
  * Builds the `query_logs` copy for one dialect from the shared wording, so only
- * the two parts that genuinely differ per dialect are supplied: the SQL dialect
- * `name` and the `schemaHint` describing how that backend exposes logs.
+ * the parts that genuinely differ per dialect are supplied: the SQL dialect
+ * `name`, the `logsNoun` for how logs are exposed (ClickHouse serves a single
+ * unified stream, BigQuery serves per-service tables), and the `schemaHint`.
  */
 function buildQueryLogsCopy({
   name,
+  logsNoun,
   schemaHint,
 }: {
   name: string;
+  logsNoun: string;
   schemaHint: string;
 }) {
   return {
-    description: `Runs a custom read-only ${name} SQL query against a Supabase project's unified logs stream, for filtering, aggregating, or joining across log fields more precisely than a simple per-service log dump. When the user asks about a specific time range, always pass iso_timestamp_start and iso_timestamp_end to match it; otherwise the query defaults to the last 24 hours and will return results from a wider window than intended. The window can be up to 24 hours. Do not poll this tool in a loop.`,
+    description: `Runs a custom read-only ${name} SQL query against a Supabase project's ${logsNoun}, for filtering, aggregating, or joining across log fields more precisely than a simple per-service log dump. When the user asks about a specific time range, always pass iso_timestamp_start and iso_timestamp_end to match it; otherwise the query defaults to the last 24 hours and will return results from a wider window than intended. The window can be up to 24 hours. Do not poll this tool in a loop.`,
     parameters: buildQueryLogsInputSchema(
-      `A read-only ${name} SQL query to run against the project's unified logs stream. ${schemaHint}`
+      `A read-only ${name} SQL query to run against the project's ${logsNoun}. ${schemaHint}`
     ),
   };
 }
@@ -92,13 +95,15 @@ function buildQueryLogsCopy({
 const queryLogsByDialect = {
   clickhouse: buildQueryLogsCopy({
     name: 'ClickHouse',
+    logsNoun: 'unified logs stream',
     schemaHint:
-      "Logs are exposed through a `logs` table; filter by `source` (e.g. 'edge_logs', 'postgres_logs', 'function_edge_logs', 'function_logs', 'auth_logs', 'storage_logs', 'realtime_logs', 'workflow_run_logs') and read nested fields via `log_attributes['<key>']`.",
+      "Logs are exposed through a `logs` table; filter by `source` (common values include 'edge_logs', 'postgres_logs', and 'function_edge_logs', but this list is not exhaustive — run `select distinct source from logs` to discover the sources available for this project) and read nested fields via `log_attributes['<key>']`.",
   }),
   bigquery: buildQueryLogsCopy({
     name: 'BigQuery',
+    logsNoun: 'logs',
     schemaHint:
-      "Each service has its own source table (e.g. 'edge_logs', 'postgres_logs', 'function_edge_logs', 'auth_logs', 'storage_logs', 'realtime_logs'); nested fields live under `metadata`, read via `cross join unnest(metadata) as m` and then `m.<field>` (unnest further for nested structs such as `m.request` or `m.parsed`).",
+      "Each service has its own source table (common ones include 'edge_logs', 'postgres_logs', and 'function_edge_logs', but the set is not exhaustive — other per-service tables, e.g. Data API and pooler logs, also exist); read nested fields by cross joining `unnest(metadata) as m` and then `m.<field>` (unnest further for nested structs such as `m.request` or `m.parsed`).",
   }),
 } as const satisfies Record<
   LogsDialect,

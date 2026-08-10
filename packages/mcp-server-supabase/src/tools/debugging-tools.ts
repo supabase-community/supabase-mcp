@@ -58,27 +58,48 @@ function buildQueryLogsInputSchema(sqlDescription: string) {
 }
 
 /**
- * The `query_logs` tool copy, keyed by the dialect its logs endpoint speaks.
- * The whole description and `sql` param hint are swapped per dialect — no
- * conditional prose the model has to reason about. Precomputed at module level
- * because zod schemas with `.describe()` auto-register in the global registry,
- * so rebuilding them per `getDebuggingTools` call would grow it unboundedly.
+ * Builds the `query_logs` copy for one dialect from the shared wording, so only
+ * the two parts that genuinely differ per dialect are supplied: the SQL dialect
+ * `name` and the `schemaHint` describing how that backend exposes logs.
+ */
+function buildQueryLogsCopy({
+  name,
+  schemaHint,
+}: {
+  name: string;
+  schemaHint: string;
+}) {
+  return {
+    description: `Runs a custom read-only ${name} SQL query against a Supabase project's unified logs stream, for filtering, aggregating, or joining across log fields more precisely than a simple per-service log dump. When the user asks about a specific time range, always pass iso_timestamp_start and iso_timestamp_end to match it; otherwise the query defaults to the last 24 hours and will return results from a wider window than intended. The window can be up to 24 hours. Do not poll this tool in a loop.`,
+    parameters: buildQueryLogsInputSchema(
+      `A read-only ${name} SQL query to run against the project's unified logs stream. ${schemaHint}`
+    ),
+  };
+}
+
+/**
+ * The `query_logs` tool copy, keyed by the dialect its logs endpoint speaks. The
+ * whole description and `sql` param hint are swapped per dialect — no conditional
+ * prose the model has to reason about. `schemaHint` mirrors how each backend
+ * exposes logs: hosted ClickHouse serves a single `logs` table filtered by
+ * `source`, while self-hosted BigQuery (Logflare) serves one source table per
+ * service with fields nested under `metadata` (see
+ * `apps/studio/lib/api/self-hosted/logs.ts` in `supabase`). Precomputed at module
+ * level because zod schemas with `.describe()` auto-register in the global
+ * registry, so rebuilding them per `getDebuggingTools` call would grow it
+ * unboundedly.
  */
 const queryLogsByDialect = {
-  clickhouse: {
-    description:
-      "Runs a custom read-only ClickHouse SQL query against a Supabase project's unified logs stream, for filtering, aggregating, or joining across log fields more precisely than a simple per-service log dump. When the user asks about a specific time range, always pass iso_timestamp_start and iso_timestamp_end to match it; otherwise the query defaults to the last 24 hours and will return results from a wider window than intended. The window can be up to 24 hours. Do not poll this tool in a loop.",
-    parameters: buildQueryLogsInputSchema(
-      "A read-only ClickHouse SQL query to run against the project's unified logs stream. Logs are exposed through a `logs` table; filter by `source` (e.g. 'edge_logs', 'postgres_logs', 'function_edge_logs', 'function_logs', 'auth_logs', 'storage_logs', 'realtime_logs', 'workflow_run_logs') and read nested fields via `log_attributes['<key>']`."
-    ),
-  },
-  bigquery: {
-    description:
-      "Runs a custom read-only BigQuery SQL query against a Supabase project's logs, for filtering, aggregating, or joining across log fields more precisely than a simple per-service log dump. When the user asks about a specific time range, always pass iso_timestamp_start and iso_timestamp_end to match it; otherwise the query defaults to the last 24 hours and will return results from a wider window than intended. The window can be up to 24 hours. Do not poll this tool in a loop.",
-    parameters: buildQueryLogsInputSchema(
-      "A read-only BigQuery SQL query to run against the project's logs. Each log service is exposed as its own source (e.g. 'edge_logs', 'postgres_logs', 'function_edge_logs', 'function_logs', 'auth_logs', 'storage_logs', 'realtime_logs'); read nested fields by cross joining `unnest(metadata) as m` and selecting `m.<key>`."
-    ),
-  },
+  clickhouse: buildQueryLogsCopy({
+    name: 'ClickHouse',
+    schemaHint:
+      "Logs are exposed through a `logs` table; filter by `source` (e.g. 'edge_logs', 'postgres_logs', 'function_edge_logs', 'function_logs', 'auth_logs', 'storage_logs', 'realtime_logs', 'workflow_run_logs') and read nested fields via `log_attributes['<key>']`.",
+  }),
+  bigquery: buildQueryLogsCopy({
+    name: 'BigQuery',
+    schemaHint:
+      "Each service has its own source table (e.g. 'edge_logs', 'postgres_logs', 'function_edge_logs', 'auth_logs', 'storage_logs', 'realtime_logs'); nested fields live under `metadata`, read via `cross join unnest(metadata) as m` and then `m.<field>` (unnest further for nested structs such as `m.request` or `m.parsed`).",
+  }),
 } as const satisfies Record<
   LogsDialect,
   {

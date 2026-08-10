@@ -4094,6 +4094,10 @@ describe('feature groups', () => {
     expect(queryLogs?.description).not.toContain('ClickHouse');
     expect(sqlDescription).toContain('unnest(metadata)');
     expect(sqlDescription).not.toContain('log_attributes');
+    // Self-hosted BigQuery (Logflare) does not serve these sources, so the hint
+    // must not advertise them (see apps/studio/lib/api/self-hosted/logs.ts).
+    expect(sqlDescription).not.toContain('function_logs');
+    expect(sqlDescription).not.toContain('workflow_run_logs');
   });
 
   test('query_logs falls back to the ClickHouse dialect when logsDialect is unset', async () => {

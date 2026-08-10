@@ -253,6 +253,7 @@ export function createSupabaseApiPlatform(
   };
 
   const debugging: DebuggingOperations = {
+    logsDialect: 'clickhouse',
     async getLogs(projectId: string, options: GetLogsOptions) {
       const { service, iso_timestamp_start, iso_timestamp_end } =
         getLogsOptionsSchema.parse(options);

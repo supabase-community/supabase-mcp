@@ -217,7 +217,20 @@ export type EdgeFunctionsOperations = {
   ): Promise<Omit<EdgeFunction, 'files'>>;
 };
 
+/**
+ * SQL dialect that a platform's logs endpoint speaks. Selects the
+ * dialect-appropriate `query_logs` description and `sql` parameter hint so a
+ * single tool can roll out across environments that back logs with different
+ * engines (hosted ClickHouse vs. self-hosted/CLI BigQuery).
+ */
+export type LogsDialect = 'clickhouse' | 'bigquery';
+
 export type DebuggingOperations = {
+  /**
+   * SQL dialect accepted by `queryLogs`. Defaults to `'clickhouse'` when unset,
+   * preserving the behavior of platforms that predate this field.
+   */
+  logsDialect?: LogsDialect;
   getLogs(projectId: string, options: GetLogsOptions): Promise<unknown>;
   queryLogs?(projectId: string, options: QueryLogsOptions): Promise<unknown>;
   getSecurityAdvisors(projectId: string): Promise<unknown>;

@@ -4052,6 +4052,83 @@ describe('feature groups', () => {
     expect(toolNames).toEqual(['get_logs', 'get_advisors']);
   });
 
+  test('query_logs advertises the ClickHouse dialect by default', async () => {
+    const { client } = await setup({ features: ['debugging'] });
+
+    const { tools } = await client.listTools();
+    const queryLogs = tools.find((tool) => tool.name === 'query_logs');
+    const sqlDescription = (queryLogs?.inputSchema.properties as any)?.sql
+      ?.description as string | undefined;
+
+    expect(queryLogs?.description).toContain('ClickHouse');
+    expect(sqlDescription).toContain("log_attributes['<key>']");
+  });
+
+  test('query_logs advertises the BigQuery dialect when the platform declares it', async () => {
+    const platform: SupabasePlatform = {
+      debugging: {
+        logsDialect: 'bigquery',
+        getLogs() {
+          throw new Error('Not implemented');
+        },
+        queryLogs() {
+          throw new Error('Not implemented');
+        },
+        getSecurityAdvisors() {
+          throw new Error('Not implemented');
+        },
+        getPerformanceAdvisors() {
+          throw new Error('Not implemented');
+        },
+      },
+    };
+
+    const { client } = await setup({ platform, features: ['debugging'] });
+
+    const { tools } = await client.listTools();
+    const queryLogs = tools.find((tool) => tool.name === 'query_logs');
+    const sqlDescription = (queryLogs?.inputSchema.properties as any)?.sql
+      ?.description as string | undefined;
+
+    expect(queryLogs?.description).toContain('BigQuery');
+    expect(queryLogs?.description).not.toContain('ClickHouse');
+    expect(sqlDescription).toContain('unnest(metadata)');
+    expect(sqlDescription).not.toContain('log_attributes');
+    // Self-hosted BigQuery (Logflare) does not serve these sources, so the hint
+    // must not advertise them (see apps/studio/lib/api/self-hosted/logs.ts).
+    expect(sqlDescription).not.toContain('function_logs');
+    expect(sqlDescription).not.toContain('workflow_run_logs');
+  });
+
+  test('query_logs falls back to the ClickHouse dialect when logsDialect is unset', async () => {
+    const platform: SupabasePlatform = {
+      debugging: {
+        getLogs() {
+          throw new Error('Not implemented');
+        },
+        queryLogs() {
+          throw new Error('Not implemented');
+        },
+        getSecurityAdvisors() {
+          throw new Error('Not implemented');
+        },
+        getPerformanceAdvisors() {
+          throw new Error('Not implemented');
+        },
+      },
+    };
+
+    const { client } = await setup({ platform, features: ['debugging'] });
+
+    const { tools } = await client.listTools();
+    const queryLogs = tools.find((tool) => tool.name === 'query_logs');
+    const sqlDescription = (queryLogs?.inputSchema.properties as any)?.sql
+      ?.description as string | undefined;
+
+    expect(queryLogs?.description).toContain('ClickHouse');
+    expect(sqlDescription).toContain("log_attributes['<key>']");
+  });
+
   test('development tools', async () => {
     const { client } = await setup({
       features: ['development'],

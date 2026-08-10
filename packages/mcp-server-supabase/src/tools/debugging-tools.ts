@@ -2,12 +2,15 @@ import { z } from 'zod/v4';
 import {
   logsServiceSchema,
   type DebuggingOperations,
+  type LogsDialect,
 } from '../platform/types.js';
 import {
   injectableTool,
   type ToolDefs,
   wrapWithUntrustedDataBoundary,
 } from './util.js';
+
+const DEFAULT_LOGS_DIALECT: LogsDialect = 'clickhouse';
 
 type DebuggingToolsOptions = {
   debugging: DebuggingOperations;
@@ -35,27 +38,80 @@ const getLogsOutputSchema = z.object({
   result: z.unknown(),
 });
 
-const queryLogsInputSchema = z.object({
-  project_id: z.string(),
-  sql: z
-    .string()
-    .min(1)
-    .describe(
-      "A read-only ClickHouse SQL query to run against the project's unified logs stream. Logs are exposed through a `logs` table; filter by `source` (e.g. 'edge_logs', 'postgres_logs', 'function_edge_logs', 'function_logs', 'auth_logs', 'storage_logs', 'realtime_logs', 'workflow_run_logs') and read nested fields via `log_attributes['<key>']`."
+function buildQueryLogsInputSchema(sqlDescription: string) {
+  return z.object({
+    project_id: z.string(),
+    sql: z.string().min(1).describe(sqlDescription),
+    iso_timestamp_start: z.iso
+      .datetime({ offset: true })
+      .optional()
+      .describe(
+        'The start of the log window as an ISO 8601 timestamp, including a UTC "Z" suffix or explicit offset. Defaults to 24 hours before the end of the window. The API caps the requested range at 24 hours.'
+      ),
+    iso_timestamp_end: z.iso
+      .datetime({ offset: true })
+      .optional()
+      .describe(
+        'The end of the log window as an ISO 8601 timestamp, including a UTC "Z" suffix or explicit offset. Defaults to the current time. The API caps the requested range at 24 hours.'
+      ),
+  });
+}
+
+/**
+ * Builds the `query_logs` copy for one dialect from the shared wording, so only
+ * the parts that genuinely differ per dialect are supplied: the SQL dialect
+ * `name`, the `logsNoun` for how logs are exposed (ClickHouse serves a single
+ * unified stream, BigQuery serves per-service tables), and the `schemaHint`.
+ */
+function buildQueryLogsCopy({
+  name,
+  logsNoun,
+  schemaHint,
+}: {
+  name: string;
+  logsNoun: string;
+  schemaHint: string;
+}) {
+  return {
+    description: `Runs a custom read-only ${name} SQL query against a Supabase project's ${logsNoun}, for filtering, aggregating, or joining across log fields more precisely than a simple per-service log dump. When the user asks about a specific time range, always pass iso_timestamp_start and iso_timestamp_end to match it; otherwise the query defaults to the last 24 hours and will return results from a wider window than intended. The window can be up to 24 hours. Do not poll this tool in a loop.`,
+    parameters: buildQueryLogsInputSchema(
+      `A read-only ${name} SQL query to run against the project's ${logsNoun}. ${schemaHint}`
     ),
-  iso_timestamp_start: z.iso
-    .datetime({ offset: true })
-    .optional()
-    .describe(
-      'The start of the log window as an ISO 8601 timestamp, including a UTC "Z" suffix or explicit offset. Defaults to 24 hours before the end of the window. The API caps the requested range at 24 hours.'
-    ),
-  iso_timestamp_end: z.iso
-    .datetime({ offset: true })
-    .optional()
-    .describe(
-      'The end of the log window as an ISO 8601 timestamp, including a UTC "Z" suffix or explicit offset. Defaults to the current time. The API caps the requested range at 24 hours.'
-    ),
-});
+  };
+}
+
+/**
+ * The `query_logs` tool copy, keyed by the dialect its logs endpoint speaks. The
+ * whole description and `sql` param hint are swapped per dialect — no conditional
+ * prose the model has to reason about. `schemaHint` mirrors how each backend
+ * exposes logs: hosted ClickHouse serves a single `logs` table filtered by
+ * `source`, while self-hosted BigQuery (Logflare) serves one source table per
+ * service with fields nested under `metadata` (see
+ * `apps/studio/lib/api/self-hosted/logs.ts` in `supabase`). Precomputed at module
+ * level because zod schemas with `.describe()` auto-register in the global
+ * registry, so rebuilding them per `getDebuggingTools` call would grow it
+ * unboundedly.
+ */
+const queryLogsByDialect = {
+  clickhouse: buildQueryLogsCopy({
+    name: 'ClickHouse',
+    logsNoun: 'unified logs stream',
+    schemaHint:
+      "Logs are exposed through a `logs` table; filter by `source` (common values include 'edge_logs', 'postgres_logs', and 'function_edge_logs', but this list is not exhaustive — run `select distinct source from logs` to discover the sources available for this project) and read nested fields via `log_attributes['<key>']`.",
+  }),
+  bigquery: buildQueryLogsCopy({
+    name: 'BigQuery',
+    logsNoun: 'logs',
+    schemaHint:
+      "Each service has its own source table (common ones include 'edge_logs', 'postgres_logs', and 'function_edge_logs', but the set is not exhaustive — other per-service tables, e.g. Data API and pooler logs, also exist); read nested fields by cross joining `unnest(metadata) as m` and then `m.<field>` (unnest further for nested structs such as `m.request` or `m.parsed`).",
+  }),
+} as const satisfies Record<
+  LogsDialect,
+  {
+    description: string;
+    parameters: ReturnType<typeof buildQueryLogsInputSchema>;
+  }
+>;
 
 const queryLogsOutputSchema = z.object({
   result: z.unknown(),
@@ -87,9 +143,8 @@ export const debuggingToolDefs = {
     },
   },
   query_logs: {
-    description:
-      "Runs a custom read-only ClickHouse SQL query against a Supabase project's unified logs stream, for filtering, aggregating, or joining across log fields more precisely than a simple per-service log dump. When the user asks about a specific time range, always pass iso_timestamp_start and iso_timestamp_end to match it; otherwise the query defaults to the last 24 hours and will return results from a wider window than intended. The window can be up to 24 hours. Do not poll this tool in a loop.",
-    parameters: queryLogsInputSchema,
+    description: queryLogsByDialect[DEFAULT_LOGS_DIALECT].description,
+    parameters: queryLogsByDialect[DEFAULT_LOGS_DIALECT].parameters,
     outputSchema: queryLogsOutputSchema,
     annotations: {
       title: 'Query project logs',
@@ -156,6 +211,7 @@ export function getDebuggingTools({
 }: DebuggingToolsOptions) {
   const project_id = projectId;
   const { queryLogs } = debugging;
+  const logsDialect = debugging.logsDialect ?? DEFAULT_LOGS_DIALECT;
 
   return {
     get_logs: injectableTool({
@@ -180,6 +236,10 @@ export function getDebuggingTools({
     ...(queryLogs && {
       query_logs: injectableTool({
         ...debuggingToolDefs.query_logs,
+        // Pick the whole description/param hint for the platform's dialect
+        // rather than branching on the environment inside the prose.
+        description: queryLogsByDialect[logsDialect].description,
+        parameters: queryLogsByDialect[logsDialect].parameters,
         inject: { project_id },
         execute: async ({
           project_id,

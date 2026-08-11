@@ -13,6 +13,7 @@
 
 import { execFileSync } from 'node:child_process';
 import {
+  cpSync,
   lstatSync,
   mkdirSync,
   mkdtempSync,
@@ -25,11 +26,10 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 // ---------------------------------------------------------------------------
-// Platform's pinned zod version. `supabase/platform`'s `develop` catalog pins
-// zod to exactly this version today (checked 2026-08-11 at commit
-// 603f39cb4c). The SDK only requires `zod: ^4.2.0`, so a Platform-shaped
-// consumer must install cleanly on this pin. Bump this one constant -- and
-// nothing else -- when Platform's catalog pin changes.
+// Platform's `develop` catalog pins zod to this exact version (checked
+// 2026-08-11 at commit 603f39cb4c). The fixture installs this pin and verifies
+// that create_project keeps its required schema properties. Update this
+// constant when Platform's catalog pin changes.
 const PLATFORM_ZOD_VERSION = '4.4.3';
 // ---------------------------------------------------------------------------
 
@@ -39,147 +39,38 @@ const PLATFORM_ZOD_VERSION = '4.4.3';
 const SDK_VERSION = '2.0.0';
 
 // TypeScript used to typecheck the packed `.d.ts` surface in the fixture.
-// Matches the range the workspace itself develops against.
-const TYPESCRIPT_VERSION_RANGE = '^5.6.3';
-
-const MODERN_PROTOCOL_VERSION = '2026-07-28';
+// Matches the minimum version the workspace itself develops against.
+const TYPESCRIPT_VERSION = '5.6.3';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const repoRoot = path.resolve(__dirname, '..');
+const fixtureDir = path.join(__dirname, 'fixtures', 'packed-platform-consumer');
 
 const SUPABASE_PACKAGE_NAME = '@supabase/mcp-server-supabase';
 const UTILS_PACKAGE_NAME = '@supabase/mcp-utils';
 
-const TSCONFIG = {
-  compilerOptions: {
-    strict: true,
-    target: 'ES2022',
-    module: 'NodeNext',
-    moduleResolution: 'NodeNext',
-    skipLibCheck: true,
-    noEmit: true,
-    esModuleInterop: true,
-    forceConsistentCasingInFileNames: true,
-  },
-  include: ['types-check.ts'],
-};
-
-const ESM_CHECK_SOURCE = `import { createSupabaseMcpHandler } from '${SUPABASE_PACKAGE_NAME}';
-
-if (typeof createSupabaseMcpHandler !== 'function') {
-  throw new Error(
-    \`expected createSupabaseMcpHandler to be a function, got \${typeof createSupabaseMcpHandler}\`
-  );
-}
-
-console.log('ESM_OK');
-`;
-
-const CJS_CHECK_SOURCE = `const { createSupabaseMcpHandler } = require('${SUPABASE_PACKAGE_NAME}');
-
-if (typeof createSupabaseMcpHandler !== 'function') {
-  throw new Error(
-    \`expected createSupabaseMcpHandler to be a function, got \${typeof createSupabaseMcpHandler}\`
-  );
-}
-
-console.log('CJS_OK');
-`;
-
-const TYPES_CHECK_SOURCE = `import {
-  createSupabaseMcpHandler,
-  type SupabaseMcpServerOptions,
-} from '${SUPABASE_PACKAGE_NAME}';
-
-// A stubbed \`account\` platform, whose seven operations only ever run on a
-// tool call and so can reject here. It buys the thing that matters: asking
-// for the \`account\` feature group makes the server register real tools, so
-// the typecheck covers the zod-backed tool surface rather than an empty one.
-const account: SupabaseMcpServerOptions['platform']['account'] = {
-  listOrganizations: () => Promise.reject(new Error('not implemented')),
-  getOrganization: () => Promise.reject(new Error('not implemented')),
-  listProjects: () => Promise.reject(new Error('not implemented')),
-  getProject: () => Promise.reject(new Error('not implemented')),
-  createProject: () => Promise.reject(new Error('not implemented')),
-  pauseProject: () => Promise.reject(new Error('not implemented')),
-  restoreProject: () => Promise.reject(new Error('not implemented')),
-};
-
-const options: SupabaseMcpServerOptions = {
-  platform: { account },
-  features: ['account'],
-};
-
-const handler = createSupabaseMcpHandler(options);
-
-// Touch every member of the public McpHttpHandler shape so a signature
-// change here fails the typecheck, not just a missing export.
-void handler.fetch;
-void handler.close;
-void handler.notify;
-void handler.bus;
-`;
-
-const MODERN_CALL_SOURCE = `import { Client, StreamableHTTPClientTransport } from '@modelcontextprotocol/client';
-import { createSupabaseMcpHandler } from '${SUPABASE_PACKAGE_NAME}';
-
-const MODERN_PROTOCOL_VERSION = '${MODERN_PROTOCOL_VERSION}';
-
-// Stubbed \`account\` operations, which only run on a tool call, paired with
-// \`features: ['account']\` so the server registers its real zod-built tool
-// schemas. That is the path a zod version skew between Platform's catalog and
-// the SDK's own dependency would break, so an empty catalog would not test it.
-// \`docs\` stays out: its tool description lazily calls supabase.com, and this
-// exchange must never leave the process.
-const notImplemented = () => Promise.reject(new Error('not implemented'));
-
-const handler = createSupabaseMcpHandler({
-  platform: {
-    account: {
-      listOrganizations: notImplemented,
-      getOrganization: notImplemented,
-      listProjects: notImplemented,
-      getProject: notImplemented,
-      createProject: notImplemented,
-      pauseProject: notImplemented,
-      restoreProject: notImplemented,
-    },
-  },
-  features: ['account'],
-});
-
-const transport = new StreamableHTTPClientTransport(
-  new URL('http://packed-platform-consumer-fixture.invalid/mcp'),
+const CHECKS = [
   {
-    // Routes every request straight into the handler's fetch face in-process.
-    fetch: (url, init) => handler.fetch(new Request(url, init)),
-  }
-);
-
-const client = new Client(
-  { name: 'packed-platform-consumer-fixture', version: '0.0.0' },
-  { versionNegotiation: { mode: { pin: MODERN_PROTOCOL_VERSION } } }
-);
-
-await client.connect(transport);
-const { tools } = await client.listTools();
-
-// A real tool carrying a real input schema, so this proves the zod-built tool
-// surface survives Platform's zod version. An empty array would pass a
-// transport round trip while testing none of that.
-const listProjects = tools.find((tool) => tool.name === 'list_projects');
-
-if (!listProjects?.inputSchema) {
-  throw new Error(
-    \`tools/list did not return list_projects with an input schema (got: \${JSON.stringify(tools.map((tool) => tool.name))})\`
-  );
-}
-
-await client.close();
-await handler.close();
-
-console.log(\`MODERN_CALL_OK tools=\${tools.length}\`);
-`;
+    name: 'cjs-entry',
+    // modern-mcp-call imports and calls the package's ESM entry.
+    argv: [process.execPath, 'cjs-check.cjs'],
+    marker: 'CJS_OK',
+  },
+  {
+    name: 'type-declarations',
+    argv: [
+      path.join('node_modules', '.bin', 'tsc'),
+      '--project',
+      'tsconfig.json',
+    ],
+    marker: null,
+  },
+  {
+    name: 'modern-mcp-call',
+    argv: [process.execPath, 'modern-call.mjs'],
+    marker: 'MODERN_CALL_OK',
+  },
+];
 
 /** Runs a command, streaming its own stdout/stderr straight to the console. */
 function runVisible(command, args, cwd) {
@@ -201,10 +92,10 @@ function packWorkspacePackage(packageName, destDir) {
   };
 }
 
-/** Runs one of the fixture's check scripts and returns its captured stdout. */
-function runFixtureScript(file, cwd) {
+/** Runs one fixture check and returns its captured stdout and stderr. */
+function runCaptured(command, args, cwd) {
   try {
-    return execFileSync(process.execPath, [file], {
+    return execFileSync(command, args, {
       cwd,
       encoding: 'utf8',
       stdio: ['ignore', 'pipe', 'pipe'],
@@ -215,12 +106,6 @@ function runFixtureScript(file, cwd) {
       .join('\n')
       .trim();
     throw new Error(output || error.message);
-  }
-}
-
-function assertMarker(output, marker, failureMessage) {
-  if (!output.includes(marker)) {
-    throw new Error(`${failureMessage}\n${output}`.trim());
   }
 }
 
@@ -245,7 +130,7 @@ function assertRealDirectoryInstall(consumerDir, packageName) {
 }
 
 function writeFixtureProject(consumerDir, { supabase, utils }) {
-  mkdirSync(consumerDir, { recursive: true });
+  cpSync(fixtureDir, consumerDir, { recursive: true });
 
   const packageJson = {
     name: 'packed-platform-consumer-fixture',
@@ -261,7 +146,10 @@ function writeFixtureProject(consumerDir, { supabase, utils }) {
       '@modelcontextprotocol/server': SDK_VERSION,
       '@modelcontextprotocol/client': SDK_VERSION,
       zod: PLATFORM_ZOD_VERSION,
-      typescript: TYPESCRIPT_VERSION_RANGE,
+    },
+    devDependencies: {
+      '@types/node': '22.17.2',
+      typescript: TYPESCRIPT_VERSION,
     },
   };
 
@@ -269,58 +157,9 @@ function writeFixtureProject(consumerDir, { supabase, utils }) {
     path.join(consumerDir, 'package.json'),
     `${JSON.stringify(packageJson, null, 2)}\n`
   );
-  writeFileSync(
-    path.join(consumerDir, 'tsconfig.json'),
-    `${JSON.stringify(TSCONFIG, null, 2)}\n`
-  );
-  writeFileSync(path.join(consumerDir, 'esm-check.mjs'), ESM_CHECK_SOURCE);
-  writeFileSync(path.join(consumerDir, 'cjs-check.cjs'), CJS_CHECK_SOURCE);
-  writeFileSync(path.join(consumerDir, 'types-check.ts'), TYPES_CHECK_SOURCE);
-  writeFileSync(path.join(consumerDir, 'modern-call.mjs'), MODERN_CALL_SOURCE);
 }
 
-function assertEsmEntry(consumerDir) {
-  assertMarker(
-    runFixtureScript('esm-check.mjs', consumerDir),
-    'ESM_OK',
-    'ESM entry did not report success'
-  );
-}
-
-function assertCjsEntry(consumerDir) {
-  assertMarker(
-    runFixtureScript('cjs-check.cjs', consumerDir),
-    'CJS_OK',
-    'CJS entry did not report success'
-  );
-}
-
-function assertTypeDeclarations(consumerDir) {
-  const tscBin = path.join(consumerDir, 'node_modules', '.bin', 'tsc');
-  try {
-    execFileSync(tscBin, ['--project', 'tsconfig.json'], {
-      cwd: consumerDir,
-      encoding: 'utf8',
-      stdio: ['ignore', 'pipe', 'pipe'],
-    });
-  } catch (error) {
-    const output = [error.stdout, error.stderr]
-      .filter(Boolean)
-      .join('\n')
-      .trim();
-    throw new Error(`tsc reported errors:\n${output}`);
-  }
-}
-
-function assertModernCall(consumerDir) {
-  assertMarker(
-    runFixtureScript('modern-call.mjs', consumerDir),
-    'MODERN_CALL_OK',
-    'the modern MCP call did not complete'
-  );
-}
-
-async function main() {
+function main() {
   console.log(
     'Building @supabase/mcp-utils and @supabase/mcp-server-supabase...'
   );
@@ -345,7 +184,6 @@ async function main() {
   const consumerDir = path.join(tmpRoot, 'consumer');
   mkdirSync(tarballDir, { recursive: true });
 
-  let cleanUp = false;
   try {
     console.log('\nPacking workspace tarballs...');
     const utils = packWorkspacePackage(UTILS_PACKAGE_NAME, tarballDir);
@@ -358,8 +196,10 @@ async function main() {
     );
     writeFixtureProject(consumerDir, { supabase, utils });
 
-    console.log('\nInstalling with plain npm (no pnpm, no workspace)...');
-    runVisible('npm', ['install'], consumerDir);
+    console.log(
+      '\nInstalling with plain npm (no pnpm, no workspace, no lifecycle scripts)...'
+    );
+    runVisible('npm', ['install', '--ignore-scripts'], consumerDir);
 
     console.log(
       '\nVerifying the install is a real copy, not a workspace symlink...'
@@ -367,63 +207,28 @@ async function main() {
     assertRealDirectoryInstall(consumerDir, SUPABASE_PACKAGE_NAME);
     assertRealDirectoryInstall(consumerDir, UTILS_PACKAGE_NAME);
 
-    console.log('\nRunning the four public-surface assertions...');
-    const assertions = [
-      { name: 'esm-entry', run: () => assertEsmEntry(consumerDir) },
-      { name: 'cjs-entry', run: () => assertCjsEntry(consumerDir) },
-      {
-        name: 'type-declarations',
-        run: () => assertTypeDeclarations(consumerDir),
-      },
-      { name: 'modern-mcp-call', run: () => assertModernCall(consumerDir) },
-    ];
+    console.log(`\nRunning the ${CHECKS.length} public-surface assertions...`);
+    for (const { name, argv, marker } of CHECKS) {
+      const [command, ...args] = argv;
+      const output = runCaptured(command, args, consumerDir);
 
-    const results = [];
-    for (const assertion of assertions) {
-      try {
-        assertion.run();
-        results.push({ name: assertion.name, pass: true });
-        console.log(`  [PASS] ${assertion.name}`);
-      } catch (error) {
-        results.push({
-          name: assertion.name,
-          pass: false,
-          detail: error.message,
-        });
-        console.error(`  [FAIL] ${assertion.name}: ${error.message}`);
+      if (marker && !output.includes(marker)) {
+        throw new Error(`${name} did not report ${marker}\n${output}`.trim());
       }
-    }
 
-    const failed = results.filter((r) => !r.pass);
+      console.log(`  [PASS] ${name}`);
+    }
 
     console.log(
       `\nPacked ${SUPABASE_PACKAGE_NAME} version tested: ${supabase.version}`
     );
-
-    if (failed.length > 0) {
-      console.error(
-        `\n${failed.length} of ${results.length} assertion(s) failed: ` +
-          `${failed.map((r) => r.name).join(', ')}`
-      );
-      console.error(`Fixture left in place for inspection: ${tmpRoot}`);
-      process.exitCode = 1;
-      return;
-    }
-
-    console.log(`\nAll ${results.length} assertions passed.`);
-    cleanUp = true;
+    console.log(`\nAll ${CHECKS.length} assertions passed.`);
+    rmSync(tmpRoot, { recursive: true, force: true });
   } catch (error) {
-    console.error(
-      `\nSetup failed before assertions could run: ${error.message}`
-    );
+    console.error(`\n${error.message}`);
     console.error(`Fixture left in place for inspection: ${tmpRoot}`);
     process.exitCode = 1;
-    return;
-  } finally {
-    if (cleanUp) {
-      rmSync(tmpRoot, { recursive: true, force: true });
-    }
   }
 }
 
-await main();
+main();

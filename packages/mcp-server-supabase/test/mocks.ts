@@ -3,6 +3,7 @@ import { source } from 'common-tags';
 import { format } from 'date-fns';
 import { buildSchema, parse, validate } from 'graphql';
 import { http, HttpResponse } from 'msw';
+import { setupServer, type SetupServer } from 'msw/node';
 import { customAlphabet } from 'nanoid';
 import { join } from 'node:path/posix';
 import { expect } from 'vitest';
@@ -933,6 +934,18 @@ export const mockManagementApi = [
     }
   ),
 ];
+
+export function setupMockApis(): SetupServer {
+  mockOrgs.clear();
+  mockProjects.clear();
+  mockBranches.clear();
+  mockContentApiSchemaLoadCount.value = 0;
+
+  const mockServer = setupServer(...mockContentApi, ...mockManagementApi);
+  mockServer.listen({ onUnhandledRequest: 'error' });
+
+  return mockServer;
+}
 
 export async function createOrganization(options: MockOrganizationOptions) {
   const org = new MockOrganization(options);

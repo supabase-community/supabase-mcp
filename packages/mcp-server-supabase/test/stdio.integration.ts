@@ -1,7 +1,9 @@
 import { Client } from '@modelcontextprotocol/client';
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
 import gqlmin from 'gqlmin';
+import { existsSync, readdirSync, statSync } from 'node:fs';
 import { createServer, type Server } from 'node:http';
+import { join } from 'node:path';
 import { afterEach, describe, expect, test } from 'vitest';
 import {
   ACCESS_TOKEN,
@@ -18,10 +20,37 @@ type SetupOptions = {
   accessToken?: string;
   projectId?: string;
   readOnly?: boolean;
+  features?: string;
   contentApiUrl?: string;
   apiUrl?: string;
   env?: Record<string, string>;
 };
+
+function assertStdioBuildIsFresh() {
+  const buildPath = 'dist/transports/stdio.js';
+  const newestSource = readdirSync('src', {
+    recursive: true,
+    withFileTypes: true,
+  })
+    .filter((entry) => entry.isFile())
+    .map((entry) => {
+      const path = join(entry.parentPath, entry.name);
+      return { path, mtimeMs: statSync(path).mtimeMs };
+    })
+    .reduce((newest, source) =>
+      source.mtimeMs > newest.mtimeMs ? source : newest
+    );
+  const buildMtimeMs = existsSync(buildPath)
+    ? statSync(buildPath).mtimeMs
+    : Number.NEGATIVE_INFINITY;
+
+  expect(
+    buildMtimeMs,
+    `${buildPath} is missing or older than ${newestSource.path}; run \`pnpm build\`.`
+  ).toBeGreaterThanOrEqual(newestSource.mtimeMs);
+}
+
+assertStdioBuildIsFresh();
 
 async function setup(options: SetupOptions = {}) {
   const {
@@ -29,6 +58,7 @@ async function setup(options: SetupOptions = {}) {
     era = 'legacy',
     projectId,
     readOnly,
+    features,
     apiUrl,
     contentApiUrl,
     env,
@@ -68,6 +98,10 @@ async function setup(options: SetupOptions = {}) {
 
   if (readOnly) {
     args.push('--read-only');
+  }
+
+  if (features) {
+    args.push('--features', features);
   }
 
   if (apiUrl) {
@@ -264,23 +298,23 @@ describe('stdio', () => {
         },
       ];
 
-      if (era === 'modern') {
-        expect(toolResult).toEqual({
-          _meta: {
-            'io.modelcontextprotocol/serverInfo': {
-              name: 'supabase',
-              title: 'Supabase',
-              version: MCP_SERVER_VERSION,
-            },
-          },
-          content: expectedToolContent,
-        });
-      } else {
-        expect(toolResult).not.toHaveProperty('_meta');
-        expect(toolResult).toEqual({
-          content: expectedToolContent,
-        });
-      }
+      const expectedMeta =
+        era === 'modern'
+          ? {
+              _meta: {
+                'io.modelcontextprotocol/serverInfo': {
+                  name: 'supabase',
+                  title: 'Supabase',
+                  version: MCP_SERVER_VERSION,
+                },
+              },
+            }
+          : {};
+      expect(Object.hasOwn(toolResult, '_meta')).toBe(era === 'modern');
+      expect(toolResult).toEqual({
+        ...expectedMeta,
+        content: expectedToolContent,
+      });
       expect(
         managementApiStub.hits.map(({ method, url }) => ({
           method,
@@ -312,6 +346,12 @@ describe('stdio', () => {
     // Only the message this test's own client renders changed, from v1's
     // 'MCP error -32000: Connection closed' to v2's 'Connection closed'. Held against a
     // fixed v1 client, both the pre- and post-migration builds return the v1 string.
+    await expect(setupPromise).rejects.toThrow('Connection closed');
+  });
+
+  test('invalid --features fails at startup', async () => {
+    const setupPromise = setup({ features: 'invalid' });
+
     await expect(setupPromise).rejects.toThrow('Connection closed');
   });
 });

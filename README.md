@@ -110,6 +110,37 @@ const tools = await mcpClient.tools({
 
 For more information, see [Schema Definition](https://ai-sdk.dev/docs/ai-sdk-core/mcp-tools#schema-definition) and [Typed Tool Outputs](https://ai-sdk.dev/docs/ai-sdk-core/mcp-tools#typed-tool-outputs) in the AI SDK docs.
 
+## Self-hosting the MCP endpoint
+
+The `@supabase/mcp-server-supabase` package exports `createSupabaseMcpHandler()` to serve the tools over HTTP from your own endpoint. It accepts the same `SupabaseMcpServerOptions` as `createSupabaseMcpServer()`, most importantly `platform`.
+
+The handler speaks the current protocol revision only. It is created with `legacy: 'reject'`, so a client that only speaks the 2025-era protocol receives an HTTP 400 instead of being served.
+
+Create the handler per request, with a `platform` bound to that request's token, and close it once the response finishes. A shared, long-lived handler is not supported, because a singleton captures the first request's user, response object, and request-scoped dependencies.
+
+```ts
+import { createServer } from 'node:http';
+import { toNodeHandler } from '@modelcontextprotocol/node';
+import { createSupabaseMcpHandler } from '@supabase/mcp-server-supabase';
+import { createSupabaseApiPlatform } from '@supabase/mcp-server-supabase/platform/api';
+
+const server = createServer(async (req, res) => {
+  const accessToken = getAccessTokenFromRequest(req); // your own auth
+
+  const handler = createSupabaseMcpHandler({
+    platform: createSupabaseApiPlatform({ accessToken }),
+  });
+
+  res.on('close', () => {
+    handler.close();
+  });
+
+  await toNodeHandler(handler)(req, res);
+});
+```
+
+`toNodeHandler` comes from `@modelcontextprotocol/node`, which is not a dependency of this package. Install it alongside.
+
 ## Other MCP servers
 
 ### `@supabase/mcp-server-postgrest`

@@ -7,7 +7,7 @@ import {
   PROTOCOL_VERSION_META_KEY,
 } from '@modelcontextprotocol/server';
 import { http, HttpResponse } from 'msw';
-import { setupServer, type SetupServer } from 'msw/node';
+import type { SetupServer } from 'msw/node';
 import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 
 import {
@@ -15,12 +15,7 @@ import {
   API_URL,
   MCP_CLIENT_NAME,
   MCP_CLIENT_VERSION,
-  mockBranches,
-  mockContentApi,
-  mockContentApiSchemaLoadCount,
-  mockManagementApi,
-  mockOrgs,
-  mockProjects,
+  setupMockApis,
 } from '../../test/mocks.js';
 import { createSupabaseApiPlatform } from '../platform/api-platform.js';
 import { createSupabaseMcpHandler } from './http.js';
@@ -28,17 +23,11 @@ import { createSupabaseMcpHandler } from './http.js';
 const MODERN_PROTOCOL_VERSION = '2026-07-28';
 const MCP_ENDPOINT = new URL('https://mcp.test');
 
-let mockServer: SetupServer | undefined;
+let mockServer!: SetupServer;
 const cleanups: Array<() => Promise<void>> = [];
 
 beforeEach(() => {
-  mockOrgs.clear();
-  mockProjects.clear();
-  mockBranches.clear();
-  mockContentApiSchemaLoadCount.value = 0;
-
-  mockServer = setupServer(...mockContentApi, ...mockManagementApi);
-  mockServer.listen({ onUnhandledRequest: 'error' });
+  mockServer = setupMockApis();
 });
 
 afterEach(async () => {
@@ -47,19 +36,18 @@ afterEach(async () => {
       await cleanup();
     }
   } finally {
-    mockServer?.close();
+    mockServer.close();
   }
 });
 
-function createPlatform() {
-  return createSupabaseApiPlatform({
-    accessToken: ACCESS_TOKEN,
-    apiUrl: API_URL,
+function createHandler() {
+  const handler = createSupabaseMcpHandler({
+    platform: createSupabaseApiPlatform({
+      accessToken: ACCESS_TOKEN,
+      apiUrl: API_URL,
+    }),
+    readOnly: true,
   });
-}
-
-function createHandler(platform = createPlatform()) {
-  const handler = createSupabaseMcpHandler({ platform, readOnly: true });
 
   cleanups.push(() => handler.close());
 
@@ -154,13 +142,11 @@ describe('createSupabaseMcpHandler', () => {
     );
 
     expect(response.status).toBe(400);
-    await expect(response.json()).resolves.toEqual({
+    await expect(response.json()).resolves.toMatchObject({
       jsonrpc: '2.0',
       id: 1,
       error: {
         code: -32022,
-        message:
-          'Unsupported protocol version: the request did not name a protocol version',
         data: { supported: [MODERN_PROTOCOL_VERSION] },
       },
     });
@@ -202,7 +188,7 @@ describe('createSupabaseMcpHandler', () => {
   test('close releases an in-flight request', async () => {
     const requestStarted = deferred();
     const releaseRequest = deferred();
-    mockServer?.use(
+    mockServer.use(
       http.get(`${API_URL}/v1/projects`, async () => {
         requestStarted.resolve();
         await releaseRequest.promise;

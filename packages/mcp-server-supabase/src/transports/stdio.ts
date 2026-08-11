@@ -5,6 +5,7 @@ import { serveStdio } from '@modelcontextprotocol/server/stdio';
 import packageJson from '../../package.json' with { type: 'json' };
 import { createSupabaseApiPlatform } from '../platform/api-platform.js';
 import { createSupabaseMcpServer } from '../server.js';
+import { parseFeatureGroups } from '../util.js';
 import { parseList } from './util.js';
 
 const { version } = packageJson;
@@ -70,6 +71,10 @@ async function main() {
     accessToken,
     apiUrl,
   });
+
+  if (features) {
+    parseFeatureGroups(platform, features);
+  }
 
   // `serveStdio` reports transport startup and out-of-band wire errors only
   // through `onerror`, and swallows them otherwise, so this keeps the stderr

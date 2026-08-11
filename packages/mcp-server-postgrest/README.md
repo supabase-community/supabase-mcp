@@ -95,7 +95,7 @@ pnpm add @supabase/mcp-server-postgrest
 The following example uses the [`StreamTransport`](../mcp-utils#streamtransport) to connect directly between an MCP client and server.
 
 ```ts
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { Client } from '@modelcontextprotocol/client';
 import { StreamTransport } from '@supabase/mcp-utils';
 import { createPostgrestMcpServer } from '@supabase/mcp-server-postgrest';
 

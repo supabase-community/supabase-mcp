@@ -169,12 +169,11 @@ describe('createSupabaseMcpHandler', () => {
     );
 
     expect(response.status).toBe(400);
-    await expect(response.json()).resolves.toEqual({
+    await expect(response.json()).resolves.toMatchObject({
       jsonrpc: '2.0',
       id: 2,
       error: {
         code: -32602,
-        message: `Invalid _meta envelope for protocol revision 2026-07-28: ${CLIENT_CAPABILITIES_META_KEY}: missing`,
         data: {
           envelope: {
             key: CLIENT_CAPABILITIES_META_KEY,

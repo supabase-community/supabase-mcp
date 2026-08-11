@@ -71,14 +71,19 @@ async function main() {
     apiUrl,
   });
 
-  serveStdio(() =>
-    createSupabaseMcpServer({
-      platform,
-      projectId,
-      readOnly,
-      features,
-      contentApiUrl,
-    })
+  // `serveStdio` reports transport startup and out-of-band wire errors only
+  // through `onerror`, and swallows them otherwise, so this keeps the stderr
+  // output the previous awaited `server.connect()` got from `main().catch`.
+  serveStdio(
+    () =>
+      createSupabaseMcpServer({
+        platform,
+        projectId,
+        readOnly,
+        features,
+        contentApiUrl,
+      }),
+    { onerror: console.error }
   );
 }
 

@@ -92,7 +92,11 @@ pnpm add @supabase/mcp-server-postgrest
 
 #### Example
 
-The following example uses the [`StreamTransport`](../mcp-utils#streamtransport) to connect directly between an MCP client and server.
+The following example uses the [`StreamTransport`](../mcp-utils#streamtransport) to connect directly between an MCP client and server. It also needs `@modelcontextprotocol/client`, which is a separate package from the `@modelcontextprotocol/server` peer dependency and is not installed for you:
+
+```bash
+npm i @modelcontextprotocol/client
+```
 
 ```ts
 import { Client } from '@modelcontextprotocol/client';

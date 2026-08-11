@@ -16,6 +16,13 @@ yarn add @supabase/mcp-utils
 pnpm add @supabase/mcp-utils
 ```
 
+The `StreamTransport` example below also needs `@modelcontextprotocol/client`, which is a separate
+package from the `@modelcontextprotocol/server` peer dependency and is not installed for you:
+
+```shell
+npm i @modelcontextprotocol/client
+```
+
 ## API
 
 ### `StreamTransport`

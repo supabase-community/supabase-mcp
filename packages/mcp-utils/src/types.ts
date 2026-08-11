@@ -7,19 +7,6 @@ export interface DuplexStream<T> {
 }
 
 /**
- * Expands a type into its properties recursively.
- *
- * Useful for providing better intellisense in IDEs.
- */
-export type ExpandRecursively<T> = T extends (...args: infer A) => infer R
-  ? (...args: ExpandRecursively<A>) => ExpandRecursively<R>
-  : T extends object
-    ? T extends infer O
-      ? { [K in keyof O]: ExpandRecursively<O[K]> }
-      : never
-    : T;
-
-/**
  * Extracts parameter names from a string path.
  *
  * @example

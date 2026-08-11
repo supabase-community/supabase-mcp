@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util';
-import { StdioServerTransport } from '@modelcontextprotocol/server/stdio';
+import { serveStdio } from '@modelcontextprotocol/server/stdio';
 
 import packageJson from '../../package.json' with { type: 'json' };
 import { createSupabaseApiPlatform } from '../platform/api-platform.js';
@@ -71,17 +71,15 @@ async function main() {
     apiUrl,
   });
 
-  const server = createSupabaseMcpServer({
-    platform,
-    projectId,
-    readOnly,
-    features,
-    contentApiUrl,
-  });
-
-  const transport = new StdioServerTransport();
-
-  await server.connect(transport);
+  serveStdio(() =>
+    createSupabaseMcpServer({
+      platform,
+      projectId,
+      readOnly,
+      features,
+      contentApiUrl,
+    })
+  );
 }
 
 main().catch(console.error);

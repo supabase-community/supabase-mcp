@@ -11,7 +11,10 @@ import {
   MCP_SERVER_VERSION,
 } from './mocks.js';
 
+type ProtocolEra = 'legacy' | 'modern';
+
 type SetupOptions = {
+  era?: ProtocolEra;
   accessToken?: string;
   projectId?: string;
   readOnly?: boolean;
@@ -23,6 +26,7 @@ type SetupOptions = {
 async function setup(options: SetupOptions = {}) {
   const {
     accessToken = ACCESS_TOKEN,
+    era = 'legacy',
     projectId,
     readOnly,
     apiUrl,
@@ -37,6 +41,8 @@ async function setup(options: SetupOptions = {}) {
     },
     {
       capabilities: {},
+      versionNegotiation:
+        era === 'modern' ? { mode: { pin: '2026-07-28' } } : { mode: 'legacy' },
     }
   );
 
@@ -175,7 +181,7 @@ describe('stdio', () => {
     await Promise.all(stubs.splice(0).map((stub) => stub.close()));
   });
 
-  test('server connects and lists tools', async () => {
+  async function assertServerContract(era: ProtocolEra) {
     const managementApiStub = await createManagementApiStub();
     const contentApiStub = await createContentApiStub();
     stubs.push(managementApiStub, contentApiStub);
@@ -183,6 +189,7 @@ describe('stdio', () => {
     const { client } = await setup({
       apiUrl: managementApiStub.url,
       contentApiUrl: contentApiStub.url,
+      era,
     });
 
     try {
@@ -231,33 +238,49 @@ describe('stdio', () => {
       expect(client.getServerCapabilities()).toEqual({
         tools: {},
       });
-      expect(toolResult).toEqual({
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify({
-              projects: [
-                {
-                  id: 'abcdefghijklmnopqrst',
-                  ref: 'abcdefghijklmnopqrst',
-                  organization_id: 'tsrqponmlkjihgfedcba',
-                  organization_slug: 'tsrqponmlkjihgfedcba',
-                  name: 'Example project',
-                  region: 'us-east-1',
-                  created_at: '2024-01-02T03:04:05.000Z',
-                  status: 'ACTIVE_HEALTHY',
-                  database: {
-                    host: 'db.abcdefghijklmnopqrst.supabase.co',
-                    version: '15.1.0.147',
-                    postgres_engine: '15',
-                    release_channel: 'ga',
-                  },
+      const expectedToolContent = [
+        {
+          type: 'text',
+          text: JSON.stringify({
+            projects: [
+              {
+                id: 'abcdefghijklmnopqrst',
+                ref: 'abcdefghijklmnopqrst',
+                organization_id: 'tsrqponmlkjihgfedcba',
+                organization_slug: 'tsrqponmlkjihgfedcba',
+                name: 'Example project',
+                region: 'us-east-1',
+                created_at: '2024-01-02T03:04:05.000Z',
+                status: 'ACTIVE_HEALTHY',
+                database: {
+                  host: 'db.abcdefghijklmnopqrst.supabase.co',
+                  version: '15.1.0.147',
+                  postgres_engine: '15',
+                  release_channel: 'ga',
                 },
-              ],
-            }),
+              },
+            ],
+          }),
+        },
+      ];
+
+      if (era === 'modern') {
+        expect(toolResult).toEqual({
+          _meta: {
+            'io.modelcontextprotocol/serverInfo': {
+              name: 'supabase',
+              title: 'Supabase',
+              version: MCP_SERVER_VERSION,
+            },
           },
-        ],
-      });
+          content: expectedToolContent,
+        });
+      } else {
+        expect(toolResult).not.toHaveProperty('_meta');
+        expect(toolResult).toEqual({
+          content: expectedToolContent,
+        });
+      }
       expect(
         managementApiStub.hits.map(({ method, url }) => ({
           method,
@@ -275,7 +298,12 @@ describe('stdio', () => {
     } finally {
       await client.close();
     }
-  });
+  }
+
+  test.each<ProtocolEra>(['legacy', 'modern'])(
+    'server connects and lists tools (%s)',
+    assertServerContract
+  );
 
   test('missing access token fails', async () => {
     const setupPromise = setup({ accessToken: null as any });

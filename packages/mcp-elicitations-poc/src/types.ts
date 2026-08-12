@@ -1,6 +1,6 @@
 export type ProjectCost = {
   amount: number;
-  recurrence: "monthly";
+  recurrence: 'monthly';
 };
 
 export type MockProject = {
@@ -10,7 +10,7 @@ export type MockProject = {
   cost: ProjectCost;
 };
 
-export type CreateProjectParams = Omit<MockProject, "id">;
+export type CreateProjectParams = Omit<MockProject, 'id'>;
 
 export interface Registry {
   createProject(params: CreateProjectParams): MockProject;

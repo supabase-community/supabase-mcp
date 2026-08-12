@@ -4,12 +4,12 @@ import {
   Client,
   PROTOCOL_VERSION_META_KEY,
   StreamableHTTPClientTransport,
-} from "@modelcontextprotocol/client";
+} from '@modelcontextprotocol/client';
 
-import type { Poc } from "../src/server.js";
+import type { Poc } from '../src/server.js';
 
 export type WireFrame = {
-  direction: "request" | "response";
+  direction: 'request' | 'response';
   status?: number;
   body: any;
 };
@@ -20,7 +20,7 @@ export type TestClientOptions = {
   elicitation?:
     | false
     | ((req: { message: string; requestedSchema: any }) => {
-        action: "accept" | "decline" | "cancel";
+        action: 'accept' | 'decline' | 'cancel';
         content?: Record<string, unknown>;
       });
 };
@@ -40,16 +40,16 @@ export async function createTestClient(opts: TestClientOptions): Promise<{
   close(): Promise<void>;
 }> {
   const wire: WireFrame[] = [];
-  const bearer = opts.bearer ?? "user-alice";
+  const bearer = opts.bearer ?? 'user-alice';
   const capturedFetch: typeof fetch = async (input, init) => {
     const outgoing = new Request(input, init);
     wire.push({
-      direction: "request",
+      direction: 'request',
       body: parseBody(await outgoing.clone().text()),
     });
     const response = await opts.poc.handler.fetch(outgoing);
     wire.push({
-      direction: "response",
+      direction: 'response',
       status: response.status,
       body: parseBody(await response.clone().text()),
     });
@@ -57,23 +57,21 @@ export async function createTestClient(opts: TestClientOptions): Promise<{
   };
 
   const responder = opts.elicitation;
-  const declaresElicitation = typeof responder === "function";
+  const declaresElicitation = typeof responder === 'function';
   const client = new Client(
-    { name: "mcp-elicitations-poc-test", version: "0.0.0" },
+    { name: 'mcp-elicitations-poc-test', version: '0.0.0' },
     {
-      versionNegotiation: { mode: { pin: "2026-07-28" } },
-      capabilities: declaresElicitation
-        ? { elicitation: { form: {} } }
-        : {},
-    },
+      versionNegotiation: { mode: { pin: '2026-07-28' } },
+      capabilities: declaresElicitation ? { elicitation: { form: {} } } : {},
+    }
   );
 
-  if (typeof responder === "function") {
-    client.setRequestHandler("elicitation/create", async (request) => {
+  if (typeof responder === 'function') {
+    client.setRequestHandler('elicitation/create', async (request) => {
       const response = responder({
         message: request.params.message,
         requestedSchema:
-          "requestedSchema" in request.params
+          'requestedSchema' in request.params
             ? request.params.requestedSchema
             : undefined,
       });
@@ -82,13 +80,13 @@ export async function createTestClient(opts: TestClientOptions): Promise<{
   }
 
   const transport = new StreamableHTTPClientTransport(
-    new URL("http://poc.local/mcp"),
+    new URL('http://poc.local/mcp'),
     {
       fetch: capturedFetch,
       requestInit: {
         headers: { Authorization: `Bearer ${bearer}` },
       },
-    },
+    }
   );
   await client.connect(transport);
 
@@ -111,7 +109,7 @@ export async function rawToolCall(opts: {
     ? { elicitation: { form: {} } }
     : {};
   const params: Record<string, unknown> = {
-    name: "create_project",
+    name: 'create_project',
     arguments: opts.args,
   };
   if (opts.inputResponses !== undefined) {
@@ -120,34 +118,34 @@ export async function rawToolCall(opts: {
   if (opts.requestState !== undefined) params.requestState = opts.requestState;
 
   const body = {
-    jsonrpc: "2.0",
+    jsonrpc: '2.0',
     id: randomId(),
-    method: "tools/call",
+    method: 'tools/call',
     params: {
       ...params,
       _meta: {
-        [PROTOCOL_VERSION_META_KEY]: "2026-07-28",
+        [PROTOCOL_VERSION_META_KEY]: '2026-07-28',
         [CLIENT_INFO_META_KEY]: {
-          name: "mcp-elicitations-poc-raw-test",
-          version: "0.0.0",
+          name: 'mcp-elicitations-poc-raw-test',
+          version: '0.0.0',
         },
         [CLIENT_CAPABILITIES_META_KEY]: capabilities,
       },
     },
   };
   const response = await opts.poc.handler.fetch(
-    new Request("http://poc.local/mcp", {
-      method: "POST",
+    new Request('http://poc.local/mcp', {
+      method: 'POST',
       headers: {
-        Authorization: `Bearer ${opts.bearer ?? "user-alice"}`,
-        Accept: "application/json, text/event-stream",
-        "Content-Type": "application/json",
-        "MCP-Protocol-Version": "2026-07-28",
-        "Mcp-Method": "tools/call",
-        "Mcp-Name": "create_project",
+        Authorization: `Bearer ${opts.bearer ?? 'user-alice'}`,
+        Accept: 'application/json, text/event-stream',
+        'Content-Type': 'application/json',
+        'MCP-Protocol-Version': '2026-07-28',
+        'Mcp-Method': 'tools/call',
+        'Mcp-Name': 'create_project',
       },
       body: JSON.stringify(body),
-    }),
+    })
   );
   return {
     status: response.status,

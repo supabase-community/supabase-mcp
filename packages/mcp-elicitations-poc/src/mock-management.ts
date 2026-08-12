@@ -1,10 +1,6 @@
-import { randomUUID } from "node:crypto";
+import { randomUUID } from 'node:crypto';
 
-import type {
-  CreateProjectParams,
-  MockProject,
-  Registry,
-} from "./types.js";
+import type { CreateProjectParams, MockProject, Registry } from './types.js';
 
 export function createRegistry(): Registry {
   const projects: MockProject[] = [];
@@ -24,4 +20,4 @@ export function createRegistry(): Registry {
   };
 }
 
-export type { MockProject, Registry } from "./types.js";
+export type { MockProject, Registry } from './types.js';

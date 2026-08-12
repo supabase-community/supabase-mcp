@@ -1,16 +1,16 @@
-import { randomUUID } from "node:crypto";
+import { randomUUID } from 'node:crypto';
 
 export type Interaction = {
   id: string;
   principal: string;
   tool: string;
   argsDigest: string;
-  status: "pending" | "complete";
+  status: 'pending' | 'complete';
   exp: number;
 };
 
 export interface InteractionStore {
-  create(i: Omit<Interaction, "status">): Interaction;
+  create(i: Omit<Interaction, 'status'>): Interaction;
   get(id: string): Interaction | undefined;
   complete(id: string): boolean;
   consume(id: string): boolean;
@@ -25,8 +25,8 @@ export class InMemoryInteractionStore implements InteractionStore {
     this.#clock = clock;
   }
 
-  create(i: Omit<Interaction, "status">): Interaction {
-    const interaction: Interaction = { ...i, status: "pending" };
+  create(i: Omit<Interaction, 'status'>): Interaction {
+    const interaction: Interaction = { ...i, status: 'pending' };
     this.#items.set(i.id, interaction);
     return { ...interaction };
   }
@@ -42,11 +42,11 @@ export class InMemoryInteractionStore implements InteractionStore {
     if (
       !interaction ||
       interaction.exp <= this.#clock() ||
-      interaction.status !== "pending"
+      interaction.status !== 'pending'
     ) {
       return false;
     }
-    interaction.status = "complete";
+    interaction.status = 'complete';
     return true;
   }
 
@@ -55,7 +55,7 @@ export class InMemoryInteractionStore implements InteractionStore {
     if (
       !interaction ||
       interaction.exp <= this.#clock() ||
-      interaction.status !== "complete" ||
+      interaction.status !== 'complete' ||
       this.#consumed.has(id)
     ) {
       return false;
@@ -69,11 +69,11 @@ export interface SecretStore {
   put(
     principal: string,
     name: string,
-    value: string,
+    value: string
   ): { ref: string; last4: string };
   get(
     principal: string,
-    name: string,
+    name: string
   ): { ref: string; last4: string } | undefined;
 }
 

@@ -1,4 +1,4 @@
-import { createHash, randomBytes, randomUUID } from "node:crypto";
+import { createHash, randomBytes, randomUUID } from 'node:crypto';
 
 import {
   CLIENT_CAPABILITIES_META_KEY,
@@ -9,11 +9,11 @@ import {
   inputRequired,
   inputResponse,
   type ServerContext,
-} from "@modelcontextprotocol/server";
-import { z } from "zod";
+} from '@modelcontextprotocol/server';
+import { z } from 'zod';
 
-import { createRegistry } from "./mock-management.js";
-import type { Registry } from "./types.js";
+import { createRegistry } from './mock-management.js';
+import type { Registry } from './types.js';
 
 export interface JtiStore {
   consume(jti: string): boolean;
@@ -45,13 +45,13 @@ export type Poc = {
 };
 
 export const DEFAULT_STATE_KEY =
-  process.env.POC_STATE_KEY ?? randomBytes(32).toString("hex");
-export const PROJECT_COST = { amount: 10, recurrence: "monthly" } as const;
+  process.env.POC_STATE_KEY ?? randomBytes(32).toString('hex');
+export const PROJECT_COST = { amount: 10, recurrence: 'monthly' } as const;
 
 type State = {
   v: 1;
   sub: string;
-  tool: "create_project";
+  tool: 'create_project';
   argsDigest: string;
   cost: typeof PROJECT_COST;
   jti: string;
@@ -66,7 +66,7 @@ const inputSchema = z.object({
 const confirmationSchema = z.object({ confirm: z.boolean() });
 
 function sha256(value: string): string {
-  return createHash("sha256").update(value).digest("hex");
+  return createHash('sha256').update(value).digest('hex');
 }
 
 function canonicalArgs(name: string, organizationId: string): string {
@@ -79,27 +79,25 @@ function argsDigest(name: string, organizationId: string): string {
 
 export function legacyConfirmToken(
   name: string,
-  organizationId: string,
+  organizationId: string
 ): string {
   return sha256(
     JSON.stringify({
-      tool: "create_project",
+      tool: 'create_project',
       args: { name, organization_id: organizationId },
       cost: PROJECT_COST,
-    }),
+    })
   );
 }
 
 function principal(ctx: ServerContext): string {
-  const authorization = ctx.http?.req?.headers.get("authorization");
+  const authorization = ctx.http?.req?.headers.get('authorization');
   const match = authorization?.match(/^Bearer (.+)$/i);
-  return match?.[1] ?? "anonymous";
+  return match?.[1] ?? 'anonymous';
 }
 
 function declaresFormElicitation(ctx: ServerContext): boolean {
-  const envelope = ctx.mcpReq.envelope as
-    | Record<string, unknown>
-    | undefined;
+  const envelope = ctx.mcpReq.envelope as Record<string, unknown> | undefined;
   const capabilities = envelope?.[CLIENT_CAPABILITIES_META_KEY] as
     | { elicitation?: { form?: unknown } }
     | undefined;
@@ -109,10 +107,10 @@ function declaresFormElicitation(ctx: ServerContext): boolean {
 function result(
   structuredContent: Record<string, unknown>,
   text: string,
-  isError = false,
+  isError = false
 ) {
   return {
-    content: [{ type: "text" as const, text }],
+    content: [{ type: 'text' as const, text }],
     structuredContent,
     ...(isError ? { isError: true } : {}),
   };
@@ -131,19 +129,19 @@ export function createPoc(opts: PocOptions = {}): Poc {
     ctx: ServerContext,
     sub: string,
     name: string,
-    organizationId: string,
+    organizationId: string
   ) =>
     codec.mint(
       {
         v: 1,
         sub,
-        tool: "create_project",
+        tool: 'create_project',
         argsDigest: argsDigest(name, organizationId),
         cost: PROJECT_COST,
         jti: randomUUID(),
         iat: Math.floor(Date.now() / 1000),
       },
-      ctx,
+      ctx
     );
 
   const createProject = async (name: string, organization_id: string) => {
@@ -156,12 +154,12 @@ export function createPoc(opts: PocOptions = {}): Poc {
       });
       if (created) project.id = created.id;
       return result(
-        { status: "created", project },
-        `Created project "${name}".`,
+        { status: 'created', project },
+        `Created project "${name}".`
       );
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error);
-      return result({ status: "error" }, message, true);
+      return result({ status: 'error' }, message, true);
     }
   };
 
@@ -169,22 +167,22 @@ export function createPoc(opts: PocOptions = {}): Poc {
     ctx: ServerContext,
     sub: string,
     name: string,
-    organizationId: string,
+    organizationId: string
   ) =>
     inputRequired({
       inputRequests: {
         confirm_cost: inputRequired.elicit({
-          mode: "form",
+          mode: 'form',
           message: `Creating project "${name}" costs $10/month. Do you confirm?`,
           requestedSchema: {
-            type: "object",
+            type: 'object',
             properties: {
               confirm: {
-                type: "boolean",
-                description: "Confirm the recurring project cost.",
+                type: 'boolean',
+                description: 'Confirm the recurring project cost.',
               },
             },
-            required: ["confirm"],
+            required: ['confirm'],
           },
         }),
       },
@@ -193,16 +191,16 @@ export function createPoc(opts: PocOptions = {}): Poc {
 
   const handler = createMcpHandler((requestContext) => {
     const server = new McpServer(
-      { name: "mcp-elicitations-poc", version: "0.0.0" },
-      { requestState: { verify: codec.verify } },
+      { name: 'mcp-elicitations-poc', version: '0.0.0' },
+      { requestState: { verify: codec.verify } }
     );
 
     server.registerTool(
-      "create_project",
+      'create_project',
       {
         description: opts.projectCreator
-          ? "Create a Supabase project via the configured Management API."
-          : "Create a mock Supabase project.",
+          ? 'Create a Supabase project via the configured Management API.'
+          : 'Create a mock Supabase project.',
         inputSchema,
       },
       async ({ name, organization_id, confirm_cost_token }, ctx) => {
@@ -213,17 +211,17 @@ export function createPoc(opts: PocOptions = {}): Poc {
           if (confirm_cost_token === undefined) {
             return result(
               {
-                status: "confirmation_required",
+                status: 'confirmation_required',
                 confirm_cost_token: expected,
               },
-              "Confirmation required. Retry with the supplied confirm_cost_token.",
+              'Confirmation required. Retry with the supplied confirm_cost_token.'
             );
           }
           if (confirm_cost_token !== expected) {
             return result(
-              { status: "error" },
-              "The confirm_cost_token is invalid.",
-              true,
+              { status: 'error' },
+              'The confirm_cost_token is invalid.',
+              true
             );
           }
           return createProject(name, organization_id);
@@ -235,66 +233,66 @@ export function createPoc(opts: PocOptions = {}): Poc {
         }
         if (state.sub !== sub) {
           return result(
-            { status: "error" },
-            "Request state principal does not match the current principal.",
-            true,
+            { status: 'error' },
+            'Request state principal does not match the current principal.',
+            true
           );
         }
         if (state.argsDigest !== argsDigest(name, organization_id)) {
           return result(
-            { status: "error" },
-            "Request state arguments do not match the current arguments.",
-            true,
+            { status: 'error' },
+            'Request state arguments do not match the current arguments.',
+            true
           );
         }
         if (jtiStore && !jtiStore.consume(state.jti)) {
           return result(
-            { status: "error" },
-            "Request state replay was rejected.",
-            true,
+            { status: 'error' },
+            'Request state replay was rejected.',
+            true
           );
         }
 
         const response = inputResponse(
           ctx.mcpReq.inputResponses,
-          "confirm_cost",
+          'confirm_cost'
         );
-        if (response.kind === "missing") {
+        if (response.kind === 'missing') {
           return askForConfirmation(ctx, sub, name, organization_id);
         }
-        if (response.kind !== "elicit") {
+        if (response.kind !== 'elicit') {
           return askForConfirmation(ctx, sub, name, organization_id);
         }
-        if (response.action === "decline") {
+        if (response.action === 'decline') {
           return result(
-            { status: "declined" },
-            "Project creation was declined.",
+            { status: 'declined' },
+            'Project creation was declined.'
           );
         }
-        if (response.action === "cancel") {
+        if (response.action === 'cancel') {
           return result(
-            { status: "cancelled" },
-            "Project creation was cancelled.",
+            { status: 'cancelled' },
+            'Project creation was cancelled.'
           );
         }
 
         const content = acceptedContent(
           ctx.mcpReq.inputResponses,
-          "confirm_cost",
-          confirmationSchema,
+          'confirm_cost',
+          confirmationSchema
         );
         if (!content) {
           return askForConfirmation(ctx, sub, name, organization_id);
         }
         if (!content.confirm) {
           return result(
-            { status: "declined" },
-            "Project creation was declined.",
+            { status: 'declined' },
+            'Project creation was declined.'
           );
         }
 
         return createProject(name, organization_id);
-      },
+      }
     );
 
     // requestInfo is surfaced again as ctx.http.req by the HTTP transport.

@@ -1,4 +1,4 @@
-import { randomBytes } from "node:crypto";
+import { randomBytes } from 'node:crypto';
 
 type ProjectCreatorInput = {
   name: string;
@@ -12,28 +12,28 @@ export function createManagementProjectCreator(opts: {
   fetchImpl?: typeof fetch;
 }) {
   const fetchImpl = opts.fetchImpl ?? fetch;
-  const baseUrl = opts.baseUrl.replace(/\/+$/, "");
-  const region = opts.region ?? "us-east-1";
+  const baseUrl = opts.baseUrl.replace(/\/+$/, '');
+  const region = opts.region ?? 'us-east-1';
 
   return async (input: ProjectCreatorInput): Promise<{ id: string }> => {
     const response = await fetchImpl(`${baseUrl}/v1/projects`, {
-      method: "POST",
+      method: 'POST',
       headers: {
         Authorization: `Bearer ${opts.token}`,
-        "Content-Type": "application/json",
+        'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         name: input.name,
         organization_slug: input.organization_id,
         region,
-        db_pass: randomBytes(32).toString("base64url"),
+        db_pass: randomBytes(32).toString('base64url'),
       }),
     });
 
     if (!response.ok) {
       const responseBody = (await response.text()).slice(0, 300);
       throw new Error(
-        `Management API project creation failed (${response.status}): ${responseBody}`,
+        `Management API project creation failed (${response.status}): ${responseBody}`
       );
     }
 

@@ -124,18 +124,20 @@ import { toNodeHandler } from '@modelcontextprotocol/node';
 import { createSupabaseMcpHandler } from '@supabase/mcp-server-supabase';
 import { createSupabaseApiPlatform } from '@supabase/mcp-server-supabase/platform/api';
 
-const server = createServer(async (req, res) => {
+const server = createServer((req, res) => {
   const accessToken = getAccessTokenFromRequest(req); // your own auth
 
   const handler = createSupabaseMcpHandler({
     platform: createSupabaseApiPlatform({ accessToken }),
   });
 
+  // `close()` aborts in-flight exchanges, so close on `res` finishing rather
+  // than when the handler resolves, which would cut streaming responses short.
   res.on('close', () => {
-    handler.close();
+    handler.close().catch((error) => console.error(error));
   });
 
-  await toNodeHandler(handler)(req, res);
+  toNodeHandler(handler)(req, res).catch((error) => console.error(error));
 });
 ```
 

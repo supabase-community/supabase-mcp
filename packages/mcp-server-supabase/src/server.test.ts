@@ -2254,7 +2254,7 @@ describe('tools', () => {
       "select id, timestamp, event_message from logs where source = 'postgres_logs' order by timestamp desc limit 10";
 
     const before = Date.now();
-    const { result } = await callTool({
+    const result = await callTool({
       name: 'query_logs',
       arguments: {
         project_id: project.id,
@@ -2471,6 +2471,56 @@ describe('tools', () => {
         },
       })
     ).rejects.toThrow(/too_small|at least 1 character/);
+  });
+
+  test('query_logs encodes results exactly once and returns structured content', async () => {
+    const { client } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const logs = [{ event_message: String.raw`error reading C:\temp\file` }];
+
+    mockServer?.use(
+      http.get<{ projectId: string }>(
+        `${API_URL}/v1/projects/:projectId/analytics/endpoints/logs`,
+        () => HttpResponse.json(logs)
+      )
+    );
+
+    const output = await client.callTool({
+      name: 'query_logs',
+      arguments: {
+        project_id: project.id,
+        sql: 'select event_message from logs limit 1',
+      },
+    });
+
+    const result = CallToolResultSchema.parse(output);
+    const [textContent] = result.content;
+
+    if (!textContent || textContent.type !== 'text') {
+      throw new Error('expected text content');
+    }
+
+    // The single backslashes in the log message must appear JSON-encoded
+    // exactly once (2 backslashes in the text), not twice (4 backslashes)
+    expect(textContent.text).toContain(JSON.stringify(logs));
+    expect(textContent.text).toContain(String.raw`C:\\temp\\file`);
+    expect(textContent.text).not.toContain(String.raw`C:\\\\temp\\\\file`);
+
+    // The full output is still available as structured content for typed clients
+    expect(result.structuredContent).toEqual({ result: textContent.text });
   });
 
   test('get security advisors', async () => {
@@ -4167,7 +4217,7 @@ describe('feature groups', () => {
     });
     project.status = 'ACTIVE_HEALTHY';
 
-    const { result } = await callTool({
+    const result = await callTool({
       name: 'get_logs',
       arguments: {
         project_id: project.id,

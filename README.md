@@ -106,7 +106,7 @@ const tools = await mcpClient.tools({
 ```
 
 > [!NOTE]
-> Most tools in this server do not send `structuredContent` in MCP tool results, so AI SDK falls back to parsing JSON from `content` text. The exceptions are `execute_sql` and `get_logs`, which do send `structuredContent` — AI SDK validates it directly. Their `content` text is prose (an untrusted-data wrapper around JSON) rather than a JSON object.
+> Most tools in this server do not send `structuredContent` in MCP tool results, so AI SDK falls back to parsing JSON from `content` text. The exceptions are `execute_sql`, `get_logs`, and `query_logs`, which do send `structuredContent` — AI SDK validates it directly. Their `content` text is prose (an untrusted-data wrapper around JSON) rather than a JSON object.
 
 For more information, see [Schema Definition](https://ai-sdk.dev/docs/ai-sdk-core/mcp-tools#schema-definition) and [Typed Tool Outputs](https://ai-sdk.dev/docs/ai-sdk-core/mcp-tools#typed-tool-outputs) in the AI SDK docs.
 

@@ -116,7 +116,9 @@ const queryLogsByDialect = {
 >;
 
 const queryLogsOutputSchema = z.object({
-  result: z.unknown(),
+  result: z
+    .string()
+    .describe('Logs as JSON wrapped in an untrusted-data boundary'),
 });
 
 const getAdvisorsInputSchema = z.object({
@@ -244,6 +246,7 @@ export function getDebuggingTools({
         description: queryLogsByDialect[logsDialect].description,
         parameters: queryLogsByDialect[logsDialect].parameters,
         inject: { project_id },
+        textContent: ({ result }) => result,
         execute: async ({
           project_id,
           sql,

@@ -2170,6 +2170,56 @@ describe('tools', () => {
     );
   });
 
+  test('get_logs encodes results exactly once and returns structured content', async () => {
+    const { client } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const logs = [{ event_message: String.raw`error reading C:\temp\file` }];
+
+    mockServer?.use(
+      http.get<{ projectId: string }>(
+        `${API_URL}/v1/projects/:projectId/analytics/endpoints/logs`,
+        () => HttpResponse.json(logs)
+      )
+    );
+
+    const output = await client.callTool({
+      name: 'get_logs',
+      arguments: {
+        project_id: project.id,
+        service: 'api',
+      },
+    });
+
+    const result = CallToolResultSchema.parse(output);
+    const [textContent] = result.content;
+
+    if (!textContent || textContent.type !== 'text') {
+      throw new Error('expected text content');
+    }
+
+    // The single backslashes in the log message must appear JSON-encoded
+    // exactly once (2 backslashes in the text), not twice (4 backslashes)
+    expect(textContent.text).toContain(JSON.stringify(logs));
+    expect(textContent.text).toContain(String.raw`C:\\temp\\file`);
+    expect(textContent.text).not.toContain(String.raw`C:\\\\temp\\\\file`);
+
+    // The full output is still available as structured content for typed clients
+    expect(result.structuredContent).toEqual({ result: textContent.text });
+  });
+
   test('query logs forwards custom sql and defaults the timestamp window', async () => {
     const { callTool } = await setup();
 

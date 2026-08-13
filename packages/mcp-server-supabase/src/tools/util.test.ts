@@ -129,4 +129,39 @@ describe('injectableTool', () => {
       callTool({ name: 'hidden_tool', arguments: { foo: 'bar' } })
     ).resolves.toEqual({ value: 'bar' });
   });
+
+  test('textContent propagates when parameters are injected', async () => {
+    const { client } = await setup({
+      wrapped_tool: injectableTool({
+        description: 'A tool with a custom text serializer',
+        annotations: {
+          title: 'Wrapped tool',
+          readOnlyHint: true,
+          destructiveHint: false,
+          idempotentHint: false,
+          openWorldHint: false,
+        },
+        parameters: z.object({ project_id: z.string(), foo: z.string() }),
+        outputSchema: z.object({ value: z.string() }),
+        inject: { project_id: 'abc' },
+        textContent: ({ value }) => `wrapped: ${value}`,
+        execute: async ({ foo }) => ({ value: foo }),
+      }),
+    });
+
+    const output = await client.callTool({
+      name: 'wrapped_tool',
+      arguments: { foo: 'bar' },
+    });
+    const result = CallToolResultSchema.parse(output);
+    const [textContent] = result.content;
+
+    if (!textContent || textContent.type !== 'text') {
+      throw new Error('expected text content');
+    }
+
+    // The serializer must survive the tool rebuild that removes injected params
+    expect(textContent.text).toBe('wrapped: bar');
+    expect(result.structuredContent).toEqual({ value: 'bar' });
+  });
 });

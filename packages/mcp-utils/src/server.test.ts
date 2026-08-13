@@ -152,6 +152,42 @@ describe('tools', () => {
     expect(result.structuredContent).toEqual({ message });
   });
 
+  test('textContent is not applied to error results', async () => {
+    const server = createMcpServer({
+      name: 'test-server',
+      version: '0.0.0',
+      tools: {
+        failing: tool({
+          description: 'Always fails',
+          parameters: z.object({}),
+          outputSchema: z.object({ message: z.string() }),
+          textContent: ({ message }) => message,
+          execute: async () => {
+            throw new Error('something went wrong');
+          },
+        }),
+      },
+    });
+
+    const { client } = await setup({ server });
+
+    const output = await client.callTool({ name: 'failing', arguments: {} });
+    const result = CallToolResultSchema.parse(output);
+
+    expect(result.isError).toBe(true);
+    expect(result.structuredContent).toBeUndefined();
+
+    const [textContent] = result.content;
+
+    if (!textContent || textContent.type !== 'text') {
+      throw new Error('expected text content');
+    }
+
+    // Errors keep the default JSON encoding instead of the custom serializer
+    const parsed = JSON.parse(textContent.text);
+    expect(parsed.error.message).toBe('something went wrong');
+  });
+
   test('tool callback is called for success and errors', async () => {
     const onToolCall = vi.fn();
 

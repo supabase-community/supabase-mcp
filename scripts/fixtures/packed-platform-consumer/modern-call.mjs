@@ -4,6 +4,7 @@ import {
 } from '@modelcontextprotocol/client';
 import { createSupabaseMcpHandler } from '@supabase/mcp-server-supabase';
 
+// https://blog.modelcontextprotocol.io/posts/2026-07-28-release-candidate/
 const MODERN_PROTOCOL_VERSION = '2026-07-28';
 
 // Stubbed `account` operations only run on a tool call. The account feature

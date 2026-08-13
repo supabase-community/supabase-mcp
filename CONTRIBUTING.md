@@ -48,6 +48,19 @@ Configure your MCP client to run the local build. You may need to restart the se
 
 Optionally, configure `--api-url` to point at a different Supabase instance (defaults to `https://api.supabase.com`)
 
+## Testing
+
+```bash
+pnpm test              # unit and integration suites for all three packages
+pnpm test:coverage     # mcp-server-supabase, with coverage
+```
+
+### Packaging gates
+
+`scripts/` holds checks that span more than one package and run outside the pnpm workspace. `pnpm test:packed-platform-consumer` packs `@supabase/mcp-server-supabase` together with its workspace dependency `@supabase/mcp-utils`, installs both from real tarballs with plain `npm` in a temporary project, and drives the public surface there. Workspace resolution (`workspace:`, `catalog:`, symlinked `node_modules`) cannot reach that project, which is what makes it a test of the published artifact rather than of the checkout.
+
+Add a script here when a check needs more than one package, or needs to run from outside the workspace. Anything scoped to a single package belongs in that package's own `test` script.
+
 ## Releases
 
 Releases are automated via [release-please](https://github.com/googleapis/release-please). It tracks commits on `main` and opens a release PR when there are releasable changes (`fix:` or `feat:`). Merging that PR:

@@ -20,6 +20,7 @@ import {
 import { createSupabaseApiPlatform } from '../platform/api-platform.js';
 import { createSupabaseMcpHandler } from './http.js';
 
+// https://blog.modelcontextprotocol.io/posts/2026-07-28-release-candidate/
 const MODERN_PROTOCOL_VERSION = '2026-07-28';
 const MCP_ENDPOINT = new URL('https://mcp.test');
 

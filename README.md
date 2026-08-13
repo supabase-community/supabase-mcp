@@ -116,7 +116,9 @@ The `@supabase/mcp-server-supabase` package exports `createSupabaseMcpHandler()`
 
 The handler speaks the current protocol revision only. It is created with `legacy: 'reject'`, so a client that only speaks the 2025-era protocol receives an HTTP 400 instead of being served.
 
-Create the handler per request, with a `platform` bound to that request's token, and close it once the response finishes. A shared, long-lived handler is not supported, because a singleton captures the first request's user, response object, and request-scoped dependencies.
+When `platform` carries a per-request credential, create the handler per request and close it when the response finishes. The handler closes over the `platform` you supply, so a shared one serves every request with that platform.
+
+A long-lived handler is fine when the `platform` is meant to be shared, a service-account token for example. Create it once and `close()` it at shutdown rather than per response, since `close()` tears down the subscription router and refuses later requests.
 
 ```ts
 import { createServer } from 'node:http';

@@ -27,6 +27,17 @@ jobs:
           install: true
           cache: true
 
+      - name: Configure DepthFirst dependency firewall
+        if: ${{ secrets.DF_FIREWALL_TOKEN != '' }}
+        shell: bash
+        env:
+          DF_FIREWALL_TOKEN: ${{ secrets.DF_FIREWALL_TOKEN }}
+        run: |
+          {
+            echo "registry=https://firewall.depthfirst.com/npm/"
+            echo "//firewall.depthfirst.com/npm/:_authToken=${DF_FIREWALL_TOKEN}"
+          } >> ~/.npmrc
+
       - name: Install dependencies
         run: pnpm install --ignore-scripts
 

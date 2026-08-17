@@ -4709,6 +4709,8 @@ export interface components {
             private_only: boolean | null;
             /** @description Sets connection pool size for Realtime Authorization */
             connection_pool: number | null;
+            /** @description Sets connection pool size used to create Postgres Changes subscriptions */
+            postgres_changes_pool: number | null;
             /** @description Sets maximum number of concurrent users rate limit */
             max_concurrent_users: number | null;
             /** @description Sets maximum number of events per second rate per channel limit */
@@ -4738,6 +4740,8 @@ export interface components {
             private_only?: boolean;
             /** @description Sets connection pool size for Realtime Authorization */
             connection_pool?: number;
+            /** @description Sets connection pool size used to create Postgres Changes subscriptions */
+            postgres_changes_pool?: number;
             /** @description Sets maximum number of concurrent users rate limit */
             max_concurrent_users?: number;
             /** @description Sets maximum number of events per second rate per channel limit */

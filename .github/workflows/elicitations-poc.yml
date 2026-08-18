@@ -1,0 +1,23 @@
+name: Elicitations PoC
+on:
+  pull_request:
+    paths:
+      - packages/mcp-elicitations-poc/**
+      - .github/workflows/elicitations-poc.yml
+jobs:
+  elicitations-poc:
+    name: Elicitations PoC tests
+    timeout-minutes: 15
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3.6.3
+        with:
+          install: true
+          cache: true
+      - name: Install dependencies
+        run: pnpm install --ignore-scripts
+      - name: Typecheck
+        run: pnpm --filter @supabase/mcp-elicitations-poc typecheck
+      - name: Tests
+        run: pnpm --filter @supabase/mcp-elicitations-poc test

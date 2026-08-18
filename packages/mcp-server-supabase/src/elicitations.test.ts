@@ -30,6 +30,15 @@ const MODERN_PROTOCOL_VERSION = '2026-07-28';
 const MCP_ENDPOINT = new URL('https://mcp.test');
 const STATE_KEY = new Uint8Array(32).fill(5);
 const PROJECT_COST_HASH = 'BGoZHqqJd2JYMt+cWSDFH7qDeNkZZAwbTytJrHy7r+E=';
+const BRANCH_COST_HASH = 'ZZ/hou+EG3bByRxTfQyJEoQL3Pja9M25DXZPJPKdfGs=';
+const PROJECT_MISSING_ID =
+  'User must confirm understanding of costs before creating a project.';
+const PROJECT_MISMATCH =
+  'Cost confirmation ID does not match the expected cost of creating a project.';
+const BRANCH_MISSING_ID =
+  'User must confirm understanding of costs before creating a branch.';
+const BRANCH_MISMATCH =
+  'Cost confirmation ID does not match the expected cost of creating a branch.';
 
 let mockServer!: SetupServer;
 const cleanups: Array<() => Promise<void>> = [];
@@ -58,6 +67,11 @@ type ClientFixtureOptions = {
   projectId?: string;
   continuationProjectId?: string;
   continuationOptOut?: boolean;
+  continuationReplayStore?: InMemoryReplayStore;
+  continuationOnPolicyCall?: ToolPolicyCallCallback;
+  continuationHumanConfirmationEnabled?: boolean;
+  resumeHumanConfirmationEnabled?: boolean;
+  requestBodies?: Array<Record<string, any>>;
 };
 
 async function setupClient(
@@ -69,34 +83,59 @@ async function setupClient(
   fixtureOptions: ClientFixtureOptions = {}
 ) {
   const replayStore = fixtureOptions.replayStore ?? new InMemoryReplayStore();
-  const createHandler = (projectId?: string, optOut = fixtureOptions.optOut) =>
+  const createHandler = (
+    projectId = fixtureOptions.projectId,
+    optOut = fixtureOptions.optOut,
+    selectedReplayStore = replayStore,
+    onPolicyCall = fixtureOptions.onPolicyCall,
+    humanConfirmationEnabled?: boolean
+  ) =>
     createSupabaseMcpHandler({
       platform,
       projectId,
       elicitation: {
         stateKey: STATE_KEY,
         approverId: 'approver-1',
-        replayStore,
+        replayStore: selectedReplayStore,
         formDeliveryAvailable: true,
         optOut,
-        onPolicyCall: fixtureOptions.onPolicyCall,
+        onPolicyCall,
+        humanConfirmationEnabled,
       },
     });
-  const handler = createHandler(fixtureOptions.projectId);
+  const handler = createHandler();
   const needsContinuationHandler =
     fixtureOptions.continuationProjectId !== undefined ||
-    fixtureOptions.continuationOptOut !== undefined;
+    fixtureOptions.continuationOptOut !== undefined ||
+    fixtureOptions.continuationReplayStore !== undefined ||
+    fixtureOptions.continuationOnPolicyCall !== undefined ||
+    fixtureOptions.continuationHumanConfirmationEnabled !== undefined;
   const continuationHandler = needsContinuationHandler
     ? createHandler(
-        fixtureOptions.continuationProjectId ?? fixtureOptions.projectId,
-        fixtureOptions.continuationOptOut
+        fixtureOptions.continuationProjectId,
+        fixtureOptions.continuationOptOut,
+        fixtureOptions.continuationReplayStore,
+        fixtureOptions.continuationOnPolicyCall,
+        fixtureOptions.continuationHumanConfirmationEnabled
       )
     : undefined;
+  const resumeHandler =
+    fixtureOptions.resumeHumanConfirmationEnabled === undefined
+      ? undefined
+      : createHandler(
+          fixtureOptions.continuationProjectId,
+          fixtureOptions.continuationOptOut,
+          fixtureOptions.continuationReplayStore,
+          fixtureOptions.continuationOnPolicyCall,
+          fixtureOptions.resumeHumanConfirmationEnabled
+        );
+  let continuationCalls = 0;
   const transport = new StreamableHTTPClientTransport(MCP_ENDPOINT, {
     fetch: async (url, init) => {
       const request = new Request(url, init);
       const body = (await request.clone().json()) as Record<string, any>;
       fixtureOptions.transformRequest?.(body);
+      fixtureOptions.requestBodies?.push(structuredClone(body));
       const forwarded = new Request(url, {
         ...init,
         body: JSON.stringify(body),
@@ -112,7 +151,11 @@ async function setupClient(
         body.method === 'tools/call' &&
         typeof body.params?.requestState === 'string';
       if (retry && continuationHandler !== undefined) {
-        return continuationHandler.fetch(forwarded);
+        const selectedHandler =
+          continuationCalls++ === 0
+            ? continuationHandler
+            : (resumeHandler ?? continuationHandler);
+        return selectedHandler.fetch(forwarded);
       }
       return handler.fetch(forwarded);
     },
@@ -138,7 +181,8 @@ async function setupClient(
     () => handler.close(),
     ...(continuationHandler === undefined
       ? []
-      : [() => continuationHandler.close()])
+      : [() => continuationHandler.close()]),
+    ...(resumeHandler === undefined ? [] : [() => resumeHandler.close()])
   );
   return client;
 }
@@ -303,6 +347,54 @@ describe('paid resource Human Confirmation', () => {
     ]);
     expect(projects).toHaveLength(1);
   });
+  test('rejects edited readable expiry at the served request-state seam', async () => {
+    const { organization, platform, projects } = paidProjectPlatform();
+    let edited = false;
+    const client = await setupClient(
+      [{ action: 'accept', content: { confirm: true } }],
+      platform,
+      {
+        transformRequest: (body) => {
+          if (
+            edited ||
+            body.method !== 'tools/call' ||
+            typeof body.params?.requestState !== 'string'
+          ) {
+            return;
+          }
+          edited = true;
+          const [prefix, encodedEnvelope, mac] =
+            body.params.requestState.split('.');
+          const envelope = JSON.parse(
+            new TextDecoder().decode(
+              Uint8Array.from(
+                atob(encodedEnvelope.replaceAll('-', '+').replaceAll('_', '/')),
+                (character) => character.codePointAt(0) ?? 0
+              )
+            )
+          );
+          envelope.exp += 60;
+          const changedEnvelope = btoa(JSON.stringify(envelope))
+            .replaceAll('+', '-')
+            .replaceAll('/', '_')
+            .replace(/=+$/, '');
+          body.params.requestState = `${prefix}.${changedEnvelope}.${mac}`;
+        },
+      }
+    );
+
+    await expect(
+      client.callTool({
+        name: 'create_project',
+        arguments: {
+          name: 'Tampered expiry',
+          region: 'us-east-1',
+          organization_id: organization.id,
+        },
+      })
+    ).rejects.toMatchObject({ code: -32602 });
+    expect(projects).toHaveLength(1);
+  });
 
   test('rejects argument mutation between confirmation legs', async () => {
     const { organization, platform, projects } = paidProjectPlatform();
@@ -361,6 +453,72 @@ describe('paid resource Human Confirmation', () => {
       text: expect.stringContaining('already used'),
     });
     expect(projects.filter(({ name }) => name === 'One only')).toHaveLength(1);
+  });
+  test('separate handlers redeem once with one safe Interaction ID', async () => {
+    const firstTelemetry: Array<{ interactionId?: string }> = [];
+    const secondTelemetry: Array<{ interactionId?: string }> = [];
+    const requestBodies: Array<Record<string, any>> = [];
+    const { organization, platform, projects } = paidProjectPlatform();
+    const client = await setupClient(
+      [{ action: 'accept', content: { confirm: true } }],
+      platform,
+      {
+        duplicateRetry: true,
+        continuationReplayStore: new InMemoryReplayStore(),
+        onPolicyCall: ({ telemetry }) => {
+          firstTelemetry.push(telemetry);
+        },
+        continuationOnPolicyCall: ({ telemetry }) => {
+          secondTelemetry.push(telemetry);
+        },
+        requestBodies,
+      }
+    );
+
+    const result = await client.callTool({
+      name: 'create_project',
+      arguments: {
+        name: 'Cross-instance duplicate',
+        region: 'us-east-1',
+        organization_id: organization.id,
+      },
+    });
+    const retry = requestBodies.find(
+      (body) =>
+        body.method === 'tools/call' &&
+        typeof body.params?.requestState === 'string'
+    );
+    if (typeof retry?.params?.requestState !== 'string') {
+      throw new Error('Expected continuation state');
+    }
+    const [, encodedEnvelope] = retry.params.requestState.split('.');
+    const envelope = JSON.parse(
+      new TextDecoder().decode(
+        Uint8Array.from(
+          atob(encodedEnvelope.replaceAll('-', '+').replaceAll('_', '/')),
+          (character) => character.codePointAt(0) ?? 0
+        )
+      )
+    ) as { jti: string };
+    const interactionIds = [...firstTelemetry, ...secondTelemetry].map(
+      ({ interactionId }) => interactionId
+    );
+
+    expect(result.isError).not.toBe(true);
+    expect(
+      projects.filter(({ name }) => name === 'Cross-instance duplicate')
+    ).toHaveLength(2);
+    expect(firstTelemetry).toHaveLength(2);
+    expect(secondTelemetry).toHaveLength(1);
+    expect(interactionIds).toEqual([
+      expect.any(String),
+      interactionIds[0],
+      interactionIds[0],
+    ]);
+    expect(interactionIds[0]).not.toBe('');
+    expect(
+      JSON.stringify([...firstTelemetry, ...secondTelemetry])
+    ).not.toContain(envelope.jti);
   });
 
   test('reissues invalid form input without preparing again', async () => {
@@ -605,6 +763,95 @@ describe('paid resource Human Confirmation', () => {
       expect.objectContaining({ formSupportReason: 'opt_out' })
     );
   });
+  test('pins project and branch legacy hashes and exact errors', async () => {
+    const projectFixture = paidProjectPlatform();
+    const projectClient = await setupClient([], projectFixture.platform, {
+      optOut: true,
+    });
+    const branchFixture = branchingPlatform();
+    const branchClient = await setupClient([], branchFixture.platform, {
+      optOut: true,
+      projectId: 'project-scoped',
+    });
+
+    const projectConfirmation = await projectClient.callTool({
+      name: 'confirm_cost',
+      arguments: { type: 'project', recurrence: 'monthly', amount: 10 },
+    });
+    const branchConfirmation = await projectClient.callTool({
+      name: 'confirm_cost',
+      arguments: { type: 'branch', recurrence: 'hourly', amount: 0.01344 },
+    });
+    const projectMissing = await projectClient.callTool({
+      name: 'create_project',
+      arguments: {
+        name: 'Missing project confirmation',
+        region: 'us-east-1',
+        organization_id: projectFixture.organization.id,
+      },
+    });
+    const projectMismatch = await projectClient.callTool({
+      name: 'create_project',
+      arguments: {
+        name: 'Wrong project confirmation',
+        region: 'us-east-1',
+        organization_id: projectFixture.organization.id,
+        confirm_cost_id: 'wrong-confirmation',
+      },
+    });
+    const branchMissing = await branchClient.callTool({
+      name: 'create_branch',
+      arguments: { name: 'Missing branch confirmation' },
+    });
+    const branchMismatch = await branchClient.callTool({
+      name: 'create_branch',
+      arguments: {
+        name: 'Wrong branch confirmation',
+        confirm_cost_id: 'wrong-confirmation',
+      },
+    });
+    const errorContent = (message: string) => [
+      {
+        type: 'text',
+        text: JSON.stringify({ error: { name: 'Error', message } }),
+      },
+    ];
+    const missingIdContent = (message: string) => [
+      {
+        type: 'text',
+        text: JSON.stringify({
+          error: {
+            name: 'ZodError',
+            message: JSON.stringify(
+              [
+                {
+                  expected: 'string',
+                  code: 'invalid_type',
+                  path: ['confirm_cost_id'],
+                  message,
+                },
+              ],
+              null,
+              2
+            ),
+          },
+        }),
+      },
+    ];
+
+    expect(projectConfirmation.structuredContent).toEqual({
+      confirmation_id: PROJECT_COST_HASH,
+    });
+    expect(branchConfirmation.structuredContent).toEqual({
+      confirmation_id: BRANCH_COST_HASH,
+    });
+    expect(projectMissing.content).toEqual(
+      missingIdContent(PROJECT_MISSING_ID)
+    );
+    expect(projectMismatch.content).toEqual(errorContent(PROJECT_MISMATCH));
+    expect(branchMissing.content).toEqual(missingIdContent(BRANCH_MISSING_ID));
+    expect(branchMismatch.content).toEqual(errorContent(BRANCH_MISMATCH));
+  });
 
   test('keeps established form state when the continuation opts out', async () => {
     const { organization, platform, projects } = paidProjectPlatform();
@@ -626,6 +873,55 @@ describe('paid resource Human Confirmation', () => {
     expect(result.isError).not.toBe(true);
     expect(
       projects.filter(({ name }) => name === 'Established form state')
+    ).toHaveLength(1);
+  });
+
+  test('resumes the same state after the kill switch recovers', async () => {
+    const requestBodies: Array<Record<string, any>> = [];
+    const { organization, platform, projects } = paidProjectPlatform();
+    const client = await setupClient(
+      [{ action: 'accept', content: { confirm: true } }],
+      platform,
+      {
+        continuationHumanConfirmationEnabled: false,
+        resumeHumanConfirmationEnabled: true,
+        requestBodies,
+      }
+    );
+
+    const blocked = await client.callTool({
+      name: 'create_project',
+      arguments: {
+        name: 'Kill-switch resume',
+        region: 'us-east-1',
+        organization_id: organization.id,
+      },
+    });
+    const retry = requestBodies.find(
+      (body) =>
+        body.method === 'tools/call' &&
+        typeof body.params?.requestState === 'string'
+    );
+    if (retry?.params === undefined) {
+      throw new Error('Expected continuation request');
+    }
+    const resumed = await client.request({
+      method: 'tools/call',
+      params: retry.params,
+    });
+
+    expect(blocked).toMatchObject({
+      content: [
+        {
+          type: 'text',
+          text: 'Human Confirmation is temporarily unavailable.',
+        },
+      ],
+      isError: true,
+    });
+    expect(resumed.isError).not.toBe(true);
+    expect(
+      projects.filter(({ name }) => name === 'Kill-switch resume')
     ).toHaveLength(1);
   });
 

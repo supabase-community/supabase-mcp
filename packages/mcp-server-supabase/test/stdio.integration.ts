@@ -443,6 +443,63 @@ describe('stdio', () => {
     region: 'us-east-1',
     organization_id: 'tsrqponmlkjihgfedcba',
   };
+  const PROJECT_COST_HASH = 'BGoZHqqJd2JYMt+cWSDFH7qDeNkZZAwbTytJrHy7r+E=';
+  const legacyCreateProjectOutputSchema = {
+    type: 'object',
+    properties: {
+      result: {
+        $schema: 'http://json-schema.org/draft-07/schema#',
+        anyOf: [
+          {
+            type: 'object',
+            properties: {
+              id: { type: 'string' },
+              ref: { type: 'string' },
+              organization_id: { type: 'string' },
+              organization_slug: { type: 'string' },
+              name: { type: 'string' },
+              status: { type: 'string' },
+              created_at: { type: 'string' },
+              region: { type: 'string' },
+            },
+            required: [
+              'id',
+              'ref',
+              'organization_id',
+              'organization_slug',
+              'name',
+              'status',
+              'created_at',
+              'region',
+            ],
+            additionalProperties: false,
+          },
+          {
+            oneOf: [
+              {
+                type: 'object',
+                properties: {
+                  status: { type: 'string', const: 'declined' },
+                },
+                required: ['status'],
+                additionalProperties: false,
+              },
+              {
+                type: 'object',
+                properties: {
+                  status: { type: 'string', const: 'cancelled' },
+                },
+                required: ['status'],
+                additionalProperties: false,
+              },
+            ],
+          },
+        ],
+      },
+    },
+    required: ['result'],
+    $schema: 'http://json-schema.org/draft-07/schema#',
+  };
 
   test('modern form mode accepts once and rejects same-process replay', async () => {
     const { client, managementApiStub, toolCalls } = await setupPaidProject({
@@ -547,6 +604,46 @@ describe('stdio', () => {
               method === 'POST' && url.pathname === '/v1/projects'
           )
         ).toHaveLength(1);
+      } finally {
+        await client.close();
+      }
+    }
+  );
+  test.each([
+    ['decline', 'declined', 'Creation declined.'],
+    ['cancel', 'cancelled', 'Creation cancelled.'],
+  ] as const)(
+    'legacy stdio projects the output union and returns exact %s bytes',
+    async (action, status, message) => {
+      const { client, managementApiStub } = await setupPaidProject({
+        era: 'legacy',
+        elicitationCapability: 'empty',
+        elicitationResponses: [{ action }],
+      });
+
+      try {
+        const { tools } = await client.listTools();
+        const createProject = tools.find(
+          ({ name }) => name === 'create_project'
+        );
+        const result = await client.callTool({
+          name: 'create_project',
+          arguments: projectArguments,
+        });
+
+        expect(JSON.stringify(createProject?.outputSchema)).toBe(
+          JSON.stringify(legacyCreateProjectOutputSchema)
+        );
+        expect(result).toEqual({
+          content: [{ type: 'text', text: message }],
+          structuredContent: { result: { status } },
+        });
+        expect(
+          managementApiStub.hits.some(
+            ({ method, url }) =>
+              method === 'POST' && url.pathname === '/v1/projects'
+          )
+        ).toBe(false);
       } finally {
         await client.close();
       }
@@ -699,34 +796,29 @@ describe('stdio', () => {
     }
   );
 
-  test('modern stdio opt-out preserves the legacy confirmation hash and payload', async () => {
-    const legacy = await setupPaidProject({ era: 'legacy' });
-    const optedOut = await setupPaidProject({
+  test('modern stdio opt-out pins the fixed legacy confirmation bytes', async () => {
+    const { client } = await setupPaidProject({
       era: 'modern',
       disableElicitations: true,
     });
 
     try {
-      const confirmationArguments = {
-        type: 'project' as const,
-        recurrence: 'monthly' as const,
-        amount: 10,
-      };
-      const legacyConfirmation = await legacy.client.callTool({
+      const confirmation = await client.callTool({
         name: 'confirm_cost',
-        arguments: confirmationArguments,
+        arguments: {
+          type: 'project',
+          recurrence: 'monthly',
+          amount: 10,
+        },
       });
-      const optedOutConfirmation = await optedOut.client.callTool({
-        name: 'confirm_cost',
-        arguments: confirmationArguments,
-      });
+      const expected = { confirmation_id: PROJECT_COST_HASH };
 
-      expect(optedOutConfirmation.content).toEqual(legacyConfirmation.content);
-      expect(optedOutConfirmation.structuredContent).toEqual(
-        legacyConfirmation.structuredContent
-      );
+      expect(confirmation.content).toEqual([
+        { type: 'text', text: JSON.stringify(expected) },
+      ]);
+      expect(confirmation.structuredContent).toEqual(expected);
     } finally {
-      await Promise.all([legacy.client.close(), optedOut.client.close()]);
+      await client.close();
     }
   });
 

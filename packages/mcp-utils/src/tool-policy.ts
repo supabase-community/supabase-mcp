@@ -94,7 +94,8 @@ export type ToolPolicy<Params, Resolution> = {
 
 export function normalizeToolRequestContext(
   server: ServerContext,
-  inputs: ToolRequestInputs
+  inputs: ToolRequestInputs,
+  initializedClientCapabilities?: ClientCapabilities
 ): ToolRequestContext {
   const envelope = server.mcpReq.envelope;
   const metadata = envelope as Record<string, unknown> | undefined;
@@ -103,9 +104,13 @@ export function normalizeToolRequestContext(
   const clientInfo = metadata?.[CLIENT_INFO_META_KEY] as
     | Implementation
     | undefined;
-  const clientCapabilities = metadata?.[CLIENT_CAPABILITIES_META_KEY] as
-    | ClientCapabilities
-    | undefined;
+  const requestClientCapabilities = metadata?.[
+    CLIENT_CAPABILITIES_META_KEY
+  ] as ClientCapabilities | undefined;
+  const clientCapabilities =
+    era === 'modern'
+      ? requestClientCapabilities
+      : initializedClientCapabilities;
   const elicitation = clientCapabilities?.elicitation;
   const clientDeclaresForm =
     elicitation !== undefined &&

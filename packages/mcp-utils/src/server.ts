@@ -515,7 +515,8 @@ export function createMcpServer(options: McpServerOptions) {
         const tools = await getTools();
         const context = normalizeToolRequestContext(
           serverContext,
-          options.toolRequestInputs ?? { formDeliveryAvailable: false }
+          options.toolRequestInputs ?? { formDeliveryAvailable: false },
+          server.getClientCapabilities()
         );
         const visibleTools = Object.entries(tools).filter(
           ([, tool]) => !tool.hidden && tool.visible?.(context) !== false
@@ -560,7 +561,8 @@ export function createMcpServer(options: McpServerOptions) {
       async (request, serverContext) => {
         const context = normalizeToolRequestContext(
           serverContext,
-          options.toolRequestInputs ?? { formDeliveryAvailable: false }
+          options.toolRequestInputs ?? { formDeliveryAvailable: false },
+          server.getClientCapabilities()
         );
 
         try {

@@ -3,13 +3,17 @@ import {
   StreamableHTTPClientTransport,
 } from '@modelcontextprotocol/client';
 import {
+  CLIENT_CAPABILITIES_META_KEY,
   createMcpHandler,
+  PROTOCOL_VERSION_META_KEY,
   type ClientCapabilities,
+  type ServerContext,
 } from '@modelcontextprotocol/server';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { z } from 'zod/v4';
 
 import { createMcpServer, tool } from './server.js';
+import { normalizeToolRequestContext } from './tool-policy.js';
 import type {
   ToolPolicy,
   ToolRequestContext,
@@ -173,6 +177,60 @@ describe('normalized tool request context', () => {
         clientInfo: { name: 'policy-test-client', version: '1.2.3' },
         formElicitation: expected,
         formSupportReason: reason,
+      });
+    }
+  );
+
+  test.each([
+    {
+      name: 'legacy uses initialized capabilities on a supported path',
+      metadata: undefined,
+      formDeliveryAvailable: true,
+      expectedEra: 'legacy',
+      expectedFormElicitation: true,
+      expectedReason: 'available',
+    },
+    {
+      name: 'legacy serving path still takes precedence',
+      metadata: undefined,
+      formDeliveryAvailable: false,
+      expectedEra: 'legacy',
+      expectedFormElicitation: false,
+      expectedReason: 'serving_path',
+    },
+    {
+      name: 'modern ignores initialized capabilities',
+      metadata: {
+        [PROTOCOL_VERSION_META_KEY]: MODERN_PROTOCOL_VERSION,
+        [CLIENT_CAPABILITIES_META_KEY]: {},
+      },
+      formDeliveryAvailable: true,
+      expectedEra: 'modern',
+      expectedFormElicitation: false,
+      expectedReason: 'capability',
+    },
+  ])(
+    '$name',
+    ({
+      metadata,
+      formDeliveryAvailable,
+      expectedEra,
+      expectedFormElicitation,
+      expectedReason,
+    }) => {
+      const server = {
+        mcpReq: { envelope: metadata },
+      } as unknown as ServerContext;
+      const context = normalizeToolRequestContext(
+        server,
+        { formDeliveryAvailable },
+        { elicitation: {} }
+      );
+
+      expect(context).toMatchObject({
+        era: expectedEra,
+        formElicitation: expectedFormElicitation,
+        formSupportReason: expectedReason,
       });
     }
   );

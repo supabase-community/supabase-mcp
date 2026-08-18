@@ -24,6 +24,8 @@ const telemetry: ToolPolicyTelemetry = {
   outcome: 'test',
 };
 
+function acceptTelemetry(_telemetry: ToolPolicyTelemetry): void {}
+
 afterEach(async () => {
   for (const cleanup of cleanups.splice(0).reverse()) {
     await cleanup();
@@ -174,6 +176,18 @@ describe('normalized tool request context', () => {
       });
     }
   );
+});
+
+test('telemetry type rejects nested objects and undeclared fields', () => {
+  acceptTelemetry({ interactionId: 'safe-id', policyVersion: 1 });
+  acceptTelemetry({
+    // @ts-expect-error nested telemetry values are not allowed
+    interactionId: { raw: 'state' },
+  });
+  acceptTelemetry({
+    // @ts-expect-error telemetry fields must use the closed allowlist
+    continuationState: 'raw-state',
+  });
 });
 
 describe('pre-execution tool policy', () => {
@@ -357,12 +371,16 @@ describe('pre-execution tool policy', () => {
       },
     });
 
-    await client.callTool({ name: 'observed', arguments: { value: 'ok' } });
+    await client.callTool({
+      name: 'observed',
+      arguments: { value: 'sensitive argument' },
+    });
 
     expect(onToolPolicyCall).toHaveBeenCalledTimes(1);
-    expect(onToolPolicyCall).toHaveBeenCalledWith({
+    const callbackPayload = onToolPolicyCall.mock.calls[0]?.[0];
+    expect(callbackPayload).not.toHaveProperty('arguments');
+    expect(callbackPayload).toEqual({
       name: 'observed',
-      arguments: { value: 'ok' },
       clientInfo: { name: 'policy-test-client', version: '1.2.3' },
       formElicitation: true,
       durationMs: expect.any(Number),

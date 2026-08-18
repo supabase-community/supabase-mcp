@@ -26,7 +26,15 @@ export type ToolRequestContext = {
   formSupportReason: 'available' | 'serving_path' | 'opt_out' | 'capability';
 };
 
-export type ToolPolicyTelemetry = Record<string, unknown>;
+export type ToolPolicyTelemetry = {
+  interactionId?: string;
+  authorityPath?: string;
+  outcome?: string;
+  reason?: string;
+  policyId?: string;
+  policyVersion?: number;
+  formSupportReason?: string;
+};
 
 export type ToolPolicyDecision<Resolution> =
   | {

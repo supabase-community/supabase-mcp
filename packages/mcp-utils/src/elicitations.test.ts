@@ -19,6 +19,7 @@ import {
   withPolicyOutput,
 } from './elicitations.js';
 import { createMcpServer, tool } from './server.js';
+import type { ToolPolicyTelemetry } from './tool-policy.js';
 
 const STATE_KEY = new Uint8Array(32).fill(7);
 const NOW = 1_800_000_000_000;
@@ -54,6 +55,23 @@ function testState(overrides: Partial<ElicitationState> = {}): ElicitationState 
   };
 }
 
+async function derivedStateKey(): Promise<Uint8Array> {
+  const derivationKey = await crypto.subtle.importKey(
+    'raw',
+    STATE_KEY,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+  return new Uint8Array(
+    await crypto.subtle.sign(
+      'HMAC',
+      derivationKey,
+      new TextEncoder().encode('mcp-request-state:v1')
+    )
+  );
+}
+
 describe('InMemoryReplayStore', () => {
   test('rejects same-process jti reuse', () => {
     const store = new InMemoryReplayStore({ clock: () => 1_000 });
@@ -62,13 +80,24 @@ describe('InMemoryReplayStore', () => {
     expect(store.consume('same-jti', 2_000)).toBe(false);
   });
 
-  test('evicts expired entries before applying capacity', () => {
-    let now = 1_000;
+  test('evicts entries exactly when the codec rejects their state', () => {
+    let now = 2_000;
     const store = new InMemoryReplayStore({ capacity: 1, clock: () => now });
 
-    expect(store.consume('expired', 1_001)).toBe(true);
-    now = 1_002;
-    expect(store.consume('replacement', 2_000)).toBe(true);
+    expect(store.consume('expired', 2_001)).toBe(true);
+    now = 2_001;
+    expect(store.consume('replacement', 3_000)).toBe(true);
+  });
+
+  test('does not evict a state during the final valid second', () => {
+    let now = 2_000;
+    const store = new InMemoryReplayStore({ capacity: 1, clock: () => now });
+
+    expect(store.consume('live', 3_000)).toBe(true);
+    now = 2_500;
+    expect(() => store.consume('other', 4_000)).toThrow(
+      'Replay store capacity reached'
+    );
   });
 
   test('fails closed at capacity when every entry is live', () => {
@@ -95,20 +124,7 @@ describe('ElicitationRuntime request state', () => {
 });
 
   test('uses the derived request-state key instead of the injected raw key', async () => {
-    const derivationKey = await crypto.subtle.importKey(
-      'raw',
-      STATE_KEY,
-      { name: 'HMAC', hash: 'SHA-256' },
-      false,
-      ['sign']
-    );
-    const derivedKey = new Uint8Array(
-      await crypto.subtle.sign(
-        'HMAC',
-        derivationKey,
-        new TextEncoder().encode('mcp-request-state:v1')
-      )
-    );
+    const derivedKey = await derivedStateKey();
     expect(
       Array.from(derivedKey, (byte) => byte.toString(16).padStart(2, '0')).join(
         ''
@@ -131,49 +147,68 @@ describe('ElicitationRuntime request state', () => {
     await expect(rawKeyCodec.verify(state, ctx)).rejects.toThrow('mac');
   });
 
-  test('is byte-compatible with the SDK codec in both directions', async () => {
+  test('matches the SDK wire format and unpadded base64url alphabet', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(NOW);
+    const approverId = 'José 🚀';
     const ctx = serverContext('tools/call');
     const runtime = new ElicitationRuntime({
-      approverId: 'approver-1',
+      approverId,
       stateKey: STATE_KEY,
       clock: Date.now,
     });
-    const derivationKey = await crypto.subtle.importKey(
-      'raw',
-      STATE_KEY,
-      { name: 'HMAC', hash: 'SHA-256' },
-      false,
-      ['sign']
-    );
-    const derivedKey = new Uint8Array(
-      await crypto.subtle.sign(
-        'HMAC',
-        derivationKey,
-        new TextEncoder().encode('mcp-request-state:v1')
-      )
-    );
     const sdk = createRequestStateCodec<ElicitationState>({
-      key: derivedKey,
+      key: await derivedStateKey(),
       ttlSeconds: 120,
-      bind: () => 'approver-1\u0000tools/call',
+      bind: () => `${approverId}\u0000tools/call`,
     });
-    const now = Math.floor(Date.now() / 1_000);
-    const payload = testState({ iat: now, exp: now + 120 });
+    const payload = testState();
 
     const runtimeMinted = await runtime.requestState.mint(payload, ctx);
-    await expect(sdk.verify(runtimeMinted, ctx)).resolves.toEqual(payload);
-
     const sdkMinted = await sdk.mint(payload, ctx);
+
+    expect(runtimeMinted).toBe(sdkMinted);
+    expect(runtimeMinted).toBe(
+      'v1.eyJwIjp7InYiOjEsInBvbGljeVZlcnNpb24iOjMsInBvbGljeSI6ImNvbmZpcm1hdGlvbiIsInRvb2wiOiJjcmVhdGVfcHJvamVjdCIsImFyZ3NEaWdlc3QiOiJkaWdlc3QiLCJwcm9wb3NhbCI6eyJkaXNwbGF5Ijoic2FmZSJ9LCJqdGkiOiJmaXhlZC1qdGkiLCJpYXQiOjE4MDAwMDAwMDAsImV4cCI6MTgwMDAwMDEyMH0sImV4cCI6MTgwMDAwMDEyMCwiYiI6InJUQnR3by0zd0FNQjJDTVc4bUNtOGcifQ.DE-WnAAD940T5tezWsmownYO7agJwqAHYFXJk_nlKTo'
+    );
+    expect(runtimeMinted.split('.')).toHaveLength(3);
+    for (const segment of runtimeMinted.split('.')) {
+      expect(segment).toMatch(/^[A-Za-z0-9_-]+$/);
+    }
+    await expect(sdk.verify(runtimeMinted, ctx)).resolves.toEqual(payload);
     await expect(runtime.requestState.verify(sdkMinted, ctx)).resolves.toEqual({
       kind: 'valid',
       state: payload,
     });
   });
 
+  test('rejects bind presence asymmetry in both directions', async () => {
+    vi.spyOn(Date, 'now').mockReturnValue(NOW);
+    const ctx = serverContext('tools/call');
+    const runtime = new ElicitationRuntime({
+      approverId: 'approver-1',
+      stateKey: STATE_KEY,
+      clock: Date.now,
+    });
+    const bindlessSdk = createRequestStateCodec<ElicitationState>({
+      key: await derivedStateKey(),
+      ttlSeconds: 120,
+    });
+    const payload = testState();
+
+    const runtimeBound = await runtime.requestState.mint(payload, ctx);
+    const sdkBindless = await bindlessSdk.mint(payload);
+
+    await expect(bindlessSdk.verify(runtimeBound, ctx)).rejects.toThrow('bind');
+    await expect(
+      runtime.requestState.verify(sdkBindless, ctx)
+    ).rejects.toThrow('bind');
+  });
+
   test.each([
     {
       name: 'tampered',
-      alter: (state: string) => `${state.slice(0, -1)}x`,
+      alter: (state: string) =>
+        `${state.slice(0, -1)}${state.endsWith('A') ? 'B' : 'A'}`,
       ctx: serverContext('tools/call'),
     },
     {
@@ -246,6 +281,7 @@ describe('ElicitationRuntime request state', () => {
     await expect(runtime.requestState.verify(state, ctx)).resolves.toEqual({
       kind: 'expired',
       authenticatedExp: NOW / 1_000 + 120,
+      authenticatedJti: 'fixed-jti',
     });
 
     const [prefix, encodedBody, mac] = state.split('.');
@@ -353,6 +389,7 @@ async function setupLifecycleFixture({
   transformRequest,
   requestBodies,
   duplicateRetry = false,
+  onDuplicateRetry,
   continuation,
 }: {
   runtime: ElicitationRuntime;
@@ -369,6 +406,7 @@ async function setupLifecycleFixture({
   transformRequest?: (body: Record<string, any>) => void;
   requestBodies?: Array<Record<string, any>>;
   duplicateRetry?: boolean;
+  onDuplicateRetry?: () => void;
   continuation?: {
     runtime: ElicitationRuntime;
     policy?: LifecyclePolicy;
@@ -449,6 +487,7 @@ async function setupLifecycleFixture({
         typeof body.params?.requestState === 'string';
       if (duplicateRetry && isRetry) {
         await handler.fetch(forwarded.clone());
+        onDuplicateRetry?.();
       }
       if (continuationHandler !== undefined && isRetry) {
         if (continuation?.mirror) {
@@ -548,7 +587,7 @@ describe('ElicitationRuntime lifecycle', () => {
   });
 
   test('reissues the original proposal with fresh state and Interaction ID', async () => {
-    const telemetry: Array<Record<string, unknown>> = [];
+    const telemetry: ToolPolicyTelemetry[] = [];
     const prepare = vi.fn(async () => ({
       type: 'elicit' as const,
       proposal: { label: 'original proposal' },
@@ -599,7 +638,7 @@ describe('ElicitationRuntime lifecycle', () => {
       }),
       responses: [{ action: 'accept', content: { decision: 'execute' } }],
       onElicit: () => {
-        now += 121_000;
+        now = (testState().exp + 1) * 1_000;
       },
     });
 
@@ -673,6 +712,196 @@ describe('ElicitationRuntime lifecycle', () => {
       text: expect.stringContaining('already used'),
     });
   });
+
+  test('rejects replay during the final valid second without another execution', async () => {
+    let now = NOW;
+    const fixture = await setupLifecycleFixture({
+      runtime: new ElicitationRuntime({
+        approverId: 'approver-1',
+        stateKey: STATE_KEY,
+        clock: () => now,
+      }),
+      responses: [{ action: 'accept', content: { decision: 'execute' } }],
+      duplicateRetry: true,
+      onDuplicateRetry: () => {
+        now = testState().exp * 1_000 + 500;
+      },
+    });
+
+    const result = await fixture.client.callTool({
+      name: 'guarded',
+      arguments: { value: 'original' },
+    });
+
+    expect(fixture.execute).toHaveBeenCalledTimes(1);
+    expect(result.isError).toBe(true);
+    expect(result.structuredContent).toBeUndefined();
+    expect(result.content[0]).toMatchObject({
+      type: 'text',
+      text: expect.stringContaining('already used'),
+    });
+  });
+
+  test('emits only safe runtime telemetry across every policy leg', async () => {
+    const approverId = 'sensitive-approver';
+    const rawJti = 'sensitive-raw-jti';
+    const proposalFact = 'sensitive-proposal-fact';
+    const formResponse = 'sensitive-form-response';
+    const events: Array<{
+      leg: string;
+      telemetry: ToolPolicyTelemetry;
+    }> = [];
+    const requestStates: string[] = [];
+    const makeRuntime = (clock?: () => number) =>
+      new ElicitationRuntime({
+        approverId,
+        stateKey: STATE_KEY,
+        createJti: () => rawJti,
+        clock,
+      });
+    const policy = lifecyclePolicy({
+      prepare: vi.fn(async () => ({
+        type: 'elicit' as const,
+        proposal: { label: proposalFact },
+      })),
+    });
+    const observe = (leg: string) => {
+      let invocation = 0;
+      return ({ telemetry }: { telemetry: ToolPolicyTelemetry }) => {
+        const eventLeg =
+          leg === 'prepare'
+            ? leg
+            : invocation === 0
+              ? 'input_required'
+              : leg;
+        events.push({ leg: eventLeg, telemetry });
+        invocation += 1;
+      };
+    };
+    const captureStates = (bodies: Array<Record<string, any>>) => {
+      for (const body of bodies) {
+        const requestState = body.params?.requestState;
+        if (typeof requestState === 'string') {
+          requestStates.push(requestState);
+        }
+      }
+    };
+    const call = async (
+      leg: string,
+      options: Omit<
+        Parameters<typeof setupLifecycleFixture>[0],
+        'runtime' | 'policy'
+      > & {
+        runtime?: ElicitationRuntime;
+        selectedPolicy?: LifecyclePolicy;
+      }
+    ) => {
+      const requestBodies: Array<Record<string, any>> = [];
+      const fixture = await setupLifecycleFixture({
+        ...options,
+        runtime: options.runtime ?? makeRuntime(),
+        policy: options.selectedPolicy ?? policy,
+        onToolPolicyCall: observe(leg),
+        requestBodies,
+      });
+      await fixture.client.callTool({
+        name: 'guarded',
+        arguments: { value: 'original' },
+      });
+      captureStates(requestBodies);
+    };
+
+    await call('prepare', {
+      selectedPolicy: lifecyclePolicy({
+        prepare: vi.fn(async () => ({
+          type: 'execute' as const,
+          resolution: { approved: true as const },
+        })),
+      }),
+      responses: [],
+    });
+    for (const action of ['accept', 'decline', 'cancel'] as const) {
+      await call(action, {
+        responses: [
+          {
+            action,
+            content: { decision: 'execute', private: formResponse },
+          },
+        ],
+      });
+    }
+    await call('reissue', {
+      responses: [
+        {
+          action: 'accept',
+          content: { decision: 'reissue', private: formResponse },
+        },
+        {
+          action: 'accept',
+          content: { decision: 'execute', private: formResponse },
+        },
+      ],
+    });
+    let expiryNow = NOW;
+    await call('expiry', {
+      runtime: makeRuntime(() => expiryNow),
+      responses: [
+        {
+          action: 'accept',
+          content: { decision: 'execute', private: formResponse },
+        },
+      ],
+      onElicit: () => {
+        expiryNow = (testState().exp + 1) * 1_000;
+      },
+    });
+    await call('mismatch', {
+      responses: [
+        {
+          action: 'accept',
+          content: { decision: 'execute', private: formResponse },
+        },
+      ],
+      transformRequest: (body) => {
+        if (
+          body.method === 'tools/call' &&
+          typeof body.params?.requestState === 'string'
+        ) {
+          body.params.arguments.value = 'changed';
+        }
+      },
+    });
+
+    expect(requestStates).not.toHaveLength(0);
+    expect([...new Set(events.map(({ leg }) => leg))].sort()).toEqual([
+      'accept',
+      'cancel',
+      'decline',
+      'expiry',
+      'input_required',
+      'mismatch',
+      'prepare',
+      'reissue',
+    ]);
+    for (const event of events) {
+      expect(Object.keys(event.telemetry)).toEqual(
+        event.leg === 'prepare' ? [] : ['interactionId']
+      );
+      if (event.leg !== 'prepare') {
+        expect(event.telemetry.interactionId).toEqual(expect.any(String));
+      }
+    }
+    const emitted = JSON.stringify(events);
+    for (const sensitiveValue of [
+      ...requestStates,
+      formResponse,
+      proposalFact,
+      rawJti,
+      approverId,
+    ]) {
+      expect(emitted).not.toContain(sensitiveValue);
+    }
+  });
 });
 
   test('rejects capability loss on continuation without another authority path', async () => {
@@ -743,8 +972,8 @@ describe('ElicitationRuntime lifecycle', () => {
   });
 
   test('separate runtimes redeem once with the same safe Interaction ID', async () => {
-    const firstTelemetry: Array<Record<string, unknown>> = [];
-    const secondTelemetry: Array<Record<string, unknown>> = [];
+    const firstTelemetry: ToolPolicyTelemetry[] = [];
+    const secondTelemetry: ToolPolicyTelemetry[] = [];
     const fixture = await setupLifecycleFixture({
       runtime: new ElicitationRuntime({
         approverId: 'approver-1',

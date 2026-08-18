@@ -49,7 +49,7 @@ export class InMemoryReplayStore implements ReplayStore {
     const now = this.#clock();
 
     for (const [entryJti, entryExpiresAt] of this.#entries) {
-      if (entryExpiresAt < now) {
+      if (now >= entryExpiresAt) {
         this.#entries.delete(entryJti);
       }
     }
@@ -103,7 +103,11 @@ export type ElicitationState<P = unknown> = {
 
 export type VerifiedElicitationState =
   | { kind: 'valid'; state: ElicitationState }
-  | { kind: 'expired'; authenticatedExp: number };
+  | {
+      kind: 'expired';
+      authenticatedExp: number;
+      authenticatedJti?: string;
+    };
 
 export type ElicitationRuntimeOptions = {
   approverId: string;
@@ -353,7 +357,18 @@ export class ElicitationRuntime {
     }
 
     if (envelope.exp < Math.floor(this.#clock() / 1_000)) {
-      return { kind: 'expired', authenticatedExp: envelope.exp };
+      const authenticatedJti =
+        envelope.p !== null &&
+        typeof envelope.p === 'object' &&
+        'jti' in envelope.p &&
+        typeof envelope.p.jti === 'string'
+          ? envelope.p.jti
+          : undefined;
+      return {
+        kind: 'expired',
+        authenticatedExp: envelope.exp,
+        ...(authenticatedJti === undefined ? {} : { authenticatedJti }),
+      };
     }
     if (envelope.p === null || typeof envelope.p !== 'object') {
       throw new Error('malformed');
@@ -445,8 +460,17 @@ export class ElicitationRuntime {
         }
 
         if (verified.kind === 'expired') {
+          const telemetry =
+            verified.authenticatedJti === undefined
+              ? {}
+              : {
+                  interactionId: await this.#interactionId(
+                    verified.authenticatedJti
+                  ),
+                };
           return errorDecision(
-            'This confirmation expired. Run the tool again to request a new confirmation.'
+            'This confirmation expired. Run the tool again to request a new confirmation.',
+            telemetry
           );
         }
 
@@ -492,7 +516,10 @@ export class ElicitationRuntime {
 
         let consumed: boolean;
         try {
-          consumed = this.#replayStore.consume(state.jti, state.exp * 1_000);
+          consumed = this.#replayStore.consume(
+            state.jti,
+            (state.exp + 1) * 1_000
+          );
         } catch (error) {
           if (
             error instanceof Error &&

@@ -235,7 +235,6 @@ type ToolCallErrorDetails = ToolCallBaseDetails & {
 export type ToolCallDetails = ToolCallSuccessDetails | ToolCallErrorDetails;
 export type ToolPolicyCallDetails = {
   name: string;
-  arguments: Record<string, unknown>;
   clientInfo?: Implementation;
   formElicitation: boolean;
   durationMs: number;
@@ -603,7 +602,6 @@ export function createMcpServer(options: McpServerOptions) {
             try {
               await options.onToolPolicyCall?.({
                 name: toolName,
-                arguments: args,
                 clientInfo: context.clientInfo,
                 formElicitation: context.formElicitation,
                 durationMs,

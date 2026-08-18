@@ -1,8 +1,12 @@
 import {
   Client,
+  type ClientCapabilities,
   StreamableHTTPClientTransport,
 } from '@modelcontextprotocol/client';
-import { InMemoryReplayStore } from '@supabase/mcp-utils';
+import {
+  InMemoryReplayStore,
+  type ToolPolicyCallCallback,
+} from '@supabase/mcp-utils';
 import type { SetupServer } from 'msw/node';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
@@ -25,6 +29,7 @@ import * as pricing from './pricing.js';
 const MODERN_PROTOCOL_VERSION = '2026-07-28';
 const MCP_ENDPOINT = new URL('https://mcp.test');
 const STATE_KEY = new Uint8Array(32).fill(5);
+const PROJECT_COST_HASH = 'BGoZHqqJd2JYMt+cWSDFH7qDeNkZZAwbTytJrHy7r+E=';
 
 let mockServer!: SetupServer;
 const cleanups: Array<() => Promise<void>> = [];
@@ -46,8 +51,13 @@ type ClientFixtureOptions = {
   onElicit?: () => void;
   transformRequest?: (body: Record<string, any>) => void;
   duplicateRetry?: boolean;
+  capabilities?: ClientCapabilities;
+  optOut?: boolean;
+  onPolicyCall?: ToolPolicyCallCallback;
+  replayStore?: InMemoryReplayStore;
   projectId?: string;
   continuationProjectId?: string;
+  continuationOptOut?: boolean;
 };
 
 async function setupClient(
@@ -58,8 +68,8 @@ async function setupClient(
   platform: SupabasePlatform,
   fixtureOptions: ClientFixtureOptions = {}
 ) {
-  const replayStore = new InMemoryReplayStore();
-  const createHandler = (projectId?: string) =>
+  const replayStore = fixtureOptions.replayStore ?? new InMemoryReplayStore();
+  const createHandler = (projectId?: string, optOut = fixtureOptions.optOut) =>
     createSupabaseMcpHandler({
       platform,
       projectId,
@@ -68,13 +78,20 @@ async function setupClient(
         approverId: 'approver-1',
         replayStore,
         formDeliveryAvailable: true,
+        optOut,
+        onPolicyCall: fixtureOptions.onPolicyCall,
       },
     });
   const handler = createHandler(fixtureOptions.projectId);
-  const continuationHandler =
-    fixtureOptions.continuationProjectId === undefined
-      ? undefined
-      : createHandler(fixtureOptions.continuationProjectId);
+  const needsContinuationHandler =
+    fixtureOptions.continuationProjectId !== undefined ||
+    fixtureOptions.continuationOptOut !== undefined;
+  const continuationHandler = needsContinuationHandler
+    ? createHandler(
+        fixtureOptions.continuationProjectId ?? fixtureOptions.projectId,
+        fixtureOptions.continuationOptOut
+      )
+    : undefined;
   const transport = new StreamableHTTPClientTransport(MCP_ENDPOINT, {
     fetch: async (url, init) => {
       const request = new Request(url, init);
@@ -103,7 +120,9 @@ async function setupClient(
   const client = new Client(
     { name: MCP_CLIENT_NAME, version: MCP_CLIENT_VERSION },
     {
-      capabilities: { elicitation: { form: {} } },
+      capabilities: fixtureOptions.capabilities ?? {
+        elicitation: { form: {} },
+      },
       versionNegotiation: { mode: { pin: MODERN_PROTOCOL_VERSION } },
     }
   );
@@ -434,7 +453,9 @@ describe('paid resource Human Confirmation', () => {
     });
 
     expect(result.isError).not.toBe(true);
-    expect(projects.filter(({ name }) => name === 'Lower rate')).toHaveLength(1);
+    expect(projects.filter(({ name }) => name === 'Lower rate')).toHaveLength(
+      1
+    );
   });
 
   test('rejects a higher live rate before creating', async () => {
@@ -489,7 +510,9 @@ describe('paid resource Human Confirmation', () => {
       },
     });
 
-    const createProjectTool = tools.find(({ name }) => name === 'create_project');
+    const createProjectTool = tools.find(
+      ({ name }) => name === 'create_project'
+    );
     expect(tools.map(({ name }) => name)).toContain('get_cost');
     expect(tools.map(({ name }) => name)).not.toContain('confirm_cost');
     expect(createProjectTool?.inputSchema).not.toHaveProperty(
@@ -501,6 +524,137 @@ describe('paid resource Human Confirmation', () => {
       text: expect.stringContaining('elicitation flow'),
     });
     expect(stillAlive.isError).not.toBe(true);
+  });
+
+  test('treats an empty elicitation declaration as form capable', async () => {
+    const { platform, projects } = paidProjectPlatform();
+    const client = await setupClient([{ action: 'decline' }], platform, {
+      capabilities: { elicitation: {} },
+    });
+
+    const { tools } = await client.listTools();
+    const result = await client.callTool({
+      name: 'create_project',
+      arguments: {
+        name: 'Empty declaration',
+        region: 'us-east-1',
+        organization_id: 'org-1',
+      },
+    });
+
+    expect(tools.map(({ name }) => name)).not.toContain('confirm_cost');
+    expect(result.structuredContent).toEqual({ status: 'declined' });
+    expect(projects).toHaveLength(1);
+  });
+
+  test('routes a URL-only declaration through legacy confirmation', async () => {
+    const { platform } = paidProjectPlatform();
+    const client = await setupClient([], platform, {
+      capabilities: { elicitation: { url: {} } },
+    });
+
+    const { tools } = await client.listTools();
+    const result = await client.callTool({
+      name: 'confirm_cost',
+      arguments: { type: 'project', recurrence: 'monthly', amount: 10 },
+    });
+
+    expect(tools.map(({ name }) => name)).toContain('confirm_cost');
+    expect(result.structuredContent).toEqual({
+      confirmation_id: PROJECT_COST_HASH,
+    });
+  });
+
+  test('opt-out uses the legacy hash and reports its routing reason', async () => {
+    const telemetry: Array<{ formSupportReason?: string }> = [];
+    const { organization, platform, projects } = paidProjectPlatform();
+    const client = await setupClient([], platform, {
+      optOut: true,
+      onPolicyCall: ({ telemetry: event }) => {
+        telemetry.push(event);
+      },
+    });
+
+    const { tools } = await client.listTools();
+    const confirmation = await client.callTool({
+      name: 'confirm_cost',
+      arguments: { type: 'project', recurrence: 'monthly', amount: 10 },
+    });
+    const result = await client.callTool({
+      name: 'create_project',
+      arguments: {
+        name: 'Opted out',
+        region: 'us-east-1',
+        organization_id: organization.id,
+        confirm_cost_id: PROJECT_COST_HASH,
+      },
+    });
+
+    expect(tools.map(({ name }) => name)).toContain('confirm_cost');
+    for (const tool of tools) {
+      expect(tool.inputSchema).not.toHaveProperty(
+        'properties.disable_elicitations'
+      );
+    }
+    expect(confirmation.structuredContent).toEqual({
+      confirmation_id: PROJECT_COST_HASH,
+    });
+    expect(result.isError).not.toBe(true);
+    expect(projects.filter(({ name }) => name === 'Opted out')).toHaveLength(1);
+    expect(telemetry).toContainEqual(
+      expect.objectContaining({ formSupportReason: 'opt_out' })
+    );
+  });
+
+  test('keeps established form state when the continuation opts out', async () => {
+    const { organization, platform, projects } = paidProjectPlatform();
+    const client = await setupClient(
+      [{ action: 'accept', content: { confirm: true } }],
+      platform,
+      { continuationOptOut: true }
+    );
+
+    const result = await client.callTool({
+      name: 'create_project',
+      arguments: {
+        name: 'Established form state',
+        region: 'us-east-1',
+        organization_id: organization.id,
+      },
+    });
+
+    expect(result.isError).not.toBe(true);
+    expect(
+      projects.filter(({ name }) => name === 'Established form state')
+    ).toHaveLength(1);
+  });
+
+  test('fails closed when the replay store is at capacity', async () => {
+    const replayStore = new InMemoryReplayStore({ capacity: 1 });
+    replayStore.consume('occupied', Date.now() + 120_000);
+    const { organization, platform, projects } = paidProjectPlatform();
+    const client = await setupClient(
+      [{ action: 'accept', content: { confirm: true } }],
+      platform,
+      { replayStore }
+    );
+
+    const result = await client.callTool({
+      name: 'create_project',
+      arguments: {
+        name: 'At capacity',
+        region: 'us-east-1',
+        organization_id: organization.id,
+      },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(result.structuredContent).toBeUndefined();
+    expect(result.content[0]).toMatchObject({
+      type: 'text',
+      text: expect.stringContaining('Replay store capacity reached'),
+    });
+    expect(projects).toHaveLength(1);
   });
 
   test('creates a branch with the injected project and exact approved rate', async () => {

@@ -1,4 +1,4 @@
-import { Client } from '@modelcontextprotocol/client';
+import { Client, type ClientCapabilities } from '@modelcontextprotocol/client';
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
 import gqlmin from 'gqlmin';
 import { execFile } from 'node:child_process';
@@ -25,6 +25,7 @@ type SetupOptions = {
   projectId?: string;
   readOnly?: boolean;
   disableElicitations?: boolean;
+  elicitationCapability?: 'absent' | 'empty' | 'form' | 'url';
   features?: string;
   contentApiUrl?: string;
   apiUrl?: string;
@@ -60,6 +61,20 @@ function assertStdioBuildIsFresh() {
 }
 
 assertStdioBuildIsFresh();
+function capabilitiesFor(
+  mode: NonNullable<SetupOptions['elicitationCapability']>
+): ClientCapabilities {
+  switch (mode) {
+    case 'empty':
+      return { elicitation: {} };
+    case 'form':
+      return { elicitation: { form: {} } };
+    case 'url':
+      return { elicitation: { url: {} } };
+    case 'absent':
+      return {};
+  }
+}
 
 async function setup(options: SetupOptions = {}) {
   const {
@@ -74,6 +89,8 @@ async function setup(options: SetupOptions = {}) {
     env,
     elicitationResponses,
   } = options;
+  const elicitationCapability =
+    options.elicitationCapability ?? (era === 'modern' ? 'form' : 'absent');
 
   const client = new Client(
     {
@@ -81,8 +98,7 @@ async function setup(options: SetupOptions = {}) {
       version: MCP_CLIENT_VERSION,
     },
     {
-      capabilities:
-        era === 'modern' ? { elicitation: { form: {} } } : {},
+      capabilities: capabilitiesFor(elicitationCapability),
       versionNegotiation:
         era === 'modern' ? { mode: { pin: '2026-07-28' } } : { mode: 'legacy' },
     }
@@ -431,9 +447,7 @@ describe('stdio', () => {
   test('modern form mode accepts once and rejects same-process replay', async () => {
     const { client, managementApiStub, toolCalls } = await setupPaidProject({
       era: 'modern',
-      elicitationResponses: [
-        { action: 'accept', content: { confirm: true } },
-      ],
+      elicitationResponses: [{ action: 'accept', content: { confirm: true } }],
     });
 
     try {
@@ -493,6 +507,103 @@ describe('stdio', () => {
     }
   });
 
+  test.each([
+    ['legacy', 'empty'],
+    ['modern', 'empty'],
+  ] as const)(
+    '%s stdio treats an %s elicitation declaration as form capable',
+    async (era, elicitationCapability) => {
+      const { client, managementApiStub } = await setupPaidProject({
+        era,
+        elicitationCapability,
+        elicitationResponses: [
+          { action: 'accept', content: { confirm: true } },
+        ],
+      });
+
+      try {
+        const { tools } = await client.listTools();
+        const result = await client.callTool({
+          name: 'create_project',
+          arguments: projectArguments,
+        });
+        const createProject = tools.find(
+          ({ name }) => name === 'create_project'
+        );
+
+        expect(tools.map(({ name }) => name)).not.toContain('confirm_cost');
+        expect(createProject?.inputSchema).not.toHaveProperty(
+          'properties.confirm_cost_id'
+        );
+        for (const tool of tools) {
+          expect(tool.inputSchema).not.toHaveProperty(
+            'properties.disable_elicitations'
+          );
+        }
+        expect(result.isError).not.toBe(true);
+        expect(
+          managementApiStub.hits.filter(
+            ({ method, url }) =>
+              method === 'POST' && url.pathname === '/v1/projects'
+          )
+        ).toHaveLength(1);
+      } finally {
+        await client.close();
+      }
+    }
+  );
+
+  test('modern URL-only stdio keeps legacy confirmation behavior', async () => {
+    const { client, managementApiStub } = await setupPaidProject({
+      era: 'modern',
+      elicitationCapability: 'url',
+    });
+
+    try {
+      const { tools } = await client.listTools();
+      const confirmation = await client.callTool({
+        name: 'confirm_cost',
+        arguments: {
+          type: 'project',
+          recurrence: 'monthly',
+          amount: 10,
+        },
+      });
+      const confirmationContent = confirmation.structuredContent;
+      if (
+        !confirmationContent ||
+        typeof confirmationContent !== 'object' ||
+        !('confirmation_id' in confirmationContent) ||
+        typeof confirmationContent.confirmation_id !== 'string'
+      ) {
+        throw new Error('confirm_cost returned no confirmation ID');
+      }
+      const result = await client.callTool({
+        name: 'create_project',
+        arguments: {
+          ...projectArguments,
+          confirm_cost_id: confirmationContent.confirmation_id,
+        },
+      });
+
+      expect(tools.map(({ name }) => name)).toContain('confirm_cost');
+      for (const tool of tools) {
+        expect(tool.inputSchema).not.toHaveProperty(
+          'properties.disable_elicitations'
+        );
+      }
+      expect(result.isError).not.toBe(true);
+      expect(
+        managementApiStub.hits.filter(
+          ({ method, url }) =>
+            method === 'POST' && url.pathname === '/v1/projects'
+        )
+      ).toHaveLength(1);
+    } finally {
+      await client.close();
+    }
+  });
+
   test('modern form mode reports deterministic expiry', async () => {
     const preload = [
       'const realNow=Date.now.bind(Date);',
@@ -502,9 +613,7 @@ describe('stdio', () => {
     ].join('');
     const { client, managementApiStub } = await setupPaidProject({
       era: 'modern',
-      elicitationResponses: [
-        { action: 'accept', content: { confirm: true } },
-      ],
+      elicitationResponses: [{ action: 'accept', content: { confirm: true } }],
       env: {
         NODE_OPTIONS: `--import=data:text/javascript,${encodeURIComponent(preload)}`,
       },
@@ -572,6 +681,11 @@ describe('stdio', () => {
         });
 
         expect(tools.map(({ name }) => name)).toContain('confirm_cost');
+        for (const tool of tools) {
+          expect(tool.inputSchema).not.toHaveProperty(
+            'properties.disable_elicitations'
+          );
+        }
         expect(result.isError).not.toBe(true);
         expect(
           managementApiStub.hits.filter(
@@ -584,6 +698,37 @@ describe('stdio', () => {
       }
     }
   );
+
+  test('modern stdio opt-out preserves the legacy confirmation hash and payload', async () => {
+    const legacy = await setupPaidProject({ era: 'legacy' });
+    const optedOut = await setupPaidProject({
+      era: 'modern',
+      disableElicitations: true,
+    });
+
+    try {
+      const confirmationArguments = {
+        type: 'project' as const,
+        recurrence: 'monthly' as const,
+        amount: 10,
+      };
+      const legacyConfirmation = await legacy.client.callTool({
+        name: 'confirm_cost',
+        arguments: confirmationArguments,
+      });
+      const optedOutConfirmation = await optedOut.client.callTool({
+        name: 'confirm_cost',
+        arguments: confirmationArguments,
+      });
+
+      expect(optedOutConfirmation.content).toEqual(legacyConfirmation.content);
+      expect(optedOutConfirmation.structuredContent).toEqual(
+        legacyConfirmation.structuredContent
+      );
+    } finally {
+      await Promise.all([legacy.client.close(), optedOut.client.close()]);
+    }
+  });
 
   test('--version prints the package version without a token', async () => {
     const env = { ...process.env };

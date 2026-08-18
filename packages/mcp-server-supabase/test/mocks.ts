@@ -586,7 +586,7 @@ export const mockManagementApi = [
       }
 
       return HttpResponse.json({
-        lints: [],
+        lints: project.security_advisors,
       });
     }
   ),
@@ -606,7 +606,7 @@ export const mockManagementApi = [
       }
 
       return HttpResponse.json({
-        lints: [],
+        lints: project.performance_advisors,
       });
     }
   ),
@@ -1178,6 +1178,8 @@ export class MockProject {
   migrations: Migration[] = [];
   edge_functions = new Map<string, MockEdgeFunction>();
   storage_buckets = new Map<string, MockStorageBucket>();
+  security_advisors: unknown[] = [];
+  performance_advisors: unknown[] = [];
 
   #db?: PGliteInterface;
 

@@ -122,11 +122,52 @@ const getAdvisorsInputSchema = z.object({
   type: z
     .enum(['security', 'performance'])
     .describe('The type of advisors to fetch'),
+  limit: z
+    .number()
+    .int()
+    .positive()
+    .optional()
+    .describe('Maximum number of advisor notices to return.'),
+  offset: z
+    .number()
+    .int()
+    .nonnegative()
+    .optional()
+    .describe('Number of advisor notices to skip before returning results.'),
 });
 
 const getAdvisorsOutputSchema = z.object({
   result: z.unknown(),
 });
+
+function paginateAdvisorResult(result: unknown, limit?: number, offset = 0) {
+  if (limit === undefined && offset === 0) return result;
+
+  if (
+    !result ||
+    typeof result !== 'object' ||
+    !('lints' in result) ||
+    !Array.isArray(result.lints)
+  ) {
+    return result;
+  }
+
+  const total = result.lints.length;
+  const lints = result.lints.slice(offset, limit ? offset + limit : undefined);
+  const next_offset =
+    limit !== undefined && offset + limit < total ? offset + limit : undefined;
+
+  return {
+    ...result,
+    lints,
+    pagination: {
+      total,
+      offset,
+      limit: limit ?? total - offset,
+      ...(next_offset !== undefined && { next_offset }),
+    },
+  };
+}
 
 export const debuggingToolDefs = {
   get_logs: {
@@ -258,7 +299,7 @@ export function getDebuggingTools({
     get_advisors: injectableTool({
       ...debuggingToolDefs.get_advisors,
       inject: { project_id },
-      execute: async ({ project_id, type }) => {
+      execute: async ({ project_id, type, limit, offset }) => {
         let result: unknown;
         switch (type) {
           case 'security':
@@ -270,7 +311,7 @@ export function getDebuggingTools({
           default:
             throw new Error(`Unknown advisor type: ${type}`);
         }
-        return { result };
+        return { result: paginateAdvisorResult(result, limit, offset) };
       },
     }),
   };

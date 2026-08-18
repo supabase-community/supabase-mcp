@@ -109,7 +109,7 @@ const executeSqlInputSchema = z.object({
 });
 
 const executeSqlOutputSchema = z.object({
-  result: z.string(),
+  rows: z.array(z.record(z.string(), z.unknown())),
 });
 
 export const databaseToolDefs = {
@@ -371,15 +371,17 @@ export function getDatabaseTools({
       },
       inject: { project_id },
       execute: async ({ query, project_id }) => {
-        const result = await database.executeSql(project_id, {
-          query,
-          read_only: readOnly,
-        });
+        const rows = await database.executeSql<Record<string, unknown>>(
+          project_id,
+          {
+            query,
+            read_only: readOnly,
+          }
+        );
 
-        return {
-          result: wrapWithUntrustedDataBoundary(result),
-        };
+        return { rows };
       },
+      formatResult: ({ rows }) => wrapWithUntrustedDataBoundary(rows),
     }),
   };
 

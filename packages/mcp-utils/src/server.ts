@@ -53,6 +53,16 @@ export type Tool<
   /** If true, excludes the tool from `tools/list` while keeping it callable via `tools/call`. */
   hidden?: boolean;
   execute(params: z.infer<Params>): Promise<z.infer<OutputSchema>>;
+  /** Renders the tool result as MCP text content. Defaults to `JSON.stringify`. */
+  formatResult: (result: z.infer<OutputSchema>) => string;
+};
+
+/** Tool definition accepted by `tool()`. */
+export type ToolInput<
+  Params extends z.ZodObject<any> = z.ZodObject<any>,
+  OutputSchema extends z.ZodObject<any> = z.ZodObject<any>,
+> = Omit<Tool<Params, OutputSchema>, 'formatResult'> & {
+  formatResult?: Tool<Params, OutputSchema>['formatResult'];
 };
 
 /**
@@ -157,13 +167,16 @@ export function jsonResourceResponse<Uri extends string, Response>(
 }
 
 /**
- * Helper function to define an MCP tool while preserving type information.
+ * Defaults `formatResult` to `JSON.stringify`.
  */
 export function tool<
   Params extends z.ZodObject<any>,
   OutputSchema extends z.ZodObject<any>,
->(tool: Tool<Params, OutputSchema>) {
-  return tool;
+>(tool: ToolInput<Params, OutputSchema>): Tool<Params, OutputSchema> {
+  return {
+    ...tool,
+    formatResult: tool.formatResult ?? ((result) => JSON.stringify(result)),
+  };
 }
 
 export type InitData = {
@@ -447,23 +460,37 @@ export function createMcpServer(options: McpServerOptions) {
           tools: await Promise.all(
             Object.entries(tools)
               .filter(([, tool]) => !tool.hidden)
-              .map(async ([name, { description, annotations, parameters }]) => {
-                const inputSchema = z.toJSONSchema(parameters, {
-                  target: 'draft-7',
-                });
-
-                return {
+              .map(
+                async ([
                   name,
-                  description:
-                    typeof description === 'function'
-                      ? await description()
-                      : description,
-                  annotations,
-                  // Casting the same as the SDK does:
-                  // https://github.com/modelcontextprotocol/typescript-sdk/blob/fb07af810b51003c338dc4885a9e42f54519f9af/src/server/mcp.ts#L154
-                  inputSchema: inputSchema as McpTool['inputSchema'],
-                };
-              })
+                  {
+                    description,
+                    annotations,
+                    parameters,
+                    outputSchema,
+                  },
+                ]) => {
+                  const inputSchema = z.toJSONSchema(parameters, {
+                    target: 'draft-7',
+                  });
+                  const outputSchemaJson = z.toJSONSchema(outputSchema, {
+                    target: 'draft-7',
+                  });
+
+                  return {
+                    name,
+                    description:
+                      typeof description === 'function'
+                        ? await description()
+                        : description,
+                    annotations,
+                    // Casting the same as the SDK does:
+                    // https://github.com/modelcontextprotocol/typescript-sdk/blob/fb07af810b51003c338dc4885a9e42f54519f9af/src/server/mcp.ts#L154
+                    inputSchema: inputSchema as McpTool['inputSchema'],
+                    outputSchema: outputSchemaJson as McpTool['outputSchema'],
+                  };
+                }
+              )
           ),
         } satisfies ListToolsResult;
       }
@@ -515,13 +542,17 @@ export function createMcpServer(options: McpServerOptions) {
 
         const result = await executeWithCallback(tool);
 
-        const content =
-          result != null
-            ? [{ type: 'text' as const, text: JSON.stringify(result) }]
-            : [];
+        if (result == null) {
+          return { content: [] };
+        }
+
+        const structuredContent = result as Record<string, unknown>;
 
         return {
-          content,
+          structuredContent,
+          content: [
+            { type: 'text', text: tool.formatResult(structuredContent) },
+          ],
         };
       } catch (error) {
         return {

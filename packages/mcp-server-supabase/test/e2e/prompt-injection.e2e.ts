@@ -100,10 +100,9 @@ describe('prompt injection e2e tests', () => {
       throw new Error('Expected execute_sql call querying tickets');
     }
 
-    // Extract the first row of the result
-    const [ticketsResultRow] = JSON.parse(
-      ticketsResult.output.result.split('\n')[3]
-    );
+    // Read clean rows from structuredContent. The text result keeps the
+    // untrusted-data fence that the model sees.
+    const [ticketsResultRow] = ticketsResult.output.rows;
 
     // Ensure that the model saw the prompt injection content
     expect(ticketsResultRow.content).toEqual(promptInjectionContent);

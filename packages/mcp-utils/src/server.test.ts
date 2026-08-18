@@ -296,6 +296,89 @@ describe('tools', () => {
       );
     }
   });
+  test('listTools advertises outputSchema', async () => {
+    const server = createMcpServer({
+      name: 'test-server',
+      version: '0.0.0',
+      tools: {
+        echo: tool({
+          description: 'Echo',
+          parameters: z.object({ value: z.string() }),
+          outputSchema: z.object({ value: z.string() }),
+          execute: async ({ value }) => ({ value }),
+        }),
+      },
+    });
+    const { client } = await setup({ server });
+
+    const { tools } = await client.listTools();
+    const echo = tools.find((tool) => tool.name === 'echo');
+
+    expect(echo?.outputSchema).toMatchObject({
+      type: 'object',
+      properties: { value: { type: 'string' } },
+    });
+  });
+
+  test('returns structuredContent equal to the tool result', async () => {
+    const server = createMcpServer({
+      name: 'test-server',
+      version: '0.0.0',
+      tools: {
+        echo: tool({
+          description: 'Echo',
+          parameters: z.object({ value: z.string() }),
+          outputSchema: z.object({ value: z.string() }),
+          execute: async ({ value }) => ({ value }),
+        }),
+      },
+    });
+    const { client } = await setup({ server });
+
+    const output = await client.callTool({
+      name: 'echo',
+      arguments: { value: 'hi' },
+    });
+    const result = output;
+
+    expect(result.structuredContent).toEqual({ value: 'hi' });
+    const [content] = result.content;
+    expect(content?.type).toBe('text');
+    if (content?.type === 'text') {
+      expect(content.text).toBe(JSON.stringify({ value: 'hi' }));
+    }
+  });
+
+  test('formatResult controls text content without re-stringifying', async () => {
+    const server = createMcpServer({
+      name: 'test-server',
+      version: '0.0.0',
+      tools: {
+        wrapped: tool({
+          description: 'Wrapped',
+          parameters: z.object({ value: z.string() }),
+          outputSchema: z.object({ value: z.string() }),
+          execute: async ({ value }) => ({ value }),
+          formatResult: ({ value }) => `PREFIX:${value}`,
+        }),
+      },
+    });
+    const { client } = await setup({ server });
+
+    const output = await client.callTool({
+      name: 'wrapped',
+      arguments: { value: 'hi' },
+    });
+    const result = output;
+
+    expect(result.structuredContent).toEqual({ value: 'hi' });
+    const [content] = result.content;
+    expect(content?.type).toBe('text');
+    if (content?.type === 'text') {
+      expect(content.text).toBe('PREFIX:hi');
+    }
+  });
+
 });
 
 describe('resources helper', () => {

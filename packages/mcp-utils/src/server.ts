@@ -595,6 +595,14 @@ export function createMcpServer(options: McpServerOptions) {
                 ...tool.inject,
               }
             : clientArguments;
+          const advertisedOutputSchema =
+            context.era === 'legacy'
+              ? z.toJSONSchema(
+                  tool.policy?.outputSchema?.(tool.outputSchema, context) ??
+                    tool.outputSchema,
+                  { target: 'draft-7' }
+                )
+              : undefined;
 
           let resolution: unknown;
           if (tool.policy) {
@@ -619,7 +627,12 @@ export function createMcpServer(options: McpServerOptions) {
             }
 
             if (decision.type === 'result') {
-              return decision.result;
+              return 'resultType' in decision.result
+                ? decision.result
+                : server.projectCallToolResult(
+                    decision.result,
+                    advertisedOutputSchema
+                  );
             }
             resolution = decision.resolution;
           }
@@ -660,17 +673,23 @@ export function createMcpServer(options: McpServerOptions) {
           const result = await executeWithCallback();
 
           if (result == null) {
-            return { content: [] };
+            return server.projectCallToolResult(
+              { content: [] },
+              advertisedOutputSchema
+            );
           }
 
           const structuredContent = result as Record<string, unknown>;
 
-          return {
-            structuredContent,
-            content: [
-              { type: 'text', text: tool.formatResult(structuredContent) },
-            ],
-          };
+          return server.projectCallToolResult(
+            {
+              structuredContent,
+              content: [
+                { type: 'text', text: tool.formatResult(structuredContent) },
+              ],
+            },
+            advertisedOutputSchema
+          );
         } catch (error) {
           return {
             isError: true,

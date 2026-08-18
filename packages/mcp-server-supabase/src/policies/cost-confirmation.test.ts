@@ -10,8 +10,7 @@ import { createCostConfirmationPolicy } from './cost-confirmation.js';
 
 const STATE_KEY = new Uint8Array(32).fill(4);
 const NOW = 1_800_000_000_000;
-const PROJECT_COST_HASH =
-  'BGoZHqqJd2JYMt+cWSDFH7qDeNkZZAwbTytJrHy7r+E=';
+const PROJECT_COST_HASH = 'BGoZHqqJd2JYMt+cWSDFH7qDeNkZZAwbTytJrHy7r+E=';
 
 type ProjectArguments = {
   name: string;
@@ -130,44 +129,50 @@ describe('Human Confirmation cost policy', () => {
     },
     { response: { action: 'decline' }, expected: 'declined' },
     { response: { action: 'cancel' }, expected: 'cancelled' },
-  ] as const)('resolves $expected for $response.action', async ({ response, expected }) => {
-    const runtime = humanRuntime();
-    const policy = createCostConfirmationPolicy<BranchArguments>({
-      tool: 'create_branch',
-      getCost: async () => ({
-        type: 'branch',
-        amount: 0.01344,
-        recurrence: 'hourly',
-      }),
-      runtime,
-    });
-    const args = { name: 'preview', project_id: 'project-1' };
-    const first = await policy.resolve(args, context({ formElicitation: true }));
-    const verified = await verifyDecisionState(runtime, first);
-
-    const decision = await policy.resolve(
-      args,
-      context({
-        formElicitation: true,
-        requestState: verified,
-        inputResponses: { cost_confirmation: response },
-      })
-    );
-
-    if (expected === 'execute') {
-      expect(decision).toMatchObject({
-        type: 'execute',
-        resolution: {
-          maximumCreationRate: { amount: 0.01344, recurrence: 'hourly' },
-        },
+  ] as const)(
+    'resolves $expected for $response.action',
+    async ({ response, expected }) => {
+      const runtime = humanRuntime();
+      const policy = createCostConfirmationPolicy<BranchArguments>({
+        tool: 'create_branch',
+        getCost: async () => ({
+          type: 'branch',
+          amount: 0.01344,
+          recurrence: 'hourly',
+        }),
+        runtime,
       });
-    } else {
-      expect(decision).toMatchObject({
-        type: 'result',
-        result: { structuredContent: { status: expected } },
-      });
+      const args = { name: 'preview', project_id: 'project-1' };
+      const first = await policy.resolve(
+        args,
+        context({ formElicitation: true })
+      );
+      const verified = await verifyDecisionState(runtime, first);
+
+      const decision = await policy.resolve(
+        args,
+        context({
+          formElicitation: true,
+          requestState: verified,
+          inputResponses: { cost_confirmation: response },
+        })
+      );
+
+      if (expected === 'execute') {
+        expect(decision).toMatchObject({
+          type: 'execute',
+          resolution: {
+            maximumCreationRate: { amount: 0.01344, recurrence: 'hourly' },
+          },
+        });
+      } else {
+        expect(decision).toMatchObject({
+          type: 'result',
+          result: { structuredContent: { status: expected } },
+        });
+      }
     }
-  });
+  );
 
   test('reissues from the signed proposal without reading a fresh rate', async () => {
     const getCost = vi
@@ -189,7 +194,10 @@ describe('Human Confirmation cost policy', () => {
       runtime,
     });
     const args = { name: 'preview', project_id: 'project-1' };
-    const first = await policy.resolve(args, context({ formElicitation: true }));
+    const first = await policy.resolve(
+      args,
+      context({ formElicitation: true })
+    );
     const verified = await verifyDecisionState(runtime, first);
 
     const reissued = await policy.resolve(
@@ -380,7 +388,10 @@ describe('cost policy authority selection and schemas', () => {
       runtime,
     });
     const args = { name: 'preview', project_id: 'project-1' };
-    const first = await policy.resolve(args, context({ formElicitation: true }));
+    const first = await policy.resolve(
+      args,
+      context({ formElicitation: true })
+    );
     const verified = await verifyDecisionState(runtime, first);
     const retry = context({
       formElicitation: false,
@@ -424,7 +435,10 @@ describe('cost policy authority selection and schemas', () => {
       runtime,
     });
     const args = { name: 'preview', project_id: 'project-1' };
-    const first = await policy.resolve(args, context({ formElicitation: true }));
+    const first = await policy.resolve(
+      args,
+      context({ formElicitation: true })
+    );
     const verified = await verifyDecisionState(runtime, first);
 
     const decision = await policy.resolve(

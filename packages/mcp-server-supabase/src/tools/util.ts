@@ -38,14 +38,8 @@ export class ApprovedCostRateStaleError extends Error {
   }
 }
 
-export function assertRateAllowed(
-  live: Cost,
-  maximum: ApprovedCostRate
-): void {
-  if (
-    live.recurrence !== maximum.recurrence ||
-    live.amount > maximum.amount
-  ) {
+export function assertRateAllowed(live: Cost, maximum: ApprovedCostRate): void {
+  if (live.recurrence !== maximum.recurrence || live.amount > maximum.amount) {
     throw new ApprovedCostRateStaleError();
   }
 }
@@ -59,12 +53,7 @@ export type InjectableTool<
   OutputSchema extends z.ZodObject,
   Injected extends Partial<z.infer<Params>> = {},
   Resolution = never,
-> = ToolInput<
-  Params,
-  OutputSchema,
-  Resolution,
-  z.infer<Params>
-> & {
+> = ToolInput<Params, OutputSchema, Resolution, z.infer<Params>> & {
   /**
    * Optionally injects static parameter values into the tool's
    * execute function and removes them from the parameter schema.

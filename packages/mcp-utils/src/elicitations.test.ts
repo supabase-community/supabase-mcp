@@ -20,10 +20,7 @@ import {
   withPolicyOutput,
 } from './elicitations.js';
 import { createMcpServer, tool } from './server.js';
-import type {
-  ToolPolicyTelemetry,
-  ToolRequestContext,
-} from './tool-policy.js';
+import type { ToolPolicyTelemetry, ToolRequestContext } from './tool-policy.js';
 
 const STATE_KEY = new Uint8Array(32).fill(7);
 const NOW = 1_800_000_000_000;
@@ -44,7 +41,9 @@ function serverContext(method: string): ServerContext {
   } as unknown as ServerContext;
 }
 
-function testState(overrides: Partial<ElicitationState> = {}): ElicitationState {
+function testState(
+  overrides: Partial<ElicitationState> = {}
+): ElicitationState {
   return {
     v: 1,
     policyVersion: 3,
@@ -127,106 +126,108 @@ describe('ElicitationRuntime request state', () => {
   });
 });
 
-  test('uses the derived request-state key instead of the injected raw key', async () => {
-    const derivedKey = await derivedStateKey();
-    expect(
-      Array.from(derivedKey, (byte) => byte.toString(16).padStart(2, '0')).join(
-        ''
-      )
-    ).toBe('8140e337889e5f2334bbbcd69cb80a18eef7e28b0d39b94e4423a10949e16571');
-    const ctx = serverContext('tools/call');
-    const runtime = new ElicitationRuntime({
-      approverId: 'approver-1',
-      stateKey: STATE_KEY,
-      clock: () => NOW,
-    });
-    const rawKeyCodec = createRequestStateCodec<ElicitationState>({
-      key: STATE_KEY,
-      ttlSeconds: 120,
-      bind: () => 'approver-1\u0000tools/call',
-    });
-
-    const state = await runtime.requestState.mint(testState(), ctx);
-
-    await expect(rawKeyCodec.verify(state, ctx)).rejects.toThrow('mac');
+test('uses the derived request-state key instead of the injected raw key', async () => {
+  const derivedKey = await derivedStateKey();
+  expect(
+    Array.from(derivedKey, (byte) => byte.toString(16).padStart(2, '0')).join(
+      ''
+    )
+  ).toBe('8140e337889e5f2334bbbcd69cb80a18eef7e28b0d39b94e4423a10949e16571');
+  const ctx = serverContext('tools/call');
+  const runtime = new ElicitationRuntime({
+    approverId: 'approver-1',
+    stateKey: STATE_KEY,
+    clock: () => NOW,
+  });
+  const rawKeyCodec = createRequestStateCodec<ElicitationState>({
+    key: STATE_KEY,
+    ttlSeconds: 120,
+    bind: () => 'approver-1\u0000tools/call',
   });
 
-  test('matches the SDK wire format and unpadded base64url alphabet', async () => {
-    vi.spyOn(Date, 'now').mockReturnValue(NOW);
-    const approverId = 'José 🚀';
-    const ctx = serverContext('tools/call');
-    const runtime = new ElicitationRuntime({
-      approverId,
-      stateKey: STATE_KEY,
-      clock: Date.now,
-    });
-    const sdk = createRequestStateCodec<ElicitationState>({
-      key: await derivedStateKey(),
-      ttlSeconds: 120,
-      bind: () => `${approverId}\u0000tools/call`,
-    });
-    const payload = testState();
+  const state = await runtime.requestState.mint(testState(), ctx);
 
-    const runtimeMinted = await runtime.requestState.mint(payload, ctx);
-    const sdkMinted = await sdk.mint(payload, ctx);
+  await expect(rawKeyCodec.verify(state, ctx)).rejects.toThrow('mac');
+});
 
-    expect(runtimeMinted).toBe(sdkMinted);
-    expect(runtimeMinted).toBe(
-      'v1.eyJwIjp7InYiOjEsInBvbGljeVZlcnNpb24iOjMsInBvbGljeSI6ImNvbmZpcm1hdGlvbiIsInRvb2wiOiJjcmVhdGVfcHJvamVjdCIsImFyZ3NEaWdlc3QiOiJkaWdlc3QiLCJwcm9wb3NhbCI6eyJkaXNwbGF5Ijoic2FmZSJ9LCJqdGkiOiJmaXhlZC1qdGkiLCJpYXQiOjE4MDAwMDAwMDAsImV4cCI6MTgwMDAwMDEyMH0sImV4cCI6MTgwMDAwMDEyMCwiYiI6InJUQnR3by0zd0FNQjJDTVc4bUNtOGcifQ.DE-WnAAD940T5tezWsmownYO7agJwqAHYFXJk_nlKTo'
-    );
-    expect(runtimeMinted.split('.')).toHaveLength(3);
-    for (const segment of runtimeMinted.split('.')) {
-      expect(segment).toMatch(/^[A-Za-z0-9_-]+$/);
-    }
-    await expect(sdk.verify(runtimeMinted, ctx)).resolves.toEqual(payload);
-    await expect(runtime.requestState.verify(sdkMinted, ctx)).resolves.toEqual({
-      kind: 'valid',
-      state: payload,
-    });
+test('matches the SDK wire format and unpadded base64url alphabet', async () => {
+  vi.spyOn(Date, 'now').mockReturnValue(NOW);
+  const approverId = 'José 🚀';
+  const ctx = serverContext('tools/call');
+  const runtime = new ElicitationRuntime({
+    approverId,
+    stateKey: STATE_KEY,
+    clock: Date.now,
   });
-
-  test('rejects bind presence asymmetry in both directions', async () => {
-    vi.spyOn(Date, 'now').mockReturnValue(NOW);
-    const ctx = serverContext('tools/call');
-    const runtime = new ElicitationRuntime({
-      approverId: 'approver-1',
-      stateKey: STATE_KEY,
-      clock: Date.now,
-    });
-    const bindlessSdk = createRequestStateCodec<ElicitationState>({
-      key: await derivedStateKey(),
-      ttlSeconds: 120,
-    });
-    const payload = testState();
-
-    const runtimeBound = await runtime.requestState.mint(payload, ctx);
-    const sdkBindless = await bindlessSdk.mint(payload);
-
-    await expect(bindlessSdk.verify(runtimeBound, ctx)).rejects.toThrow('bind');
-    await expect(
-      runtime.requestState.verify(sdkBindless, ctx)
-    ).rejects.toThrow('bind');
+  const sdk = createRequestStateCodec<ElicitationState>({
+    key: await derivedStateKey(),
+    ttlSeconds: 120,
+    bind: () => `${approverId}\u0000tools/call`,
   });
+  const payload = testState();
 
-  test.each([
-    {
-      name: 'tampered',
-      alter: (state: string) =>
-        `${state.slice(0, -1)}${state.endsWith('A') ? 'B' : 'A'}`,
-      ctx: serverContext('tools/call'),
-    },
-    {
-      name: 'wrong actor',
-      alter: (state: string) => state,
-      ctx: serverContext('tools/call'),
-      approverId: 'approver-2',
-    },
-    {
-      name: 'wrong method',
-      alter: (state: string) => state,
-      ctx: serverContext('resources/read'),
-    },
-  ])('matches SDK rejection for $name state', async ({ alter, ctx, approverId }) => {
+  const runtimeMinted = await runtime.requestState.mint(payload, ctx);
+  const sdkMinted = await sdk.mint(payload, ctx);
+
+  expect(runtimeMinted).toBe(sdkMinted);
+  expect(runtimeMinted).toBe(
+    'v1.eyJwIjp7InYiOjEsInBvbGljeVZlcnNpb24iOjMsInBvbGljeSI6ImNvbmZpcm1hdGlvbiIsInRvb2wiOiJjcmVhdGVfcHJvamVjdCIsImFyZ3NEaWdlc3QiOiJkaWdlc3QiLCJwcm9wb3NhbCI6eyJkaXNwbGF5Ijoic2FmZSJ9LCJqdGkiOiJmaXhlZC1qdGkiLCJpYXQiOjE4MDAwMDAwMDAsImV4cCI6MTgwMDAwMDEyMH0sImV4cCI6MTgwMDAwMDEyMCwiYiI6InJUQnR3by0zd0FNQjJDTVc4bUNtOGcifQ.DE-WnAAD940T5tezWsmownYO7agJwqAHYFXJk_nlKTo'
+  );
+  expect(runtimeMinted.split('.')).toHaveLength(3);
+  for (const segment of runtimeMinted.split('.')) {
+    expect(segment).toMatch(/^[A-Za-z0-9_-]+$/);
+  }
+  await expect(sdk.verify(runtimeMinted, ctx)).resolves.toEqual(payload);
+  await expect(runtime.requestState.verify(sdkMinted, ctx)).resolves.toEqual({
+    kind: 'valid',
+    state: payload,
+  });
+});
+
+test('rejects bind presence asymmetry in both directions', async () => {
+  vi.spyOn(Date, 'now').mockReturnValue(NOW);
+  const ctx = serverContext('tools/call');
+  const runtime = new ElicitationRuntime({
+    approverId: 'approver-1',
+    stateKey: STATE_KEY,
+    clock: Date.now,
+  });
+  const bindlessSdk = createRequestStateCodec<ElicitationState>({
+    key: await derivedStateKey(),
+    ttlSeconds: 120,
+  });
+  const payload = testState();
+
+  const runtimeBound = await runtime.requestState.mint(payload, ctx);
+  const sdkBindless = await bindlessSdk.mint(payload);
+
+  await expect(bindlessSdk.verify(runtimeBound, ctx)).rejects.toThrow('bind');
+  await expect(runtime.requestState.verify(sdkBindless, ctx)).rejects.toThrow(
+    'bind'
+  );
+});
+
+test.each([
+  {
+    name: 'tampered',
+    alter: (state: string) =>
+      `${state.slice(0, -1)}${state.endsWith('A') ? 'B' : 'A'}`,
+    ctx: serverContext('tools/call'),
+  },
+  {
+    name: 'wrong actor',
+    alter: (state: string) => state,
+    ctx: serverContext('tools/call'),
+    approverId: 'approver-2',
+  },
+  {
+    name: 'wrong method',
+    alter: (state: string) => state,
+    ctx: serverContext('resources/read'),
+  },
+])(
+  'matches SDK rejection for $name state',
+  async ({ alter, ctx, approverId }) => {
     const mintContext = serverContext('tools/call');
     const runtime = new ElicitationRuntime({
       approverId: 'approver-1',
@@ -267,49 +268,52 @@ describe('ElicitationRuntime request state', () => {
       )
     );
 
-    await expect(verifyingRuntime.requestState.verify(state, ctx)).rejects.toThrow();
-    await expect(sdk.verify(state, ctx)).rejects.toThrow();
-  });
-
-  test('distinguishes authenticated expiry from an edited exp', async () => {
-    let now = NOW;
-    const ctx = serverContext('tools/call');
-    const runtime = new ElicitationRuntime({
-      approverId: 'approver-1',
-      stateKey: STATE_KEY,
-      clock: () => now,
-    });
-    const state = await runtime.requestState.mint(testState(), ctx);
-    now += 121_000;
-
-    await expect(runtime.requestState.verify(state, ctx)).resolves.toEqual({
-      kind: 'expired',
-      authenticatedExp: NOW / 1_000 + 120,
-      authenticatedJti: 'fixed-jti',
-    });
-
-    const [prefix, encodedBody, mac] = state.split('.');
-    if (encodedBody === undefined) {
-      throw new Error('Expected an encoded state envelope');
-    }
-    const envelope = JSON.parse(
-      new TextDecoder().decode(
-        Uint8Array.from(
-          atob(encodedBody.replaceAll('-', '+').replaceAll('_', '/')),
-          (character) => character.codePointAt(0) ?? 0
-        )
-      )
-    );
-    envelope.exp += 60;
-    const editedBody = btoa(JSON.stringify(envelope))
-      .replaceAll('+', '-')
-      .replaceAll('/', '_')
-      .replace(/=+$/, '');
-
     await expect(
-      runtime.requestState.verify(`${prefix}.${editedBody}.${mac}`, ctx)
-    ).rejects.toThrow('mac');
+      verifyingRuntime.requestState.verify(state, ctx)
+    ).rejects.toThrow();
+    await expect(sdk.verify(state, ctx)).rejects.toThrow();
+  }
+);
+
+test('distinguishes authenticated expiry from an edited exp', async () => {
+  let now = NOW;
+  const ctx = serverContext('tools/call');
+  const runtime = new ElicitationRuntime({
+    approverId: 'approver-1',
+    stateKey: STATE_KEY,
+    clock: () => now,
   });
+  const state = await runtime.requestState.mint(testState(), ctx);
+  now += 121_000;
+
+  await expect(runtime.requestState.verify(state, ctx)).resolves.toEqual({
+    kind: 'expired',
+    authenticatedExp: NOW / 1_000 + 120,
+    authenticatedJti: 'fixed-jti',
+  });
+
+  const [prefix, encodedBody, mac] = state.split('.');
+  if (encodedBody === undefined) {
+    throw new Error('Expected an encoded state envelope');
+  }
+  const envelope = JSON.parse(
+    new TextDecoder().decode(
+      Uint8Array.from(
+        atob(encodedBody.replaceAll('-', '+').replaceAll('_', '/')),
+        (character) => character.codePointAt(0) ?? 0
+      )
+    )
+  );
+  envelope.exp += 60;
+  const editedBody = btoa(JSON.stringify(envelope))
+    .replaceAll('+', '-')
+    .replaceAll('/', '_')
+    .replace(/=+$/, '');
+
+  await expect(
+    runtime.requestState.verify(`${prefix}.${editedBody}.${mac}`, ctx)
+  ).rejects.toThrow('mac');
+});
 
 type TestResolution = { approved: true };
 type TestProposal = { label: string };
@@ -343,11 +347,7 @@ function lifecyclePolicy({
     TestProposal,
     TestResolution
   >['prepare'];
-} = {}): ElicitationPolicy<
-  { value: string },
-  TestProposal,
-  TestResolution
-> {
+} = {}): ElicitationPolicy<{ value: string }, TestProposal, TestResolution> {
   return {
     id: 'test-confirmation',
     version,
@@ -403,9 +403,7 @@ async function setupLifecycleFixture({
     content?: Record<string, string | number | boolean | string[]>;
   }>;
   formDeliveryAvailable?: boolean;
-  onToolPolicyCall?: Parameters<
-    typeof createMcpServer
-  >[0]['onToolPolicyCall'];
+  onToolPolicyCall?: Parameters<typeof createMcpServer>[0]['onToolPolicyCall'];
   onElicit?: () => void;
   transformRequest?: (body: Record<string, any>) => void;
   requestBodies?: Array<Record<string, any>>;
@@ -422,9 +420,9 @@ async function setupLifecycleFixture({
   };
 }) {
   const execute = vi.fn(async ({ value }: { value: string }) => ({ value }));
-  const continuationExecute = vi.fn(
-    async ({ value }: { value: string }) => ({ value })
-  );
+  const continuationExecute = vi.fn(async ({ value }: { value: string }) => ({
+    value,
+  }));
   const makeHandler = ({
     selectedRuntime,
     selectedPolicy,
@@ -471,8 +469,7 @@ async function setupLifecycleFixture({
       : makeHandler({
           selectedRuntime: continuation.runtime,
           selectedPolicy: continuation.policy ?? policy,
-          delivery:
-            continuation.formDeliveryAvailable ?? formDeliveryAvailable,
+          delivery: continuation.formDeliveryAvailable ?? formDeliveryAvailable,
           callback: continuation.onToolPolicyCall,
           selectedExecute: continuationExecute,
         });
@@ -571,12 +568,10 @@ describe('ElicitationRuntime lifecycle', () => {
   });
 
   test('validates continuation state before an active gate', async () => {
-    const gate = vi.fn(
-      (): CallToolResult | null => ({
-        content: [{ type: 'text', text: 'Temporarily unavailable.' }],
-        isError: true,
-      })
-    );
+    const gate = vi.fn((): CallToolResult | null => ({
+      content: [{ type: 'text', text: 'Temporarily unavailable.' }],
+      isError: true,
+    }));
     const runtime = new ElicitationRuntime({
       approverId: 'approver-1',
       stateKey: STATE_KEY,
@@ -648,9 +643,7 @@ describe('ElicitationRuntime lifecycle', () => {
       gate: () =>
         blocked
           ? {
-              content: [
-                { type: 'text', text: 'Temporarily unavailable.' },
-              ],
+              content: [{ type: 'text', text: 'Temporarily unavailable.' }],
               isError: true,
             }
           : null,
@@ -955,11 +948,7 @@ describe('ElicitationRuntime lifecycle', () => {
       let invocation = 0;
       return ({ telemetry }: { telemetry: ToolPolicyTelemetry }) => {
         const eventLeg =
-          leg === 'prepare'
-            ? leg
-            : invocation === 0
-              ? 'input_required'
-              : leg;
+          leg === 'prepare' ? leg : invocation === 0 ? 'input_required' : leg;
         events.push({ leg: eventLeg, telemetry });
         invocation += 1;
       };
@@ -1093,116 +1082,116 @@ describe('ElicitationRuntime lifecycle', () => {
   });
 });
 
-  test('rejects capability loss on continuation without another authority path', async () => {
-    const policy = lifecyclePolicy({
-      available: (ctx) => ctx.formElicitation,
-    });
-    const fixture = await setupLifecycleFixture({
+test('rejects capability loss on continuation without another authority path', async () => {
+  const policy = lifecyclePolicy({
+    available: (ctx) => ctx.formElicitation,
+  });
+  const fixture = await setupLifecycleFixture({
+    runtime: new ElicitationRuntime({
+      approverId: 'approver-1',
+      stateKey: STATE_KEY,
+    }),
+    policy,
+    responses: [{ action: 'accept', content: { decision: 'execute' } }],
+    continuation: {
       runtime: new ElicitationRuntime({
         approverId: 'approver-1',
         stateKey: STATE_KEY,
       }),
-      policy,
-      responses: [{ action: 'accept', content: { decision: 'execute' } }],
-      continuation: {
-        runtime: new ElicitationRuntime({
-          approverId: 'approver-1',
-          stateKey: STATE_KEY,
-        }),
-        formDeliveryAvailable: false,
-      },
-    });
-
-    const result = await fixture.client.callTool({
-      name: 'guarded',
-      arguments: { value: 'original' },
-    });
-
-    expect(fixture.execute).not.toHaveBeenCalled();
-    expect(fixture.continuationExecute).not.toHaveBeenCalled();
-    expect(result.isError).toBe(true);
-    expect(result.structuredContent).toBeUndefined();
-    expect(result.content[0]).toMatchObject({
-      type: 'text',
-      text: expect.stringContaining('can no longer continue'),
-    });
+      formDeliveryAvailable: false,
+    },
   });
 
-  test('rejects state minted under an older policy version', async () => {
-    const fixture = await setupLifecycleFixture({
-      runtime: new ElicitationRuntime({
-        approverId: 'approver-1',
-        stateKey: STATE_KEY,
-      }),
-      policy: lifecyclePolicy({ version: 1 }),
-      responses: [{ action: 'accept', content: { decision: 'execute' } }],
-      continuation: {
-        runtime: new ElicitationRuntime({
-          approverId: 'approver-1',
-          stateKey: STATE_KEY,
-        }),
-        policy: lifecyclePolicy({ version: 2 }),
-      },
-    });
-
-    const result = await fixture.client.callTool({
-      name: 'guarded',
-      arguments: { value: 'original' },
-    });
-
-    expect(fixture.execute).not.toHaveBeenCalled();
-    expect(fixture.continuationExecute).not.toHaveBeenCalled();
-    expect(result.isError).toBe(true);
-    expect(result.structuredContent).toBeUndefined();
-    expect(result.content[0]).toMatchObject({
-      type: 'text',
-      text: expect.stringContaining('policy version'),
-    });
+  const result = await fixture.client.callTool({
+    name: 'guarded',
+    arguments: { value: 'original' },
   });
 
-  test('separate runtimes redeem once with the same safe Interaction ID', async () => {
-    const firstTelemetry: ToolPolicyTelemetry[] = [];
-    const secondTelemetry: ToolPolicyTelemetry[] = [];
-    const fixture = await setupLifecycleFixture({
+  expect(fixture.execute).not.toHaveBeenCalled();
+  expect(fixture.continuationExecute).not.toHaveBeenCalled();
+  expect(result.isError).toBe(true);
+  expect(result.structuredContent).toBeUndefined();
+  expect(result.content[0]).toMatchObject({
+    type: 'text',
+    text: expect.stringContaining('can no longer continue'),
+  });
+});
+
+test('rejects state minted under an older policy version', async () => {
+  const fixture = await setupLifecycleFixture({
+    runtime: new ElicitationRuntime({
+      approverId: 'approver-1',
+      stateKey: STATE_KEY,
+    }),
+    policy: lifecyclePolicy({ version: 1 }),
+    responses: [{ action: 'accept', content: { decision: 'execute' } }],
+    continuation: {
       runtime: new ElicitationRuntime({
         approverId: 'approver-1',
         stateKey: STATE_KEY,
-        createJti: () => 'raw-jti-must-not-be-telemetry',
       }),
-      responses: [{ action: 'accept', content: { decision: 'execute' } }],
+      policy: lifecyclePolicy({ version: 2 }),
+    },
+  });
+
+  const result = await fixture.client.callTool({
+    name: 'guarded',
+    arguments: { value: 'original' },
+  });
+
+  expect(fixture.execute).not.toHaveBeenCalled();
+  expect(fixture.continuationExecute).not.toHaveBeenCalled();
+  expect(result.isError).toBe(true);
+  expect(result.structuredContent).toBeUndefined();
+  expect(result.content[0]).toMatchObject({
+    type: 'text',
+    text: expect.stringContaining('policy version'),
+  });
+});
+
+test('separate runtimes redeem once with the same safe Interaction ID', async () => {
+  const firstTelemetry: ToolPolicyTelemetry[] = [];
+  const secondTelemetry: ToolPolicyTelemetry[] = [];
+  const fixture = await setupLifecycleFixture({
+    runtime: new ElicitationRuntime({
+      approverId: 'approver-1',
+      stateKey: STATE_KEY,
+      createJti: () => 'raw-jti-must-not-be-telemetry',
+    }),
+    responses: [{ action: 'accept', content: { decision: 'execute' } }],
+    onToolPolicyCall: ({ telemetry }) => {
+      firstTelemetry.push(telemetry);
+    },
+    continuation: {
+      runtime: new ElicitationRuntime({
+        approverId: 'approver-1',
+        stateKey: STATE_KEY,
+      }),
       onToolPolicyCall: ({ telemetry }) => {
-        firstTelemetry.push(telemetry);
+        secondTelemetry.push(telemetry);
       },
-      continuation: {
-        runtime: new ElicitationRuntime({
-          approverId: 'approver-1',
-          stateKey: STATE_KEY,
-        }),
-        onToolPolicyCall: ({ telemetry }) => {
-          secondTelemetry.push(telemetry);
-        },
-        mirror: true,
-      },
-    });
-
-    const result = await fixture.client.callTool({
-      name: 'guarded',
-      arguments: { value: 'original' },
-    });
-
-    expect(result.isError).not.toBe(true);
-    expect(fixture.execute).toHaveBeenCalledTimes(1);
-    expect(fixture.continuationExecute).toHaveBeenCalledTimes(1);
-    expect(firstTelemetry).toHaveLength(2);
-    expect(secondTelemetry).toHaveLength(1);
-    const interactionId = firstTelemetry[0]?.interactionId;
-    expect(interactionId).toEqual(expect.any(String));
-    expect(firstTelemetry[1]?.interactionId).toBe(interactionId);
-    expect(secondTelemetry[0]?.interactionId).toBe(interactionId);
-    expect(JSON.stringify([...firstTelemetry, ...secondTelemetry])).not.toContain(
-      'raw-jti-must-not-be-telemetry'
-    );
+      mirror: true,
+    },
   });
+
+  const result = await fixture.client.callTool({
+    name: 'guarded',
+    arguments: { value: 'original' },
+  });
+
+  expect(result.isError).not.toBe(true);
+  expect(fixture.execute).toHaveBeenCalledTimes(1);
+  expect(fixture.continuationExecute).toHaveBeenCalledTimes(1);
+  expect(firstTelemetry).toHaveLength(2);
+  expect(secondTelemetry).toHaveLength(1);
+  const interactionId = firstTelemetry[0]?.interactionId;
+  expect(interactionId).toEqual(expect.any(String));
+  expect(firstTelemetry[1]?.interactionId).toBe(interactionId);
+  expect(secondTelemetry[0]?.interactionId).toBe(interactionId);
+  expect(JSON.stringify([...firstTelemetry, ...secondTelemetry])).not.toContain(
+    'raw-jti-must-not-be-telemetry'
+  );
+});
 
 test('edited readable expiry fails at the request-state seam with -32602', async () => {
   let edited = false;
@@ -1226,9 +1215,7 @@ test('edited readable expiry fails at the request-state seam with -32602', async
       const envelope = JSON.parse(
         new TextDecoder().decode(
           Uint8Array.from(
-            atob(
-              encodedEnvelope.replaceAll('-', '+').replaceAll('_', '/')
-            ),
+            atob(encodedEnvelope.replaceAll('-', '+').replaceAll('_', '/')),
             (character) => character.codePointAt(0) ?? 0
           )
         )

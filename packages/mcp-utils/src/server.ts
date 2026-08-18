@@ -242,7 +242,6 @@ export type ToolPolicyCallDetails = {
   telemetry: ToolPolicyTelemetry;
 };
 
-
 export type InitCallback = (initData: InitData) => void | Promise<void>;
 export type ToolCallCallback = (details: ToolCallDetails) => void;
 export type ToolPolicyCallCallback = (
@@ -556,153 +555,150 @@ export function createMcpServer(options: McpServerOptions) {
       }
     );
 
-    server.setRequestHandler(
-      'tools/call',
-      async (request, serverContext) => {
-        const context = normalizeToolRequestContext(
-          serverContext,
-          options.toolRequestInputs ?? { formDeliveryAvailable: false },
-          server.getClientCapabilities()
-        );
+    server.setRequestHandler('tools/call', async (request, serverContext) => {
+      const context = normalizeToolRequestContext(
+        serverContext,
+        options.toolRequestInputs ?? { formDeliveryAvailable: false },
+        server.getClientCapabilities()
+      );
 
-        try {
-          const tools = await getTools();
-          const toolName = request.params.name;
+      try {
+        const tools = await getTools();
+        const toolName = request.params.name;
 
-          if (!(toolName in tools)) {
-            throw new Error('tool not found');
+        if (!(toolName in tools)) {
+          throw new Error('tool not found');
+        }
+
+        const tool = tools[toolName];
+
+        if (!tool) {
+          throw new Error('tool not found');
+        }
+
+        const rawArguments = request.params.arguments ?? {};
+        const normalizedArguments =
+          tool.policy?.normalizeArguments?.(rawArguments, context) ??
+          rawArguments;
+        const clientParameters =
+          tool.policy?.inputSchema?.(tool.parameters, context) ??
+          tool.parameters;
+        const clientArguments = clientParameters
+          .strict()
+          .parse(normalizedArguments) as Record<string, unknown>;
+        const args = tool.inject
+          ? {
+              ...clientArguments,
+              ...tool.inject,
+            }
+          : clientArguments;
+        const advertisedOutputSchema =
+          context.era === 'legacy'
+            ? z.toJSONSchema(
+                tool.policy?.outputSchema?.(tool.outputSchema, context) ??
+                  tool.outputSchema,
+                { target: 'draft-7' }
+              )
+            : undefined;
+
+        let resolution: unknown;
+        if (tool.policy) {
+          const policyStartedAt = performance.now();
+          const decision = await tool.policy.resolve(args, context);
+          const durationMs = performance.now() - policyStartedAt;
+
+          try {
+            await options.onToolPolicyCall?.({
+              name: toolName,
+              clientInfo: context.clientInfo,
+              formElicitation: context.formElicitation,
+              durationMs,
+              telemetry: {
+                ...sanitizeToolPolicyTelemetry(decision.telemetry),
+                formSupportReason: context.formSupportReason,
+              },
+            });
+          } catch (error) {
+            // Don't fail the tool call if the callback fails
+            console.error('Failed to run tool policy callback', error);
           }
 
-          const tool = tools[toolName];
+          if (decision.type === 'result') {
+            return 'resultType' in decision.result
+              ? decision.result
+              : server.projectCallToolResult(
+                  decision.result,
+                  advertisedOutputSchema
+                );
+          }
+          resolution = decision.resolution;
+        }
 
-          if (!tool) {
-            throw new Error('tool not found');
+        const executeWithCallback = async () => {
+          // Policy-free tools keep the existing one-argument execute call.
+          const executeResult = tool.policy
+            ? tool.execute(args, resolution)
+            : (
+                tool.execute as (
+                  args: Record<string, unknown>
+                ) => Promise<unknown>
+              )(args);
+          // Wrap success or error in a result value
+          const res = await executeResult
+            .then((data: unknown) => ({ success: true as const, data }))
+            .catch((error) => ({ success: false as const, error }));
+
+          try {
+            options.onToolCall?.({
+              name: toolName,
+              arguments: args,
+              annotations: tool.annotations,
+              ...res,
+            });
+          } catch (error) {
+            // Don't fail the tool call if the callback fails
+            console.error('Failed to run tool callback', error);
           }
 
-          const rawArguments = request.params.arguments ?? {};
-          const normalizedArguments =
-            tool.policy?.normalizeArguments?.(rawArguments, context) ??
-            rawArguments;
-          const clientParameters =
-            tool.policy?.inputSchema?.(tool.parameters, context) ??
-            tool.parameters;
-          const clientArguments = clientParameters
-            .strict()
-            .parse(normalizedArguments) as Record<string, unknown>;
-          const args = tool.inject
-            ? {
-                ...clientArguments,
-                ...tool.inject,
-              }
-            : clientArguments;
-          const advertisedOutputSchema =
-            context.era === 'legacy'
-              ? z.toJSONSchema(
-                  tool.policy?.outputSchema?.(tool.outputSchema, context) ??
-                    tool.outputSchema,
-                  { target: 'draft-7' }
-                )
-              : undefined;
-
-          let resolution: unknown;
-          if (tool.policy) {
-            const policyStartedAt = performance.now();
-            const decision = await tool.policy.resolve(args, context);
-            const durationMs = performance.now() - policyStartedAt;
-
-            try {
-              await options.onToolPolicyCall?.({
-                name: toolName,
-                clientInfo: context.clientInfo,
-                formElicitation: context.formElicitation,
-                durationMs,
-                telemetry: {
-                  ...sanitizeToolPolicyTelemetry(decision.telemetry),
-                  formSupportReason: context.formSupportReason,
-                },
-              });
-            } catch (error) {
-              // Don't fail the tool call if the callback fails
-              console.error('Failed to run tool policy callback', error);
-            }
-
-            if (decision.type === 'result') {
-              return 'resultType' in decision.result
-                ? decision.result
-                : server.projectCallToolResult(
-                    decision.result,
-                    advertisedOutputSchema
-                  );
-            }
-            resolution = decision.resolution;
+          // Unwrap result
+          if (!res.success) {
+            throw res.error;
           }
+          return res.data;
+        };
 
-          const executeWithCallback = async () => {
-            // Policy-free tools keep the existing one-argument execute call.
-            const executeResult = tool.policy
-              ? tool.execute(args, resolution)
-              : (
-                  tool.execute as (
-                    args: Record<string, unknown>
-                  ) => Promise<unknown>
-                )(args);
-            // Wrap success or error in a result value
-            const res = await executeResult
-              .then((data: unknown) => ({ success: true as const, data }))
-              .catch((error) => ({ success: false as const, error }));
+        const result = await executeWithCallback();
 
-            try {
-              options.onToolCall?.({
-                name: toolName,
-                arguments: args,
-                annotations: tool.annotations,
-                ...res,
-              });
-            } catch (error) {
-              // Don't fail the tool call if the callback fails
-              console.error('Failed to run tool callback', error);
-            }
-
-            // Unwrap result
-            if (!res.success) {
-              throw res.error;
-            }
-            return res.data;
-          };
-
-          const result = await executeWithCallback();
-
-          if (result == null) {
-            return server.projectCallToolResult(
-              { content: [] },
-              advertisedOutputSchema
-            );
-          }
-
-          const structuredContent = result as Record<string, unknown>;
-
+        if (result == null) {
           return server.projectCallToolResult(
-            {
-              structuredContent,
-              content: [
-                { type: 'text', text: tool.formatResult(structuredContent) },
-              ],
-            },
+            { content: [] },
             advertisedOutputSchema
           );
-        } catch (error) {
-          return {
-            isError: true,
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify({ error: enumerateError(error) }),
-              },
-            ],
-          };
         }
+
+        const structuredContent = result as Record<string, unknown>;
+
+        return server.projectCallToolResult(
+          {
+            structuredContent,
+            content: [
+              { type: 'text', text: tool.formatResult(structuredContent) },
+            ],
+          },
+          advertisedOutputSchema
+        );
+      } catch (error) {
+        return {
+          isError: true,
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({ error: enumerateError(error) }),
+            },
+          ],
+        };
       }
-    );
+    });
   }
 
   return server;

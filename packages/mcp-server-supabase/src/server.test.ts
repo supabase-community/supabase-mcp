@@ -105,9 +105,8 @@ async function setup(options: SetupOptions = {}) {
     }
 
     const schema =
-      supabaseMcpToolSchemas[
-        params.name as keyof typeof supabaseMcpToolSchemas
-      ]?.outputSchema;
+      supabaseMcpToolSchemas[params.name as keyof typeof supabaseMcpToolSchemas]
+        ?.outputSchema;
     if (schema) {
       schema.parse(structuredContent);
     }
@@ -929,10 +928,9 @@ describe('tools', () => {
       },
     });
 
-    const { rows } =
-      supabaseMcpToolSchemas.execute_sql.outputSchema.parse(
-        result.structuredContent
-      );
+    const { rows } = supabaseMcpToolSchemas.execute_sql.outputSchema.parse(
+      result.structuredContent
+    );
     expect(rows[0]?.def).toContain(String.raw`E'\\'`);
     expect(rows[0]?.def).not.toContain(String.raw`E'\\\\'`);
 

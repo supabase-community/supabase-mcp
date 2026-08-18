@@ -62,9 +62,7 @@ function confirmationMessage(proposal: CostConfirmationProposal): string {
   const { amount, recurrence } = proposal.maximumCreationRate;
   const interval = recurrence === 'hourly' ? 'hour' : 'month';
   const projectionIntervals =
-    recurrence === 'hourly'
-      ? BILLING_HOURS_PER_MONTH
-      : BILLING_MONTHS_PER_YEAR;
+    recurrence === 'hourly' ? BILLING_HOURS_PER_MONTH : BILLING_MONTHS_PER_YEAR;
   const projectedAmount = formatMoney(amount * projectionIntervals);
   const projectionUnit = recurrence === 'hourly' ? 'hours' : 'months';
 
@@ -151,10 +149,7 @@ function humanConfirmationPolicy<Args>(
       ) {
         return { type: 'declined', message: 'Creation declined.' };
       }
-      if (
-        response?.action === 'accept' &&
-        response.content?.confirm === true
-      ) {
+      if (response?.action === 'accept' && response.content?.confirm === true) {
         return {
           type: 'execute',
           resolution: {
@@ -265,10 +260,7 @@ export function createCostConfirmationPolicy<Args>(
   const human =
     options.runtime === undefined
       ? undefined
-      : options.runtime.policy(
-          options.tool,
-          humanConfirmationPolicy(options)
-        );
+      : options.runtime.policy(options.tool, humanConfirmationPolicy(options));
 
   const useHuman = (ctx: ToolRequestContext): boolean =>
     human !== undefined &&
@@ -285,8 +277,8 @@ export function createCostConfirmationPolicy<Args>(
       if (!useHuman(ctx) || raw === null || typeof raw !== 'object') {
         return raw;
       }
-      const { confirm_cost_id: _ignored, ...argumentsWithoutLegacyToken } = raw as
-        Record<string, unknown>;
+      const { confirm_cost_id: _ignored, ...argumentsWithoutLegacyToken } =
+        raw as Record<string, unknown>;
       return argumentsWithoutLegacyToken;
     },
     resolve: async (args, ctx) => {

@@ -137,7 +137,6 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
               : null,
         });
 
-
   const contentApiClientPromise = createContentApiClient(contentApiUrl, {
     'User-Agent': `supabase-mcp/${version}`,
   });

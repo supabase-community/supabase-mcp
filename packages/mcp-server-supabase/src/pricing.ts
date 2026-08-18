@@ -19,7 +19,6 @@ export type CostConfirmationResolution = {
   maximumCreationRate: ApprovedCostRate;
 };
 
-
 export type ProjectCost = {
   type: 'project';
   recurrence: 'monthly';

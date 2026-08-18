@@ -2,16 +2,9 @@ import { type ElicitationRuntime, tool } from '@supabase/mcp-utils';
 import { z } from 'zod/v4';
 import type { BranchingOperations } from '../platform/types.js';
 import { branchSchema } from '../platform/types.js';
-import {
-  getBranchCost,
-  type CostConfirmationResolution,
-} from '../pricing.js';
+import { getBranchCost, type CostConfirmationResolution } from '../pricing.js';
 import { createCostConfirmationPolicy } from '../policies/cost-confirmation.js';
-import {
-  assertRateAllowed,
-  injectableTool,
-  type ToolDefs,
-} from './util.js';
+import { assertRateAllowed, injectableTool, type ToolDefs } from './util.js';
 
 type BranchingToolsOptions = {
   branching: BranchingOperations;
@@ -172,8 +165,7 @@ export function getBranchingTools({
       inject: { project_id },
       policy: createCostConfirmationPolicy({
         tool: 'create_branch',
-        getCost: ({ project_id }) =>
-          getBranchCost({ projectId: project_id }),
+        getCost: ({ project_id }) => getBranchCost({ projectId: project_id }),
         runtime: elicitationRuntime,
       }),
       execute: async (

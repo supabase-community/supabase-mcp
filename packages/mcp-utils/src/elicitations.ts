@@ -217,10 +217,7 @@ export class ElicitationRuntime {
   readonly #encoder = new TextEncoder();
 
   readonly requestState: {
-    mint: (
-      state: ElicitationState,
-      ctx: ServerContext
-    ) => Promise<string>;
+    mint: (state: ElicitationState, ctx: ServerContext) => Promise<string>;
     verify: (
       state: string,
       ctx: ServerContext
@@ -525,7 +522,6 @@ export class ElicitationRuntime {
         if (gated != null) {
           return { type: 'result', result: gated, telemetry };
         }
-
 
         let consumed: boolean;
         try {

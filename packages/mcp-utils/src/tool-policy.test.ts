@@ -73,7 +73,10 @@ async function setupFetchFixture({
   );
 
   await client.connect(transport);
-  cleanups.push(() => client.close(), () => handler.close());
+  cleanups.push(
+    () => client.close(),
+    () => handler.close()
+  );
 
   return client;
 }
@@ -254,7 +257,9 @@ describe('pre-execution tool policy', () => {
     const onToolPolicyCall = vi.fn(async () => {
       throw new Error('callback failed');
     });
-    const consoleError = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const consoleError = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
     const client = await setupFetchFixture({
       capabilities: {},
       formDeliveryAvailable: true,
@@ -267,7 +272,9 @@ describe('pre-execution tool policy', () => {
           policy: {
             resolve: async () => ({
               type: 'result' as const,
-              result: { content: [{ type: 'text' as const, text: 'intercepted' }] },
+              result: {
+                content: [{ type: 'text' as const, text: 'intercepted' }],
+              },
               telemetry,
             }),
           },
@@ -323,9 +330,13 @@ describe('pre-execution tool policy', () => {
   test('discovery uses contextual visibility and policy schemas', async () => {
     const policy: ToolPolicy<{ value: string }, undefined> = {
       inputSchema: (schema, ctx) =>
-        ctx.formElicitation ? schema.extend({ confirmation: z.string() }) : schema,
+        ctx.formElicitation
+          ? schema.extend({ confirmation: z.string() })
+          : schema,
       outputSchema: (schema, ctx) =>
-        ctx.formElicitation ? schema.extend({ confirmed: z.boolean() }) : schema,
+        ctx.formElicitation
+          ? schema.extend({ confirmed: z.boolean() })
+          : schema,
       resolve: async () => ({
         type: 'execute',
         resolution: undefined,
@@ -377,7 +388,10 @@ describe('pre-execution tool policy', () => {
           outputSchema: z.object({ value: z.string() }),
           policy: {
             normalizeArguments: (raw) => {
-              const { legacy: _legacy, ...rest } = raw as Record<string, unknown>;
+              const { legacy: _legacy, ...rest } = raw as Record<
+                string,
+                unknown
+              >;
               return rest;
             },
             resolve: async () => ({

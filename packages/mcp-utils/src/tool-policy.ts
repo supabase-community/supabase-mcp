@@ -81,10 +81,7 @@ export type ToolPolicy<Params, Resolution> = {
     schema: z.ZodObject<any>,
     ctx: ToolRequestContext
   ): z.ZodObject<any>;
-  outputSchema?(
-    schema: z.ZodObject<any>,
-    ctx: ToolRequestContext
-  ): z.ZodType;
+  outputSchema?(schema: z.ZodObject<any>, ctx: ToolRequestContext): z.ZodType;
   normalizeArguments?(raw: unknown, ctx: ToolRequestContext): unknown;
   resolve(
     params: Params,
@@ -104,9 +101,9 @@ export function normalizeToolRequestContext(
   const clientInfo = metadata?.[CLIENT_INFO_META_KEY] as
     | Implementation
     | undefined;
-  const requestClientCapabilities = metadata?.[
-    CLIENT_CAPABILITIES_META_KEY
-  ] as ClientCapabilities | undefined;
+  const requestClientCapabilities = metadata?.[CLIENT_CAPABILITIES_META_KEY] as
+    | ClientCapabilities
+    | undefined;
   const clientCapabilities =
     era === 'modern'
       ? requestClientCapabilities

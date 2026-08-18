@@ -378,7 +378,6 @@ describe('tools', () => {
       expect(content.text).toBe('PREFIX:hi');
     }
   });
-
 });
 
 describe('resources helper', () => {

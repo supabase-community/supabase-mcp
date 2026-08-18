@@ -8,6 +8,7 @@ import type {
   Tool as McpTool,
   ReadResourceResult,
   ServerCapabilities,
+  ServerOptions,
 } from '@modelcontextprotocol/server';
 import { z } from 'zod/v4';
 
@@ -298,7 +299,10 @@ export type McpServerOptions = {
    * Serving-path inputs for normalized tool request context.
    */
   toolRequestInputs?: ToolRequestInputs;
-
+  /**
+   * Continuation state verifier passed through to the MCP server.
+   */
+  requestState?: ServerOptions['requestState'];
 
   /**
    * Resources to be served by the server. These can be defined as a static
@@ -351,6 +355,7 @@ export function createMcpServer(options: McpServerOptions) {
     {
       capabilities,
       instructions: options.instructions,
+      requestState: options.requestState,
     }
   );
 

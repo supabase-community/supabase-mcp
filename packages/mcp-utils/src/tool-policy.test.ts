@@ -387,4 +387,41 @@ describe('pre-execution tool policy', () => {
       telemetry,
     });
   });
+
+  test('sanitizes widened telemetry before invoking the callback', async () => {
+    const onToolPolicyCall = vi.fn();
+    const widenedTelemetry = {
+      outcome: 'kept',
+      continuationState: 'raw-state-material',
+    };
+    const client = await setupFetchFixture({
+      capabilities: {},
+      formDeliveryAvailable: true,
+      onToolPolicyCall,
+      tools: {
+        observed: tool({
+          description: 'Observed tool',
+          parameters: z.object({ value: z.string() }),
+          outputSchema: z.object({ value: z.string() }),
+          policy: {
+            resolve: async () => ({
+              type: 'execute' as const,
+              resolution: undefined,
+              telemetry: widenedTelemetry,
+            }),
+          },
+          execute: async ({ value }) => ({ value }),
+        }),
+      },
+    });
+
+    await client.callTool({
+      name: 'observed',
+      arguments: { value: 'ok' },
+    });
+
+    const callbackPayload = onToolPolicyCall.mock.calls[0]?.[0];
+    expect(callbackPayload.telemetry).toEqual({ outcome: 'kept' });
+    expect(callbackPayload.telemetry).not.toHaveProperty('continuationState');
+  });
 });

@@ -36,6 +36,34 @@ export type ToolPolicyTelemetry = {
   formSupportReason?: string;
 };
 
+export function sanitizeToolPolicyTelemetry(
+  telemetry: ToolPolicyTelemetry
+): ToolPolicyTelemetry {
+  const sanitized: ToolPolicyTelemetry = {};
+  if (telemetry.interactionId !== undefined) {
+    sanitized.interactionId = telemetry.interactionId;
+  }
+  if (telemetry.authorityPath !== undefined) {
+    sanitized.authorityPath = telemetry.authorityPath;
+  }
+  if (telemetry.outcome !== undefined) {
+    sanitized.outcome = telemetry.outcome;
+  }
+  if (telemetry.reason !== undefined) {
+    sanitized.reason = telemetry.reason;
+  }
+  if (telemetry.policyId !== undefined) {
+    sanitized.policyId = telemetry.policyId;
+  }
+  if (telemetry.policyVersion !== undefined) {
+    sanitized.policyVersion = telemetry.policyVersion;
+  }
+  if (telemetry.formSupportReason !== undefined) {
+    sanitized.formSupportReason = telemetry.formSupportReason;
+  }
+  return sanitized;
+}
+
 export type ToolPolicyDecision<Resolution> =
   | {
       type: 'execute';

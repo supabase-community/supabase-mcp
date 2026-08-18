@@ -15,6 +15,7 @@ import { z } from 'zod/v4';
 import type { ExtractParams } from './types.js';
 import {
   normalizeToolRequestContext,
+  sanitizeToolPolicyTelemetry,
   type ToolPolicy,
   type ToolPolicyTelemetry,
   type ToolRequestContext,
@@ -605,7 +606,7 @@ export function createMcpServer(options: McpServerOptions) {
                 clientInfo: context.clientInfo,
                 formElicitation: context.formElicitation,
                 durationMs,
-                telemetry: decision.telemetry,
+                telemetry: sanitizeToolPolicyTelemetry(decision.telemetry),
               });
             } catch (error) {
               // Don't fail the tool call if the callback fails

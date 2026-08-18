@@ -1,7 +1,10 @@
 import {
   createMcpServer,
+  ElicitationRuntime,
+  type ReplayStore,
   type Tool,
   type ToolCallCallback,
+  type ToolPolicyCallCallback,
 } from '@supabase/mcp-utils';
 import packageJson from '../package.json' with { type: 'json' };
 import { createContentApiClient } from './content-api/index.js';
@@ -54,6 +57,20 @@ export type SupabaseMcpServerOptions = {
    * Callback for after a supabase tool is called.
    */
   onToolCall?: ToolCallCallback;
+
+  /**
+   * Human Confirmation runtime dependencies. When absent, all tools retain
+   * the legacy deterministic confirmation flow.
+   */
+  elicitation?: {
+    stateKey: string | Uint8Array;
+    approverId: string;
+    replayStore: ReplayStore;
+    formDeliveryAvailable: boolean;
+    ttlSeconds?: number;
+    onPolicyCall?: ToolPolicyCallCallback;
+    humanConfirmationEnabled?: boolean;
+  };
 };
 
 const DEFAULT_FEATURES: FeatureGroup[] = [
@@ -97,6 +114,28 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
     contentApiUrl = 'https://supabase.com/docs/api/graphql',
     onToolCall,
   } = options;
+  const elicitationRuntime =
+    options.elicitation === undefined
+      ? undefined
+      : new ElicitationRuntime({
+          stateKey: options.elicitation.stateKey,
+          approverId: options.elicitation.approverId,
+          replayStore: options.elicitation.replayStore,
+          ttlSeconds: options.elicitation.ttlSeconds,
+          gate: () =>
+            options.elicitation?.humanConfirmationEnabled === false
+              ? {
+                  content: [
+                    {
+                      type: 'text',
+                      text: 'Human Confirmation is temporarily unavailable.',
+                    },
+                  ],
+                  isError: true,
+                }
+              : null,
+        });
+
 
   const contentApiClientPromise = createContentApiClient(contentApiUrl, {
     'User-Agent': `supabase-mcp/${version}`,
@@ -134,6 +173,15 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       ]);
     },
     onToolCall,
+    onToolPolicyCall: options.elicitation?.onPolicyCall,
+    toolRequestInputs: {
+      formDeliveryAvailable:
+        options.elicitation?.formDeliveryAvailable ?? false,
+    },
+    requestState:
+      elicitationRuntime === undefined
+        ? undefined
+        : { verify: elicitationRuntime.requestState.verify },
     tools: async () => {
       const contentApiClient = await contentApiClientPromise;
       const tools: Record<string, Tool> = {};

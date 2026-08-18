@@ -1,7 +1,24 @@
+import { z } from 'zod/v4';
+
 import type { AccountOperations } from './platform/types.js';
 
 export const PROJECT_COST_MONTHLY = 10;
 export const BRANCH_COST_HOURLY = 0.01344;
+export const approvedCostRateSchema = z.object({
+  amount: z.number().nonnegative(),
+  recurrence: z.enum(['hourly', 'monthly']),
+});
+
+/**
+ * The maximum authoritative recurring amount approved for each billing
+ * interval when a resource is created. The rate recurs until deletion.
+ */
+export type ApprovedCostRate = z.infer<typeof approvedCostRateSchema>;
+
+export type CostConfirmationResolution = {
+  maximumCreationRate: ApprovedCostRate;
+};
+
 
 export type ProjectCost = {
   type: 'project';

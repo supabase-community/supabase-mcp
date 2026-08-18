@@ -32,7 +32,9 @@
     "dist/**/*"
   ],
   "bin": {
-    "mcp-server-supabase": "./dist/transports/stdio.js"
+    "mcp-server-supabase": "./dist/transports/index.js",
+    "mcp-server-supabase-http": "./dist/transports/http.js",
+    "mcp-server-supabase-stdio": "./dist/transports/stdio.js"
   },
   "exports": {
     ".": {

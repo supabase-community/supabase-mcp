@@ -116,6 +116,7 @@ export type ElicitationRuntimeOptions = {
   replayStore?: ReplayStore;
   clock?: () => number;
   createJti?: () => string;
+  gate?: (ctx: ToolRequestContext) => CallToolResult | null;
 };
 
 export const elicitationTerminalSchema = z.discriminatedUnion('status', [
@@ -211,6 +212,7 @@ export class ElicitationRuntime {
   readonly #clock: () => number;
   readonly #createJti: () => string;
   readonly #replayStore: ReplayStore;
+  readonly #gate?: (ctx: ToolRequestContext) => CallToolResult | null;
   readonly #keyPromise: Promise<webcrypto.CryptoKey>;
   readonly #encoder = new TextEncoder();
 
@@ -237,6 +239,7 @@ export class ElicitationRuntime {
     this.#approverId = options.approverId;
     this.#ttlSeconds = ttlSeconds;
     this.#clock = options.clock ?? Date.now;
+    this.#gate = options.gate;
     this.#createJti = options.createJti ?? (() => crypto.randomUUID());
     this.#replayStore =
       options.replayStore ?? new InMemoryReplayStore({ clock: this.#clock });
@@ -442,6 +445,11 @@ export class ElicitationRuntime {
         );
 
         if (verified === undefined) {
+          const gated = this.#gate?.(ctx);
+          if (gated != null) {
+            return { type: 'result', result: gated, telemetry: {} };
+          }
+
           const preparation = await policy.prepare(args);
           if (preparation.type === 'execute') {
             return {
@@ -513,6 +521,11 @@ export class ElicitationRuntime {
             telemetry
           );
         }
+        const gated = this.#gate?.(ctx);
+        if (gated != null) {
+          return { type: 'result', result: gated, telemetry };
+        }
+
 
         let consumed: boolean;
         try {

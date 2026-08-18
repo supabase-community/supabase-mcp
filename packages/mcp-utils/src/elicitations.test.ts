@@ -6,6 +6,7 @@ import {
   createMcpHandler,
   createRequestStateCodec,
   inputRequired,
+  type CallToolResult,
   type ServerContext,
 } from '@modelcontextprotocol/server';
 import { afterEach, describe, expect, test, vi } from 'vitest';
@@ -19,7 +20,10 @@ import {
   withPolicyOutput,
 } from './elicitations.js';
 import { createMcpServer, tool } from './server.js';
-import type { ToolPolicyTelemetry } from './tool-policy.js';
+import type {
+  ToolPolicyTelemetry,
+  ToolRequestContext,
+} from './tool-policy.js';
 
 const STATE_KEY = new Uint8Array(32).fill(7);
 const NOW = 1_800_000_000_000;
@@ -527,6 +531,188 @@ async function setupLifecycleFixture({
 }
 
 describe('ElicitationRuntime lifecycle', () => {
+  test('gates an initial leg before preparing or minting state', async () => {
+    const prepare = vi.fn(async () => ({
+      type: 'elicit' as const,
+      proposal: { label: 'must not be prepared' },
+    }));
+    const runtime = new ElicitationRuntime({
+      approverId: 'approver-1',
+      stateKey: STATE_KEY,
+      gate: () => ({
+        content: [{ type: 'text', text: 'Temporarily unavailable.' }],
+        isError: true,
+      }),
+    });
+    const policy = runtime.policy('guarded', lifecyclePolicy({ prepare }));
+    const ctx = {
+      server: {
+        mcpReq: {
+          method: 'tools/call',
+          requestState: () => undefined,
+        },
+      },
+      era: 'modern',
+      formElicitation: true,
+      formSupportReason: 'available',
+    } as ToolRequestContext;
+
+    const decision = await policy.resolve({ value: 'original' }, ctx);
+
+    expect(decision).toEqual({
+      type: 'result',
+      result: {
+        content: [{ type: 'text', text: 'Temporarily unavailable.' }],
+        isError: true,
+      },
+      telemetry: {},
+    });
+    expect(prepare).not.toHaveBeenCalled();
+  });
+
+  test('validates continuation state before an active gate', async () => {
+    const gate = vi.fn(
+      (): CallToolResult | null => ({
+        content: [{ type: 'text', text: 'Temporarily unavailable.' }],
+        isError: true,
+      })
+    );
+    const runtime = new ElicitationRuntime({
+      approverId: 'approver-1',
+      stateKey: STATE_KEY,
+      clock: () => NOW,
+      createJti: () => 'gate-validation-jti',
+      gate,
+    });
+    const policy = runtime.policy('guarded', lifecyclePolicy());
+    const initialContext = {
+      server: {
+        mcpReq: {
+          method: 'tools/call',
+          requestState: () => undefined,
+        },
+      },
+      era: 'modern',
+      formElicitation: true,
+      formSupportReason: 'available',
+    } as ToolRequestContext;
+
+    gate.mockReturnValueOnce(null);
+    const initial = await policy.resolve({ value: 'original' }, initialContext);
+    if (
+      initial.type !== 'result' ||
+      !('requestState' in initial.result) ||
+      typeof initial.result.requestState !== 'string'
+    ) {
+      throw new Error('Expected input_required result');
+    }
+    const tamperedState = `${initial.result.requestState.slice(0, -1)}x`;
+    await expect(
+      runtime.requestState.verify(tamperedState, initialContext.server)
+    ).rejects.toThrow('mac');
+
+    const verified = await runtime.requestState.verify(
+      initial.result.requestState,
+      initialContext.server
+    );
+    const mismatch = await policy.resolve(
+      { value: 'changed' },
+      {
+        ...initialContext,
+        server: {
+          mcpReq: {
+            method: 'tools/call',
+            requestState: () => verified,
+          },
+        } as unknown as ToolRequestContext['server'],
+      }
+    );
+
+    expect(mismatch).toMatchObject({
+      type: 'result',
+      result: {
+        isError: true,
+        content: [{ text: expect.stringContaining('arguments changed') }],
+      },
+    });
+    expect(gate).toHaveBeenCalledTimes(1);
+  });
+
+  test('does not consume a continuation while gated', async () => {
+    let blocked = false;
+    const runtime = new ElicitationRuntime({
+      approverId: 'approver-1',
+      stateKey: STATE_KEY,
+      clock: () => NOW,
+      createJti: () => 'gate-retry-jti',
+      gate: () =>
+        blocked
+          ? {
+              content: [
+                { type: 'text', text: 'Temporarily unavailable.' },
+              ],
+              isError: true,
+            }
+          : null,
+    });
+    const policy = runtime.policy('guarded', lifecyclePolicy());
+    const initialContext = {
+      server: {
+        mcpReq: {
+          method: 'tools/call',
+          requestState: () => undefined,
+        },
+      },
+      era: 'modern',
+      formElicitation: true,
+      formSupportReason: 'available',
+    } as ToolRequestContext;
+    const initial = await policy.resolve({ value: 'original' }, initialContext);
+    if (
+      initial.type !== 'result' ||
+      !('requestState' in initial.result) ||
+      typeof initial.result.requestState !== 'string'
+    ) {
+      throw new Error('Expected input_required result');
+    }
+    const verified = await runtime.requestState.verify(
+      initial.result.requestState,
+      initialContext.server
+    );
+    const retryContext = {
+      ...initialContext,
+      server: {
+        mcpReq: {
+          method: 'tools/call',
+          requestState: () => verified,
+          inputResponses: {
+            confirmation: {
+              action: 'accept',
+              content: { decision: 'execute' },
+            },
+          },
+        },
+      } as unknown as ToolRequestContext['server'],
+    };
+
+    blocked = true;
+    const gated = await policy.resolve({ value: 'original' }, retryContext);
+    expect(gated).toMatchObject({
+      type: 'result',
+      result: {
+        isError: true,
+        content: [{ text: 'Temporarily unavailable.' }],
+      },
+    });
+
+    blocked = false;
+    const resumed = await policy.resolve({ value: 'original' }, retryContext);
+    expect(resumed).toMatchObject({
+      type: 'execute',
+      resolution: { approved: true },
+    });
+  });
+
   test('elicits before executing and accepts exactly once', async () => {
     const prepare = vi.fn(async () => ({
       type: 'elicit' as const,

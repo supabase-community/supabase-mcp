@@ -23,7 +23,13 @@ export type InjectableTool<
   Params extends z.ZodObject,
   OutputSchema extends z.ZodObject,
   Injected extends Partial<z.infer<Params>> = {},
-> = ToolInput<Params, OutputSchema> & {
+  Resolution = never,
+> = ToolInput<
+  Params,
+  OutputSchema,
+  Resolution,
+  z.infer<Params>
+> & {
   /**
    * Optionally injects static parameter values into the tool's
    * execute function and removes them from the parameter schema.
@@ -38,16 +44,19 @@ export function injectableTool<
   Params extends z.ZodObject,
   OutputSchema extends z.ZodObject,
   Injected extends Partial<z.infer<Params>>,
+  Resolution = never,
 >({
   description,
   annotations,
   parameters,
   outputSchema,
   hidden,
+  visible,
+  policy,
   inject,
   execute,
   formatResult,
-}: InjectableTool<Params, OutputSchema, Injected>) {
+}: InjectableTool<Params, OutputSchema, Injected, Resolution>) {
   // If all injected parameters are undefined, return the original tool
   if (!inject || Object.values(inject).every((value) => value === undefined)) {
     return tool({
@@ -56,6 +65,8 @@ export function injectableTool<
       parameters,
       outputSchema,
       hidden,
+      visible,
+      policy,
       execute,
       formatResult,
     });
@@ -71,20 +82,21 @@ export function injectableTool<
   // Schema without injected parameters
   const cleanParametersSchema = parameters.omit(mask);
 
-  // Wrapper that merges injected values with provided args
-  const executeWithInjection = async (
-    args: z.infer<typeof cleanParametersSchema>
-  ) => {
-    return execute({ ...args, ...inject } as z.infer<Params>);
-  };
-
-  return tool({
+  return tool<
+    typeof cleanParametersSchema,
+    OutputSchema,
+    Resolution,
+    z.infer<Params>
+  >({
     description,
     annotations,
     parameters: cleanParametersSchema,
     outputSchema,
     hidden,
-    execute: executeWithInjection,
+    visible,
+    policy,
+    inject,
+    execute,
     formatResult,
   });
 }

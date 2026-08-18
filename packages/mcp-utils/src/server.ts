@@ -12,6 +12,13 @@ import type {
 import { z } from 'zod/v4';
 
 import type { ExtractParams } from './types.js';
+import {
+  normalizeToolRequestContext,
+  type ToolPolicy,
+  type ToolPolicyTelemetry,
+  type ToolRequestContext,
+  type ToolRequestInputs,
+} from './tool-policy.js';
 import { assertValidUri, compareUris, matchUriTemplate } from './util.js';
 
 export type Scheme = string;
@@ -45,14 +52,24 @@ export type Tool<
   // MCP spec restricts outputSchema to type "object" at the root level:
   // https://modelcontextprotocol.io/specification/2025-11-25/schema#tool-outputschema
   OutputSchema extends z.ZodObject<any> = z.ZodObject<any>,
+  Resolution = never,
+  EffectiveParams = z.infer<Params>,
 > = {
   description: Prop<string>;
   annotations?: Annotations;
   parameters: Params;
+  /** Values merged into arguments before validation and policy resolution. */
+  inject?: Partial<EffectiveParams>;
   outputSchema: OutputSchema;
   /** If true, excludes the tool from `tools/list` while keeping it callable via `tools/call`. */
   hidden?: boolean;
-  execute(params: z.infer<Params>): Promise<z.infer<OutputSchema>>;
+  /** Contextual discovery filter. */
+  visible?: (ctx: ToolRequestContext) => boolean;
+  policy?: ToolPolicy<EffectiveParams, Resolution>;
+  execute(
+    params: EffectiveParams,
+    ...resolution: [Resolution] extends [never] ? [] : [Resolution]
+  ): Promise<z.infer<OutputSchema>>;
   /** Renders the tool result as MCP text content. Defaults to `JSON.stringify`. */
   formatResult: (result: z.infer<OutputSchema>) => string;
 };
@@ -61,8 +78,18 @@ export type Tool<
 export type ToolInput<
   Params extends z.ZodObject<any> = z.ZodObject<any>,
   OutputSchema extends z.ZodObject<any> = z.ZodObject<any>,
-> = Omit<Tool<Params, OutputSchema>, 'formatResult'> & {
-  formatResult?: Tool<Params, OutputSchema>['formatResult'];
+  Resolution = never,
+  EffectiveParams = z.infer<Params>,
+> = Omit<
+  Tool<Params, OutputSchema, Resolution, EffectiveParams>,
+  'formatResult'
+> & {
+  formatResult?: Tool<
+    Params,
+    OutputSchema,
+    Resolution,
+    EffectiveParams
+  >['formatResult'];
 };
 
 /**
@@ -172,7 +199,11 @@ export function jsonResourceResponse<Uri extends string, Response>(
 export function tool<
   Params extends z.ZodObject<any>,
   OutputSchema extends z.ZodObject<any>,
->(tool: ToolInput<Params, OutputSchema>): Tool<Params, OutputSchema> {
+  Resolution = never,
+  EffectiveParams = z.infer<Params>,
+>(
+  tool: ToolInput<Params, OutputSchema, Resolution, EffectiveParams>
+): Tool<Params, OutputSchema, Resolution, EffectiveParams> {
   return {
     ...tool,
     formatResult: tool.formatResult ?? ((result) => JSON.stringify(result)),
@@ -201,9 +232,21 @@ type ToolCallErrorDetails = ToolCallBaseDetails & {
 };
 
 export type ToolCallDetails = ToolCallSuccessDetails | ToolCallErrorDetails;
+export type ToolPolicyCallDetails = {
+  name: string;
+  arguments: Record<string, unknown>;
+  clientInfo?: Implementation;
+  formElicitation: boolean;
+  durationMs: number;
+  telemetry: ToolPolicyTelemetry;
+};
+
 
 export type InitCallback = (initData: InitData) => void | Promise<void>;
 export type ToolCallCallback = (details: ToolCallDetails) => void;
+export type ToolPolicyCallCallback = (
+  details: ToolPolicyCallDetails
+) => void | Promise<void>;
 export type PropCallback<T> = () => T | Promise<T>;
 export type Prop<T> = T | PropCallback<T>;
 
@@ -246,6 +289,16 @@ export type McpServerOptions = {
    * Callback for after a tool is called.
    */
   onToolCall?: ToolCallCallback;
+  /**
+   * Callback for each pre-execution policy decision.
+   */
+  onToolPolicyCall?: ToolPolicyCallCallback;
+
+  /**
+   * Serving-path inputs for normalized tool request context.
+   */
+  toolRequestInputs?: ToolRequestInputs;
+
 
   /**
    * Resources to be served by the server. These can be defined as a static
@@ -269,7 +322,7 @@ export type McpServerOptions = {
    * asks for the list of tools or invokes a tool. This allows for dynamic tools
    * that can change after the server has started.
    */
-  tools?: Prop<Record<string, Tool>>;
+  tools?: Prop<Record<string, Tool<any, any, any, any>>>;
 };
 
 /**
@@ -453,119 +506,175 @@ export function createMcpServer(options: McpServerOptions) {
   if (options.tools) {
     server.setRequestHandler(
       'tools/list',
-      async (): Promise<ListToolsResult> => {
+      async (_request, serverContext): Promise<ListToolsResult> => {
         const tools = await getTools();
+        const context = normalizeToolRequestContext(
+          serverContext,
+          options.toolRequestInputs ?? { formDeliveryAvailable: false }
+        );
+        const visibleTools = Object.entries(tools).filter(
+          ([, tool]) => !tool.hidden && tool.visible?.(context) !== false
+        );
 
         return {
           tools: await Promise.all(
-            Object.entries(tools)
-              .filter(([, tool]) => !tool.hidden)
-              .map(
-                async ([
-                  name,
-                  {
-                    description,
-                    annotations,
-                    parameters,
-                    outputSchema,
-                  },
-                ]) => {
-                  const inputSchema = z.toJSONSchema(parameters, {
-                    target: 'draft-7',
-                  });
-                  const outputSchemaJson = z.toJSONSchema(outputSchema, {
-                    target: 'draft-7',
-                  });
+            visibleTools.map(async ([name, tool]) => {
+              const parameters =
+                tool.policy?.inputSchema?.(tool.parameters, context) ??
+                tool.parameters;
+              const outputSchema =
+                tool.policy?.outputSchema?.(tool.outputSchema, context) ??
+                tool.outputSchema;
+              const inputSchema = z.toJSONSchema(parameters, {
+                target: 'draft-7',
+              });
+              const outputSchemaJson = z.toJSONSchema(outputSchema, {
+                target: 'draft-7',
+              });
 
-                  return {
-                    name,
-                    description:
-                      typeof description === 'function'
-                        ? await description()
-                        : description,
-                    annotations,
-                    // Casting the same as the SDK does:
-                    // https://github.com/modelcontextprotocol/typescript-sdk/blob/fb07af810b51003c338dc4885a9e42f54519f9af/src/server/mcp.ts#L154
-                    inputSchema: inputSchema as McpTool['inputSchema'],
-                    outputSchema: outputSchemaJson as McpTool['outputSchema'],
-                  };
-                }
-              )
+              return {
+                name,
+                description:
+                  typeof tool.description === 'function'
+                    ? await tool.description()
+                    : tool.description,
+                annotations: tool.annotations,
+                // Casting the same as the SDK does:
+                // https://github.com/modelcontextprotocol/typescript-sdk/blob/fb07af810b51003c338dc4885a9e42f54519f9af/src/server/mcp.ts#L154
+                inputSchema: inputSchema as McpTool['inputSchema'],
+                outputSchema: outputSchemaJson as McpTool['outputSchema'],
+              };
+            })
           ),
         } satisfies ListToolsResult;
       }
     );
 
-    server.setRequestHandler('tools/call', async (request) => {
-      try {
-        const tools = await getTools();
-        const toolName = request.params.name;
+    server.setRequestHandler(
+      'tools/call',
+      async (request, serverContext) => {
+        const context = normalizeToolRequestContext(
+          serverContext,
+          options.toolRequestInputs ?? { formDeliveryAvailable: false }
+        );
 
-        if (!(toolName in tools)) {
-          throw new Error('tool not found');
-        }
+        try {
+          const tools = await getTools();
+          const toolName = request.params.name;
 
-        const tool = tools[toolName];
-
-        if (!tool) {
-          throw new Error('tool not found');
-        }
-        const args = tool.parameters
-          .strict()
-          .parse(request.params.arguments ?? {});
-
-        const executeWithCallback = async (tool: Tool) => {
-          // Wrap success or error in a result value
-          const res = await tool
-            .execute(args)
-            .then((data: unknown) => ({ success: true as const, data }))
-            .catch((error) => ({ success: false as const, error }));
-
-          try {
-            options.onToolCall?.({
-              name: toolName,
-              arguments: args,
-              annotations: tool.annotations,
-              ...res,
-            });
-          } catch (error) {
-            // Don't fail the tool call if the callback fails
-            console.error('Failed to run tool callback', error);
+          if (!(toolName in tools)) {
+            throw new Error('tool not found');
           }
 
-          // Unwrap result
-          if (!res.success) {
-            throw res.error;
+          const tool = tools[toolName];
+
+          if (!tool) {
+            throw new Error('tool not found');
           }
-          return res.data;
-        };
 
-        const result = await executeWithCallback(tool);
+          const rawArguments = request.params.arguments ?? {};
+          const normalizedArguments =
+            tool.policy?.normalizeArguments?.(rawArguments, context) ??
+            rawArguments;
+          const clientParameters =
+            tool.policy?.inputSchema?.(tool.parameters, context) ??
+            tool.parameters;
+          const clientArguments = clientParameters
+            .strict()
+            .parse(normalizedArguments) as Record<string, unknown>;
+          const args = tool.inject
+            ? {
+                ...clientArguments,
+                ...tool.inject,
+              }
+            : clientArguments;
 
-        if (result == null) {
-          return { content: [] };
+          let resolution: unknown;
+          if (tool.policy) {
+            const policyStartedAt = performance.now();
+            const decision = await tool.policy.resolve(args, context);
+            const durationMs = performance.now() - policyStartedAt;
+
+            try {
+              await options.onToolPolicyCall?.({
+                name: toolName,
+                arguments: args,
+                clientInfo: context.clientInfo,
+                formElicitation: context.formElicitation,
+                durationMs,
+                telemetry: decision.telemetry,
+              });
+            } catch (error) {
+              // Don't fail the tool call if the callback fails
+              console.error('Failed to run tool policy callback', error);
+            }
+
+            if (decision.type === 'result') {
+              return decision.result;
+            }
+            resolution = decision.resolution;
+          }
+
+          const executeWithCallback = async () => {
+            // Policy-free tools keep the existing one-argument execute call.
+            const executeResult = tool.policy
+              ? tool.execute(args, resolution)
+              : (
+                  tool.execute as (
+                    args: Record<string, unknown>
+                  ) => Promise<unknown>
+                )(args);
+            // Wrap success or error in a result value
+            const res = await executeResult
+              .then((data: unknown) => ({ success: true as const, data }))
+              .catch((error) => ({ success: false as const, error }));
+
+            try {
+              options.onToolCall?.({
+                name: toolName,
+                arguments: args,
+                annotations: tool.annotations,
+                ...res,
+              });
+            } catch (error) {
+              // Don't fail the tool call if the callback fails
+              console.error('Failed to run tool callback', error);
+            }
+
+            // Unwrap result
+            if (!res.success) {
+              throw res.error;
+            }
+            return res.data;
+          };
+
+          const result = await executeWithCallback();
+
+          if (result == null) {
+            return { content: [] };
+          }
+
+          const structuredContent = result as Record<string, unknown>;
+
+          return {
+            structuredContent,
+            content: [
+              { type: 'text', text: tool.formatResult(structuredContent) },
+            ],
+          };
+        } catch (error) {
+          return {
+            isError: true,
+            content: [
+              {
+                type: 'text',
+                text: JSON.stringify({ error: enumerateError(error) }),
+              },
+            ],
+          };
         }
-
-        const structuredContent = result as Record<string, unknown>;
-
-        return {
-          structuredContent,
-          content: [
-            { type: 'text', text: tool.formatResult(structuredContent) },
-          ],
-        };
-      } catch (error) {
-        return {
-          isError: true,
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify({ error: enumerateError(error) }),
-            },
-          ],
-        };
       }
-    });
+    );
   }
 
   return server;

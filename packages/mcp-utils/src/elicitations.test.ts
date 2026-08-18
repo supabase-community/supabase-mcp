@@ -75,6 +75,44 @@ async function derivedStateKey(): Promise<Uint8Array> {
   );
 }
 
+function decodeBase64Url(value: string): Uint8Array {
+  const binary = atob(value.replaceAll('-', '+').replaceAll('_', '/'));
+  return Uint8Array.from(
+    binary,
+    (character) => character.codePointAt(0) ?? 0
+  );
+}
+
+function encodeBase64Url(value: Uint8Array): string {
+  let binary = '';
+  for (const byte of value) {
+    binary += String.fromCodePoint(byte);
+  }
+  return btoa(binary)
+    .replaceAll('+', '-')
+    .replaceAll('/', '_')
+    .replace(/=+$/, '');
+}
+
+function tamperRequestStateSegment(
+  requestState: string,
+  segmentIndex: number
+): string {
+  const segments = requestState.split('.');
+  const encodedSegment = segments[segmentIndex];
+  if (encodedSegment === undefined) {
+    throw new Error(`Expected request-state segment ${segmentIndex}`);
+  }
+  const bytes = decodeBase64Url(encodedSegment);
+  if (bytes.length === 0) {
+    throw new Error(`Expected non-empty request-state segment ${segmentIndex}`);
+  }
+  const byteIndex = Math.floor(bytes.length / 2);
+  bytes[byteIndex] = (bytes[byteIndex] ?? 0) ^ 0x01;
+  segments[segmentIndex] = encodeBase64Url(bytes);
+  return segments.join('.');
+}
+
 describe('InMemoryReplayStore', () => {
   test('rejects same-process jti reuse', () => {
     const store = new InMemoryReplayStore({ clock: () => 1_000 });
@@ -210,8 +248,7 @@ test('rejects bind presence asymmetry in both directions', async () => {
 test.each([
   {
     name: 'tampered',
-    alter: (state: string) =>
-      `${state.slice(0, -1)}${state.endsWith('A') ? 'B' : 'A'}`,
+    alter: (state: string) => tamperRequestStateSegment(state, 2),
     ctx: serverContext('tools/call'),
   },
   {
@@ -297,18 +334,12 @@ test('distinguishes authenticated expiry from an edited exp', async () => {
     throw new Error('Expected an encoded state envelope');
   }
   const envelope = JSON.parse(
-    new TextDecoder().decode(
-      Uint8Array.from(
-        atob(encodedBody.replaceAll('-', '+').replaceAll('_', '/')),
-        (character) => character.codePointAt(0) ?? 0
-      )
-    )
+    new TextDecoder().decode(decodeBase64Url(encodedBody))
   );
   envelope.exp += 60;
-  const editedBody = btoa(JSON.stringify(envelope))
-    .replaceAll('+', '-')
-    .replaceAll('/', '_')
-    .replace(/=+$/, '');
+  const editedBody = encodeBase64Url(
+    new TextEncoder().encode(JSON.stringify(envelope))
+  );
 
   await expect(
     runtime.requestState.verify(`${prefix}.${editedBody}.${mac}`, ctx)
@@ -601,7 +632,10 @@ describe('ElicitationRuntime lifecycle', () => {
     ) {
       throw new Error('Expected input_required result');
     }
-    const tamperedState = `${initial.result.requestState.slice(0, -1)}x`;
+    const tamperedState = tamperRequestStateSegment(
+      initial.result.requestState,
+      2
+    );
     await expect(
       runtime.requestState.verify(tamperedState, initialContext.server)
     ).rejects.toThrow('mac');
@@ -1213,18 +1247,12 @@ test('edited readable expiry fails at the request-state seam with -32602', async
       const [prefix, encodedEnvelope, mac] =
         body.params.requestState.split('.');
       const envelope = JSON.parse(
-        new TextDecoder().decode(
-          Uint8Array.from(
-            atob(encodedEnvelope.replaceAll('-', '+').replaceAll('_', '/')),
-            (character) => character.codePointAt(0) ?? 0
-          )
-        )
+        new TextDecoder().decode(decodeBase64Url(encodedEnvelope))
       );
       envelope.exp += 60;
-      const changedEnvelope = btoa(JSON.stringify(envelope))
-        .replaceAll('+', '-')
-        .replaceAll('/', '_')
-        .replace(/=+$/, '');
+      const changedEnvelope = encodeBase64Url(
+        new TextEncoder().encode(JSON.stringify(envelope))
+      );
       body.params.requestState = `${prefix}.${changedEnvelope}.${mac}`;
     },
   });

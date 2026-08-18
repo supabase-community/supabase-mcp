@@ -7,7 +7,7 @@ import {
   type ToolRequestContext,
   withPolicyOutput,
 } from '@supabase/mcp-utils';
-import type { z } from 'zod/v4';
+import { z } from 'zod/v4';
 
 import {
   approvedCostRateSchema,
@@ -232,6 +232,27 @@ function removeLegacyToken(schema: z.ZodObject<any>): z.ZodObject<any> {
   }
   return schema.omit({ confirm_cost_id: true }) as z.ZodObject<any>;
 }
+function requireLegacyToken(
+  schema: z.ZodObject<any>,
+  tool: CostTool
+): z.ZodObject<any> {
+  if (
+    !('confirm_cost_id' in schema.shape) ||
+    !schema.shape.confirm_cost_id.safeParse(undefined).success
+  ) {
+    return schema;
+  }
+  return schema.extend({
+    confirm_cost_id: z.string({
+      error: (issue) =>
+        issue.input === undefined
+          ? tool === 'create_project'
+            ? 'User must confirm understanding of costs before creating a project.'
+            : 'User must confirm understanding of costs before creating a branch.'
+          : undefined,
+    }),
+  }) as z.ZodObject<any>;
+}
 
 /**
  * Selects Human Confirmation for form-capable calls and continuation state,
@@ -254,7 +275,9 @@ export function createCostConfirmationPolicy<Args>(
 
   return {
     inputSchema: (schema, ctx) =>
-      useHuman(ctx) ? removeLegacyToken(schema) : schema,
+      useHuman(ctx)
+        ? removeLegacyToken(schema)
+        : requireLegacyToken(schema, options.tool),
     outputSchema: (schema, ctx) =>
       useHuman(ctx) ? withPolicyOutput(schema) : schema,
     normalizeArguments: (raw, ctx) => {

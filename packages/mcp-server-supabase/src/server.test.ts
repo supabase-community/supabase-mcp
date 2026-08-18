@@ -496,6 +496,29 @@ describe('tools', () => {
     );
   });
 
+  test('create project keeps the legacy cost mismatch error', async () => {
+    const { callTool } = await setup();
+    const org = await createOrganization({
+      name: 'Paid Org',
+      plan: 'pro',
+      allowed_release_channels: ['ga'],
+    });
+
+    const result = callTool({
+      name: 'create_project',
+      arguments: {
+        name: 'New Project',
+        region: 'us-east-1',
+        organization_id: org.id,
+        confirm_cost_id: 'wrong-confirmation',
+      },
+    });
+
+    await expect(result).rejects.toThrow(
+      'Cost confirmation ID does not match the expected cost of creating a project.'
+    );
+  });
+
   test('pause project', async () => {
     const { callTool } = await setup();
 

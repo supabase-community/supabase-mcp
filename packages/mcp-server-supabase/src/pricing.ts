@@ -62,9 +62,13 @@ export async function getNextProjectCost(
   return { type: 'project', recurrence: 'monthly', amount };
 }
 
+export type BranchCostScope =
+  | { projectId: string }
+  | { organizationId: string };
+
 /**
  * Gets the cost for a database branch.
  */
-export function getBranchCost(): Cost {
+export function getBranchCost(_scope: BranchCostScope): Cost {
   return { type: 'branch', recurrence: 'hourly', amount: BRANCH_COST_HOURLY };
 }

@@ -1,15 +1,26 @@
-import { tool } from '@supabase/mcp-utils';
+import {
+  type ElicitationRuntime,
+  tool,
+  type ToolPolicy,
+} from '@supabase/mcp-utils';
 import { z } from 'zod/v4';
 import type { ToolDefs } from './util.js';
+import { assertRateAllowed } from './util.js';
+import { createCostConfirmationPolicy } from '../policies/cost-confirmation.js';
 import type { AccountOperations } from '../platform/types.js';
 import { organizationSchema, projectSchema } from '../platform/types.js';
-import { getBranchCost, getNextProjectCost } from '../pricing.js';
+import {
+  getBranchCost,
+  getNextProjectCost,
+  type CostConfirmationResolution,
+} from '../pricing.js';
 import { AWS_REGION_CODES } from '../regions.js';
 import { hashObject } from '../util.js';
 
 type AccountToolsOptions = {
   account: AccountOperations;
   readOnly?: boolean;
+  elicitationRuntime?: ElicitationRuntime;
 };
 
 const listOrganizationsInputSchema = z.object({});
@@ -65,23 +76,50 @@ const confirmCostOutputSchema = z.object({
   confirmation_id: z.string(),
 });
 
-const createProjectInputSchema = z.object({
+const createProjectArgumentsSchema = z.object({
   name: z.string().describe('The name of the project'),
   region: z
     .enum(AWS_REGION_CODES)
     .describe('The region to create the project in.'),
   organization_id: z.string(),
+});
+
+const createProjectInputSchema = createProjectArgumentsSchema.extend({
   confirm_cost_id: z
-    .string({
-      error: (issue) =>
-        issue.input === undefined
-          ? 'User must confirm understanding of costs before creating a project.'
-          : undefined,
-    })
+    .string()
+    .optional()
     .describe('The cost confirmation ID. Call `confirm_cost` first.'),
 });
 
 const createProjectOutputSchema = projectSchema;
+const confirmCostMigrationPolicy: ToolPolicy<
+  z.infer<typeof confirmCostInputSchema>,
+  undefined
+> = {
+  resolve: async (_args, ctx) =>
+    ctx.formElicitation
+      ? {
+          type: 'result',
+          result: {
+            content: [
+              {
+                type: 'text',
+                text: 'Cost confirmation now happens through the elicitation flow. Call create_project or create_branch directly.',
+              },
+            ],
+            isError: true,
+          },
+          telemetry: {
+            authorityPath: 'human_confirmation',
+            outcome: 'migration_guidance',
+          },
+        }
+      : {
+          type: 'execute',
+          resolution: undefined,
+          telemetry: { authorityPath: 'legacy', outcome: 'execute' },
+        },
+};
 
 const pauseProjectInputSchema = z.object({
   project_id: z.string(),
@@ -168,6 +206,7 @@ export const accountToolDefs = {
       'Ask the user to confirm their understanding of the cost of creating a new project or branch. Call `get_cost` first. Returns a unique ID for this confirmation which should be passed to `create_project` or `create_branch`.',
     parameters: confirmCostInputSchema,
     outputSchema: confirmCostOutputSchema,
+    visible: (ctx) => !ctx.formElicitation,
     annotations: {
       title: 'Confirm cost understanding',
       readOnlyHint: true,
@@ -215,7 +254,11 @@ export const accountToolDefs = {
   },
 } as const satisfies ToolDefs;
 
-export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
+export function getAccountTools({
+  account,
+  readOnly,
+  elicitationRuntime,
+}: AccountToolsOptions) {
   return {
     list_organizations: tool({
       ...accountToolDefs.list_organizations,
@@ -248,7 +291,7 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
           case 'project':
             return await getNextProjectCost(account, organization_id);
           case 'branch':
-            return getBranchCost();
+            return getBranchCost({ organizationId: organization_id });
           default:
             throw new Error(`Unknown cost type: ${type}`);
         }
@@ -256,24 +299,29 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
     }),
     confirm_cost: tool({
       ...accountToolDefs.confirm_cost,
+      policy: confirmCostMigrationPolicy,
       execute: async (cost) => {
         return { confirmation_id: await hashObject(cost) };
       },
     }),
     create_project: tool({
       ...accountToolDefs.create_project,
-      execute: async ({ name, region, organization_id, confirm_cost_id }) => {
+      policy: createCostConfirmationPolicy({
+        tool: 'create_project',
+        getCost: ({ organization_id }) =>
+          getNextProjectCost(account, organization_id),
+        runtime: elicitationRuntime,
+      }),
+      execute: async (
+        { name, region, organization_id },
+        { maximumCreationRate }: CostConfirmationResolution
+      ) => {
         if (readOnly) {
           throw new Error('Cannot create a project in read-only mode.');
         }
 
-        const cost = await getNextProjectCost(account, organization_id);
-        const costHash = await hashObject(cost);
-        if (costHash !== confirm_cost_id) {
-          throw new Error(
-            'Cost confirmation ID does not match the expected cost of creating a project.'
-          );
-        }
+        const liveRate = await getNextProjectCost(account, organization_id);
+        assertRateAllowed(liveRate, maximumCreationRate);
 
         return await account.createProject({
           name,

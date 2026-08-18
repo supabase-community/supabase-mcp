@@ -201,7 +201,10 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       }
 
       if (!projectId && account && enabledFeatures.has('account')) {
-        Object.assign(tools, getAccountTools({ account, readOnly }));
+        Object.assign(
+          tools,
+          getAccountTools({ account, readOnly, elicitationRuntime })
+        );
       }
 
       if (database && enabledFeatures.has('database')) {
@@ -233,7 +236,12 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       if (branching && enabledFeatures.has('branching')) {
         Object.assign(
           tools,
-          getBranchingTools({ branching, projectId, readOnly })
+          getBranchingTools({
+            branching,
+            projectId,
+            readOnly,
+            elicitationRuntime,
+          })
         );
       }
 

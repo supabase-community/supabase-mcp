@@ -1,6 +1,13 @@
-import { type Annotations, type ToolInput, tool } from '@supabase/mcp-utils';
+import {
+  type Annotations,
+  type ToolInput,
+  type ToolRequestContext,
+  tool,
+} from '@supabase/mcp-utils';
 import { source } from 'common-tags';
 import { z } from 'zod/v4';
+
+import type { ApprovedCostRate, Cost } from '../pricing.js';
 
 export type ToolDef = {
   description?: string | (() => string | Promise<string>);
@@ -9,11 +16,39 @@ export type ToolDef = {
   annotations: Annotations;
   /** 'adapt' = stays available in read-only mode, adapts behavior. 'exclude' (default) = removed from tool list. */
   readOnlyBehavior?: 'exclude' | 'adapt';
+  /** Controls discovery only. The registered handler remains directly callable. */
+  visible?: (ctx: ToolRequestContext) => boolean;
   /** If true, excludes the tool from `tools/list` while keeping it callable via `tools/call`. */
   hidden?: boolean;
 };
 
 export type ToolDefs = Record<string, ToolDef>;
+export interface ApprovedCostRateStaleError {
+  readonly code: 'approved_rate_stale';
+}
+
+export class ApprovedCostRateStaleError extends Error {
+  constructor() {
+    super(
+      'approved_rate_stale: The live creation rate is higher than the approved maximum. Run the tool again to request a new confirmation.'
+    );
+    Object.setPrototypeOf(this, new.target.prototype);
+    this.name = 'ApprovedCostRateStaleError';
+    Object.assign(this, { code: 'approved_rate_stale' as const });
+  }
+}
+
+export function assertRateAllowed(
+  live: Cost,
+  maximum: ApprovedCostRate
+): void {
+  if (
+    live.recurrence !== maximum.recurrence ||
+    live.amount > maximum.amount
+  ) {
+    throw new ApprovedCostRateStaleError();
+  }
+}
 
 type RequireKeys<Injected, Params> = {
   [K in keyof Injected]: K extends keyof Params ? Injected[K] : never;

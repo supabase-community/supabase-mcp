@@ -29,17 +29,19 @@ type BranchArguments = {
 
 function context({
   formElicitation,
+  formSupportReason = formElicitation ? 'available' : 'capability',
   requestState,
   inputResponses,
 }: {
   formElicitation: boolean;
+  formSupportReason?: ToolRequestContext['formSupportReason'];
   requestState?: unknown;
   inputResponses?: unknown;
 }): ToolRequestContext {
   return {
     era: formElicitation ? 'modern' : 'legacy',
     formElicitation,
-    formSupportReason: formElicitation ? 'available' : 'capability',
+    formSupportReason,
     server: {
       mcpReq: {
         method: 'tools/call',
@@ -334,7 +336,83 @@ describe('cost policy authority selection and schemas', () => {
     });
   });
 
-  test('resumes Human Confirmation state before consulting current capability', async () => {
+  test('routes an opted-out initial leg through legacy confirmation', async () => {
+    const policy = createCostConfirmationPolicy<ProjectArguments>({
+      tool: 'create_project',
+      getCost: async () => ({
+        type: 'project',
+        recurrence: 'monthly',
+        amount: 10,
+      }),
+      runtime: humanRuntime(),
+    });
+
+    const decision = await policy.resolve(
+      {
+        name: 'database',
+        region: 'us-east-1',
+        organization_id: 'org-1',
+        confirm_cost_id: PROJECT_COST_HASH,
+      },
+      context({
+        formElicitation: false,
+        formSupportReason: 'opt_out',
+      })
+    );
+
+    expect(decision).toMatchObject({
+      type: 'execute',
+      resolution: {
+        maximumCreationRate: { amount: 10, recurrence: 'monthly' },
+      },
+    });
+  });
+
+  test('resumes and consumes valid state when the connection opts out mid-flow', async () => {
+    const runtime = humanRuntime();
+    const policy = createCostConfirmationPolicy<BranchArguments>({
+      tool: 'create_branch',
+      getCost: async () => ({
+        type: 'branch',
+        amount: 0.01344,
+        recurrence: 'hourly',
+      }),
+      runtime,
+    });
+    const args = { name: 'preview', project_id: 'project-1' };
+    const first = await policy.resolve(args, context({ formElicitation: true }));
+    const verified = await verifyDecisionState(runtime, first);
+    const retry = context({
+      formElicitation: false,
+      formSupportReason: 'opt_out',
+      requestState: verified,
+      inputResponses: {
+        cost_confirmation: {
+          action: 'accept',
+          content: { confirm: true },
+        },
+      },
+    });
+
+    const completed = await policy.resolve(args, retry);
+    expect(completed).toMatchObject({
+      type: 'execute',
+      resolution: {
+        maximumCreationRate: { amount: 0.01344, recurrence: 'hourly' },
+      },
+    });
+
+    const replay = await policy.resolve(args, retry);
+    expect(replay).toMatchObject({
+      type: 'result',
+      result: {
+        isError: true,
+        content: [{ text: expect.stringContaining('already used') }],
+      },
+    });
+  });
+
+  test('rejects continuation after genuine capability loss', async () => {
     const runtime = humanRuntime();
     const policy = createCostConfirmationPolicy<BranchArguments>({
       tool: 'create_branch',

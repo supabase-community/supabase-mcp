@@ -105,7 +105,8 @@ function humanConfirmationPolicy<Args>(
   return {
     id: POLICY_ID,
     version: POLICY_VERSION,
-    available: (ctx) => ctx.formElicitation,
+    available: (ctx) =>
+      ctx.formElicitation || ctx.formSupportReason === 'opt_out',
     canonicalArguments: (args) => canonicalArguments(options.tool, args),
     prepare: async (args) => {
       const rate = maximumCreationRate(await options.getCost(args));

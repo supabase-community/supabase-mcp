@@ -77,10 +77,7 @@ async function derivedStateKey(): Promise<Uint8Array> {
 
 function decodeBase64Url(value: string): Uint8Array {
   const binary = atob(value.replaceAll('-', '+').replaceAll('_', '/'));
-  return Uint8Array.from(
-    binary,
-    (character) => character.codePointAt(0) ?? 0
-  );
+  return Uint8Array.from(binary, (character) => character.codePointAt(0) ?? 0);
 }
 
 function encodeBase64Url(value: Uint8Array): string {

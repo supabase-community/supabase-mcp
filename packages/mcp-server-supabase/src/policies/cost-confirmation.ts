@@ -228,6 +228,26 @@ function removeLegacyToken(schema: z.ZodObject<any>): z.ZodObject<any> {
   }
   return schema.omit({ confirm_cost_id: true }) as z.ZodObject<any>;
 }
+
+const requiredLegacyTokenSchemas = {
+  create_project: z
+    .string({
+      error: (issue) =>
+        issue.input === undefined
+          ? 'User must confirm understanding of costs before creating a project.'
+          : undefined,
+    })
+    .describe('The cost confirmation ID. Call `confirm_cost` first.'),
+  create_branch: z
+    .string({
+      error: (issue) =>
+        issue.input === undefined
+          ? 'User must confirm understanding of costs before creating a branch.'
+          : undefined,
+    })
+    .describe('The cost confirmation ID. Call `confirm_cost` first.'),
+} satisfies Record<CostTool, z.ZodString>;
+
 function requireLegacyToken(
   schema: z.ZodObject<any>,
   tool: CostTool
@@ -239,14 +259,7 @@ function requireLegacyToken(
     return schema;
   }
   return schema.extend({
-    confirm_cost_id: z.string({
-      error: (issue) =>
-        issue.input === undefined
-          ? tool === 'create_project'
-            ? 'User must confirm understanding of costs before creating a project.'
-            : 'User must confirm understanding of costs before creating a branch.'
-          : undefined,
-    }),
+    confirm_cost_id: requiredLegacyTokenSchemas[tool],
   }) as z.ZodObject<any>;
 }
 

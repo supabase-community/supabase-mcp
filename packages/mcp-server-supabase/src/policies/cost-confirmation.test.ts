@@ -6,6 +6,7 @@ import {
 import { describe, expect, test, vi } from 'vitest';
 import { z } from 'zod/v4';
 
+import { AWS_REGION_CODES } from '../regions.js';
 import { createCostConfirmationPolicy } from './cost-confirmation.js';
 
 const STATE_KEY = new Uint8Array(32).fill(4);
@@ -461,6 +462,107 @@ describe('cost policy authority selection and schemas', () => {
         isError: true,
         content: [{ text: expect.stringContaining('can no longer continue') }],
       },
+    });
+  });
+
+  test('preserves complete legacy creation input schemas byte for byte', () => {
+    const projectPolicy = createCostConfirmationPolicy<ProjectArguments>({
+      tool: 'create_project',
+      getCost: async () => ({
+        type: 'project',
+        amount: 10,
+        recurrence: 'monthly',
+      }),
+      runtime: humanRuntime(),
+    });
+    const branchPolicy = createCostConfirmationPolicy<BranchArguments>({
+      tool: 'create_branch',
+      getCost: async () => ({
+        type: 'branch',
+        amount: 0.01344,
+        recurrence: 'hourly',
+      }),
+      runtime: humanRuntime(),
+    });
+    const projectInput = z.object({
+      name: z.string().describe('The name of the project'),
+      region: z
+        .enum(AWS_REGION_CODES)
+        .describe('The region to create the project in.'),
+      organization_id: z.string(),
+      confirm_cost_id: z
+        .string()
+        .optional()
+        .describe('The cost confirmation ID. Call `confirm_cost` first.'),
+    });
+    const branchInput = z.object({
+      project_id: z.string(),
+      name: z
+        .string()
+        .default('develop')
+        .describe('Name of the branch to create'),
+      confirm_cost_id: z
+        .string()
+        .optional()
+        .describe('The cost confirmation ID. Call `confirm_cost` first.'),
+    });
+    const legacy = context({ formElicitation: false });
+    const projectSchema = projectPolicy.inputSchema?.(projectInput, legacy);
+    const branchSchema = branchPolicy.inputSchema?.(branchInput, legacy);
+
+    expect(z.toJSONSchema(projectSchema!)).toEqual({
+      $schema: 'https://json-schema.org/draft/2020-12/schema',
+      type: 'object',
+      properties: {
+        name: { description: 'The name of the project', type: 'string' },
+        region: {
+          description: 'The region to create the project in.',
+          type: 'string',
+          enum: [
+            'us-west-1',
+            'us-east-1',
+            'us-east-2',
+            'ca-central-1',
+            'eu-west-1',
+            'eu-west-2',
+            'eu-west-3',
+            'eu-central-1',
+            'eu-central-2',
+            'eu-north-1',
+            'ap-south-1',
+            'ap-southeast-1',
+            'ap-northeast-1',
+            'ap-northeast-2',
+            'ap-southeast-2',
+            'sa-east-1',
+          ],
+        },
+        organization_id: { type: 'string' },
+        confirm_cost_id: {
+          description: 'The cost confirmation ID. Call `confirm_cost` first.',
+          type: 'string',
+        },
+      },
+      required: ['name', 'region', 'organization_id', 'confirm_cost_id'],
+      additionalProperties: false,
+    });
+    expect(z.toJSONSchema(branchSchema!)).toEqual({
+      $schema: 'https://json-schema.org/draft/2020-12/schema',
+      type: 'object',
+      properties: {
+        project_id: { type: 'string' },
+        name: {
+          description: 'Name of the branch to create',
+          type: 'string',
+          default: 'develop',
+        },
+        confirm_cost_id: {
+          description: 'The cost confirmation ID. Call `confirm_cost` first.',
+          type: 'string',
+        },
+      },
+      required: ['project_id', 'name', 'confirm_cost_id'],
+      additionalProperties: false,
     });
   });
 

@@ -1071,8 +1071,11 @@ describe('ElicitationRuntime lifecycle', () => {
     ]);
     for (const event of events) {
       expect(Object.keys(event.telemetry)).toEqual(
-        event.leg === 'prepare' ? [] : ['interactionId']
+        event.leg === 'prepare'
+          ? ['formSupportReason']
+          : ['interactionId', 'formSupportReason']
       );
+      expect(event.telemetry.formSupportReason).toBe('available');
       if (event.leg !== 'prepare') {
         expect(event.telemetry.interactionId).toEqual(expect.any(String));
       }

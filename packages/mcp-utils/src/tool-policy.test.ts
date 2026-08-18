@@ -384,7 +384,7 @@ describe('pre-execution tool policy', () => {
       clientInfo: { name: 'policy-test-client', version: '1.2.3' },
       formElicitation: true,
       durationMs: expect.any(Number),
-      telemetry,
+      telemetry: { ...telemetry, formSupportReason: 'available' },
     });
   });
 
@@ -421,7 +421,58 @@ describe('pre-execution tool policy', () => {
     });
 
     const callbackPayload = onToolPolicyCall.mock.calls[0]?.[0];
-    expect(callbackPayload.telemetry).toEqual({ outcome: 'kept' });
+    expect(callbackPayload.telemetry).toEqual({
+      outcome: 'kept',
+      formSupportReason: 'capability',
+    });
     expect(callbackPayload.telemetry).not.toHaveProperty('continuationState');
+  });
+
+  test.each([
+    {
+      name: 'adds the context reason when policy telemetry omits it',
+      policyTelemetry: { outcome: 'missing' },
+    },
+    {
+      name: 'overrides a conflicting policy telemetry reason',
+      policyTelemetry: {
+        outcome: 'wrong',
+        formSupportReason: 'available',
+      },
+    },
+  ])('$name', async ({ policyTelemetry }) => {
+    const onToolPolicyCall = vi.fn();
+    const client = await setupFetchFixture({
+      capabilities: { elicitation: { form: {} } },
+      formDeliveryAvailable: true,
+      optOut: true,
+      onToolPolicyCall,
+      tools: {
+        observed: tool({
+          description: 'Observed tool',
+          parameters: z.object({ value: z.string() }),
+          outputSchema: z.object({ value: z.string() }),
+          policy: {
+            resolve: async () => ({
+              type: 'execute' as const,
+              resolution: undefined,
+              telemetry: policyTelemetry,
+            }),
+          },
+          execute: async ({ value }) => ({ value }),
+        }),
+      },
+    });
+
+    await client.callTool({
+      name: 'observed',
+      arguments: { value: 'ok' },
+    });
+
+    const callbackPayload = onToolPolicyCall.mock.calls[0]?.[0];
+    expect(callbackPayload.telemetry).toEqual({
+      outcome: policyTelemetry.outcome,
+      formSupportReason: 'opt_out',
+    });
   });
 });

@@ -606,7 +606,10 @@ export function createMcpServer(options: McpServerOptions) {
                 clientInfo: context.clientInfo,
                 formElicitation: context.formElicitation,
                 durationMs,
-                telemetry: sanitizeToolPolicyTelemetry(decision.telemetry),
+                telemetry: {
+                  ...sanitizeToolPolicyTelemetry(decision.telemetry),
+                  formSupportReason: context.formSupportReason,
+                },
               });
             } catch (error) {
               // Don't fail the tool call if the callback fails

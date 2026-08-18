@@ -67,6 +67,7 @@ export type SupabaseMcpServerOptions = {
     approverId: string;
     replayStore: ReplayStore;
     formDeliveryAvailable: boolean;
+    optOut?: boolean;
     ttlSeconds?: number;
     onPolicyCall?: ToolPolicyCallCallback;
     humanConfirmationEnabled?: boolean;
@@ -177,6 +178,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
     toolRequestInputs: {
       formDeliveryAvailable:
         options.elicitation?.formDeliveryAvailable ?? false,
+      optOut: options.elicitation?.optOut,
     },
     requestState:
       elicitationRuntime === undefined

@@ -1,9 +1,11 @@
 import { Client } from '@modelcontextprotocol/client';
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
 import gqlmin from 'gqlmin';
+import { execFile } from 'node:child_process';
 import { existsSync, readdirSync, statSync } from 'node:fs';
 import { createServer, type Server } from 'node:http';
 import { join } from 'node:path';
+import { promisify } from 'node:util';
 import { afterEach, describe, expect, test } from 'vitest';
 import {
   ACCESS_TOKEN,
@@ -13,6 +15,8 @@ import {
   MCP_SERVER_VERSION,
 } from './mocks.js';
 
+const execFileAsync = promisify(execFile);
+
 type ProtocolEra = 'legacy' | 'modern';
 
 type SetupOptions = {
@@ -20,10 +24,15 @@ type SetupOptions = {
   accessToken?: string;
   projectId?: string;
   readOnly?: boolean;
+  disableElicitations?: boolean;
   features?: string;
   contentApiUrl?: string;
   apiUrl?: string;
   env?: Record<string, string>;
+  elicitationResponses?: Array<{
+    action: 'accept' | 'decline' | 'cancel';
+    content?: Record<string, string | number | boolean | string[]>;
+  }>;
 };
 
 function assertStdioBuildIsFresh() {
@@ -58,10 +67,12 @@ async function setup(options: SetupOptions = {}) {
     era = 'legacy',
     projectId,
     readOnly,
+    disableElicitations,
     features,
     apiUrl,
     contentApiUrl,
     env,
+    elicitationResponses,
   } = options;
 
   const client = new Client(
@@ -70,11 +81,20 @@ async function setup(options: SetupOptions = {}) {
       version: MCP_CLIENT_VERSION,
     },
     {
-      capabilities: {},
+      capabilities:
+        era === 'modern' ? { elicitation: { form: {} } } : {},
       versionNegotiation:
         era === 'modern' ? { mode: { pin: '2026-07-28' } } : { mode: 'legacy' },
     }
   );
+
+  if (elicitationResponses) {
+    client.setRequestHandler('elicitation/create', async () => {
+      const response = elicitationResponses.shift();
+      if (!response) throw new Error('Missing elicitation response');
+      return response;
+    });
+  }
 
   client.setNotificationHandler('notifications/message', (message) => {
     const { level, data } = message.params;
@@ -100,6 +120,10 @@ async function setup(options: SetupOptions = {}) {
     args.push('--read-only');
   }
 
+  if (disableElicitations) {
+    args.push('--disable-elicitations');
+  }
+
   if (features) {
     args.push('--features', features);
   }
@@ -119,10 +143,22 @@ async function setup(options: SetupOptions = {}) {
       ? { ...(process.env as Record<string, string>), ...env }
       : undefined,
   });
+  const toolCalls: Array<Record<string, unknown>> = [];
+  const send = clientTransport.send.bind(clientTransport);
+  clientTransport.send = async (message) => {
+    if (
+      'method' in message &&
+      message.method === 'tools/call' &&
+      message.params
+    ) {
+      toolCalls.push(structuredClone(message.params));
+    }
+    await send(message);
+  };
 
   await client.connect(clientTransport);
 
-  return { client, clientTransport };
+  return { client, clientTransport, toolCalls };
 }
 
 /**
@@ -157,7 +193,7 @@ async function createContentApiStub() {
 async function createManagementApiStub() {
   const hits: Array<{ method: string | undefined; url: URL }> = [];
 
-  const server: Server = createServer((req, res) => {
+  const server: Server = createServer(async (req, res) => {
     const url = new URL(req.url ?? '/', 'http://127.0.0.1');
     hits.push({ method: req.method, url });
     res.setHeader('Content-Type', 'application/json');
@@ -178,14 +214,51 @@ async function createManagementApiStub() {
             region: 'us-east-1',
             created_at: '2024-01-02T03:04:05.000Z',
             status: 'ACTIVE_HEALTHY',
-            database: {
-              host: 'db.abcdefghijklmnopqrst.supabase.co',
-              version: '15.1.0.147',
-              postgres_engine: '15',
-              release_channel: 'ga',
-            },
           },
         ])
+      );
+      return;
+    }
+
+    if (
+      req.method === 'GET' &&
+      url.pathname === '/v1/organizations/tsrqponmlkjihgfedcba'
+    ) {
+      res.end(
+        JSON.stringify({
+          id: 'tsrqponmlkjihgfedcba',
+          name: 'Example organization',
+          plan: 'pro',
+          allowed_release_channels: ['ga'],
+          opt_in_tags: [],
+        })
+      );
+      return;
+    }
+
+    if (req.method === 'POST' && url.pathname === '/v1/projects') {
+      const body = JSON.parse(
+        await new Promise<string>((resolve) => {
+          let data = '';
+          req.on('data', (chunk) => (data += chunk));
+          req.on('end', () => resolve(data));
+        })
+      ) as {
+        name: string;
+        organization_slug: string;
+        region: string;
+      };
+      res.end(
+        JSON.stringify({
+          id: 'created-project',
+          ref: 'created-project',
+          organization_id: body.organization_slug,
+          organization_slug: body.organization_slug,
+          name: body.name,
+          region: body.region,
+          created_at: '2026-08-18T00:00:00.000Z',
+          status: 'COMING_UP',
+        })
       );
       return;
     }
@@ -233,9 +306,8 @@ describe('stdio', () => {
         arguments: {},
       });
 
-      expect(tools.map((tool) => tool.name).sort()).toEqual([
+      const expectedTools = [
         'apply_migration',
-        'confirm_cost',
         'create_branch',
         'create_project',
         'delete_branch',
@@ -263,7 +335,11 @@ describe('stdio', () => {
         'reset_branch',
         'restore_project',
         'search_docs',
-      ]);
+      ];
+      if (era === 'legacy') expectedTools.push('confirm_cost');
+      expect(tools.map((tool) => tool.name).sort()).toEqual(
+        expectedTools.sort()
+      );
       expect(client.getServerVersion()).toEqual({
         name: 'supabase',
         title: 'Supabase',
@@ -286,12 +362,6 @@ describe('stdio', () => {
                 region: 'us-east-1',
                 created_at: '2024-01-02T03:04:05.000Z',
                 status: 'ACTIVE_HEALTHY',
-                database: {
-                  host: 'db.abcdefghijklmnopqrst.supabase.co',
-                  version: '15.1.0.147',
-                  postgres_engine: '15',
-                  release_channel: 'ga',
-                },
               },
             ],
           }),
@@ -314,6 +384,7 @@ describe('stdio', () => {
       expect(toolResult).toEqual({
         ...expectedMeta,
         content: expectedToolContent,
+        structuredContent: JSON.parse(expectedToolContent[0].text),
       });
       expect(
         managementApiStub.hits.map(({ method, url }) => ({
@@ -338,6 +409,195 @@ describe('stdio', () => {
     'server connects and lists tools (%s)',
     assertServerContract
   );
+
+  async function setupPaidProject(options: SetupOptions) {
+    const managementApiStub = await createManagementApiStub();
+    const contentApiStub = await createContentApiStub();
+    stubs.push(managementApiStub, contentApiStub);
+    const connection = await setup({
+      ...options,
+      apiUrl: managementApiStub.url,
+      contentApiUrl: contentApiStub.url,
+    });
+    return { ...connection, managementApiStub };
+  }
+
+  const projectArguments = {
+    name: 'Confirmed project',
+    region: 'us-east-1',
+    organization_id: 'tsrqponmlkjihgfedcba',
+  };
+
+  test('modern form mode accepts once and rejects same-process replay', async () => {
+    const { client, managementApiStub, toolCalls } = await setupPaidProject({
+      era: 'modern',
+      elicitationResponses: [
+        { action: 'accept', content: { confirm: true } },
+      ],
+    });
+
+    try {
+      const { tools } = await client.listTools();
+      const result = await client.callTool({
+        name: 'create_project',
+        arguments: projectArguments,
+      });
+      const retry = toolCalls.find((call) => 'requestState' in call);
+
+      expect(tools.map(({ name }) => name)).not.toContain('confirm_cost');
+      expect(result.isError).not.toBe(true);
+      expect(retry).toBeDefined();
+
+      const replay = await client.request({
+        method: 'tools/call',
+        params: retry,
+      });
+      expect(replay.isError).toBe(true);
+      expect(replay.content[0]).toMatchObject({
+        type: 'text',
+        text: expect.stringContaining('already used'),
+      });
+      expect(
+        managementApiStub.hits.filter(
+          ({ method, url }) =>
+            method === 'POST' && url.pathname === '/v1/projects'
+        )
+      ).toHaveLength(1);
+    } finally {
+      await client.close();
+    }
+  });
+
+  test('modern form mode declines without creating', async () => {
+    const { client, managementApiStub } = await setupPaidProject({
+      era: 'modern',
+      elicitationResponses: [{ action: 'decline' }],
+    });
+
+    try {
+      const result = await client.callTool({
+        name: 'create_project',
+        arguments: projectArguments,
+      });
+
+      expect(result.isError).not.toBe(true);
+      expect(result.structuredContent).toEqual({ status: 'declined' });
+      expect(
+        managementApiStub.hits.some(
+          ({ method, url }) =>
+            method === 'POST' && url.pathname === '/v1/projects'
+        )
+      ).toBe(false);
+    } finally {
+      await client.close();
+    }
+  });
+
+  test('modern form mode reports deterministic expiry', async () => {
+    const preload = [
+      'const realNow=Date.now.bind(Date);',
+      'let expired=false;',
+      `process.stdin.on('data',chunk=>{if(chunk.includes('"inputResponses"'))expired=true});`,
+      'Date.now=()=>realNow()+(expired?121000:0);',
+    ].join('');
+    const { client, managementApiStub } = await setupPaidProject({
+      era: 'modern',
+      elicitationResponses: [
+        { action: 'accept', content: { confirm: true } },
+      ],
+      env: {
+        NODE_OPTIONS: `--import=data:text/javascript,${encodeURIComponent(preload)}`,
+      },
+    });
+
+    try {
+      const result = await client.callTool({
+        name: 'create_project',
+        arguments: projectArguments,
+      });
+
+      expect(result.isError).toBe(true);
+      expect(result.content[0]).toMatchObject({
+        type: 'text',
+        text: expect.stringContaining('expired'),
+      });
+      expect(
+        managementApiStub.hits.some(
+          ({ method, url }) =>
+            method === 'POST' && url.pathname === '/v1/projects'
+        )
+      ).toBe(false);
+    } finally {
+      await client.close();
+    }
+  });
+
+  test.each([
+    ['legacy', false],
+    ['modern', true],
+  ] as const)(
+    '%s stdio with opt-out=%s keeps legacy confirmation behavior',
+    async (era, disableElicitations) => {
+      const { client, managementApiStub } = await setupPaidProject({
+        era,
+        disableElicitations,
+      });
+
+      try {
+        const { tools } = await client.listTools();
+        const confirmation = await client.callTool({
+          name: 'confirm_cost',
+          arguments: {
+            type: 'project',
+            recurrence: 'monthly',
+            amount: 10,
+          },
+        });
+        const confirmationContent = confirmation.structuredContent;
+        if (
+          !confirmationContent ||
+          typeof confirmationContent !== 'object' ||
+          !('confirmation_id' in confirmationContent) ||
+          typeof confirmationContent.confirmation_id !== 'string'
+        ) {
+          throw new Error('confirm_cost returned no confirmation ID');
+        }
+        const confirmationId = confirmationContent.confirmation_id;
+        const result = await client.callTool({
+          name: 'create_project',
+          arguments: {
+            ...projectArguments,
+            confirm_cost_id: confirmationId,
+          },
+        });
+
+        expect(tools.map(({ name }) => name)).toContain('confirm_cost');
+        expect(result.isError).not.toBe(true);
+        expect(
+          managementApiStub.hits.filter(
+            ({ method, url }) =>
+              method === 'POST' && url.pathname === '/v1/projects'
+          )
+        ).toHaveLength(1);
+      } finally {
+        await client.close();
+      }
+    }
+  );
+
+  test('--version prints the package version without a token', async () => {
+    const env = { ...process.env };
+    delete env.FORCE_COLOR;
+    delete env.NO_COLOR;
+    const { stderr, stdout } = await execFileAsync(
+      'node',
+      ['dist/transports/stdio.js', '--version'],
+      { env }
+    );
+
+    expect(stdout.trim()).toBe(MCP_SERVER_VERSION);
+    expect(stderr).toBe('');
+  });
 
   test('missing access token fails', async () => {
     const setupPromise = setup({ accessToken: null as any });

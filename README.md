@@ -50,6 +50,13 @@ See the [Supabase MCP Server](https://supabase.com/mcp) docs for the full list o
 
 The docs also feature an interactive URL builder to populate configuration options for you.
 
+### Disable elicitations
+
+Disable form-mode elicitation for one connection while keeping the legacy `confirm_cost` flow:
+
+- **stdio CLI:** start the server with `--disable-elicitations`.
+- **Hosted URL:** add `disable_elicitations=true` to the connection URL query.
+
 ## Usage with AI SDK's MCP Client
 
 The `@supabase/mcp-server-supabase` package exports `createToolSchemas()` to populate input and output schemas for Vercel AI SDK's [MCP client](https://ai-sdk.dev/docs/ai-sdk-core/mcp-tools). This allows Supabase MCP tools to be treated as static tools with client-side validation and inferred TypeScript types for their inputs and outputs.

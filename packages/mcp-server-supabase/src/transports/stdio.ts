@@ -1,6 +1,8 @@
 #!/usr/bin/env node
+import { createHash, randomBytes } from 'node:crypto';
 import { parseArgs } from 'node:util';
 import { serveStdio } from '@modelcontextprotocol/server/stdio';
+import { InMemoryReplayStore } from '@supabase/mcp-utils';
 
 import packageJson from '../../package.json' with { type: 'json' };
 import { createSupabaseApiPlatform } from '../platform/api-platform.js';
@@ -16,6 +18,7 @@ async function main() {
       ['access-token']: cliAccessToken,
       ['project-ref']: projectId,
       ['read-only']: readOnly,
+      ['disable-elicitations']: disableElicitations,
       ['api-url']: apiUrl,
       ['content-api-url']: cliContentApiUrl,
       ['version']: showVersion,
@@ -30,6 +33,10 @@ async function main() {
         type: 'string',
       },
       ['read-only']: {
+        type: 'boolean',
+        default: false,
+      },
+      ['disable-elicitations']: {
         type: 'boolean',
         default: false,
       },
@@ -66,6 +73,9 @@ async function main() {
 
   const contentApiUrl =
     cliContentApiUrl ?? process.env.SUPABASE_CONTENT_API_URL;
+  const replayStore = new InMemoryReplayStore();
+  const stateKey = randomBytes(32);
+  const approverId = createHash('sha256').update(accessToken).digest('hex');
 
   const platform = createSupabaseApiPlatform({
     accessToken,
@@ -87,6 +97,13 @@ async function main() {
         readOnly,
         features,
         contentApiUrl,
+        elicitation: {
+          stateKey,
+          approverId,
+          replayStore,
+          formDeliveryAvailable: true,
+          optOut: disableElicitations,
+        },
       }),
     { onerror: console.error }
   );

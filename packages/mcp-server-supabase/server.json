@@ -94,6 +94,13 @@
         },
         {
           "type": "named",
+          "name": "--disable-elicitations",
+          "description": "Disable form-mode elicitation",
+          "format": "boolean",
+          "isRequired": false
+        },
+        {
+          "type": "named",
           "name": "--features",
           "description": "Comma-separated list of features to enable",
           "format": "string",

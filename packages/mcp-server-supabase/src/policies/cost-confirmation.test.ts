@@ -29,11 +29,13 @@ type BranchArguments = {
 
 function context({
   formElicitation,
+  formDeliveryAvailable = true,
   formSupportReason = formElicitation ? 'available' : 'capability',
   requestState,
   inputResponses,
 }: {
   formElicitation: boolean;
+  formDeliveryAvailable?: boolean;
   formSupportReason?: ToolRequestContext['formSupportReason'];
   requestState?: unknown;
   inputResponses?: unknown;
@@ -41,6 +43,7 @@ function context({
   return {
     era: formElicitation ? 'modern' : 'legacy',
     formElicitation,
+    formDeliveryAvailable,
     formSupportReason,
     server: {
       mcpReq: {
@@ -618,7 +621,7 @@ describe('cost policy authority selection and schemas', () => {
     expect(policy.outputSchema?.(output, incapable)).toBe(output);
   });
 
-  test('kill switch blocks protected modern policy before a rate read', async () => {
+  test('runtime gate blocks protected modern policy before a rate read', async () => {
     const getCost = vi.fn(async () => ({
       type: 'branch' as const,
       amount: 0.01344,
@@ -631,7 +634,7 @@ describe('cost policy authority selection and schemas', () => {
         content: [
           {
             type: 'text',
-            text: 'Human Confirmation is temporarily unavailable.',
+            text: 'Blocked by the runtime gate.',
           },
         ],
         isError: true,
@@ -650,14 +653,14 @@ describe('cost policy authority selection and schemas', () => {
         content: [
           {
             type: 'text',
-            text: 'Human Confirmation is temporarily unavailable.',
+            text: 'Blocked by the runtime gate.',
           },
         ],
       },
       telemetry: {
         authorityPath: 'human_confirmation',
         outcome: 'blocked',
-        reason: 'kill_switch',
+        reason: 'gate',
         policyId: 'supabase-cost-confirmation',
         policyVersion: 1,
       },

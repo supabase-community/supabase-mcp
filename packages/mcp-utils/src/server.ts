@@ -2,253 +2,66 @@ import { Server } from '@modelcontextprotocol/server';
 import type {
   ClientCapabilities,
   Implementation,
-  ListResourcesResult,
-  ListResourceTemplatesResult,
-  ListToolsResult,
-  Tool as McpTool,
-  ReadResourceResult,
   ServerCapabilities,
   ServerOptions,
 } from '@modelcontextprotocol/server';
-import { z } from 'zod/v4';
 
-import type { ExtractParams } from './types.js';
 import {
-  normalizeToolRequestContext,
-  sanitizeToolPolicyTelemetry,
-  type ToolPolicy,
-  type ToolPolicyTelemetry,
-  type ToolRequestContext,
-  type ToolRequestInputs,
-} from './tool-policy.js';
-import { assertValidUri, compareUris, matchUriTemplate } from './util.js';
+  jsonResource,
+  jsonResourceResponse,
+  jsonResourceTemplate,
+  registerResourceHandlers,
+  resource,
+  resources,
+  resourceTemplate,
+  type Resource,
+  type ResourceTemplate,
+  type Scheme,
+} from './resource-handlers.js';
+import {
+  registerToolHandlers,
+  tool,
+  type Annotations,
+  type Prop,
+  type PropCallback,
+  type Tool,
+  type ToolCallCallback,
+  type ToolCallDetails,
+  type ToolInput,
+  type ToolPolicyCallCallback,
+  type ToolPolicyCallDetails,
+} from './tool-handlers.js';
+import type { ToolRequestInputs } from './tool-policy.js';
 
-export type Scheme = string;
-export type Annotations = NonNullable<
-  ListToolsResult['tools'][number]['annotations']
->;
-
-export type Resource<Uri extends string = string, Result = unknown> = {
-  uri: Uri;
-  name: string;
-  description?: string;
-  mimeType?: string;
-  read(uri: `${Scheme}://${Uri}`): Promise<Result>;
+export {
+  jsonResource,
+  jsonResourceResponse,
+  jsonResourceTemplate,
+  resource,
+  resources,
+  resourceTemplate,
+  tool,
 };
-
-export type ResourceTemplate<Uri extends string = string, Result = unknown> = {
-  uriTemplate: Uri;
-  name: string;
-  description?: string;
-  mimeType?: string;
-  read(
-    uri: `${Scheme}://${Uri}`,
-    params: {
-      [Param in ExtractParams<Uri>]: string;
-    }
-  ): Promise<Result>;
+export type {
+  Annotations,
+  Prop,
+  PropCallback,
+  Resource,
+  ResourceTemplate,
+  Scheme,
+  Tool,
+  ToolCallDetails,
+  ToolInput,
+  ToolPolicyCallDetails,
 };
-
-export type Tool<
-  Params extends z.ZodObject<any> = z.ZodObject<any>,
-  // MCP spec restricts outputSchema to type "object" at the root level:
-  // https://modelcontextprotocol.io/specification/2025-11-25/schema#tool-outputschema
-  OutputSchema extends z.ZodObject<any> = z.ZodObject<any>,
-  Resolution = never,
-  EffectiveParams = z.infer<Params>,
-> = {
-  description: Prop<string>;
-  annotations?: Annotations;
-  parameters: Params;
-  /** Values merged into arguments before validation and policy resolution. */
-  inject?: Partial<EffectiveParams>;
-  outputSchema: OutputSchema;
-  /** If true, excludes the tool from `tools/list` while keeping it callable via `tools/call`. */
-  hidden?: boolean;
-  /** Contextual discovery filter. */
-  visible?: (ctx: ToolRequestContext) => boolean;
-  policy?: ToolPolicy<EffectiveParams, Resolution>;
-  execute(
-    params: EffectiveParams,
-    ...resolution: [Resolution] extends [never] ? [] : [Resolution]
-  ): Promise<z.infer<OutputSchema>>;
-  /** Renders the tool result as MCP text content. Defaults to `JSON.stringify`. */
-  formatResult: (result: z.infer<OutputSchema>) => string;
-};
-
-/** Tool definition accepted by `tool()`. */
-export type ToolInput<
-  Params extends z.ZodObject<any> = z.ZodObject<any>,
-  OutputSchema extends z.ZodObject<any> = z.ZodObject<any>,
-  Resolution = never,
-  EffectiveParams = z.infer<Params>,
-> = Omit<
-  Tool<Params, OutputSchema, Resolution, EffectiveParams>,
-  'formatResult'
-> & {
-  formatResult?: Tool<
-    Params,
-    OutputSchema,
-    Resolution,
-    EffectiveParams
-  >['formatResult'];
-};
-
-/**
- * Helper function to define an MCP resource while preserving type information.
- */
-export function resource<Uri extends string, Result>(
-  uri: Uri,
-  resource: Omit<Resource<Uri, Result>, 'uri'>
-): Resource<Uri, Result> {
-  return {
-    uri,
-    ...resource,
-  };
-}
-
-/**
- * Helper function to define an MCP resource with a URI template while preserving type information.
- */
-export function resourceTemplate<Uri extends string, Result>(
-  uriTemplate: Uri,
-  resource: Omit<ResourceTemplate<Uri, Result>, 'uriTemplate'>
-): ResourceTemplate<Uri, Result> {
-  return {
-    uriTemplate,
-    ...resource,
-  };
-}
-
-/**
- * Helper function to define a JSON resource while preserving type information.
- */
-export function jsonResource<Uri extends string, Result>(
-  uri: Uri,
-  resource: Omit<Resource<Uri, Result>, 'uri' | 'mimeType'>
-): Resource<Uri, Result> {
-  return {
-    uri,
-    mimeType: 'application/json' as const,
-    ...resource,
-  };
-}
-
-/**
- * Helper function to define a JSON resource with a URI template while preserving type information.
- */
-export function jsonResourceTemplate<Uri extends string, Result>(
-  uriTemplate: Uri,
-  resource: Omit<ResourceTemplate<Uri, Result>, 'uriTemplate' | 'mimeType'>
-): ResourceTemplate<Uri, Result> {
-  return {
-    uriTemplate,
-    mimeType: 'application/json' as const,
-    ...resource,
-  };
-}
-
-/**
- * Helper function to define a list of resources that share a common URI scheme.
- */
-export function resources<Scheme extends string>(
-  scheme: Scheme,
-  resources: (Resource | ResourceTemplate)[]
-): (
-  | Resource<`${Scheme}://${string}`>
-  | ResourceTemplate<`${Scheme}://${string}`>
-)[] {
-  return resources.map((resource) => {
-    if ('uri' in resource) {
-      const url = new URL(resource.uri, `${scheme}://`);
-      const uri = decodeURI(url.href) as `${Scheme}://${typeof resource.uri}`;
-
-      return {
-        ...resource,
-        uri,
-      };
-    }
-
-    const url = new URL(resource.uriTemplate, `${scheme}://`);
-    const uriTemplate = decodeURI(
-      url.href
-    ) as `${Scheme}://${typeof resource.uriTemplate}`;
-
-    return {
-      ...resource,
-      uriTemplate,
-    };
-  });
-}
-
-/**
- * Helper function to create a JSON resource response.
- */
-export function jsonResourceResponse<Uri extends string, Response>(
-  uri: Uri,
-  response: Response
-) {
-  return {
-    uri,
-    mimeType: 'application/json',
-    text: JSON.stringify(response),
-  };
-}
-
-/**
- * Defaults `formatResult` to `JSON.stringify`.
- */
-export function tool<
-  Params extends z.ZodObject<any>,
-  OutputSchema extends z.ZodObject<any>,
-  Resolution = never,
-  EffectiveParams = z.infer<Params>,
->(
-  tool: ToolInput<Params, OutputSchema, Resolution, EffectiveParams>
-): Tool<Params, OutputSchema, Resolution, EffectiveParams> {
-  return {
-    ...tool,
-    formatResult: tool.formatResult ?? ((result) => JSON.stringify(result)),
-  };
-}
 
 export type InitData = {
   clientInfo: Implementation;
   clientCapabilities: ClientCapabilities;
 };
 
-type ToolCallBaseDetails = {
-  name: string;
-  arguments: Record<string, unknown>;
-  annotations?: Annotations;
-};
-
-type ToolCallSuccessDetails = ToolCallBaseDetails & {
-  success: true;
-  data: unknown;
-};
-
-type ToolCallErrorDetails = ToolCallBaseDetails & {
-  success: false;
-  error: unknown;
-};
-
-export type ToolCallDetails = ToolCallSuccessDetails | ToolCallErrorDetails;
-export type ToolPolicyCallDetails = {
-  name: string;
-  clientInfo?: Implementation;
-  formElicitation: boolean;
-  durationMs: number;
-  telemetry: ToolPolicyTelemetry;
-};
-
 export type InitCallback = (initData: InitData) => void | Promise<void>;
-export type ToolCallCallback = (details: ToolCallDetails) => void;
-export type ToolPolicyCallCallback = (
-  details: ToolPolicyCallDetails
-) => void | Promise<void>;
-export type PropCallback<T> = () => T | Promise<T>;
-export type Prop<T> = T | PropCallback<T>;
+export type { ToolCallCallback, ToolPolicyCallCallback };
 
 export type McpServerOptions = {
   /**
@@ -358,26 +171,6 @@ export function createMcpServer(options: McpServerOptions) {
     }
   );
 
-  async function getResources() {
-    if (!options.resources) {
-      throw new Error('resources not available');
-    }
-
-    return typeof options.resources === 'function'
-      ? await options.resources()
-      : options.resources;
-  }
-
-  async function getTools() {
-    if (!options.tools) {
-      throw new Error('tools not available');
-    }
-
-    return typeof options.tools === 'function'
-      ? await options.tools()
-      : options.tools;
-  }
-
   server.oninitialized = async () => {
     const clientInfo = server.getClientVersion();
     const clientCapabilities = server.getClientCapabilities();
@@ -399,329 +192,36 @@ export function createMcpServer(options: McpServerOptions) {
   };
 
   if (options.resources) {
-    server.setRequestHandler(
-      'resources/list',
-      async (): Promise<ListResourcesResult> => {
-        const allResources = await getResources();
-        return {
-          resources: allResources
-            .filter((resource) => 'uri' in resource)
-            .map(({ uri, name, description, mimeType }) => {
-              return {
-                uri,
-                name,
-                description,
-                mimeType,
-              };
-            }),
-        };
+    const getResources = async () => {
+      if (!options.resources) {
+        throw new Error('resources not available');
       }
-    );
 
-    server.setRequestHandler(
-      'resources/templates/list',
-      async (): Promise<ListResourceTemplatesResult> => {
-        const allResources = await getResources();
-        return {
-          resourceTemplates: allResources
-            .filter((resource) => 'uriTemplate' in resource)
-            .map(({ uriTemplate, name, description, mimeType }) => {
-              return {
-                uriTemplate,
-                name,
-                description,
-                mimeType,
-              };
-            }),
-        };
-      }
-    );
-
-    server.setRequestHandler(
-      'resources/read',
-      async (request): Promise<ReadResourceResult> => {
-        try {
-          const allResources = await getResources();
-          const { uri } = request.params;
-
-          const resources = allResources.filter(
-            (resource) => 'uri' in resource
-          );
-          const resource = resources.find((resource) =>
-            compareUris(resource.uri, uri)
-          );
-
-          if (resource) {
-            const result = await resource.read(uri as `${string}://${string}`);
-
-            const contents = Array.isArray(result) ? result : [result];
-
-            return {
-              contents,
-            };
-          }
-
-          const resourceTemplates = allResources.filter(
-            (resource) => 'uriTemplate' in resource
-          );
-          const resourceTemplateUris = resourceTemplates.map(
-            ({ uriTemplate }) => assertValidUri(uriTemplate)
-          );
-
-          const templateMatch = matchUriTemplate(uri, resourceTemplateUris);
-
-          if (!templateMatch) {
-            throw new Error('resource not found');
-          }
-
-          const resourceTemplate = resourceTemplates.find(
-            (r) => r.uriTemplate === templateMatch.uri
-          );
-
-          if (!resourceTemplate) {
-            throw new Error('resource not found');
-          }
-
-          const result = await resourceTemplate.read(
-            uri as `${string}://${string}`,
-            templateMatch.params
-          );
-
-          const contents = Array.isArray(result) ? result : [result];
-
-          return {
-            contents,
-          };
-        } catch (error) {
-          return {
-            isError: true,
-            content: [
-              {
-                type: 'text',
-                text: JSON.stringify({ error: enumerateError(error) }),
-              },
-            ],
-          } as any;
-        }
-      }
-    );
+      return typeof options.resources === 'function'
+        ? await options.resources()
+        : options.resources;
+    };
+    registerResourceHandlers(server, getResources);
   }
 
   if (options.tools) {
-    server.setRequestHandler(
-      'tools/list',
-      async (_request, serverContext): Promise<ListToolsResult> => {
-        const tools = await getTools();
-        const context = normalizeToolRequestContext(
-          serverContext,
-          options.toolRequestInputs ?? { formDeliveryAvailable: false },
-          server.getClientCapabilities()
-        );
-        const visibleTools = Object.entries(tools).filter(
-          ([, tool]) => !tool.hidden && tool.visible?.(context) !== false
-        );
-
-        return {
-          tools: await Promise.all(
-            visibleTools.map(async ([name, tool]) => {
-              const parameters =
-                tool.policy?.inputSchema?.(tool.parameters, context) ??
-                tool.parameters;
-              const outputSchema =
-                tool.policy?.outputSchema?.(tool.outputSchema, context) ??
-                tool.outputSchema;
-              const inputSchema = z.toJSONSchema(parameters, {
-                target: 'draft-7',
-              });
-              const outputSchemaJson = z.toJSONSchema(outputSchema, {
-                target: 'draft-7',
-              });
-
-              return {
-                name,
-                description:
-                  typeof tool.description === 'function'
-                    ? await tool.description()
-                    : tool.description,
-                annotations: tool.annotations,
-                // Casting the same as the SDK does:
-                // https://github.com/modelcontextprotocol/typescript-sdk/blob/fb07af810b51003c338dc4885a9e42f54519f9af/src/server/mcp.ts#L154
-                inputSchema: inputSchema as McpTool['inputSchema'],
-                outputSchema: outputSchemaJson as McpTool['outputSchema'],
-              };
-            })
-          ),
-        } satisfies ListToolsResult;
+    const getTools = async () => {
+      if (!options.tools) {
+        throw new Error('tools not available');
       }
-    );
 
-    server.setRequestHandler('tools/call', async (request, serverContext) => {
-      const context = normalizeToolRequestContext(
-        serverContext,
-        options.toolRequestInputs ?? { formDeliveryAvailable: false },
-        server.getClientCapabilities()
-      );
-
-      try {
-        const tools = await getTools();
-        const toolName = request.params.name;
-
-        if (!(toolName in tools)) {
-          throw new Error('tool not found');
-        }
-
-        const tool = tools[toolName];
-
-        if (!tool) {
-          throw new Error('tool not found');
-        }
-
-        const rawArguments = request.params.arguments ?? {};
-        const normalizedArguments =
-          tool.policy?.normalizeArguments?.(rawArguments, context) ??
-          rawArguments;
-        const clientParameters =
-          tool.policy?.inputSchema?.(tool.parameters, context) ??
-          tool.parameters;
-        const clientArguments = clientParameters
-          .strict()
-          .parse(normalizedArguments) as Record<string, unknown>;
-        const args = tool.inject
-          ? {
-              ...clientArguments,
-              ...tool.inject,
-            }
-          : clientArguments;
-        const advertisedOutputSchema =
-          context.era === 'legacy'
-            ? z.toJSONSchema(
-                tool.policy?.outputSchema?.(tool.outputSchema, context) ??
-                  tool.outputSchema,
-                { target: 'draft-7' }
-              )
-            : undefined;
-
-        let resolution: unknown;
-        if (tool.policy) {
-          const policyStartedAt = performance.now();
-          const decision = await tool.policy.resolve(args, context);
-          const durationMs = performance.now() - policyStartedAt;
-
-          try {
-            await options.onToolPolicyCall?.({
-              name: toolName,
-              clientInfo: context.clientInfo,
-              formElicitation: context.formElicitation,
-              durationMs,
-              telemetry: {
-                ...sanitizeToolPolicyTelemetry(decision.telemetry),
-                formSupportReason: context.formSupportReason,
-              },
-            });
-          } catch (error) {
-            // Don't fail the tool call if the callback fails
-            console.error('Failed to run tool policy callback', error);
-          }
-
-          if (decision.type === 'result') {
-            return 'resultType' in decision.result
-              ? decision.result
-              : server.projectCallToolResult(
-                  decision.result,
-                  advertisedOutputSchema
-                );
-          }
-          resolution = decision.resolution;
-        }
-
-        const executeWithCallback = async () => {
-          // Policy-free tools keep the existing one-argument execute call.
-          const executeResult = tool.policy
-            ? tool.execute(args, resolution)
-            : (
-                tool.execute as (
-                  args: Record<string, unknown>
-                ) => Promise<unknown>
-              )(args);
-          // Wrap success or error in a result value
-          const res = await executeResult
-            .then((data: unknown) => ({ success: true as const, data }))
-            .catch((error) => ({ success: false as const, error }));
-
-          try {
-            options.onToolCall?.({
-              name: toolName,
-              arguments: args,
-              annotations: tool.annotations,
-              ...res,
-            });
-          } catch (error) {
-            // Don't fail the tool call if the callback fails
-            console.error('Failed to run tool callback', error);
-          }
-
-          // Unwrap result
-          if (!res.success) {
-            throw res.error;
-          }
-          return res.data;
-        };
-
-        const result = await executeWithCallback();
-
-        if (result == null) {
-          return server.projectCallToolResult(
-            { content: [] },
-            advertisedOutputSchema
-          );
-        }
-
-        const structuredContent = result as Record<string, unknown>;
-
-        return server.projectCallToolResult(
-          {
-            structuredContent,
-            content: [
-              { type: 'text', text: tool.formatResult(structuredContent) },
-            ],
-          },
-          advertisedOutputSchema
-        );
-      } catch (error) {
-        return {
-          isError: true,
-          content: [
-            {
-              type: 'text',
-              text: JSON.stringify({ error: enumerateError(error) }),
-            },
-          ],
-        };
-      }
+      return typeof options.tools === 'function'
+        ? await options.tools()
+        : options.tools;
+    };
+    registerToolHandlers({
+      server,
+      getTools,
+      toolRequestInputs: options.toolRequestInputs,
+      onToolCall: options.onToolCall,
+      onToolPolicyCall: options.onToolPolicyCall,
     });
   }
 
   return server;
-}
-
-function enumerateError(error: unknown) {
-  if (!error) {
-    return error;
-  }
-
-  if (typeof error !== 'object') {
-    return error;
-  }
-
-  const newError: Record<string, unknown> = {};
-
-  const errorProps = ['name', 'message'] as const;
-
-  for (const prop of errorProps) {
-    if (prop in error) {
-      newError[prop] = (error as Record<string, unknown>)[prop];
-    }
-  }
-
-  return newError;
 }

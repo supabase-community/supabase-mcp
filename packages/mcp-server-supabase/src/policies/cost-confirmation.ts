@@ -1,4 +1,7 @@
-import { inputRequired } from '@modelcontextprotocol/server';
+import {
+  inputRequired,
+  type InputResponseView,
+} from '@modelcontextprotocol/server';
 import {
   type ElicitationPolicy,
   type ElicitationRuntime,
@@ -22,7 +25,6 @@ const BILLING_MONTHS_PER_YEAR = 12;
 const POLICY_ID = 'supabase-cost-confirmation';
 const POLICY_VERSION = 1;
 const INPUT_KEY = 'cost_confirmation';
-const KILL_SWITCH_MESSAGE = 'Human Confirmation is temporarily unavailable.';
 
 type CostTool = 'create_project' | 'create_branch';
 
@@ -30,12 +32,6 @@ type CostConfirmationProposal = {
   action: CostTool;
   resourceName: string;
   maximumCreationRate: ApprovedCostRate;
-};
-
-type ElicitationResponse = {
-  kind?: string;
-  action?: string;
-  content?: Record<string, unknown>;
 };
 
 export type CostConfirmationPolicyOptions<Args> = {
@@ -137,19 +133,20 @@ function humanConfirmationPolicy<Args>(
       }),
     }),
     resolve: async (proposal, responses) => {
-      const response = (responses as Record<string, ElicitationResponse>)[
-        INPUT_KEY
-      ];
-      if (response?.action === 'cancel') {
+      const response: InputResponseView | undefined = responses[INPUT_KEY];
+      if (response?.kind !== 'elicit') {
+        return { type: 'reissue' };
+      }
+      if (response.action === 'cancel') {
         return { type: 'cancelled', message: 'Creation cancelled.' };
       }
       if (
-        response?.action === 'decline' ||
-        (response?.action === 'accept' && response.content?.confirm === false)
+        response.action === 'decline' ||
+        (response.action === 'accept' && response.content?.confirm === false)
       ) {
         return { type: 'declined', message: 'Creation declined.' };
       }
-      if (response?.action === 'accept' && response.content?.confirm === true) {
+      if (response.action === 'accept' && response.content?.confirm === true) {
         return {
           type: 'execute',
           resolution: {
@@ -194,21 +191,6 @@ function withHumanTelemetry<Resolution>(
   decision: ToolPolicyDecision<Resolution>,
   ctx: ToolRequestContext
 ): ToolPolicyDecision<Resolution> {
-  const content =
-    decision.type === 'result' ? decision.result.content : undefined;
-  const killSwitch =
-    decision.type === 'result' &&
-    decision.result.isError === true &&
-    Array.isArray(content) &&
-    content.some((item: unknown) => {
-      if (item === null || typeof item !== 'object') {
-        return false;
-      }
-      const candidate = item as Record<string, unknown>;
-      return (
-        candidate.type === 'text' && candidate.text === KILL_SWITCH_MESSAGE
-      );
-    });
   return {
     ...decision,
     telemetry: {
@@ -217,7 +199,6 @@ function withHumanTelemetry<Resolution>(
       policyId: POLICY_ID,
       policyVersion: POLICY_VERSION,
       formSupportReason: ctx.formSupportReason,
-      ...(killSwitch ? { outcome: 'blocked', reason: 'kill_switch' } : {}),
     },
   };
 }

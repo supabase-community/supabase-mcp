@@ -1,6 +1,6 @@
 import { Client } from '@modelcontextprotocol/client';
 import type { CallToolRequestParams } from '@modelcontextprotocol/client';
-import type { Server } from '@modelcontextprotocol/server';
+import type { Server, ServerContext } from '@modelcontextprotocol/server';
 import { describe, expect, test, vi } from 'vitest';
 import { z } from 'zod/v4';
 
@@ -10,8 +10,10 @@ import {
   resources,
   resourceTemplate,
   tool,
+  type Tool,
 } from './server.js';
 import { StreamTransport } from './stream-transport.js';
+import { normalizeToolRequestContext } from './tool-policy.js';
 
 export const MCP_CLIENT_NAME = 'test-client';
 export const MCP_CLIENT_VERSION = '0.1.0';
@@ -77,6 +79,21 @@ async function setup(options: SetupOptions) {
 
   return { client, clientTransport, callTool, server, serverTransport };
 }
+
+test.each([true, false])(
+  'normalizes form delivery availability from serving-path input: %s',
+  (formDeliveryAvailable) => {
+    const serverContext = {
+      mcpReq: { envelope: undefined },
+    } as unknown as ServerContext;
+
+    const context = normalizeToolRequestContext(serverContext, {
+      formDeliveryAvailable,
+    });
+
+    expect(context.formDeliveryAvailable).toBe(formDeliveryAvailable);
+  }
+);
 
 describe('tools', () => {
   test('parameter set to default value when omitted by caller', async () => {
@@ -320,18 +337,19 @@ describe('tools', () => {
     });
   });
 
-  test('returns structuredContent equal to the tool result', async () => {
+  test('direct Tool defaults text content to JSON.stringify', async () => {
+    const parameters = z.object({ value: z.string() });
+    const outputSchema = z.object({ value: z.string() });
+    const echo: Tool<typeof parameters, typeof outputSchema> = {
+      description: 'Echo',
+      parameters,
+      outputSchema,
+      execute: async ({ value }) => ({ value }),
+    };
     const server = createMcpServer({
       name: 'test-server',
       version: '0.0.0',
-      tools: {
-        echo: tool({
-          description: 'Echo',
-          parameters: z.object({ value: z.string() }),
-          outputSchema: z.object({ value: z.string() }),
-          execute: async ({ value }) => ({ value }),
-        }),
-      },
+      tools: { echo },
     });
     const { client } = await setup({ server });
 

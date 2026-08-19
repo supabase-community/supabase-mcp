@@ -22,6 +22,7 @@ export type ToolRequestContext = {
   era: 'legacy' | 'modern';
   clientInfo?: Implementation;
   clientCapabilities?: ClientCapabilities;
+  formDeliveryAvailable: boolean;
   formElicitation: boolean;
   formSupportReason: 'available' | 'serving_path' | 'opt_out' | 'capability';
 };
@@ -128,6 +129,7 @@ export function normalizeToolRequestContext(
     era,
     clientInfo,
     clientCapabilities,
+    formDeliveryAvailable: inputs.formDeliveryAvailable,
     formElicitation,
     formSupportReason,
   };

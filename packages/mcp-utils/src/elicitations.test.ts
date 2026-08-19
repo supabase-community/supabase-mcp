@@ -7,6 +7,7 @@ import {
   createRequestStateCodec,
   inputRequired,
   type CallToolResult,
+  type InputResponseView,
   type ServerContext,
 } from '@modelcontextprotocol/server';
 import { afterEach, describe, expect, test, vi } from 'vitest';
@@ -158,6 +159,44 @@ describe('ElicitationRuntime request state', () => {
           ttlSeconds: 121,
         })
     ).toThrow('ttlSeconds must be at most 120');
+  });
+
+  test('rejects a 31-byte string key during construction', () => {
+    expect(
+      () =>
+        new ElicitationRuntime({
+          approverId: 'approver-1',
+          stateKey: 'x'.repeat(31),
+        })
+    ).toThrow(
+      new RangeError(
+        'createRequestStateCodec: key must be at least 32 bytes (got 31)'
+      )
+    );
+  });
+
+  test('rejects a 31-byte array key during construction', () => {
+    expect(
+      () =>
+        new ElicitationRuntime({
+          approverId: 'approver-1',
+          stateKey: new Uint8Array(31),
+        })
+    ).toThrow(
+      new RangeError(
+        'createRequestStateCodec: key must be at least 32 bytes (got 31)'
+      )
+    );
+  });
+
+  test('accepts a 32-byte key during construction', () => {
+    expect(
+      () =>
+        new ElicitationRuntime({
+          approverId: 'approver-1',
+          stateKey: new Uint8Array(32),
+        })
+    ).not.toThrow();
   });
 });
 
@@ -345,11 +384,6 @@ test('distinguishes authenticated expiry from an edited exp', async () => {
 
 type TestResolution = { approved: true };
 type TestProposal = { label: string };
-type TestResponse = {
-  kind: 'elicit';
-  action: 'accept' | 'decline' | 'cancel';
-  content?: Record<string, unknown>;
-};
 type LifecyclePolicy = ElicitationPolicy<
   { value: string },
   TestProposal,
@@ -395,8 +429,10 @@ function lifecyclePolicy({
       }),
     }),
     resolve: async (_proposal, responses) => {
-      const response = (responses as { confirmation: TestResponse })
-        .confirmation;
+      const response: InputResponseView | undefined = responses.confirmation;
+      if (response?.kind !== 'elicit') {
+        return { type: 'reissue' };
+      }
       if (response.action === 'decline') {
         return { type: 'declined', message: 'Request declined.' };
       }
@@ -590,7 +626,7 @@ describe('ElicitationRuntime lifecycle', () => {
         content: [{ type: 'text', text: 'Temporarily unavailable.' }],
         isError: true,
       },
-      telemetry: {},
+      telemetry: { outcome: 'blocked', reason: 'gate' },
     });
     expect(prepare).not.toHaveBeenCalled();
   });
@@ -726,6 +762,11 @@ describe('ElicitationRuntime lifecycle', () => {
       result: {
         isError: true,
         content: [{ text: 'Temporarily unavailable.' }],
+      },
+      telemetry: {
+        interactionId: expect.any(String),
+        outcome: 'blocked',
+        reason: 'gate',
       },
     });
 

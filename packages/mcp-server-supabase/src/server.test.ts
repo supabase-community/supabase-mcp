@@ -93,25 +93,31 @@ async function setup(options: SetupOptions = {}) {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   async function callTool(params: CallToolRequestParams): Promise<any> {
     const output = await client.callTool(params);
-    const { content, structuredContent, isError } = output;
+    const [textContent] = output.content;
 
-    if (isError) {
-      const [textContent] = content;
-      const message =
-        textContent?.type === 'text'
-          ? JSON.parse(textContent.text).error?.message
-          : undefined;
-      throw new Error(message ?? 'tool call failed');
+    if (!textContent) {
+      throw new Error('tool result content is empty');
+    }
+    if (textContent.type !== 'text') {
+      throw new Error('tool result content is not text');
+    }
+
+    const legacyResult = JSON.parse(textContent.text);
+    expect(textContent.text).toBe(JSON.stringify(legacyResult));
+
+    if (output.isError) {
+      throw new Error(legacyResult.error?.message ?? 'tool call failed');
     }
 
     const schema =
       supabaseMcpToolSchemas[params.name as keyof typeof supabaseMcpToolSchemas]
         ?.outputSchema;
     if (schema) {
-      schema.parse(structuredContent);
+      schema.parse(output.structuredContent);
     }
+    expect(output.structuredContent).toEqual(legacyResult);
 
-    return structuredContent;
+    return legacyResult;
   }
 
   return { client, clientTransport, callTool, server, serverTransport };
@@ -867,20 +873,23 @@ describe('tools', () => {
       },
     });
 
-    expect(result.structuredContent).toEqual({ rows: [{ sum: 2 }] });
-
-    const [content] = result.content;
-    expect(content?.type).toBe('text');
-    if (content?.type === 'text') {
-      expect(content.text).toContain('untrusted user data');
-      expect(content.text).toMatch(
-        /<untrusted-data-\w{8}-\w{4}-\w{4}-\w{4}-\w{12}>/
+    const { result: boundedResult } =
+      supabaseMcpToolSchemas.execute_sql.outputSchema.parse(
+        result.structuredContent
       );
-      expect(content.text).toContain(JSON.stringify([{ sum: 2 }]));
-      expect(content.text).toMatch(
-        /<\/untrusted-data-\w{8}-\w{4}-\w{4}-\w{4}-\w{12}>/
-      );
-    }
+    expect(boundedResult).toContain('untrusted user data');
+    expect(boundedResult).toMatch(
+      /<untrusted-data-\w{8}-\w{4}-\w{4}-\w{4}-\w{12}>/
+    );
+    expect(boundedResult).toContain(JSON.stringify([{ sum: 2 }]));
+    expect(boundedResult).toMatch(
+      /<\/untrusted-data-\w{8}-\w{4}-\w{4}-\w{4}-\w{12}>/
+    );
+    expect(result.structuredContent).toEqual({ result: boundedResult });
+    expect(result.content).toEqual([
+      { type: 'text', text: JSON.stringify({ result: boundedResult }) },
+    ]);
+    expect(JSON.stringify(result)).not.toContain('"rows":[{"sum":2}]');
   });
 
   // Regression for https://github.com/supabase/mcp/issues/311.
@@ -928,19 +937,15 @@ describe('tools', () => {
       },
     });
 
-    const { rows } = supabaseMcpToolSchemas.execute_sql.outputSchema.parse(
-      result.structuredContent
-    );
-    expect(rows[0]?.def).toContain(String.raw`E'\\'`);
-    expect(rows[0]?.def).not.toContain(String.raw`E'\\\\'`);
-
-    const [content] = result.content;
-    expect(content?.type).toBe('text');
-    if (content?.type === 'text') {
-      expect(content.text).toContain('untrusted user data');
-      expect(content.text).toContain(String.raw`E'\\\\'`);
-      expect(content.text).not.toContain(String.raw`E'\\\\\\\\'`);
-    }
+    const { result: boundedResult } =
+      supabaseMcpToolSchemas.execute_sql.outputSchema.parse(
+        result.structuredContent
+      );
+    expect(boundedResult).toContain(String.raw`E'\\\\'`);
+    expect(boundedResult).not.toContain(String.raw`E'\\\\\\\\'`);
+    expect(result.content).toEqual([
+      { type: 'text', text: JSON.stringify({ result: boundedResult }) },
+    ]);
   });
 
   test('can run read queries in read-only mode', async () => {
@@ -969,7 +974,17 @@ describe('tools', () => {
       },
     });
 
-    expect(result.rows).toEqual([{ sum: 2 }]);
+    const { result: boundedResult } =
+      supabaseMcpToolSchemas.execute_sql.outputSchema.parse(result);
+    expect(boundedResult).toContain('untrusted user data');
+    expect(boundedResult).toMatch(
+      /<untrusted-data-\w{8}-\w{4}-\w{4}-\w{4}-\w{12}>/
+    );
+    expect(boundedResult).toContain(JSON.stringify([{ sum: 2 }]));
+    expect(boundedResult).toMatch(
+      /<\/untrusted-data-\w{8}-\w{4}-\w{4}-\w{4}-\w{12}>/
+    );
+    expect(result).toEqual({ result: boundedResult });
   });
 
   test('cannot run write queries in read-only mode', async () => {

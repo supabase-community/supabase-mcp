@@ -10082,6 +10082,13 @@ export interface operations {
                     "application/openmetrics-text": string;
                 };
             };
+            /** @description Project must be active and healthy, or metrics are not available for this project */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
             /** @description Unauthorized */
             401: {
                 headers: {

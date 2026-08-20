@@ -1,5 +1,17 @@
 # Changelog
 
+## [0.11.0](https://github.com/supabase/mcp/compare/mcp-server-supabase-v0.10.0...mcp-server-supabase-v0.11.0) (2026-08-20)
+
+
+### ⚠ BREAKING CHANGES
+
+* the peer dependency is now `@modelcontextprotocol/server` instead of `@modelcontextprotocol/sdk`, so consumers must install the new package. `@supabase/mcp-utils` also drops the exported types `ExtractRequest`, `ExtractNotification`, `ExtractResult` and `ExpandRecursively`, and `createMcpServer` returns a bare `Server` rather than `Server<Request, Notification, Result>`, because v2's `Server` class takes no type parameters. Because that returned value is now a v2 `Server`, a consumer who registered extra handlers on it must rewrite `server.setRequestHandler(SomeRequestSchema, ...)` as `server.setRequestHandler('some/method', ...)`; the v1 Zod-schema overload no longer exists. `InitData.clientCapabilities` now follows v2's `ClientCapabilities`, which is narrower than v1's and not assignable from it. Finally, a `tools/call` request whose `params` are malformed, meaning no `name` key or a non-string `name`, now returns JSON-RPC `-32602` with the message prefix `Invalid tools/call request: ` where v1 returned `-32603` with a bare stringified ZodError.
+
+### Features
+
+* add dual-era package serving entries ([#358](https://github.com/supabase/mcp/issues/358)) ([989eb4e](https://github.com/supabase/mcp/commit/989eb4e8e392305510e3aa119855bab0e2bd3bdb))
+* migrate published packages to MCP SDK v2 ([#327](https://github.com/supabase/mcp/issues/327)) ([ead56f2](https://github.com/supabase/mcp/commit/ead56f228fcc316dd7d8db9030807fb7b3bfb73b))
+
 ## [0.10.0](https://github.com/supabase/mcp/compare/mcp-server-supabase-v0.9.0...mcp-server-supabase-v0.10.0) (2026-08-10)
 
 

@@ -4,7 +4,7 @@ import { StreamTransport } from '@supabase/mcp-utils';
 import { codeBlock, stripIndent } from 'common-tags';
 import gqlmin from 'gqlmin';
 import { http, HttpResponse } from 'msw';
-import { setupServer } from 'msw/node';
+import type { SetupServer } from 'msw/node';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { globalRegistry } from 'zod/v4';
 
@@ -17,12 +17,8 @@ import {
   createProject,
   MCP_CLIENT_NAME,
   MCP_CLIENT_VERSION,
-  mockBranches,
-  mockContentApi,
   mockContentApiSchemaLoadCount,
-  mockManagementApi,
-  mockOrgs,
-  mockProjects,
+  setupMockApis,
 } from '../test/mocks.js';
 import { createSupabaseApiPlatform } from './platform/api-platform.js';
 import type { SupabasePlatform } from './platform/types.js';
@@ -33,16 +29,10 @@ import {
   supabaseMcpToolSchemas,
 } from './tools/tool-schemas.js';
 
-let mockServer: ReturnType<typeof setupServer> | undefined;
+let mockServer: SetupServer | undefined;
 
-beforeEach(async () => {
-  mockOrgs.clear();
-  mockProjects.clear();
-  mockBranches.clear();
-  mockContentApiSchemaLoadCount.value = 0;
-
-  mockServer = setupServer(...mockContentApi, ...mockManagementApi);
-  mockServer.listen({ onUnhandledRequest: 'error' });
+beforeEach(() => {
+  mockServer = setupMockApis();
 });
 
 afterEach(() => {

@@ -6,6 +6,7 @@ export {
   createSupabaseMcpServer,
   type SupabaseMcpServerOptions,
 } from './server.js';
+export { createSupabaseMcpHandler } from './transports/http.js';
 export {
   CURRENT_FEATURE_GROUPS,
   type FeatureGroup,

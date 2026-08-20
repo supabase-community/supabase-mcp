@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 import { parseArgs } from 'node:util';
-import { StdioServerTransport } from '@modelcontextprotocol/server/stdio';
+import { serveStdio } from '@modelcontextprotocol/server/stdio';
 
 import packageJson from '../../package.json' with { type: 'json' };
 import { createSupabaseApiPlatform } from '../platform/api-platform.js';
 import { createSupabaseMcpServer } from '../server.js';
+import { parseFeatureGroups } from '../util.js';
 import { parseList } from './util.js';
 
 const { version } = packageJson;
@@ -71,17 +72,24 @@ async function main() {
     apiUrl,
   });
 
-  const server = createSupabaseMcpServer({
-    platform,
-    projectId,
-    readOnly,
-    features,
-    contentApiUrl,
-  });
+  if (features) {
+    parseFeatureGroups(platform, features);
+  }
 
-  const transport = new StdioServerTransport();
-
-  await server.connect(transport);
+  // `serveStdio` reports transport startup and out-of-band wire errors only
+  // through `onerror`, and swallows them otherwise, so this keeps the stderr
+  // output the previous awaited `server.connect()` got from `main().catch`.
+  serveStdio(
+    () =>
+      createSupabaseMcpServer({
+        platform,
+        projectId,
+        readOnly,
+        features,
+        contentApiUrl,
+      }),
+    { onerror: console.error }
+  );
 }
 
 main().catch(console.error);

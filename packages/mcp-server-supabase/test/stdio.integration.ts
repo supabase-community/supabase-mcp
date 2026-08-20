@@ -1,7 +1,9 @@
 import { Client } from '@modelcontextprotocol/client';
 import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
 import gqlmin from 'gqlmin';
+import { existsSync, readdirSync, statSync } from 'node:fs';
 import { createServer, type Server } from 'node:http';
+import { join } from 'node:path';
 import { afterEach, describe, expect, test } from 'vitest';
 import {
   ACCESS_TOKEN,
@@ -11,20 +13,52 @@ import {
   MCP_SERVER_VERSION,
 } from './mocks.js';
 
+type ProtocolEra = 'legacy' | 'modern';
+
 type SetupOptions = {
+  era?: ProtocolEra;
   accessToken?: string;
   projectId?: string;
   readOnly?: boolean;
+  features?: string;
   contentApiUrl?: string;
   apiUrl?: string;
   env?: Record<string, string>;
 };
 
+function assertStdioBuildIsFresh() {
+  const buildPath = 'dist/transports/stdio.js';
+  const newestSource = readdirSync('src', {
+    recursive: true,
+    withFileTypes: true,
+  })
+    .filter((entry) => entry.isFile())
+    .map((entry) => {
+      const path = join(entry.parentPath, entry.name);
+      return { path, mtimeMs: statSync(path).mtimeMs };
+    })
+    .reduce((newest, source) =>
+      source.mtimeMs > newest.mtimeMs ? source : newest
+    );
+  const buildMtimeMs = existsSync(buildPath)
+    ? statSync(buildPath).mtimeMs
+    : Number.NEGATIVE_INFINITY;
+
+  expect(
+    buildMtimeMs,
+    `${buildPath} is missing or older than ${newestSource.path}; run \`pnpm build\`.`
+  ).toBeGreaterThanOrEqual(newestSource.mtimeMs);
+}
+
+assertStdioBuildIsFresh();
+
 async function setup(options: SetupOptions = {}) {
   const {
     accessToken = ACCESS_TOKEN,
+    era = 'legacy',
     projectId,
     readOnly,
+    features,
     apiUrl,
     contentApiUrl,
     env,
@@ -37,6 +71,8 @@ async function setup(options: SetupOptions = {}) {
     },
     {
       capabilities: {},
+      versionNegotiation:
+        era === 'modern' ? { mode: { pin: '2026-07-28' } } : { mode: 'legacy' },
     }
   );
 
@@ -62,6 +98,10 @@ async function setup(options: SetupOptions = {}) {
 
   if (readOnly) {
     args.push('--read-only');
+  }
+
+  if (features) {
+    args.push('--features', features);
   }
 
   if (apiUrl) {
@@ -175,7 +215,7 @@ describe('stdio', () => {
     await Promise.all(stubs.splice(0).map((stub) => stub.close()));
   });
 
-  test('server connects and lists tools', async () => {
+  async function assertServerContract(era: ProtocolEra) {
     const managementApiStub = await createManagementApiStub();
     const contentApiStub = await createContentApiStub();
     stubs.push(managementApiStub, contentApiStub);
@@ -183,6 +223,7 @@ describe('stdio', () => {
     const { client } = await setup({
       apiUrl: managementApiStub.url,
       contentApiUrl: contentApiStub.url,
+      era,
     });
 
     try {
@@ -231,32 +272,48 @@ describe('stdio', () => {
       expect(client.getServerCapabilities()).toEqual({
         tools: {},
       });
-      expect(toolResult).toEqual({
-        content: [
-          {
-            type: 'text',
-            text: JSON.stringify({
-              projects: [
-                {
-                  id: 'abcdefghijklmnopqrst',
-                  ref: 'abcdefghijklmnopqrst',
-                  organization_id: 'tsrqponmlkjihgfedcba',
-                  organization_slug: 'tsrqponmlkjihgfedcba',
-                  name: 'Example project',
-                  region: 'us-east-1',
-                  created_at: '2024-01-02T03:04:05.000Z',
-                  status: 'ACTIVE_HEALTHY',
-                  database: {
-                    host: 'db.abcdefghijklmnopqrst.supabase.co',
-                    version: '15.1.0.147',
-                    postgres_engine: '15',
-                    release_channel: 'ga',
-                  },
+      const expectedToolContent = [
+        {
+          type: 'text',
+          text: JSON.stringify({
+            projects: [
+              {
+                id: 'abcdefghijklmnopqrst',
+                ref: 'abcdefghijklmnopqrst',
+                organization_id: 'tsrqponmlkjihgfedcba',
+                organization_slug: 'tsrqponmlkjihgfedcba',
+                name: 'Example project',
+                region: 'us-east-1',
+                created_at: '2024-01-02T03:04:05.000Z',
+                status: 'ACTIVE_HEALTHY',
+                database: {
+                  host: 'db.abcdefghijklmnopqrst.supabase.co',
+                  version: '15.1.0.147',
+                  postgres_engine: '15',
+                  release_channel: 'ga',
                 },
-              ],
-            }),
-          },
-        ],
+              },
+            ],
+          }),
+        },
+      ];
+
+      const expectedMeta =
+        era === 'modern'
+          ? {
+              _meta: {
+                'io.modelcontextprotocol/serverInfo': {
+                  name: 'supabase',
+                  title: 'Supabase',
+                  version: MCP_SERVER_VERSION,
+                },
+              },
+            }
+          : {};
+      expect(Object.hasOwn(toolResult, '_meta')).toBe(era === 'modern');
+      expect(toolResult).toEqual({
+        ...expectedMeta,
+        content: expectedToolContent,
       });
       expect(
         managementApiStub.hits.map(({ method, url }) => ({
@@ -275,7 +332,12 @@ describe('stdio', () => {
     } finally {
       await client.close();
     }
-  });
+  }
+
+  test.each<ProtocolEra>(['legacy', 'modern'])(
+    'server connects and lists tools (%s)',
+    assertServerContract
+  );
 
   test('missing access token fails', async () => {
     const setupPromise = setup({ accessToken: null as any });
@@ -284,6 +346,12 @@ describe('stdio', () => {
     // Only the message this test's own client renders changed, from v1's
     // 'MCP error -32000: Connection closed' to v2's 'Connection closed'. Held against a
     // fixed v1 client, both the pre- and post-migration builds return the v1 string.
+    await expect(setupPromise).rejects.toThrow('Connection closed');
+  });
+
+  test('invalid --features fails at startup', async () => {
+    const setupPromise = setup({ features: 'invalid' });
+
     await expect(setupPromise).rejects.toThrow('Connection closed');
   });
 });

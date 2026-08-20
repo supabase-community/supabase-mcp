@@ -1,6 +1,5 @@
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js';
-import { LoggingMessageNotificationSchema } from '@modelcontextprotocol/sdk/types.js';
+import { Client } from '@modelcontextprotocol/client';
+import { StdioClientTransport } from '@modelcontextprotocol/client/stdio';
 import gqlmin from 'gqlmin';
 import { createServer, type Server } from 'node:http';
 import { afterEach, describe, expect, test } from 'vitest';
@@ -9,6 +8,7 @@ import {
   contentApiMockSchema,
   MCP_CLIENT_NAME,
   MCP_CLIENT_VERSION,
+  MCP_SERVER_VERSION,
 } from './mocks.js';
 
 type SetupOptions = {
@@ -16,6 +16,7 @@ type SetupOptions = {
   projectId?: string;
   readOnly?: boolean;
   contentApiUrl?: string;
+  apiUrl?: string;
   env?: Record<string, string>;
 };
 
@@ -24,6 +25,7 @@ async function setup(options: SetupOptions = {}) {
     accessToken = ACCESS_TOKEN,
     projectId,
     readOnly,
+    apiUrl,
     contentApiUrl,
     env,
   } = options;
@@ -38,7 +40,7 @@ async function setup(options: SetupOptions = {}) {
     }
   );
 
-  client.setNotificationHandler(LoggingMessageNotificationSchema, (message) => {
+  client.setNotificationHandler('notifications/message', (message) => {
     const { level, data } = message.params;
     if (level === 'error') {
       console.error(data);
@@ -60,6 +62,10 @@ async function setup(options: SetupOptions = {}) {
 
   if (readOnly) {
     args.push('--read-only');
+  }
+
+  if (apiUrl) {
+    args.push('--api-url', apiUrl);
   }
 
   if (contentApiUrl) {
@@ -108,19 +114,177 @@ async function createContentApiStub() {
   };
 }
 
+async function createManagementApiStub() {
+  const hits: Array<{ method: string | undefined; url: URL }> = [];
+
+  const server: Server = createServer((req, res) => {
+    const url = new URL(req.url ?? '/', 'http://127.0.0.1');
+    hits.push({ method: req.method, url });
+    res.setHeader('Content-Type', 'application/json');
+
+    if (
+      req.method === 'GET' &&
+      url.pathname === '/v1/projects' &&
+      url.search === ''
+    ) {
+      res.end(
+        JSON.stringify([
+          {
+            id: 'abcdefghijklmnopqrst',
+            ref: 'abcdefghijklmnopqrst',
+            organization_id: 'tsrqponmlkjihgfedcba',
+            organization_slug: 'tsrqponmlkjihgfedcba',
+            name: 'Example project',
+            region: 'us-east-1',
+            created_at: '2024-01-02T03:04:05.000Z',
+            status: 'ACTIVE_HEALTHY',
+            database: {
+              host: 'db.abcdefghijklmnopqrst.supabase.co',
+              version: '15.1.0.147',
+              postgres_engine: '15',
+              release_channel: 'ga',
+            },
+          },
+        ])
+      );
+      return;
+    }
+
+    res.statusCode = 404;
+    res.end(JSON.stringify({ error: 'not found' }));
+  });
+
+  await new Promise<void>((resolve) => server.listen(0, '127.0.0.1', resolve));
+
+  const address = server.address();
+  if (!address || typeof address === 'string') {
+    throw new Error('failed to bind management API stub');
+  }
+
+  return {
+    url: `http://127.0.0.1:${address.port}`,
+    hits,
+    close: () => new Promise<void>((resolve) => server.close(() => resolve())),
+  };
+}
+
 describe('stdio', () => {
+  const stubs: Array<{ close: () => Promise<void> }> = [];
+
+  afterEach(async () => {
+    await Promise.all(stubs.splice(0).map((stub) => stub.close()));
+  });
+
   test('server connects and lists tools', async () => {
-    const { client } = await setup();
+    const managementApiStub = await createManagementApiStub();
+    const contentApiStub = await createContentApiStub();
+    stubs.push(managementApiStub, contentApiStub);
 
-    const { tools } = await client.listTools();
+    const { client } = await setup({
+      apiUrl: managementApiStub.url,
+      contentApiUrl: contentApiStub.url,
+    });
 
-    expect(tools.length).toBeGreaterThan(0);
+    try {
+      const { tools } = await client.listTools();
+      const toolResult = await client.callTool({
+        name: 'list_projects',
+        arguments: {},
+      });
+
+      expect(tools.map((tool) => tool.name).sort()).toEqual([
+        'apply_migration',
+        'confirm_cost',
+        'create_branch',
+        'create_project',
+        'delete_branch',
+        'deploy_edge_function',
+        'execute_sql',
+        'generate_typescript_types',
+        'get_advisors',
+        'get_cost',
+        'get_edge_function',
+        'get_organization',
+        'get_project',
+        'get_project_url',
+        'get_publishable_keys',
+        'list_branches',
+        'list_edge_functions',
+        'list_extensions',
+        'list_migrations',
+        'list_organizations',
+        'list_projects',
+        'list_tables',
+        'merge_branch',
+        'pause_project',
+        'query_logs',
+        'rebase_branch',
+        'reset_branch',
+        'restore_project',
+        'search_docs',
+      ]);
+      expect(client.getServerVersion()).toEqual({
+        name: 'supabase',
+        title: 'Supabase',
+        version: MCP_SERVER_VERSION,
+      });
+      expect(client.getServerCapabilities()).toEqual({
+        tools: {},
+      });
+      expect(toolResult).toEqual({
+        content: [
+          {
+            type: 'text',
+            text: JSON.stringify({
+              projects: [
+                {
+                  id: 'abcdefghijklmnopqrst',
+                  ref: 'abcdefghijklmnopqrst',
+                  organization_id: 'tsrqponmlkjihgfedcba',
+                  organization_slug: 'tsrqponmlkjihgfedcba',
+                  name: 'Example project',
+                  region: 'us-east-1',
+                  created_at: '2024-01-02T03:04:05.000Z',
+                  status: 'ACTIVE_HEALTHY',
+                  database: {
+                    host: 'db.abcdefghijklmnopqrst.supabase.co',
+                    version: '15.1.0.147',
+                    postgres_engine: '15',
+                    release_channel: 'ga',
+                  },
+                },
+              ],
+            }),
+          },
+        ],
+      });
+      expect(
+        managementApiStub.hits.map(({ method, url }) => ({
+          method,
+          pathname: url.pathname,
+          search: url.search,
+        }))
+      ).toEqual([
+        {
+          method: 'GET',
+          pathname: '/v1/projects',
+          search: '',
+        },
+      ]);
+      expect(contentApiStub.hits.length).toBeGreaterThan(0);
+    } finally {
+      await client.close();
+    }
   });
 
   test('missing access token fails', async () => {
     const setupPromise = setup({ accessToken: null as any });
 
-    await expect(setupPromise).rejects.toThrow('MCP error -32000');
+    // The server is unchanged here: it still exits before completing the handshake.
+    // Only the message this test's own client renders changed, from v1's
+    // 'MCP error -32000: Connection closed' to v2's 'Connection closed'. Held against a
+    // fixed v1 client, both the pre- and post-migration builds return the v1 string.
+    await expect(setupPromise).rejects.toThrow('Connection closed');
   });
 });
 

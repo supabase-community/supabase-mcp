@@ -1,6 +1,7 @@
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { Client } from '@modelcontextprotocol/client';
 import { StreamTransport } from '@supabase/mcp-utils';
 import { describe, expect, test } from 'vitest';
+
 import {
   ACCESS_TOKEN,
   API_URL,

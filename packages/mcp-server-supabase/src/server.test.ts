@@ -1,8 +1,5 @@
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
-import {
-  CallToolResultSchema,
-  type CallToolRequest,
-} from '@modelcontextprotocol/sdk/types.js';
+import { Client } from '@modelcontextprotocol/client';
+import type { CallToolRequestParams } from '@modelcontextprotocol/client';
 import { StreamTransport } from '@supabase/mcp-utils';
 import { codeBlock, stripIndent } from 'common-tags';
 import gqlmin from 'gqlmin';
@@ -10,6 +7,7 @@ import { http, HttpResponse } from 'msw';
 import { setupServer } from 'msw/node';
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 import { globalRegistry } from 'zod/v4';
+
 import {
   ACCESS_TOKEN,
   API_URL,
@@ -102,9 +100,9 @@ async function setup(options: SetupOptions = {}) {
    *
    * Wrapper around the `client.callTool` method to handle the response and errors.
    */
-  async function callTool(params: CallToolRequest['params']) {
+  async function callTool(params: CallToolRequestParams) {
     const output = await client.callTool(params);
-    const { content } = CallToolResultSchema.parse(output);
+    const { content } = output;
     const [textContent] = content;
 
     if (!textContent) {
@@ -3893,7 +3891,7 @@ describe('tools', () => {
       arguments: { schemas: ['public'] },
     });
 
-    const result = CallToolResultSchema.parse(resultUntyped);
+    const result = resultUntyped;
     const firstContent = result.content.at(0);
     if (!firstContent) {
       throw new Error('Expected content in tool response');

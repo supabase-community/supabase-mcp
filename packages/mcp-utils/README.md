@@ -16,6 +16,13 @@ yarn add @supabase/mcp-utils
 pnpm add @supabase/mcp-utils
 ```
 
+The `StreamTransport` example below also needs `@modelcontextprotocol/client`, which is a separate
+package from the `@modelcontextprotocol/server` peer dependency and is not installed for you:
+
+```shell
+npm i @modelcontextprotocol/client
+```
+
 ## API
 
 ### `StreamTransport`
@@ -25,7 +32,7 @@ If you're building an MCP client, you'll need to connect to MCP servers programm
 In addition to MCP's [built-in](https://modelcontextprotocol.io/docs/concepts/transports#built-in-transport-types) transports, we also offer a `StreamTransport` to connect to clients with servers directly in-memory or over your own stream-based transport:
 
 ```ts
-import { Client } from '@modelcontextprotocol/sdk/client/index.js';
+import { Client } from '@modelcontextprotocol/client';
 import { StreamTransport } from '@supabase/mcp-utils';
 import { PostgrestMcpServer } from '@supabase/mcp-server-postgrest';
 
@@ -73,8 +80,7 @@ If your using Node.js streams, you can use their [`.toWeb()`](https://nodejs.org
 The full interface for `StreamTransport` is as follows:
 
 ```ts
-import { Transport } from '@modelcontextprotocol/sdk/shared/transport.js';
-import { JSONRPCMessage } from '@modelcontextprotocol/sdk/types.js';
+import { JSONRPCMessage, Transport } from '@modelcontextprotocol/server';
 
 interface DuplexStream<T> {
   readable: ReadableStream<T>;

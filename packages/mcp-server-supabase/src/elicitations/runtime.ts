@@ -262,6 +262,8 @@ export function createElicitationRuntime(
           case 'reissue':
             // The proposal is the one already signed, so preparation does not
             // run again and the caller cannot be shown a changed proposal.
+            // The reissued round is signed afresh, so it opens its own
+            // lifetime and its own Interaction ID.
             return elicit(proposal, argsDigest, ctx, 'reissued');
         }
       }

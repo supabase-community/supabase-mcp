@@ -21,7 +21,7 @@ import {
   createSignedStateCodec,
   createStateSigner,
 } from './codec.js';
-import type { ElicitationPolicy } from './policy.js';
+import type { ElicitationPolicy, ElicitationPreparation } from './policy.js';
 import type { ContinuationState } from './state.js';
 import {
   createElicitationRuntime,
@@ -36,8 +36,9 @@ const ACTOR_ID = 'actor-1';
 const TOOL = 'guarded';
 
 type Args = { name: string };
-type Proposal = { name: string };
-type Resolution = { approved: boolean };
+/** `serial` counts preparations, so a second one is visible in the result. */
+type Proposal = { name: string; serial: number };
+type Resolution = { serial: number | null };
 
 type PolicyCall = Parameters<
   NonNullable<McpServerOptions['onToolPolicyCall']>
@@ -64,16 +65,19 @@ function basePolicy(): ElicitationPolicy<Args, Proposal, Resolution> {
     version: 1,
     available: () => true,
     canonicalArguments: ({ name }) => ({ name }),
-    prepare: async ({ name }) => ({ type: 'elicit', proposal: { name } }),
+    prepare: async ({ name }) => ({
+      type: 'elicit',
+      proposal: { name, serial: 1 },
+    }),
     inputRequests: (proposal) => ({
       confirm: inputRequired.elicit({
-        message: `Confirm ${proposal.name}`,
+        message: `Confirm ${proposal.name} #${proposal.serial}`,
         // Action-only consent: the request carries no properties, so the
         // answer is the `action`, never response content.
         requestedSchema: { type: 'object', properties: {} },
       }),
     }),
-    resolve: async (_proposal, responses) => {
+    resolve: async (proposal, responses) => {
       const answer = responses.confirm;
       if (answer === undefined || answer.kind !== 'elicit') {
         return { type: 'reissue' };
@@ -84,7 +88,7 @@ function basePolicy(): ElicitationPolicy<Args, Proposal, Resolution> {
       if (answer.action === 'cancel') {
         return { type: 'cancelled', message: 'Nothing was created.' };
       }
-      return { type: 'execute', resolution: { approved: true } };
+      return { type: 'execute', resolution: { serial: proposal.serial } };
     },
   };
 }
@@ -110,9 +114,20 @@ type SetupOptions = {
 };
 
 function setupRuntime(options: SetupOptions = {}) {
-  const prepare = vi.fn(basePolicy().prepare);
+  // Preparation is deliberately unstable: preparing twice would hand the
+  // caller a different proposal, so a stale serial in the result would prove
+  // the runtime prepared again instead of using the state it signed.
+  let preparations = 0;
+  const prepare = vi.fn(
+    async ({
+      name,
+    }: Args): Promise<ElicitationPreparation<Proposal, Resolution>> => ({
+      type: 'elicit',
+      proposal: { name, serial: ++preparations },
+    })
+  );
   const execute = vi.fn(async (args: Args, resolution: Resolution) => ({
-    id: `${args.name}:${resolution.approved}`,
+    id: `${args.name}:${resolution.serial ?? 'unprompted'}`,
   }));
   const policyCalls: PolicyCall[] = [];
 
@@ -148,6 +163,9 @@ function setupRuntime(options: SetupOptions = {}) {
               outputSchema: businessOutput,
               policy: runtime.policy(options.toolName ?? TOOL, policy),
               execute,
+              // Renders text only for a normalized request; a suppressed one
+              // must fall back to the default single encoding.
+              formatResult: ({ id }) => `formatted:${id}`,
             }),
             plain: tool({
               description: 'Plain',
@@ -265,19 +283,32 @@ function textOf(result: { content?: unknown }): string {
 }
 
 describe('elicitation runtime composition', () => {
-  test('carries one prepared proposal across both rounds and executes once', async () => {
-    const { client, execute, prepare } = setupRuntime();
+  test('resolves the first signed proposal, not one a second preparation would build', async () => {
+    const asked: string[] = [];
+    const { client, execute, prepare } = setupRuntime({
+      onElicit: () => {
+        asked.push('asked');
+      },
+    });
 
     const result = await (await client).callTool({
       name: TOOL,
       arguments: { name: 'demo' },
     });
 
-    expect(result.structuredContent).toStrictEqual({ id: 'demo:true' });
-    // Preparation runs on the first round only: the proposal the caller
-    // approved is the one carried by the signed state.
+    // Serial 1 is the proposal the caller was shown. Preparing again on the
+    // continuation round would have produced serial 2 and executed with it.
+    expect(result.structuredContent).toStrictEqual({ id: 'demo:1' });
+    expect(asked).toHaveLength(1);
     expect(prepare.mock.calls).toHaveLength(1);
     expect(execute.mock.calls).toHaveLength(1);
+
+    // The fixture is what makes the assertion above load bearing: preparing
+    // once more really does build a different proposal.
+    expect(await prepare({ name: 'demo' })).toStrictEqual({
+      type: 'elicit',
+      proposal: { name: 'demo', serial: 2 },
+    });
   });
 
   test('asks with a property-less schema and takes the action as the answer', async () => {
@@ -296,11 +327,11 @@ describe('elicitation runtime composition', () => {
     expect(requests).toStrictEqual([
       {
         mode: 'form',
-        message: 'Confirm demo',
+        message: 'Confirm demo #1',
         requestedSchema: { type: 'object', properties: {} },
       },
     ]);
-    expect(result.structuredContent).toStrictEqual({ id: 'demo:true' });
+    expect(result.structuredContent).toStrictEqual({ id: 'demo:1' });
     expect(execute.mock.calls).toHaveLength(1);
   });
 
@@ -350,7 +381,7 @@ describe('elicitation runtime composition', () => {
       policy: {
         prepare: async () => ({
           type: 'execute',
-          resolution: { approved: false },
+          resolution: { serial: null },
         }),
       },
       answers: [],
@@ -361,7 +392,7 @@ describe('elicitation runtime composition', () => {
       arguments: { name: 'demo' },
     });
 
-    expect(result.structuredContent).toStrictEqual({ id: 'demo:false' });
+    expect(result.structuredContent).toStrictEqual({ id: 'demo:unprompted' });
     expect(execute.mock.calls).toHaveLength(1);
     expect(policyCalls).toHaveLength(1);
     expect(policyCalls[0]?.telemetry).toStrictEqual({
@@ -515,7 +546,7 @@ describe('gate', () => {
 
     // The blocked attempt neither executed nor consumed the state: the very
     // same continuation succeeded once the gate reopened.
-    expect(result.structuredContent).toStrictEqual({ id: 'demo:true' });
+    expect(result.structuredContent).toStrictEqual({ id: 'demo:1' });
     expect(execute.mock.calls).toHaveLength(1);
     expect(
       policyCalls.map(({ telemetry }) => [telemetry.outcome, telemetry.reason])
@@ -573,7 +604,7 @@ describe('detection-only replay posture', () => {
       arguments: { name: 'demo' },
     });
 
-    expect(result.structuredContent).toStrictEqual({ id: 'demo:true' });
+    expect(result.structuredContent).toStrictEqual({ id: 'demo:1' });
     // Both attempts ran. Telemetry can detect the duplicate; nothing prevents
     // it, and nothing was consumed.
     expect(execute.mock.calls).toHaveLength(2);
@@ -586,5 +617,194 @@ describe('detection-only replay posture', () => {
     );
     expect(new Set(interactionIds).size).toBe(1);
     expect(interactionIds[0]).toStrictEqual(expect.any(String));
+  });
+});
+
+describe('terminal outcomes', () => {
+  test.each([
+    ['decline', 'declined', 'Not created.'],
+    ['cancel', 'cancelled', 'Nothing was created.'],
+  ] as const)(
+    'answers %s with the distinct %s variant and explicit text',
+    async (action, status, text) => {
+      const { client, execute } = setupRuntime({ answers: [{ action }] });
+
+      const result = await (await client).callTool({
+        name: TOOL,
+        arguments: { name: 'demo' },
+      });
+
+      expect(result.isError).toBeFalsy();
+      expect(result.structuredContent).toStrictEqual({ status });
+      expect(textOf(result)).toBe(text);
+      expect(execute.mock.calls).toHaveLength(0);
+    }
+  );
+
+  test('asks again for invalid input without preparing a second proposal', async () => {
+    let asked = 0;
+    const { client, execute, prepare } = setupRuntime({
+      policy: {
+        resolve: async (proposal, responses) => {
+          const answer = responses.confirm;
+          if (answer?.kind !== 'elicit' || answer.action !== 'accept') {
+            return { type: 'cancelled', message: 'Nothing was created.' };
+          }
+          if (answer.content?.token !== 'ok') {
+            return { type: 'reissue' };
+          }
+          return { type: 'execute', resolution: { serial: proposal.serial } };
+        },
+      },
+      answers: [
+        { action: 'accept', content: { token: 'wrong' } },
+        { action: 'accept', content: { token: 'ok' } },
+      ],
+      onElicit: () => {
+        asked += 1;
+      },
+    });
+
+    const result = await (await client).callTool({
+      name: TOOL,
+      arguments: { name: 'demo' },
+    });
+
+    expect(asked).toBe(2);
+    // The reissued round re-signs the proposal that was already prepared.
+    expect(prepare.mock.calls).toHaveLength(1);
+    expect(result.structuredContent).toStrictEqual({ id: 'demo:1' });
+    expect(execute.mock.calls).toHaveLength(1);
+  });
+});
+
+describe('initial request availability', () => {
+  test('refuses to emit a form the request cannot carry, and creates nothing', async () => {
+    const asked: string[] = [];
+    const { client, execute, prepare, policyCalls } = setupRuntime({
+      policy: { available: () => false },
+      answers: [],
+      onElicit: () => {
+        asked.push('asked');
+      },
+    });
+
+    const result = await (await client).callTool({
+      name: TOOL,
+      arguments: { name: 'demo' },
+    });
+
+    // Nothing was emitted toward a client that cannot answer, and nothing ran.
+    expect(asked).toHaveLength(0);
+    expect(execute.mock.calls).toHaveLength(0);
+    // This request is suppressed, so the refusal also pins that a policy
+    // `result` decision reaches the wire unchanged: exactly these bytes, and
+    // no structured content to be stripped or added.
+    expect(result.isError).toBe(true);
+    expect(result.content).toStrictEqual([
+      {
+        type: 'text',
+        text: 'This client cannot complete the confirmation this tool requires, so nothing was created. Run the tool again from a client and connection that support form elicitation.',
+      },
+    ]);
+    expect('structuredContent' in result).toBe(false);
+    expect(prepare.mock.calls).toHaveLength(1);
+    expect(policyCalls).toHaveLength(1);
+    expect(policyCalls[0]?.telemetry).toStrictEqual({
+      policyId: 'test-policy',
+      policyVersion: 1,
+      outcome: 'rejected',
+      reason: 'unsupported_elicitation',
+    });
+  });
+
+  test('still executes a preparation that needs no confirmation', async () => {
+    const { client, execute } = setupRuntime({
+      policy: {
+        available: () => false,
+        prepare: async () => ({
+          type: 'execute',
+          resolution: { serial: null },
+        }),
+      },
+      answers: [],
+    });
+
+    const result = await (await client).callTool({
+      name: TOOL,
+      arguments: { name: 'demo' },
+    });
+
+    // An incapable request is only refused where a form would be emitted.
+    // The request is suppressed, so the proof it ran is the pre-normalization
+    // payload rather than structured content.
+    expect(result.isError).toBeFalsy();
+    expect(result.structuredContent).toBeUndefined();
+    expect(result.content).toStrictEqual([
+      { type: 'text', text: JSON.stringify({ id: 'demo:unprompted' }) },
+    ]);
+    expect(execute.mock.calls).toHaveLength(1);
+  });
+});
+
+describe('contextual structured results', () => {
+  test('normalizes a capable request and holds an incapable one on pre-normalization bytes', async () => {
+    const capable = await setupRuntime().client;
+    const incapable = await setupRuntime({
+      policy: {
+        available: () => false,
+        prepare: async () => ({
+          type: 'execute',
+          resolution: { serial: null },
+        }),
+      },
+      answers: [],
+    }).client;
+
+    const advertised = (await capable.listTools()).tools;
+    const suppressed = (await incapable.listTools()).tools;
+    const guardedEntry = advertised.find(({ name }) => name === TOOL);
+    const suppressedEntry = suppressed.find(({ name }) => name === TOOL);
+    // Measured base: the policy-free tool on the same server, which carries
+    // the discovery and result bytes every tool had before structured
+    // results existed.
+    const baseEntry = suppressed.find(({ name }) => name === 'plain');
+
+    expect(guardedEntry?.outputSchema).toStrictEqual(
+      z.toJSONSchema(withTerminalOutput(businessOutput), { target: 'draft-7' })
+    );
+    expect('outputSchema' in (baseEntry ?? {})).toBe(false);
+    expect('outputSchema' in (suppressedEntry ?? {})).toBe(false);
+
+    const normalized = await capable.callTool({
+      name: TOOL,
+      arguments: { name: 'demo' },
+    });
+    // The base runs the policy-free tool on the payload the suppressed lane
+    // produces, so the two results are directly comparable.
+    const base = await incapable.callTool({
+      name: 'plain',
+      arguments: { name: 'demo:unprompted' },
+    });
+    const held = await incapable.callTool({
+      name: TOOL,
+      arguments: { name: 'demo' },
+    });
+
+    expect(normalized.structuredContent).toStrictEqual({ id: 'demo:1' });
+    expect(textOf(normalized)).toBe('formatted:demo:1');
+
+    // The base carries no structured content and single-encoded JSON text.
+    expect(base.structuredContent).toBeUndefined();
+    expect(base.content).toStrictEqual([
+      { type: 'text', text: JSON.stringify({ id: 'demo:unprompted' }) },
+    ]);
+
+    // The suppressed lane reproduces the base exactly, down to skipping the
+    // tool's own `formatResult`.
+    expect(held.isError).toBe(base.isError);
+    expect(held.structuredContent).toBe(base.structuredContent);
+    expect(held.content).toStrictEqual(base.content);
+    expect(textOf(held)).not.toBe('formatted:demo:unprompted');
   });
 });

@@ -1,16 +1,22 @@
-import { Client } from '@modelcontextprotocol/client';
+import {
+  Client,
+  StreamableHTTPClientTransport,
+} from '@modelcontextprotocol/client';
 import type { CallToolRequestParams } from '@modelcontextprotocol/client';
+import { createMcpHandler } from '@modelcontextprotocol/server';
 import type { Server } from '@modelcontextprotocol/server';
-import { describe, expect, test, vi } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 import { z } from 'zod/v4';
 
 import {
   createMcpServer,
+  type McpServerOptions,
   resource,
   resources,
   resourceTemplate,
   tool,
-} from './server.js';
+  type ToolPolicy,
+} from './index.js';
 import { StreamTransport } from './stream-transport.js';
 
 export const MCP_CLIENT_NAME = 'test-client';
@@ -76,6 +82,67 @@ async function setup(options: SetupOptions) {
   }
 
   return { client, clientTransport, callTool, server, serverTransport };
+}
+
+// https://blog.modelcontextprotocol.io/posts/2026-07-28-release-candidate/
+const MODERN_PROTOCOL_VERSION = '2026-07-28';
+const MCP_ENDPOINT = new URL('https://mcp.test');
+const telemetry = { outcome: 'allowed' };
+const cleanups: Array<() => Promise<void>> = [];
+
+/**
+ * A policy that always proceeds. Attaching any policy is what opts a tool
+ * into structured results, so this is the minimal opted-in configuration.
+ */
+const passThroughPolicy: ToolPolicy<{ value: string }, undefined> = {
+  resolve: async () => ({
+    type: 'execute',
+    resolution: undefined,
+    telemetry,
+  }),
+};
+
+afterEach(async () => {
+  for (const cleanup of cleanups.splice(0).reverse()) {
+    await cleanup();
+  }
+});
+
+/**
+ * Connects a client on the modern revision, the serving path that carries the
+ * per-request `_meta` envelope and the multi-round-trip `requestState`
+ * vocabulary.
+ */
+async function setupModernClient(
+  options: Omit<McpServerOptions, 'name' | 'version'>
+) {
+  const handler = createMcpHandler(
+    () =>
+      createMcpServer({
+        name: 'test-server',
+        version: '0.0.0',
+        ...options,
+      }),
+    { legacy: 'reject' }
+  );
+  const transport = new StreamableHTTPClientTransport(MCP_ENDPOINT, {
+    fetch: (url, init) => handler.fetch(new Request(url, init)),
+  });
+  const client = new Client(
+    { name: MCP_CLIENT_NAME, version: MCP_CLIENT_VERSION },
+    {
+      capabilities: {},
+      versionNegotiation: { mode: { pin: MODERN_PROTOCOL_VERSION } },
+    }
+  );
+
+  await client.connect(transport);
+  cleanups.push(
+    () => client.close(),
+    () => handler.close()
+  );
+
+  return client;
 }
 
 describe('tools', () => {
@@ -295,6 +362,278 @@ describe('tools', () => {
         'http://json-schema.org/draft-07/schema#'
       );
     }
+  });
+});
+
+describe('structured tool results', () => {
+  // Expressible exactly as it was before this package grew structured
+  // results: no policy, no formatResult.
+  const plainTools = () => ({
+    fixture: tool({
+      description: 'Fixture',
+      parameters: z.object({ value: z.string() }),
+      outputSchema: z.object({ value: z.string() }),
+      execute: async ({ value }: { value: string }) => ({ value }),
+    }),
+  });
+
+  const policyTools = (
+    formatResult?: (result: { value: string }) => string
+  ) => ({
+    fixture: tool({
+      description: 'Fixture',
+      parameters: z.object({ value: z.string() }),
+      outputSchema: z.object({ value: z.string() }),
+      policy: passThroughPolicy,
+      execute: async ({ value }: { value: string }) => ({ value }),
+      ...(formatResult ? { formatResult } : {}),
+    }),
+  });
+
+  // Both strings below were measured by running this exact fixture against
+  // base fc54ea2's `server.ts`, not written by hand.
+  const BASE_LEGACY_DISCOVERY =
+    '{"tools":[{"name":"fixture","description":"Fixture","inputSchema":' +
+    '{"type":"object","properties":{"value":{"type":"string"}},' +
+    '"required":["value"],"$schema":"http://json-schema.org/draft-07/schema#",' +
+    '"additionalProperties":false}}]}';
+  const BASE_LEGACY_CALL =
+    '{"content":[{"type":"text","text":"{\\"value\\":\\"hi\\"}"}]}';
+  const BASE_MODERN_DISCOVERY =
+    '{"_meta":{"io.modelcontextprotocol/serverInfo":{"name":"test-server",' +
+    '"version":"0.0.0"}},"ttlMs":0,"cacheScope":"private","tools":[' +
+    '{"name":"fixture","description":"Fixture","inputSchema":' +
+    '{"$schema":"http://json-schema.org/draft-07/schema#","type":"object",' +
+    '"properties":{"value":{"type":"string"}},"required":["value"],' +
+    '"additionalProperties":false}}]}';
+  const BASE_MODERN_CALL =
+    '{"_meta":{"io.modelcontextprotocol/serverInfo":{"name":"test-server",' +
+    '"version":"0.0.0"}},"content":[{"type":"text",' +
+    '"text":"{\\"value\\":\\"hi\\"}"}]}';
+
+  /**
+   * A policy attached on every context that normalizes only the modern era,
+   * suppressing structured results elsewhere. This is the shape PR C needs:
+   * one policy, routed inside the policy.
+   */
+  const suppressingTools = () => ({
+    fixture: tool({
+      description: 'Fixture',
+      parameters: z.object({ value: z.string() }),
+      outputSchema: z.object({ value: z.string() }),
+      policy: {
+        outputSchema: (schema, ctx) =>
+          ctx.era === 'modern' ? schema : undefined,
+        resolve: passThroughPolicy.resolve,
+      } satisfies ToolPolicy<{ value: string }, undefined>,
+      execute: async ({ value }: { value: string }) => ({ value }),
+      formatResult: ({ value }: { value: string }) => `PREFIX:${value}`,
+    }),
+  });
+
+  test('a policy-free tool keeps base bytes on the legacy path', async () => {
+    const server = createMcpServer({
+      name: 'test-server',
+      version: '0.0.0',
+      tools: plainTools(),
+    });
+
+    const { client } = await setup({ server });
+
+    expect(JSON.stringify(await client.listTools())).toBe(
+      BASE_LEGACY_DISCOVERY
+    );
+    expect(
+      JSON.stringify(
+        await client.callTool({ name: 'fixture', arguments: { value: 'hi' } })
+      )
+    ).toBe(BASE_LEGACY_CALL);
+  });
+
+  test('a policy-free tool keeps base bytes on the modern path', async () => {
+    const client = await setupModernClient({ tools: plainTools() });
+
+    expect(JSON.stringify(await client.listTools())).toBe(
+      BASE_MODERN_DISCOVERY
+    );
+    expect(
+      JSON.stringify(
+        await client.callTool({ name: 'fixture', arguments: { value: 'hi' } })
+      )
+    ).toBe(BASE_MODERN_CALL);
+  });
+
+  test('a policy advertises outputSchema and returns structuredContent with single-encoded text', async () => {
+    const server = createMcpServer({
+      name: 'test-server',
+      version: '0.0.0',
+      tools: policyTools(),
+    });
+
+    const { client } = await setup({ server });
+
+    const { tools } = await client.listTools();
+    expect(tools[0]?.outputSchema).toMatchObject({
+      type: 'object',
+      properties: { value: { type: 'string' } },
+    });
+
+    const result = await client.callTool({
+      name: 'fixture',
+      arguments: { value: 'hi' },
+    });
+
+    expect(result.structuredContent).toEqual({ value: 'hi' });
+    expect(result.content).toEqual([
+      { type: 'text', text: JSON.stringify({ value: 'hi' }) },
+    ]);
+  });
+
+  test('a policy without an output-schema hook normalizes on both paths', async () => {
+    const legacyServer = createMcpServer({
+      name: 'test-server',
+      version: '0.0.0',
+      tools: policyTools(),
+    });
+
+    const legacy = await setup({ server: legacyServer });
+    const modern = await setupModernClient({ tools: policyTools() });
+
+    for (const client of [legacy.client, modern]) {
+      const { tools } = await client.listTools();
+      expect(tools[0]?.outputSchema).toMatchObject({ type: 'object' });
+
+      const result = await client.callTool({
+        name: 'fixture',
+        arguments: { value: 'hi' },
+      });
+
+      expect(result.structuredContent).toEqual({ value: 'hi' });
+    }
+  });
+
+  test('an output-schema hook returning undefined restores the whole base result', async () => {
+    const legacyServer = createMcpServer({
+      name: 'test-server',
+      version: '0.0.0',
+      tools: suppressingTools(),
+    });
+
+    const legacy = await setup({ server: legacyServer });
+    const modern = await setupModernClient({ tools: suppressingTools() });
+
+    // Suppressed lane: byte-identical to the policy-free fixture's measured
+    // base bytes, including `formatResult` being skipped, even though this
+    // tool both attaches a policy and declares `formatResult`.
+    expect(JSON.stringify(await legacy.client.listTools())).toBe(
+      BASE_LEGACY_DISCOVERY
+    );
+    expect(
+      JSON.stringify(
+        await legacy.client.callTool({
+          name: 'fixture',
+          arguments: { value: 'hi' },
+        })
+      )
+    ).toBe(BASE_LEGACY_CALL);
+
+    // Normalized lane: same policy, same tool, structured results and the
+    // tool's own `formatResult`.
+    const modernDiscovery = await modern.listTools();
+    expect(modernDiscovery.tools[0]?.outputSchema).toMatchObject({
+      type: 'object',
+      properties: { value: { type: 'string' } },
+    });
+
+    const modernResult = await modern.callTool({
+      name: 'fixture',
+      arguments: { value: 'hi' },
+    });
+
+    expect(modernResult.structuredContent).toEqual({ value: 'hi' });
+    expect(modernResult.content).toEqual([{ type: 'text', text: 'PREFIX:hi' }]);
+  });
+
+  test('formatResult changes text only, never discovery or structuredContent', async () => {
+    const plainServer = createMcpServer({
+      name: 'test-server',
+      version: '0.0.0',
+      tools: policyTools(),
+    });
+    const formattedServer = createMcpServer({
+      name: 'test-server',
+      version: '0.0.0',
+      tools: policyTools(({ value }) => `PREFIX:${value}`),
+    });
+
+    const plain = await setup({ server: plainServer });
+    const formatted = await setup({ server: formattedServer });
+
+    // Discovery is byte-identical with and without `formatResult`.
+    expect(JSON.stringify(await formatted.client.listTools())).toBe(
+      JSON.stringify(await plain.client.listTools())
+    );
+
+    const result = await formatted.client.callTool({
+      name: 'fixture',
+      arguments: { value: 'hi' },
+    });
+
+    expect(result.structuredContent).toEqual({ value: 'hi' });
+    expect(result.content).toEqual([{ type: 'text', text: 'PREFIX:hi' }]);
+  });
+
+  test('formatResult on a policy-free tool still emits no structuredContent', async () => {
+    const server = createMcpServer({
+      name: 'test-server',
+      version: '0.0.0',
+      tools: {
+        fixture: tool({
+          description: 'Fixture',
+          parameters: z.object({ value: z.string() }),
+          outputSchema: z.object({ value: z.string() }),
+          execute: async ({ value }) => ({ value }),
+          formatResult: ({ value }) => `PREFIX:${value}`,
+        }),
+      },
+    });
+
+    const { client } = await setup({ server });
+
+    // Discovery still carries no `outputSchema` key.
+    expect(JSON.stringify(await client.listTools())).toBe(
+      BASE_LEGACY_DISCOVERY
+    );
+
+    const result = await client.callTool({
+      name: 'fixture',
+      arguments: { value: 'hi' },
+    });
+
+    expect(result.structuredContent).toBeUndefined();
+    expect(result.content).toEqual([{ type: 'text', text: 'PREFIX:hi' }]);
+  });
+
+  test('a null tool result produces no content', async () => {
+    const server = createMcpServer({
+      name: 'test-server',
+      version: '0.0.0',
+      tools: {
+        empty: tool({
+          description: 'Empty',
+          parameters: z.object({}),
+          outputSchema: z.object({}),
+          execute: async () => null as unknown as Record<string, never>,
+        }),
+      },
+    });
+
+    const { client } = await setup({ server });
+
+    const result = await client.callTool({ name: 'empty', arguments: {} });
+
+    expect(result.content).toEqual([]);
+    expect(result.structuredContent).toBeUndefined();
   });
 });
 

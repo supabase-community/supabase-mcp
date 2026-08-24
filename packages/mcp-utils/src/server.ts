@@ -1,4 +1,9 @@
-import { Server } from '@modelcontextprotocol/server';
+import {
+  CLIENT_CAPABILITIES_META_KEY,
+  CLIENT_INFO_META_KEY,
+  PROTOCOL_VERSION_META_KEY,
+  Server,
+} from '@modelcontextprotocol/server';
 import type {
   ClientCapabilities,
   Implementation,
@@ -8,10 +13,16 @@ import type {
   Tool as McpTool,
   ReadResourceResult,
   ServerCapabilities,
+  ServerContext,
 } from '@modelcontextprotocol/server';
 import { z } from 'zod/v4';
 
 import type { ExtractParams } from './types.js';
+import type {
+  ToolPolicy,
+  ToolPolicyTelemetry,
+  ToolRequestContext,
+} from './tool-policy.js';
 import { assertValidUri, compareUris, matchUriTemplate } from './util.js';
 
 export type Scheme = string;
@@ -45,6 +56,7 @@ export type Tool<
   // MCP spec restricts outputSchema to type "object" at the root level:
   // https://modelcontextprotocol.io/specification/2025-11-25/schema#tool-outputschema
   OutputSchema extends z.ZodObject<any> = z.ZodObject<any>,
+  Resolution = never,
 > = {
   description: Prop<string>;
   annotations?: Annotations;
@@ -52,7 +64,35 @@ export type Tool<
   outputSchema: OutputSchema;
   /** If true, excludes the tool from `tools/list` while keeping it callable via `tools/call`. */
   hidden?: boolean;
-  execute(params: z.infer<Params>): Promise<z.infer<OutputSchema>>;
+  /**
+   * Contextual discovery filter. Returning `false` hides the tool from
+   * `tools/list` while keeping it callable via `tools/call`.
+   */
+  visible?: (ctx: ToolRequestContext) => boolean;
+  /**
+   * Pre-execution policy consulted for discovery schemas, argument
+   * normalization, and the decision to execute or answer directly.
+   */
+  policy?: ToolPolicy<z.infer<Params>, Resolution>;
+  execute(
+    params: z.infer<Params>,
+    ...resolution: [Resolution] extends [never] ? [] : [Resolution]
+  ): Promise<z.infer<OutputSchema>>;
+  /**
+   * Renders the tool result as MCP text content.
+   *
+   * Defaults to `JSON.stringify`, which keeps the text content a
+   * single-encoded rendering of the business result. Setting it never
+   * changes discovery bytes and never decides whether `structuredContent`
+   * is emitted.
+   *
+   * It is skipped on a request whose policy suppressed structured results
+   * via `policy.outputSchema` returning `undefined`, because that request
+   * reproduces the whole pre-normalization result. On a policy-free tool it
+   * always applies: setting it there is an explicit authoring choice,
+   * unrelated to suppression.
+   */
+  formatResult?: (result: z.infer<OutputSchema>) => string;
 };
 
 /**
@@ -162,7 +202,8 @@ export function jsonResourceResponse<Uri extends string, Response>(
 export function tool<
   Params extends z.ZodObject<any>,
   OutputSchema extends z.ZodObject<any>,
->(tool: Tool<Params, OutputSchema>) {
+  Resolution = never,
+>(tool: Tool<Params, OutputSchema, Resolution>) {
   return tool;
 }
 
@@ -189,8 +230,25 @@ type ToolCallErrorDetails = ToolCallBaseDetails & {
 
 export type ToolCallDetails = ToolCallSuccessDetails | ToolCallErrorDetails;
 
+/** Safe, product-neutral report of one pre-execution policy decision. */
+type ToolPolicyCallDetails = {
+  /** Name of the tool whose policy produced the decision. */
+  name: string;
+  /** Whether the decision short-circuited business execution. */
+  decision: 'execute' | 'result';
+  /** Wall-clock duration of policy resolution, in milliseconds. */
+  durationMs: number;
+  /** Client identity, when the request carried it. */
+  clientInfo?: Implementation;
+  /** Allowlisted telemetry reported by the policy. */
+  telemetry: ToolPolicyTelemetry;
+};
+
 export type InitCallback = (initData: InitData) => void | Promise<void>;
 export type ToolCallCallback = (details: ToolCallDetails) => void;
+type ToolPolicyCallCallback = (
+  details: ToolPolicyCallDetails
+) => void | Promise<void>;
 export type PropCallback<T> = () => T | Promise<T>;
 export type Prop<T> = T | PropCallback<T>;
 
@@ -235,6 +293,12 @@ export type McpServerOptions = {
   onToolCall?: ToolCallCallback;
 
   /**
+   * Callback for each pre-execution policy decision. Receives allowlisted
+   * telemetry only; a failure here never changes a tool result.
+   */
+  onToolPolicyCall?: ToolPolicyCallCallback;
+
+  /**
    * Resources to be served by the server. These can be defined as a static
    * object or as a function that dynamically returns the object synchronously
    * or asynchronously.
@@ -256,8 +320,77 @@ export type McpServerOptions = {
    * asks for the list of tools or invokes a tool. This allows for dynamic tools
    * that can change after the server has started.
    */
-  tools?: Prop<Record<string, Tool>>;
+  tools?: Prop<Record<string, Tool<any, any, any>>>;
 };
+
+/**
+ * The result shape one request gets. Discovery and the call path resolve this
+ * once per request from the same function, so they always agree.
+ */
+type RequestResultShape =
+  /** Policy-free: pre-normalization bytes, with `formatResult` still applied. */
+  | { kind: 'plain' }
+  /** Policy suppressed this request: the base result, `formatResult` skipped. */
+  | { kind: 'suppressed' }
+  /** Structured results advertised and emitted against this schema. */
+  | { kind: 'normalized'; outputSchema: z.ZodType };
+
+/**
+ * Decides whether a request carries structured results.
+ *
+ * Structured results follow the policy seam: `policy.outputSchema` is the
+ * only hook that can contextualize an advertised output schema, so a
+ * policy-free tool never advertises. A policy that defines the hook decides
+ * per request and can suppress; a policy without one always normalizes.
+ */
+function resolveResultShape(
+  tool: Tool<any, any, any>,
+  ctx: ToolRequestContext
+): RequestResultShape {
+  if (!tool.policy) {
+    return { kind: 'plain' };
+  }
+
+  if (!tool.policy.outputSchema) {
+    return { kind: 'normalized', outputSchema: tool.outputSchema };
+  }
+
+  const outputSchema = tool.policy.outputSchema(tool.outputSchema, ctx);
+
+  return outputSchema === undefined
+    ? { kind: 'suppressed' }
+    : { kind: 'normalized', outputSchema };
+}
+
+/**
+ * Derives the product-neutral request context from SDK-owned metadata.
+ * Called once per `tools/list` and `tools/call`, so every policy hook and
+ * visibility filter in one request sees the same facts.
+ */
+function normalizeToolRequestContext(
+  requestContext: ServerContext,
+  server: Server
+): ToolRequestContext {
+  const envelope = requestContext.mcpReq.envelope as
+    | Record<string, unknown>
+    | undefined;
+
+  return {
+    server: requestContext,
+    // The per-request `_meta` envelope exists only on the modern revision.
+    era:
+      envelope?.[PROTOCOL_VERSION_META_KEY] === undefined ? 'legacy' : 'modern',
+    // The modern per-request envelope is authoritative. The legacy path
+    // carries no envelope, so fall back to what initialization captured.
+    clientInfo:
+      (envelope?.[CLIENT_INFO_META_KEY] as Implementation | undefined) ??
+      server.getClientVersion(),
+    clientCapabilities:
+      (envelope?.[CLIENT_CAPABILITIES_META_KEY] as
+        | ClientCapabilities
+        | undefined) ?? server.getClientCapabilities(),
+  };
+}
 
 /**
  * Creates an MCP server with the given options.
@@ -440,36 +573,59 @@ export function createMcpServer(options: McpServerOptions) {
   if (options.tools) {
     server.setRequestHandler(
       'tools/list',
-      async (): Promise<ListToolsResult> => {
+      async (_request, serverContext): Promise<ListToolsResult> => {
         const tools = await getTools();
+        const context = normalizeToolRequestContext(serverContext, server);
+        const visibleTools = Object.entries(tools).filter(
+          ([, tool]) => !tool.hidden && tool.visible?.(context) !== false
+        );
 
         return {
           tools: await Promise.all(
-            Object.entries(tools)
-              .filter(([, tool]) => !tool.hidden)
-              .map(async ([name, { description, annotations, parameters }]) => {
-                const inputSchema = z.toJSONSchema(parameters, {
-                  target: 'draft-7',
-                });
+            visibleTools.map(async ([name, tool]) => {
+              const parameters =
+                tool.policy?.inputSchema?.(tool.parameters, context) ??
+                tool.parameters;
+              const inputSchema = z.toJSONSchema(parameters, {
+                target: 'draft-7',
+              });
+              const entry = {
+                name,
+                description:
+                  typeof tool.description === 'function'
+                    ? await tool.description()
+                    : tool.description,
+                annotations: tool.annotations,
+                // Casting the same as the SDK does:
+                // https://github.com/modelcontextprotocol/typescript-sdk/blob/fb07af810b51003c338dc4885a9e42f54519f9af/src/server/mcp.ts#L154
+                inputSchema: inputSchema as McpTool['inputSchema'],
+              };
 
-                return {
-                  name,
-                  description:
-                    typeof description === 'function'
-                      ? await description()
-                      : description,
-                  annotations,
-                  // Casting the same as the SDK does:
-                  // https://github.com/modelcontextprotocol/typescript-sdk/blob/fb07af810b51003c338dc4885a9e42f54519f9af/src/server/mcp.ts#L154
-                  inputSchema: inputSchema as McpTool['inputSchema'],
-                };
-              })
+              // A request advertises only when the shared decision normalizes
+              // it: a policy-free tool never does, and a policy can suppress
+              // per request. Suppressed and policy-free entries keep the
+              // discovery bytes they had before structured results existed.
+              const shape = resolveResultShape(tool, context);
+
+              if (shape.kind !== 'normalized') {
+                return entry;
+              }
+
+              return {
+                ...entry,
+                outputSchema: z.toJSONSchema(shape.outputSchema, {
+                  target: 'draft-7',
+                }) as McpTool['outputSchema'],
+              };
+            })
           ),
         } satisfies ListToolsResult;
       }
     );
 
-    server.setRequestHandler('tools/call', async (request) => {
+    server.setRequestHandler('tools/call', async (request, serverContext) => {
+      const context = normalizeToolRequestContext(serverContext, server);
+
       try {
         const tools = await getTools();
         const toolName = request.params.name;
@@ -483,14 +639,63 @@ export function createMcpServer(options: McpServerOptions) {
         if (!tool) {
           throw new Error('tool not found');
         }
-        const args = tool.parameters
-          .strict()
-          .parse(request.params.arguments ?? {});
 
-        const executeWithCallback = async (tool: Tool) => {
+        const rawArguments = request.params.arguments ?? {};
+        // Check for the hook, not for a nullish result: a policy that
+        // normalizes arguments away must not silently fall back to the raw
+        // arguments, which strict parsing would then reject.
+        const normalizedArguments = tool.policy?.normalizeArguments
+          ? tool.policy.normalizeArguments(rawArguments, context)
+          : rawArguments;
+        const parameters =
+          tool.policy?.inputSchema?.(tool.parameters, context) ??
+          tool.parameters;
+        const args = parameters.strict().parse(normalizedArguments) as Record<
+          string,
+          unknown
+        >;
+
+        // Resolved once per request, before the policy runs, so the hook
+        // cannot observe anything `resolve` changed and discovery and the
+        // call path can never disagree.
+        const shape = resolveResultShape(tool, context);
+
+        let resolution: unknown;
+        if (tool.policy) {
+          const policyStartedAt = performance.now();
+          const decision = await tool.policy.resolve(args, context);
+          const durationMs = performance.now() - policyStartedAt;
+
+          try {
+            await options.onToolPolicyCall?.({
+              name: toolName,
+              decision: decision.type,
+              clientInfo: context.clientInfo,
+              durationMs,
+              telemetry: safeToolPolicyTelemetry(decision.telemetry),
+            });
+          } catch (error) {
+            // Don't fail the tool call if the callback fails
+            console.error('Failed to run tool policy callback', error);
+          }
+
+          if (decision.type === 'result') {
+            return decision.result;
+          }
+          resolution = decision.resolution;
+        }
+
+        const executeWithCallback = async () => {
+          // Policy-free tools keep the existing one-argument execute call.
+          const executeResult = tool.policy
+            ? tool.execute(args, resolution)
+            : (
+                tool.execute as (
+                  args: Record<string, unknown>
+                ) => Promise<unknown>
+              )(args);
           // Wrap success or error in a result value
-          const res = await tool
-            .execute(args)
+          const res = await executeResult
             .then((data: unknown) => ({ success: true as const, data }))
             .catch((error) => ({ success: false as const, error }));
 
@@ -513,15 +718,28 @@ export function createMcpServer(options: McpServerOptions) {
           return res.data;
         };
 
-        const result = await executeWithCallback(tool);
+        const result = await executeWithCallback();
 
-        const content =
-          result != null
-            ? [{ type: 'text' as const, text: JSON.stringify(result) }]
-            : [];
+        if (result == null) {
+          return { content: [] };
+        }
+
+        const structuredContent = result as Record<string, unknown>;
+        // A suppressed request reproduces the whole pre-normalization result,
+        // which means the default single-encoded text: `formatResult` is
+        // skipped. Policy-free and normalized requests both apply it.
+        const text =
+          shape.kind !== 'suppressed' && tool.formatResult
+            ? tool.formatResult(structuredContent)
+            : JSON.stringify(structuredContent);
+
+        if (shape.kind !== 'normalized') {
+          return { content: [{ type: 'text', text }] };
+        }
 
         return {
-          content,
+          structuredContent,
+          content: [{ type: 'text', text }],
         };
       } catch (error) {
         return {
@@ -538,6 +756,47 @@ export function createMcpServer(options: McpServerOptions) {
   }
 
   return server;
+}
+
+/**
+ * Copies only the allowlisted scalar telemetry fields.
+ *
+ * `ToolPolicyTelemetry` is a compile-time contract and types erase at
+ * runtime, so a policy that spreads a wider object, or any policy written in
+ * plain JavaScript, could otherwise push raw arguments or request state into
+ * a telemetry sink. Widening the allowlist means changing both the type and
+ * this function.
+ */
+function safeToolPolicyTelemetry(
+  telemetry: ToolPolicyTelemetry
+): ToolPolicyTelemetry {
+  const safe: ToolPolicyTelemetry = {};
+
+  if (typeof telemetry.interactionId === 'string') {
+    safe.interactionId = telemetry.interactionId;
+  }
+
+  if (typeof telemetry.authorityPath === 'string') {
+    safe.authorityPath = telemetry.authorityPath;
+  }
+
+  if (typeof telemetry.outcome === 'string') {
+    safe.outcome = telemetry.outcome;
+  }
+
+  if (typeof telemetry.reason === 'string') {
+    safe.reason = telemetry.reason;
+  }
+
+  if (typeof telemetry.policyId === 'string') {
+    safe.policyId = telemetry.policyId;
+  }
+
+  if (typeof telemetry.policyVersion === 'number') {
+    safe.policyVersion = telemetry.policyVersion;
+  }
+
+  return safe;
 }
 
 function enumerateError(error: unknown) {

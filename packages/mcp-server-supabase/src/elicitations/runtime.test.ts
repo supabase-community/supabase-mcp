@@ -92,6 +92,17 @@ function basePolicy(): ElicitationPolicy<Args, Proposal, Resolution> {
 type SetupOptions = {
   policy?: Partial<ElicitationPolicy<Args, Proposal, Resolution>>;
   runtime?: Partial<ElicitationRuntimeOptions>;
+  /**
+   * Options for a second server that answers the continuation rounds, which
+   * is how a mid-flow change of serving facts or kill-switch state is
+   * reproduced. It shares the state key and actor, so the state it receives
+   * still authenticates.
+   */
+  continuation?: Partial<ElicitationRuntimeOptions>;
+  /** Delegates `policy.available` to the serving runtime's own resolver. */
+  availableFromRuntime?: boolean;
+  /** Sends each continuation round twice, as a client retry would. */
+  duplicateRetry?: boolean;
   answers?: ElicitResult[];
   onElicit?: () => void;
   transformRequest?: (body: RequestBody) => void;
@@ -103,51 +114,79 @@ function setupRuntime(options: SetupOptions = {}) {
   const execute = vi.fn(async (args: Args, resolution: Resolution) => ({
     id: `${args.name}:${resolution.approved}`,
   }));
-  const policy = { ...basePolicy(), prepare, ...options.policy };
   const policyCalls: PolicyCall[] = [];
-  const runtime = createElicitationRuntime({
-    actorId: ACTOR_ID,
-    stateKey: STATE_KEY,
-    formDeliveryAvailable: true,
-    ...options.runtime,
-  });
 
-  const handler = createMcpHandler(
-    () =>
-      createMcpServer({
-        name: 'runtime-test-server',
-        version: '0.0.0',
-        requestState: runtime.requestState,
-        onToolPolicyCall: (details) => {
-          policyCalls.push(details);
-        },
-        tools: {
-          [TOOL]: tool({
-            description: 'Guarded',
-            parameters: z.object({ name: z.string() }),
-            outputSchema: businessOutput,
-            policy: runtime.policy(options.toolName ?? TOOL, policy),
-            execute,
-          }),
-          plain: tool({
-            description: 'Plain',
-            parameters: z.object({ name: z.string() }),
-            outputSchema: businessOutput,
-            execute: async ({ name }) => ({ id: name }),
-          }),
-        },
-      }),
-    { legacy: 'reject' }
-  );
+  function buildHandler(runtimeOptions: Partial<ElicitationRuntimeOptions>) {
+    const runtime = createElicitationRuntime({
+      actorId: ACTOR_ID,
+      stateKey: STATE_KEY,
+      formDeliveryAvailable: true,
+      ...runtimeOptions,
+    });
+    const policy: ElicitationPolicy<Args, Proposal, Resolution> = {
+      ...basePolicy(),
+      prepare,
+      ...options.policy,
+      ...(options.availableFromRuntime === true
+        ? { available: (ctx) => runtime.availability(ctx).formElicitation }
+        : {}),
+    };
+
+    return createMcpHandler(
+      () =>
+        createMcpServer({
+          name: 'runtime-test-server',
+          version: '0.0.0',
+          requestState: runtime.requestState,
+          onToolPolicyCall: (details) => {
+            policyCalls.push(details);
+          },
+          tools: {
+            [TOOL]: tool({
+              description: 'Guarded',
+              parameters: z.object({ name: z.string() }),
+              outputSchema: businessOutput,
+              policy: runtime.policy(options.toolName ?? TOOL, policy),
+              execute,
+            }),
+            plain: tool({
+              description: 'Plain',
+              parameters: z.object({ name: z.string() }),
+              outputSchema: businessOutput,
+              execute: async ({ name }) => ({ id: name }),
+            }),
+          },
+        }),
+      { legacy: 'reject' }
+    );
+  }
+
+  const handler = buildHandler(options.runtime ?? {});
+  const continuationHandler =
+    options.continuation === undefined
+      ? undefined
+      : buildHandler({ ...options.runtime, ...options.continuation });
 
   const transport = new StreamableHTTPClientTransport(MCP_ENDPOINT, {
     fetch: async (url, init) => {
       // The body is the JSON-RPC request this test's own client just sent.
       const body = (await new Request(url, init).json()) as RequestBody;
       options.transformRequest?.(body);
-      return handler.fetch(
-        new Request(url, { ...init, body: JSON.stringify(body) })
-      );
+      const forwarded = new Request(url, {
+        ...init,
+        body: JSON.stringify(body),
+      });
+      const isContinuation = typeof body.params?.requestState === 'string';
+      const target =
+        isContinuation && continuationHandler !== undefined
+          ? continuationHandler
+          : handler;
+
+      if (isContinuation && options.duplicateRetry === true) {
+        await target.fetch(forwarded.clone());
+      }
+
+      return target.fetch(forwarded);
     },
   });
 
@@ -171,12 +210,15 @@ function setupRuntime(options: SetupOptions = {}) {
   const connected = client.connect(transport).then(() => {
     cleanups.push(
       () => client.close(),
-      () => handler.close()
+      () => handler.close(),
+      ...(continuationHandler === undefined
+        ? []
+        : [() => continuationHandler.close()])
     );
     return client;
   });
 
-  return { client: connected, execute, policyCalls, prepare, runtime };
+  return { client: connected, execute, policyCalls, prepare };
 }
 
 /**
@@ -422,5 +464,127 @@ describe('authenticated failures', () => {
       outcome: 'rejected',
       reason: 'arguments',
     });
+  });
+});
+
+describe('continuation authority', () => {
+  test('answers capability loss mid-flow instead of switching authority path', async () => {
+    const { client, execute, prepare, policyCalls } = setupRuntime({
+      availableFromRuntime: true,
+      // The connection opts out between the two rounds.
+      continuation: { optOut: true },
+    });
+
+    const result = await (await client).callTool({
+      name: TOOL,
+      arguments: { name: 'demo' },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(textOf(result)).toBe(
+      'This client can no longer complete the request it started. Run the tool again from a client that supports form elicitation.'
+    );
+    // Neither authority path ran: no execution, and no second preparation
+    // that would have started a fresh flow.
+    expect(execute.mock.calls).toHaveLength(0);
+    expect(prepare.mock.calls).toHaveLength(1);
+    expect(policyCalls.at(-1)?.telemetry).toMatchObject({
+      outcome: 'rejected',
+      reason: 'unsupported_continuation',
+    });
+  });
+});
+
+describe('gate', () => {
+  test('blocks protected execution without invalidating signed state', async () => {
+    let attempts = 0;
+    const { client, execute, policyCalls } = setupRuntime({
+      duplicateRetry: true,
+      continuation: {
+        gate: () =>
+          attempts++ === 0
+            ? { isError: true, content: [{ type: 'text', text: 'Paused.' }] }
+            : null,
+      },
+    });
+
+    const result = await (await client).callTool({
+      name: TOOL,
+      arguments: { name: 'demo' },
+    });
+
+    // The blocked attempt neither executed nor consumed the state: the very
+    // same continuation succeeded once the gate reopened.
+    expect(result.structuredContent).toStrictEqual({ id: 'demo:true' });
+    expect(execute.mock.calls).toHaveLength(1);
+    expect(
+      policyCalls.map(({ telemetry }) => [telemetry.outcome, telemetry.reason])
+    ).toStrictEqual([
+      ['input_required', undefined],
+      ['blocked', 'gate'],
+      ['executed', undefined],
+    ]);
+  });
+
+  test('leaves policy-free tools running while the gate is closed', async () => {
+    const { client, policyCalls } = setupRuntime({
+      runtime: {
+        gate: () => ({
+          isError: true,
+          content: [{ type: 'text', text: 'Paused.' }],
+        }),
+      },
+      answers: [],
+    });
+
+    const ordinary = await (await client).callTool({
+      name: 'plain',
+      arguments: { name: 'demo' },
+    });
+    const guarded = await (await client).callTool({
+      name: TOOL,
+      arguments: { name: 'demo' },
+    });
+
+    expect(ordinary.content).toStrictEqual([
+      { type: 'text', text: JSON.stringify({ id: 'demo' }) },
+    ]);
+    expect(textOf(guarded)).toBe('Paused.');
+    expect(guarded.isError).toBe(true);
+    // The policy-free tool never reached a policy at all.
+    expect(policyCalls).toHaveLength(1);
+    expect(policyCalls[0]?.telemetry).toStrictEqual({
+      policyId: 'test-policy',
+      policyVersion: 1,
+      outcome: 'blocked',
+      reason: 'gate',
+    });
+  });
+});
+
+describe('detection-only replay posture', () => {
+  test('executes repeated valid accepted state again under one Interaction ID', async () => {
+    const { client, execute, policyCalls } = setupRuntime({
+      duplicateRetry: true,
+    });
+
+    const result = await (await client).callTool({
+      name: TOOL,
+      arguments: { name: 'demo' },
+    });
+
+    expect(result.structuredContent).toStrictEqual({ id: 'demo:true' });
+    // Both attempts ran. Telemetry can detect the duplicate; nothing prevents
+    // it, and nothing was consumed.
+    expect(execute.mock.calls).toHaveLength(2);
+
+    const outcomes = policyCalls.map(({ telemetry }) => telemetry.outcome);
+    expect(outcomes).toStrictEqual(['input_required', 'executed', 'executed']);
+
+    const interactionIds = policyCalls.map(
+      ({ telemetry }) => telemetry.interactionId
+    );
+    expect(new Set(interactionIds).size).toBe(1);
+    expect(interactionIds[0]).toStrictEqual(expect.any(String));
   });
 });

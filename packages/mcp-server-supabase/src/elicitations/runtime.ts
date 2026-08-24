@@ -1,6 +1,7 @@
 import {
   inputRequired,
   inputResponse,
+  type CallToolResult,
   type InputResponseView,
 } from '@modelcontextprotocol/server';
 import type {
@@ -64,6 +65,21 @@ export type ElicitationRuntimeOptions = {
   formDeliveryAvailable?: boolean;
   /** Connection-level form elicitation opt-out. */
   optOut?: boolean;
+  /**
+   * Kill switch consulted immediately before protected execution. Returning a
+   * result blocks this attempt; it neither consumes nor invalidates signed
+   * state, so the same continuation is redeemable once the gate reopens.
+   *
+   * The result must set `isError`. A block is not a success, and on a
+   * normalized request a content-only success carries no `structuredContent`
+   * for the schema that request advertised, so it would be refused on the
+   * way out rather than reaching the caller as the block it is.
+   *
+   * Tools without an elicitation policy never reach it.
+   */
+  gate?: (
+    ctx: ToolRequestContext
+  ) => (CallToolResult & { isError: true }) | null;
   clock?: () => number;
   createJti?: () => string;
 };
@@ -206,6 +222,15 @@ export function createElicitationRuntime(
           return recover('unsupported_continuation', telemetry);
         }
 
+        const blocked = options.gate?.(ctx);
+        if (blocked != null) {
+          return {
+            type: 'result',
+            result: blocked,
+            telemetry: { ...telemetry, outcome: 'blocked', reason: 'gate' },
+          };
+        }
+
         const proposal = signed.proposal as Proposal;
         const requests = policy.inputRequests(proposal);
         const responses: Record<string, InputResponseView> = Object.fromEntries(
@@ -260,6 +285,17 @@ export function createElicitationRuntime(
 
           if (verified !== undefined) {
             return continuation(verified, argsDigest, ctx);
+          }
+
+          // Nothing protected has run yet: preparation itself is part of the
+          // guarded path, so the gate closes in front of it.
+          const blocked = options.gate?.(ctx);
+          if (blocked != null) {
+            return {
+              type: 'result',
+              result: blocked,
+              telemetry: { ...identity, outcome: 'blocked', reason: 'gate' },
+            };
           }
 
           const preparation = await policy.prepare(args);

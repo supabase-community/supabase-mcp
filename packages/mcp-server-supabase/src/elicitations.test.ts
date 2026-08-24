@@ -5,6 +5,7 @@ import {
 import type {
   ClientCapabilities,
   ElicitResult,
+  ServerContext,
 } from '@modelcontextprotocol/server';
 import { StreamTransport } from '@supabase/mcp-utils';
 import { describe, expect, test } from 'vitest';
@@ -15,7 +16,14 @@ import {
   FIXED_PROJECT,
   PROJECT_RATE,
 } from '../test/cost-platform.js';
+import {
+  canonicalArgumentsDigest,
+  createSignedStateCodec,
+  createStateSigner,
+} from './elicitations/codec.js';
+import type { ContinuationState } from './elicitations/state.js';
 import type { CreationRate } from './platform/types.js';
+import { COST_CONFIRMATION_POLICY_ID } from './policies/cost-confirmation.js';
 import { createSupabaseMcpServer } from './server.js';
 import { createSupabaseMcpHandler } from './transports/http.js';
 
@@ -31,6 +39,8 @@ type SetupOptions = {
   optOut?: boolean;
   readOnly?: boolean;
   answers?: ElicitResult[];
+  /** Continuation state to attach to every tool call this client makes. */
+  requestState?: string;
 };
 
 /** A modern hosted connection whose serving path can deliver a form. */
@@ -50,7 +60,20 @@ async function setupModern(options: SetupOptions = {}) {
   });
 
   const transport = new StreamableHTTPClientTransport(MCP_ENDPOINT, {
-    fetch: async (url, init) => handler.fetch(new Request(url, init)),
+    fetch: async (url, init) => {
+      if (options.requestState === undefined) {
+        return handler.fetch(new Request(url, init));
+      }
+
+      // Stands in for a client redeeming state a previous deployment issued.
+      const body = await new Request(url, init).json();
+      if (body?.method === 'tools/call') {
+        body.params.requestState = options.requestState;
+      }
+      return handler.fetch(
+        new Request(url, { ...init, body: JSON.stringify(body) })
+      );
+    },
   });
   const capabilities = options.capabilities ?? { elicitation: {} };
   const client = new Client(
@@ -141,6 +164,34 @@ const PROJECT_ARGS = {
 };
 
 const BRANCH_ARGS = { project_id: 'fixed-project-ref', name: 'develop' };
+
+/**
+ * State a previous deployment issued: same key, same actor, version 1 of this
+ * policy, and the Boolean the old contract read consent from.
+ */
+async function version1State(args: Record<string, unknown>) {
+  const codec = createSignedStateCodec<ContinuationState & { jti: string }>({
+    signer: createStateSigner(STATE_KEY),
+    bind: (ctx) => `${ACTOR_ID}\u0000${ctx.mcpReq.method}`,
+    clock: Date.now,
+  });
+  const issuedAt = Math.floor(Date.now() / 1_000);
+
+  return codec.mint(
+    {
+      v: 1,
+      policy: COST_CONFIRMATION_POLICY_ID,
+      policyVersion: 1,
+      tool: 'create_project',
+      argsDigest: await canonicalArgumentsDigest(args),
+      proposal: { confirm: false },
+      jti: 'version-1-state',
+      iat: issuedAt,
+      exp: issuedAt + 120,
+    },
+    { mcpReq: { method: 'tools/call' } } as unknown as ServerContext
+  );
+}
 
 describe('modern capable creation', () => {
   test('an accepted project is created with its business output unchanged', async () => {
@@ -388,6 +439,29 @@ describe('read-only servers', () => {
     expect(textOf(result)).toContain('read-only mode');
     expect(elicited).toHaveLength(0);
     expect(calls).toStrictEqual([]);
+  });
+});
+
+describe('rolling deployment', () => {
+  test('state issued by policy version 1 creates nothing and says so', async () => {
+    // The one case kept from the Boolean contract, and it is kept as a
+    // version rejection rather than a Boolean one: the old payload carried
+    // `confirm: false`, and this policy refuses it without ever looking at
+    // that content. Version binding itself belongs to the runtime; what is
+    // proved here is the product consequence.
+    const { client, calls } = await setupModern({
+      requestState: await version1State(PROJECT_ARGS),
+    });
+
+    const result = await client.callTool({
+      name: 'create_project',
+      arguments: PROJECT_ARGS,
+    });
+
+    expect(result.isError).toBe(true);
+    expect(textOf(result)).toContain('Run the tool again');
+    expect(calls).not.toContain('create_project');
+    expect(result.structuredContent).toBeUndefined();
   });
 });
 

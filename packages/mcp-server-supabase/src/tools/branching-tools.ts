@@ -1,9 +1,12 @@
-import { tool } from '@supabase/mcp-utils';
+import { tool, type ToolRequestContext } from '@supabase/mcp-utils';
 import { z } from 'zod/v4';
+import type { ElicitationRuntime } from '../elicitations/runtime.js';
 import type { BranchingOperations } from '../platform/types.js';
 import { branchSchema } from '../platform/types.js';
 import {
   assertRateStillApproved,
+  createCostConfirmationPolicy,
+  routeCostConfirmation,
   type CostConfirmationResolution,
 } from '../policies/cost-confirmation.js';
 import { legacyBranchCost } from '../pricing.js';
@@ -14,6 +17,8 @@ type BranchingToolsOptions = {
   branching: BranchingOperations;
   projectId?: string;
   readOnly?: boolean;
+  /** Present only when this connection serves form elicitation. */
+  elicitation?: ElicitationRuntime;
 };
 
 const createBranchInputSchema = z.object({
@@ -159,8 +164,31 @@ export function getBranchingTools({
   branching,
   projectId,
   readOnly,
+  elicitation,
 }: BranchingToolsOptions) {
   const project_id = projectId;
+  const capable = (ctx: ToolRequestContext) =>
+    elicitation?.availability(ctx).formElicitation === true;
+
+  const createBranchPolicy =
+    elicitation &&
+    routeCostConfirmation({
+      capable,
+      confirmed: elicitation.policy(
+        'create_branch',
+        createCostConfirmationPolicy<z.infer<typeof createBranchInputSchema>>({
+          action: 'create_branch',
+          available: capable,
+          canonicalArguments: ({ project_id, name }) => ({ project_id, name }),
+          subject: ({ project_id, name }) => ({
+            resourceName: name,
+            account: { type: 'parent_project', id: project_id },
+          }),
+          readRate: ({ project_id }) =>
+            branching.getBranchCreationRate(project_id),
+        })
+      ),
+    });
 
   return {
     create_branch: injectableTool<
@@ -170,6 +198,7 @@ export function getBranchingTools({
       CostConfirmationResolution | undefined
     >({
       ...branchingToolDefs.create_branch,
+      policy: createBranchPolicy,
       inject: { project_id },
       execute: async ({ project_id, name, confirm_cost_id }, resolution) => {
         if (readOnly) {

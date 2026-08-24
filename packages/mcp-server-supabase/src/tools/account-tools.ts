@@ -1,10 +1,14 @@
-import { tool } from '@supabase/mcp-utils';
+import { tool, type ToolRequestContext } from '@supabase/mcp-utils';
 import { z } from 'zod/v4';
 import type { ToolDefs } from './util.js';
+import type { ElicitationRuntime } from '../elicitations/runtime.js';
 import type { AccountOperations } from '../platform/types.js';
 import { organizationSchema, projectSchema } from '../platform/types.js';
 import {
   assertRateStillApproved,
+  createCostConfirmationPolicy,
+  routeCostConfirmation,
+  routeLegacyConfirmation,
   type CostConfirmationResolution,
 } from '../policies/cost-confirmation.js';
 import { legacyBranchCost, toCost } from '../pricing.js';
@@ -14,6 +18,12 @@ import { hashObject } from '../util.js';
 type AccountToolsOptions = {
   account: AccountOperations;
   readOnly?: boolean;
+  /**
+   * Present only when this connection serves form elicitation. Its absence
+   * leaves every paid tool policy-free, which is what keeps a consumer that
+   * never injects it on the exact surface it has today.
+   */
+  elicitation?: ElicitationRuntime;
 };
 
 const listOrganizationsInputSchema = z.object({});
@@ -219,7 +229,40 @@ export const accountToolDefs = {
   },
 } as const satisfies ToolDefs;
 
-export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
+export function getAccountTools({
+  account,
+  readOnly,
+  elicitation,
+}: AccountToolsOptions) {
+  const capable = (ctx: ToolRequestContext) =>
+    elicitation?.availability(ctx).formElicitation === true;
+
+  const createProjectPolicy =
+    elicitation &&
+    routeCostConfirmation({
+      capable,
+      confirmed: elicitation.policy(
+        'create_project',
+        createCostConfirmationPolicy<z.infer<typeof createProjectInputSchema>>({
+          action: 'create_project',
+          available: capable,
+          // The legacy token is deliberately absent: an approval binds to the
+          // project that was proposed, never to a token from the other lane.
+          canonicalArguments: ({ name, region, organization_id }) => ({
+            name,
+            region,
+            organization_id,
+          }),
+          subject: ({ name, organization_id }) => ({
+            resourceName: name,
+            account: { type: 'organization', id: organization_id },
+          }),
+          readRate: ({ organization_id }) =>
+            account.getProjectCreationRate(organization_id),
+        })
+      ),
+    });
+
   return {
     list_organizations: tool({
       ...accountToolDefs.list_organizations,
@@ -263,6 +306,10 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
     }),
     confirm_cost: tool({
       ...accountToolDefs.confirm_cost,
+      // Hidden from a capable client's tool list, and still registered: a
+      // client that calls it by name is answered either way.
+      hidden: (ctx) => capable(ctx),
+      policy: elicitation && routeLegacyConfirmation({ capable }),
       execute: async (cost) => {
         return { confirmation_id: await hashObject(cost) };
       },
@@ -273,6 +320,7 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
       CostConfirmationResolution | undefined
     >({
       ...accountToolDefs.create_project,
+      policy: createProjectPolicy,
       execute: async (
         { name, region, organization_id, confirm_cost_id },
         resolution

@@ -4,6 +4,7 @@ export type { ToolCallCallback } from '@supabase/mcp-utils';
 export type { SupabasePlatform } from './platform/index.js';
 export {
   createSupabaseMcpServer,
+  type SupabaseElicitationOptions,
   type SupabaseMcpServerOptions,
 } from './server.js';
 export { createSupabaseMcpHandler } from './transports/http.js';

@@ -9,6 +9,7 @@ import type {
   ElicitationPolicy,
   ElicitationPreparation,
 } from '../elicitations/policy.js';
+import type { VerifiedContinuation } from '../elicitations/state.js';
 import { recoveryResult } from '../elicitations/terminal.js';
 import type { CreationRate } from '../platform/types.js';
 import { isRateWithinApproved } from '../pricing.js';
@@ -328,26 +329,44 @@ export function routeCostConfirmation<Args>(options: {
 }): ToolPolicy<Args, CostConfirmationResolution | undefined> {
   const { capable, confirmed } = options;
 
+  /**
+   * Whether the runtime owns this request.
+   *
+   * A request carrying verified continuation state belongs to a flow that
+   * already started, so it stays on the confirmed lane even if this leg is no
+   * longer capable. Handing it to the legacy lane instead would demand a token
+   * the caller was never given and answer capability loss with a hash
+   * mismatch, where the runtime answers it with recovery text. State that
+   * fails integrity, actor, or method binding never reaches here at all.
+   */
+  const runtimeOwns = (ctx: ToolRequestContext) =>
+    ctx.server.mcpReq.requestState<VerifiedContinuation>() !== undefined ||
+    capable(ctx);
+
   return {
     inputSchema(schema, ctx) {
       const contextual = confirmed.inputSchema?.(schema, ctx) ?? schema;
 
       // The legacy token is not part of the modern contract, so a capable
       // client is never shown a field it must not use.
-      return capable(ctx)
+      return runtimeOwns(ctx)
         ? contextual.omit({ [LEGACY_CONFIRMATION_FIELD]: true })
         : contextual;
     },
 
     outputSchema(schema, ctx) {
-      return confirmed.outputSchema?.(schema, ctx) ?? schema;
+      // Composed, never re-decided, and never defaulted: the runtime widens
+      // the schema for a request that can reach a terminal outcome and
+      // returns undefined for one that cannot. Passing that undefined through
+      // is what holds a legacy request on its pre-normalization bytes.
+      return confirmed.outputSchema?.(schema, ctx);
     },
 
     normalizeArguments(raw, ctx) {
       const normalized = confirmed.normalizeArguments?.(raw, ctx) ?? raw;
 
       if (
-        !capable(ctx) ||
+        !runtimeOwns(ctx) ||
         normalized === null ||
         typeof normalized !== 'object'
       ) {
@@ -366,7 +385,7 @@ export function routeCostConfirmation<Args>(options: {
       args,
       ctx
     ): Promise<ToolPolicyDecision<CostConfirmationResolution | undefined>> {
-      if (capable(ctx)) {
+      if (runtimeOwns(ctx)) {
         return confirmed.resolve(args, ctx);
       }
 
@@ -393,6 +412,15 @@ export function routeLegacyConfirmation(options: {
   capable(ctx: ToolRequestContext): boolean;
 }): ToolPolicy<unknown, undefined> {
   return {
+    outputSchema(schema, ctx) {
+      // An incapable caller keeps this tool exactly as it always was, which
+      // means no structured results at all. A capable caller never sees it in
+      // discovery, and its direct call is answered with guidance rather than
+      // an execution, so normalizing that request changes nothing it can
+      // observe.
+      return options.capable(ctx) ? schema : undefined;
+    },
+
     async resolve(_args, ctx): Promise<ToolPolicyDecision<undefined>> {
       if (options.capable(ctx)) {
         return {

@@ -171,6 +171,33 @@ export function createSupabaseApiPlatform(
 
       assertSuccess(response, 'Failed to restore project');
     },
+    /**
+     * @param organizationId The organization's slug. The Management API
+     * reports a slug under both names: v1 marks `OrganizationResponseV1.id`
+     * and the create-project body's `organization_id` deprecated aliases of
+     * `slug`, kept for backwards compatibility, and the v1 controller returns
+     * `id: organization.slug`. A client's `organization_id` therefore already
+     * holds a slug, which is why it interpolates straight into the v2 path.
+     * Do not "fix" this into a UUID lookup.
+     */
+    async getProjectCreationRate(organizationId: string) {
+      const response = await managementApiClient.GET(
+        '/v2/organizations/{slug}/project-creation-rate',
+        {
+          params: {
+            path: {
+              slug: organizationId,
+            },
+          },
+        }
+      );
+
+      assertSuccess(response, 'Failed to fetch the project creation rate');
+
+      const { amount, currency, recurrence } = response.data.data.attributes;
+
+      return { amount, currency, recurrence };
+    },
   };
 
   const database: DatabaseOperations = {
@@ -749,6 +776,28 @@ export function createSupabaseApiPlatform(
       );
 
       assertSuccess(response, 'Failed to rebase branch');
+    },
+    async getBranchCreationRate(projectId: string) {
+      const response = await managementApiClient.GET(
+        '/v2/projects/{ref}/branch-creation-rate',
+        {
+          params: {
+            path: {
+              ref: projectId,
+            },
+          },
+        }
+      );
+
+      assertProjectScopedSuccess(
+        response,
+        'Failed to fetch the branch creation rate',
+        projectId
+      );
+
+      const { amount, currency, recurrence } = response.data.data.attributes;
+
+      return { amount, currency, recurrence };
     },
   };
 

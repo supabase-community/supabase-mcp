@@ -3,7 +3,11 @@ import { z } from 'zod/v4';
 import type { ToolDefs } from './util.js';
 import type { AccountOperations } from '../platform/types.js';
 import { organizationSchema, projectSchema } from '../platform/types.js';
-import { getBranchCost, getNextProjectCost } from '../pricing.js';
+import {
+  assertRateStillApproved,
+  type CostConfirmationResolution,
+} from '../policies/cost-confirmation.js';
+import { legacyBranchCost, toCost } from '../pricing.js';
 import { AWS_REGION_CODES } from '../regions.js';
 import { hashObject } from '../util.js';
 
@@ -246,9 +250,12 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
       execute: async ({ type, organization_id }) => {
         switch (type) {
           case 'project':
-            return await getNextProjectCost(account, organization_id);
+            return toCost(
+              'project',
+              await account.getProjectCreationRate(organization_id)
+            );
           case 'branch':
-            return getBranchCost();
+            return legacyBranchCost();
           default:
             throw new Error(`Unknown cost type: ${type}`);
         }
@@ -260,18 +267,35 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
         return { confirmation_id: await hashObject(cost) };
       },
     }),
-    create_project: tool({
+    create_project: tool<
+      typeof createProjectInputSchema,
+      typeof createProjectOutputSchema,
+      CostConfirmationResolution | undefined
+    >({
       ...accountToolDefs.create_project,
-      execute: async ({ name, region, organization_id, confirm_cost_id }) => {
+      execute: async (
+        { name, region, organization_id, confirm_cost_id },
+        resolution
+      ) => {
         if (readOnly) {
           throw new Error('Cannot create a project in read-only mode.');
         }
 
-        const cost = await getNextProjectCost(account, organization_id);
-        const costHash = await hashObject(cost);
-        if (costHash !== confirm_cost_id) {
-          throw new Error(
-            'Cost confirmation ID does not match the expected cost of creating a project.'
+        if (resolution === undefined) {
+          const cost = toCost(
+            'project',
+            await account.getProjectCreationRate(organization_id)
+          );
+          const costHash = await hashObject(cost);
+          if (costHash !== confirm_cost_id) {
+            throw new Error(
+              'Cost confirmation ID does not match the expected cost of creating a project.'
+            );
+          }
+        } else {
+          assertRateStillApproved(
+            await account.getProjectCreationRate(organization_id),
+            resolution.maximumCreationRate
           );
         }
 

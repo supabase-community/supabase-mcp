@@ -1,0 +1,5464 @@
+{
+  "components": {
+    "schemas": {
+      "CreateLogDrainRequestOpenApi": {
+        "properties": {
+          "data": {
+            "properties": {
+              "attributes": {
+                "properties": {
+                  "backend_type": {
+                    "enum": [
+                      "axiom",
+                      "bigquery",
+                      "clickhouse",
+                      "datadog",
+                      "last9",
+                      "loki",
+                      "otlp",
+                      "postgres",
+                      "s3",
+                      "sentry",
+                      "syslog",
+                      "webhook"
+                    ],
+                    "type": "string"
+                  },
+                  "config": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "hostname": {
+                            "type": "string"
+                          },
+                          "password": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "port": {
+                            "nullable": true,
+                            "type": "number"
+                          },
+                          "schema": {
+                            "type": "string"
+                          },
+                          "url": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "username": {
+                            "nullable": true,
+                            "type": "string"
+                          }
+                        },
+                        "title": "postgres",
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "gzip": {
+                            "type": "boolean"
+                          },
+                          "headers": {
+                            "additionalProperties": {
+                              "type": "string"
+                            },
+                            "type": "object"
+                          },
+                          "http": {
+                            "enum": ["http1", "http2"],
+                            "type": "string"
+                          },
+                          "url": {
+                            "type": "string"
+                          }
+                        },
+                        "title": "webhook",
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "dataset_id": {
+                            "type": "string"
+                          },
+                          "project_id": {
+                            "type": "string"
+                          }
+                        },
+                        "title": "bigquery",
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "api_key": {
+                            "type": "string"
+                          },
+                          "region": {
+                            "type": "string"
+                          }
+                        },
+                        "title": "datadog",
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "headers": {
+                            "additionalProperties": {
+                              "type": "string"
+                            },
+                            "type": "object"
+                          },
+                          "password": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "url": {
+                            "type": "string"
+                          },
+                          "username": {
+                            "nullable": true,
+                            "type": "string"
+                          }
+                        },
+                        "title": "loki",
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "dsn": {
+                            "type": "string"
+                          }
+                        },
+                        "title": "sentry",
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "api_token": {
+                            "type": "string"
+                          },
+                          "dataset_name": {
+                            "type": "string"
+                          },
+                          "domain": {
+                            "type": "string"
+                          }
+                        },
+                        "title": "axiom",
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "ca_cert": {
+                            "type": "string"
+                          },
+                          "cipher_key": {
+                            "type": "string"
+                          },
+                          "client_cert": {
+                            "type": "string"
+                          },
+                          "client_key": {
+                            "type": "string"
+                          },
+                          "host": {
+                            "type": "string"
+                          },
+                          "port": {
+                            "maximum": 65535,
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          "structured_data": {
+                            "type": "string"
+                          },
+                          "tls": {
+                            "default": false,
+                            "type": "boolean"
+                          }
+                        },
+                        "title": "syslog",
+                        "type": "object"
+                      }
+                    ]
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": ["backend_type", "config", "name"],
+                "type": "object"
+              },
+              "type": {
+                "description": "Resource type.",
+                "enum": ["log_drain"],
+                "type": "string"
+              }
+            },
+            "required": ["attributes", "type"],
+            "type": "object"
+          }
+        },
+        "required": ["data"],
+        "type": "object"
+      },
+      "ErrorResponseBody": {
+        "properties": {
+          "error": {
+            "$ref": "#/components/schemas/ErrorResponseBodyAPIErrorObject"
+          }
+        },
+        "required": ["error"],
+        "type": "object"
+      },
+      "ErrorResponseBodyAPIErrorObject": {
+        "properties": {
+          "code": {
+            "type": "string"
+          },
+          "description": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "issues": {
+            "items": {
+              "$ref": "#/components/schemas/ErrorResponseBodyAPIErrorObject"
+            },
+            "type": "array"
+          },
+          "links": {
+            "additionalProperties": {
+              "properties": {
+                "describedby": {
+                  "type": "string"
+                },
+                "href": {
+                  "type": "string"
+                },
+                "meta": {
+                  "additionalProperties": {},
+                  "type": "object"
+                },
+                "rel": {
+                  "type": "string"
+                },
+                "title": {
+                  "type": "string"
+                },
+                "type": {
+                  "type": "string"
+                }
+              },
+              "required": ["href"],
+              "type": "object"
+            },
+            "type": "object"
+          },
+          "message": {
+            "type": "string"
+          },
+          "meta": {
+            "additionalProperties": {},
+            "type": "object"
+          }
+        },
+        "ref": "APIErrorObject",
+        "required": ["code", "message"],
+        "type": "object"
+      },
+      "ListLogDrainsResponse": {
+        "properties": {
+          "data": {
+            "items": {
+              "properties": {
+                "attributes": {
+                  "properties": {
+                    "backend_type": {
+                      "enum": [
+                        "axiom",
+                        "bigquery",
+                        "clickhouse",
+                        "datadog",
+                        "last9",
+                        "loki",
+                        "otlp",
+                        "postgres",
+                        "s3",
+                        "sentry",
+                        "syslog",
+                        "webhook"
+                      ],
+                      "type": "string"
+                    },
+                    "config": {
+                      "anyOf": [
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "hostname": {
+                              "type": "string"
+                            },
+                            "password": {
+                              "nullable": true,
+                              "type": "string"
+                            },
+                            "port": {
+                              "nullable": true,
+                              "type": "number"
+                            },
+                            "schema": {
+                              "type": "string"
+                            },
+                            "url": {
+                              "nullable": true,
+                              "type": "string"
+                            },
+                            "username": {
+                              "nullable": true,
+                              "type": "string"
+                            }
+                          },
+                          "title": "postgres",
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "gzip": {
+                              "type": "boolean"
+                            },
+                            "headers": {
+                              "additionalProperties": {
+                                "type": "string"
+                              },
+                              "type": "object"
+                            },
+                            "http": {
+                              "enum": ["http1", "http2"],
+                              "type": "string"
+                            },
+                            "url": {
+                              "type": "string"
+                            }
+                          },
+                          "title": "webhook",
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "dataset_id": {
+                              "type": "string"
+                            },
+                            "project_id": {
+                              "type": "string"
+                            }
+                          },
+                          "title": "bigquery",
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "api_key": {
+                              "type": "string"
+                            },
+                            "region": {
+                              "type": "string"
+                            }
+                          },
+                          "title": "datadog",
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "headers": {
+                              "additionalProperties": {
+                                "type": "string"
+                              },
+                              "type": "object"
+                            },
+                            "password": {
+                              "nullable": true,
+                              "type": "string"
+                            },
+                            "url": {
+                              "type": "string"
+                            },
+                            "username": {
+                              "nullable": true,
+                              "type": "string"
+                            }
+                          },
+                          "title": "loki",
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "dsn": {
+                              "type": "string"
+                            }
+                          },
+                          "title": "sentry",
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "api_token": {
+                              "type": "string"
+                            },
+                            "dataset_name": {
+                              "type": "string"
+                            },
+                            "domain": {
+                              "type": "string"
+                            }
+                          },
+                          "title": "axiom",
+                          "type": "object"
+                        },
+                        {
+                          "additionalProperties": false,
+                          "properties": {
+                            "ca_cert": {
+                              "type": "string"
+                            },
+                            "cipher_key": {
+                              "type": "string"
+                            },
+                            "client_cert": {
+                              "type": "string"
+                            },
+                            "client_key": {
+                              "type": "string"
+                            },
+                            "host": {
+                              "type": "string"
+                            },
+                            "port": {
+                              "maximum": 65535,
+                              "minimum": 0,
+                              "type": "integer"
+                            },
+                            "structured_data": {
+                              "type": "string"
+                            },
+                            "tls": {
+                              "default": false,
+                              "type": "boolean"
+                            }
+                          },
+                          "title": "syslog",
+                          "type": "object"
+                        }
+                      ]
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["backend_type", "config", "name"],
+                  "type": "object"
+                },
+                "id": {
+                  "type": "string"
+                },
+                "type": {
+                  "description": "Resource type.",
+                  "enum": ["log_drain"],
+                  "type": "string"
+                }
+              },
+              "required": ["attributes", "id", "type"],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": ["data"],
+        "type": "object"
+      },
+      "LogDrainResponse": {
+        "properties": {
+          "data": {
+            "properties": {
+              "attributes": {
+                "properties": {
+                  "backend_type": {
+                    "enum": [
+                      "axiom",
+                      "bigquery",
+                      "clickhouse",
+                      "datadog",
+                      "last9",
+                      "loki",
+                      "otlp",
+                      "postgres",
+                      "s3",
+                      "sentry",
+                      "syslog",
+                      "webhook"
+                    ],
+                    "type": "string"
+                  },
+                  "config": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "hostname": {
+                            "type": "string"
+                          },
+                          "password": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "port": {
+                            "nullable": true,
+                            "type": "number"
+                          },
+                          "schema": {
+                            "type": "string"
+                          },
+                          "url": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "username": {
+                            "nullable": true,
+                            "type": "string"
+                          }
+                        },
+                        "title": "postgres",
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "gzip": {
+                            "type": "boolean"
+                          },
+                          "headers": {
+                            "additionalProperties": {
+                              "type": "string"
+                            },
+                            "type": "object"
+                          },
+                          "http": {
+                            "enum": ["http1", "http2"],
+                            "type": "string"
+                          },
+                          "url": {
+                            "type": "string"
+                          }
+                        },
+                        "title": "webhook",
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "dataset_id": {
+                            "type": "string"
+                          },
+                          "project_id": {
+                            "type": "string"
+                          }
+                        },
+                        "title": "bigquery",
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "api_key": {
+                            "type": "string"
+                          },
+                          "region": {
+                            "type": "string"
+                          }
+                        },
+                        "title": "datadog",
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "headers": {
+                            "additionalProperties": {
+                              "type": "string"
+                            },
+                            "type": "object"
+                          },
+                          "password": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "url": {
+                            "type": "string"
+                          },
+                          "username": {
+                            "nullable": true,
+                            "type": "string"
+                          }
+                        },
+                        "title": "loki",
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "dsn": {
+                            "type": "string"
+                          }
+                        },
+                        "title": "sentry",
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "api_token": {
+                            "type": "string"
+                          },
+                          "dataset_name": {
+                            "type": "string"
+                          },
+                          "domain": {
+                            "type": "string"
+                          }
+                        },
+                        "title": "axiom",
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "ca_cert": {
+                            "type": "string"
+                          },
+                          "cipher_key": {
+                            "type": "string"
+                          },
+                          "client_cert": {
+                            "type": "string"
+                          },
+                          "client_key": {
+                            "type": "string"
+                          },
+                          "host": {
+                            "type": "string"
+                          },
+                          "port": {
+                            "maximum": 65535,
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          "structured_data": {
+                            "type": "string"
+                          },
+                          "tls": {
+                            "default": false,
+                            "type": "boolean"
+                          }
+                        },
+                        "title": "syslog",
+                        "type": "object"
+                      }
+                    ]
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": ["backend_type", "config", "name"],
+                "type": "object"
+              },
+              "id": {
+                "type": "string"
+              },
+              "type": {
+                "description": "Resource type.",
+                "enum": ["log_drain"],
+                "type": "string"
+              }
+            },
+            "required": ["attributes", "id", "type"],
+            "type": "object"
+          }
+        },
+        "required": ["data"],
+        "type": "object"
+      },
+      "OrganizationMemberRoleResponse": {
+        "properties": {
+          "data": {
+            "properties": {
+              "attributes": {
+                "properties": {
+                  "name": {
+                    "description": "Role name. For project-scoped assignments this is the base role name.",
+                    "example": "developer",
+                    "type": "string"
+                  },
+                  "projects": {
+                    "description": "Project refs this role is scoped to. Empty array for org-level roles.",
+                    "items": {
+                      "properties": {
+                        "name": {
+                          "type": "string"
+                        },
+                        "ref": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["name", "ref"],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "scope": {
+                    "description": "Whether this role applies org-wide or is scoped to specific projects for the user.",
+                    "enum": ["organization", "project"],
+                    "type": "string"
+                  }
+                },
+                "required": ["name", "projects", "scope"],
+                "type": "object"
+              },
+              "type": {
+                "description": "Resource type.",
+                "enum": ["organization_member_role"],
+                "type": "string"
+              }
+            },
+            "required": ["attributes", "type"],
+            "type": "object"
+          }
+        },
+        "required": ["data"],
+        "type": "object"
+      },
+      "UpdateLogDrainRequestOpenApi": {
+        "properties": {
+          "data": {
+            "properties": {
+              "attributes": {
+                "properties": {
+                  "backend_type": {
+                    "enum": [
+                      "axiom",
+                      "bigquery",
+                      "clickhouse",
+                      "datadog",
+                      "last9",
+                      "loki",
+                      "otlp",
+                      "postgres",
+                      "s3",
+                      "sentry",
+                      "syslog",
+                      "webhook"
+                    ],
+                    "type": "string"
+                  },
+                  "config": {
+                    "anyOf": [
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "hostname": {
+                            "type": "string"
+                          },
+                          "password": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "port": {
+                            "nullable": true,
+                            "type": "number"
+                          },
+                          "schema": {
+                            "type": "string"
+                          },
+                          "url": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "username": {
+                            "nullable": true,
+                            "type": "string"
+                          }
+                        },
+                        "title": "postgres",
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "gzip": {
+                            "type": "boolean"
+                          },
+                          "headers": {
+                            "additionalProperties": {
+                              "type": "string"
+                            },
+                            "type": "object"
+                          },
+                          "http": {
+                            "enum": ["http1", "http2"],
+                            "type": "string"
+                          },
+                          "url": {
+                            "type": "string"
+                          }
+                        },
+                        "title": "webhook",
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "dataset_id": {
+                            "type": "string"
+                          },
+                          "project_id": {
+                            "type": "string"
+                          }
+                        },
+                        "title": "bigquery",
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "api_key": {
+                            "type": "string"
+                          },
+                          "region": {
+                            "type": "string"
+                          }
+                        },
+                        "title": "datadog",
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "headers": {
+                            "additionalProperties": {
+                              "type": "string"
+                            },
+                            "type": "object"
+                          },
+                          "password": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "url": {
+                            "type": "string"
+                          },
+                          "username": {
+                            "nullable": true,
+                            "type": "string"
+                          }
+                        },
+                        "title": "loki",
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "dsn": {
+                            "type": "string"
+                          }
+                        },
+                        "title": "sentry",
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "api_token": {
+                            "type": "string"
+                          },
+                          "dataset_name": {
+                            "type": "string"
+                          },
+                          "domain": {
+                            "type": "string"
+                          }
+                        },
+                        "title": "axiom",
+                        "type": "object"
+                      },
+                      {
+                        "additionalProperties": false,
+                        "properties": {
+                          "ca_cert": {
+                            "type": "string"
+                          },
+                          "cipher_key": {
+                            "type": "string"
+                          },
+                          "client_cert": {
+                            "type": "string"
+                          },
+                          "client_key": {
+                            "type": "string"
+                          },
+                          "host": {
+                            "type": "string"
+                          },
+                          "port": {
+                            "maximum": 65535,
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          "structured_data": {
+                            "type": "string"
+                          },
+                          "tls": {
+                            "default": false,
+                            "type": "boolean"
+                          }
+                        },
+                        "title": "syslog",
+                        "type": "object"
+                      }
+                    ]
+                  },
+                  "description": {
+                    "type": "string"
+                  },
+                  "name": {
+                    "type": "string"
+                  }
+                },
+                "required": ["backend_type"],
+                "type": "object"
+              },
+              "type": {
+                "description": "Resource type.",
+                "enum": ["log_drain"],
+                "type": "string"
+              }
+            },
+            "required": ["attributes", "type"],
+            "type": "object"
+          }
+        },
+        "required": ["data"],
+        "type": "object"
+      },
+      "V2AssignOrganizationMemberRoleRequest": {
+        "properties": {
+          "data": {
+            "properties": {
+              "attributes": {
+                "properties": {
+                  "projects": {
+                    "description": "The projects to assign a project-scoped role for. If omitted, assigns an org-wide role.",
+                    "items": {
+                      "properties": {
+                        "ref": {
+                          "description": "Project ref",
+                          "example": "abcjuqabhgwjjutfvtpa",
+                          "type": "string"
+                        }
+                      },
+                      "required": ["ref"],
+                      "type": "object"
+                    },
+                    "minItems": 1,
+                    "type": "array"
+                  },
+                  "role": {
+                    "description": "Role name to assign. Must be one of: owner, administrator, developer, read-only. Must be on a Team or Enterprise plan to use the read-only role.",
+                    "enum": [
+                      "administrator",
+                      "developer",
+                      "owner",
+                      "read-only"
+                    ],
+                    "example": "developer",
+                    "type": "string"
+                  }
+                },
+                "required": ["role"],
+                "type": "object"
+              },
+              "type": {
+                "description": "Resource type.",
+                "enum": ["organization_member_role"],
+                "type": "string"
+              }
+            },
+            "required": ["attributes", "type"],
+            "type": "object"
+          }
+        },
+        "required": ["data"],
+        "type": "object"
+      },
+      "V2BranchCreationRateResponse": {
+        "properties": {
+          "data": {
+            "properties": {
+              "attributes": {
+                "additionalProperties": {},
+                "properties": {
+                  "amount": {
+                    "description": "Authoritative rate a new branch adds to the organization. Zero is authoritative and means the branch can be created without an additional charge.",
+                    "example": 0.01344,
+                    "type": "number"
+                  },
+                  "currency": {
+                    "description": "ISO 4217 currency of the amount.",
+                    "example": "USD",
+                    "type": "string"
+                  },
+                  "organization_slug": {
+                    "description": "Organization the charge lands on.",
+                    "example": "my-org",
+                    "type": "string"
+                  },
+                  "parent_project_ref": {
+                    "description": "Project the branch would be created under.",
+                    "example": "abcdefghijklmnopqrst",
+                    "type": "string"
+                  },
+                  "plan_id": {
+                    "description": "Plan that decided the amount.",
+                    "example": "pro",
+                    "type": "string"
+                  },
+                  "recurrence": {
+                    "description": "Interval the amount recurs at.",
+                    "enum": ["hourly", "monthly"],
+                    "example": "hourly",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "amount",
+                  "currency",
+                  "organization_slug",
+                  "parent_project_ref",
+                  "plan_id",
+                  "recurrence"
+                ],
+                "type": "object"
+              },
+              "type": {
+                "description": "Resource type.",
+                "enum": ["branch_creation_rate"],
+                "type": "string"
+              }
+            },
+            "required": ["attributes", "type"],
+            "type": "object"
+          }
+        },
+        "required": ["data"],
+        "type": "object"
+      },
+      "V2CreateInvitationsRequest": {
+        "properties": {
+          "data": {
+            "items": {
+              "properties": {
+                "attributes": {
+                  "properties": {
+                    "email": {
+                      "format": "email",
+                      "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+                      "type": "string"
+                    },
+                    "projects": {
+                      "description": "The projects to limit a user to. If omitted, user will have org-wide access with the provided role.",
+                      "items": {
+                        "properties": {
+                          "ref": {
+                            "description": "Project ref",
+                            "example": "abcjuqabhgwjjutfvtpa",
+                            "type": "string"
+                          }
+                        },
+                        "required": ["ref"],
+                        "type": "object"
+                      },
+                      "minItems": 1,
+                      "type": "array"
+                    },
+                    "require_sso": {
+                      "type": "boolean"
+                    },
+                    "role": {
+                      "description": "Role name to assign. Must be on a Team or Enterprise plan to use the read-only role.",
+                      "enum": [
+                        "administrator",
+                        "developer",
+                        "owner",
+                        "read-only"
+                      ],
+                      "example": "developer",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["email", "role"],
+                  "type": "object"
+                },
+                "type": {
+                  "description": "Resource type.",
+                  "enum": ["organization_invitation"],
+                  "type": "string"
+                }
+              },
+              "required": ["attributes", "type"],
+              "type": "object"
+            },
+            "maxItems": 50,
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": ["data"],
+        "type": "object"
+      },
+      "V2CreateInvitationsResponse": {
+        "properties": {
+          "data": {
+            "items": {
+              "properties": {
+                "attributes": {
+                  "properties": {
+                    "email": {
+                      "format": "email",
+                      "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["email"],
+                  "type": "object"
+                },
+                "type": {
+                  "description": "Resource type.",
+                  "enum": ["organization_invitation"],
+                  "type": "string"
+                }
+              },
+              "required": ["attributes", "type"],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "error": {
+            "properties": {
+              "code": {
+                "type": "string"
+              },
+              "description": {
+                "type": "string"
+              },
+              "id": {
+                "type": "string"
+              },
+              "issues": {
+                "items": {
+                  "properties": {
+                    "code": {
+                      "type": "string"
+                    },
+                    "description": {
+                      "type": "string"
+                    },
+                    "id": {
+                      "type": "string"
+                    },
+                    "links": {
+                      "additionalProperties": {
+                        "properties": {
+                          "describedby": {
+                            "type": "string"
+                          },
+                          "href": {
+                            "type": "string"
+                          },
+                          "meta": {
+                            "additionalProperties": {},
+                            "type": "object"
+                          },
+                          "rel": {
+                            "type": "string"
+                          },
+                          "title": {
+                            "type": "string"
+                          },
+                          "type": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["href"],
+                        "type": "object"
+                      },
+                      "type": "object"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "meta": {
+                      "properties": {
+                        "email": {
+                          "format": "email",
+                          "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+                          "type": "string"
+                        }
+                      },
+                      "required": ["email"],
+                      "type": "object"
+                    }
+                  },
+                  "required": ["code", "message", "meta"],
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "links": {
+                "additionalProperties": {
+                  "properties": {
+                    "describedby": {
+                      "type": "string"
+                    },
+                    "href": {
+                      "type": "string"
+                    },
+                    "meta": {
+                      "additionalProperties": {},
+                      "type": "object"
+                    },
+                    "rel": {
+                      "type": "string"
+                    },
+                    "title": {
+                      "type": "string"
+                    },
+                    "type": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["href"],
+                  "type": "object"
+                },
+                "type": "object"
+              },
+              "message": {
+                "type": "string"
+              },
+              "meta": {
+                "additionalProperties": {},
+                "type": "object"
+              }
+            },
+            "required": ["code", "message"],
+            "type": "object"
+          }
+        },
+        "required": ["data"],
+        "type": "object"
+      },
+      "V2CreatePrivateLinkAssociationRequest": {
+        "properties": {
+          "data": {
+            "properties": {
+              "attributes": {
+                "properties": {
+                  "account_name": {
+                    "description": "Optional human-readable name for the AWS account.",
+                    "maxLength": 128,
+                    "type": "string"
+                  },
+                  "aws_account_id": {
+                    "description": "The AWS account ID to add to the project PrivateLink share.",
+                    "maxLength": 12,
+                    "minLength": 12,
+                    "pattern": "^\\d{12}$",
+                    "type": "string"
+                  },
+                  "database_identifier": {
+                    "description": "Identifier of the read replica this PrivateLink share should target. Omit to target the primary database.",
+                    "type": "string"
+                  }
+                },
+                "required": ["aws_account_id"],
+                "type": "object"
+              },
+              "type": {
+                "description": "Resource type.",
+                "enum": ["private_link_association"],
+                "type": "string"
+              }
+            },
+            "required": ["attributes", "type"],
+            "type": "object"
+          }
+        },
+        "required": ["data"],
+        "type": "object"
+      },
+      "V2DeleteInvitationsRequest": {
+        "properties": {
+          "data": {
+            "items": {
+              "properties": {
+                "attributes": {
+                  "properties": {
+                    "email": {
+                      "format": "email",
+                      "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["email"],
+                  "type": "object"
+                },
+                "type": {
+                  "description": "Resource type.",
+                  "enum": ["organization_invitation"],
+                  "type": "string"
+                }
+              },
+              "required": ["attributes", "type"],
+              "type": "object"
+            },
+            "maxItems": 100,
+            "minItems": 1,
+            "type": "array"
+          }
+        },
+        "required": ["data"],
+        "type": "object"
+      },
+      "V2DeleteInvitationsResponse": {
+        "properties": {
+          "data": {
+            "items": {
+              "properties": {
+                "attributes": {
+                  "properties": {
+                    "email": {
+                      "format": "email",
+                      "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["email"],
+                  "type": "object"
+                },
+                "type": {
+                  "description": "Resource type.",
+                  "enum": ["organization_invitation"],
+                  "type": "string"
+                }
+              },
+              "required": ["attributes", "type"],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": ["data"],
+        "type": "object"
+      },
+      "V2DeployWorkerRequest": {
+        "properties": {
+          "data": {
+            "properties": {
+              "attributes": {
+                "properties": {
+                  "context_upload_id": {
+                    "description": "Id of a build context staged through the uploads endpoint. Required unless `runtime` is set.",
+                    "type": "string"
+                  },
+                  "spec": {
+                    "properties": {
+                      "exposure": {
+                        "example": "public",
+                        "type": "string"
+                      },
+                      "instances": {
+                        "example": 1,
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer"
+                      },
+                      "runtime": {
+                        "example": "node",
+                        "type": "string"
+                      },
+                      "size": {
+                        "example": "2gb-1vcpu",
+                        "type": "string"
+                      }
+                    },
+                    "required": ["exposure", "instances", "size"],
+                    "type": "object"
+                  }
+                },
+                "required": ["spec"],
+                "type": "object"
+              },
+              "type": {
+                "description": "Resource type.",
+                "enum": ["project_worker"],
+                "type": "string"
+              }
+            },
+            "required": ["attributes", "type"],
+            "type": "object"
+          }
+        },
+        "required": ["data"],
+        "type": "object"
+      },
+      "V2ListGitHubConnectionsResponse": {
+        "properties": {
+          "data": {
+            "items": {
+              "properties": {
+                "attributes": {
+                  "properties": {
+                    "branch_limit": {
+                      "description": "Maximum number of preview branches",
+                      "type": "number"
+                    },
+                    "inserted_at": {
+                      "description": "When the connection was created",
+                      "type": "string"
+                    },
+                    "installation_id": {
+                      "description": "GitHub App installation id",
+                      "type": "number"
+                    },
+                    "new_branch_per_pr": {
+                      "description": "Whether a preview branch is created for every pull request",
+                      "type": "boolean"
+                    },
+                    "project": {
+                      "description": "The connected Supabase project",
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "name": {
+                          "type": "string"
+                        },
+                        "ref": {
+                          "description": "Project ref",
+                          "example": "abcdefghijklmnopqrst",
+                          "maxLength": 20,
+                          "minLength": 20,
+                          "pattern": "^[a-z]+$",
+                          "type": "string"
+                        }
+                      },
+                      "required": ["id", "name", "ref"],
+                      "type": "object"
+                    },
+                    "repository": {
+                      "description": "The connected GitHub repository",
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "name": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["id", "name"],
+                      "type": "object"
+                    },
+                    "supabase_changes_only": {
+                      "description": "Whether branches are only created for changes under `supabase/`",
+                      "type": "boolean"
+                    },
+                    "updated_at": {
+                      "description": "When the connection was last updated",
+                      "type": "string"
+                    },
+                    "user": {
+                      "description": "The user who created the connection, if still known",
+                      "nullable": true,
+                      "properties": {
+                        "id": {
+                          "type": "number"
+                        },
+                        "primary_email": {
+                          "nullable": true,
+                          "type": "string"
+                        },
+                        "username": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["id", "primary_email", "username"],
+                      "type": "object"
+                    },
+                    "workdir": {
+                      "description": "Directory within the repository the project lives in",
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "branch_limit",
+                    "inserted_at",
+                    "installation_id",
+                    "new_branch_per_pr",
+                    "project",
+                    "repository",
+                    "supabase_changes_only",
+                    "updated_at",
+                    "user",
+                    "workdir"
+                  ],
+                  "type": "object"
+                },
+                "id": {
+                  "description": "Connection id.",
+                  "example": "7",
+                  "type": "string"
+                },
+                "type": {
+                  "description": "Resource type.",
+                  "enum": ["github_connection"],
+                  "type": "string"
+                }
+              },
+              "required": ["attributes", "id", "type"],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "links": {
+            "properties": {
+              "first": {
+                "description": "URL path to the first page if available.",
+                "example": "/v2/organizations/my-org/integrations/github/connections?page[size]=10",
+                "nullable": true,
+                "type": "string"
+              },
+              "last": {
+                "description": "URL path to the last page if available.",
+                "example": "/v2/organizations/my-org/integrations/github/connections?page[size]=10&page[after]=019adf7d-4513-71ba-b264-21900edb4295",
+                "nullable": true,
+                "type": "string"
+              },
+              "next": {
+                "description": "URL path to the next page.",
+                "example": "/v2/organizations/my-org/integrations/github/connections?page[size]=10&page[after]=019adf7d-4513-7062-b292-78b86cc470a4",
+                "nullable": true,
+                "type": "string"
+              },
+              "prev": {
+                "description": "URL path to the previous page.",
+                "example": "/v2/organizations/my-org/integrations/github/connections?page[size]=10&page[before]=019adf7d-4513-74c5-bb9a-f1bc0f7a95d7",
+                "nullable": true,
+                "type": "string"
+              }
+            },
+            "required": ["next", "prev"],
+            "type": "object"
+          }
+        },
+        "required": ["data", "links"],
+        "type": "object"
+      },
+      "V2ListMembersResponse": {
+        "properties": {
+          "data": {
+            "items": {
+              "properties": {
+                "attributes": {
+                  "properties": {
+                    "avatar_url": {
+                      "description": "Member's avatar URL",
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "is_sso_user": {
+                      "description": "Whether this member is a Single Sign-On user",
+                      "type": "boolean"
+                    },
+                    "mfa_enabled": {
+                      "description": "Whether Multi-Factor Authentication is enabled for this member",
+                      "type": "boolean"
+                    },
+                    "primary_email": {
+                      "description": "Member's primary email",
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "roles": {
+                      "description": "Roles assigned to this member. Includes both org-level and project-scoped roles.",
+                      "items": {
+                        "properties": {
+                          "name": {
+                            "description": "Role name. For project-scoped roles this is the base role name.",
+                            "example": "developer",
+                            "type": "string"
+                          },
+                          "projects": {
+                            "description": "Project refs this role is scoped to. Empty array for org-level roles.",
+                            "items": {
+                              "properties": {
+                                "name": {
+                                  "type": "string"
+                                },
+                                "ref": {
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["name", "ref"],
+                              "type": "object"
+                            },
+                            "type": "array"
+                          },
+                          "scope": {
+                            "description": "Whether this role applies org-wide or is scoped to specific projects for the user.",
+                            "enum": ["organization", "project"],
+                            "type": "string"
+                          }
+                        },
+                        "required": ["name", "projects", "scope"],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "username": {
+                      "description": "Member's username",
+                      "nullable": true,
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "avatar_url",
+                    "is_sso_user",
+                    "mfa_enabled",
+                    "primary_email",
+                    "roles",
+                    "username"
+                  ],
+                  "type": "object"
+                },
+                "id": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12})$",
+                  "type": "string"
+                },
+                "type": {
+                  "description": "Resource type.",
+                  "enum": ["organization_member"],
+                  "type": "string"
+                }
+              },
+              "required": ["attributes", "id", "type"],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "links": {
+            "properties": {
+              "first": {
+                "description": "URL path to the first page if available.",
+                "example": "/v2/organizations/my-org/members?page[size]=10",
+                "nullable": true,
+                "type": "string"
+              },
+              "last": {
+                "description": "URL path to the last page if available.",
+                "example": "/v2/organizations/my-org/members?page[size]=10&page[after]=019adf7d-4513-71ba-b264-21900edb4295",
+                "nullable": true,
+                "type": "string"
+              },
+              "next": {
+                "description": "URL path to the next page.",
+                "example": "/v2/organizations/my-org/members?page[size]=10&page[after]=019adf7d-4513-7062-b292-78b86cc470a4",
+                "nullable": true,
+                "type": "string"
+              },
+              "prev": {
+                "description": "URL path to the previous page.",
+                "example": "/v2/organizations/my-org/members?page[size]=10&page[before]=019adf7d-4513-74c5-bb9a-f1bc0f7a95d7",
+                "nullable": true,
+                "type": "string"
+              }
+            },
+            "required": ["next", "prev"],
+            "type": "object"
+          }
+        },
+        "required": ["data", "links"],
+        "type": "object"
+      },
+      "V2ListPrivateLinkAssociationsResponse": {
+        "properties": {
+          "data": {
+            "items": {
+              "properties": {
+                "attributes": {
+                  "properties": {
+                    "account_name": {
+                      "description": "Human-readable name for the AWS account.",
+                      "type": "string"
+                    },
+                    "aws_account_id": {
+                      "description": "The AWS account ID this PrivateLink share is associated with.",
+                      "maxLength": 12,
+                      "minLength": 12,
+                      "pattern": "^\\d{12}$",
+                      "type": "string"
+                    },
+                    "database_identifier": {
+                      "description": "Identifier of the database this PrivateLink share targets - the project ref for the primary, or the read replica identifier.",
+                      "type": "string"
+                    },
+                    "database_type": {
+                      "description": "Whether this PrivateLink share targets the primary database or a read replica.",
+                      "enum": ["PRIMARY", "READ_REPLICA"],
+                      "type": "string"
+                    },
+                    "resource_access_manager_resource_config_arn": {
+                      "description": "ARN of the AWS VPC Lattice resource configuration backing this PrivateLink share.",
+                      "type": "string"
+                    },
+                    "resource_access_manager_resource_config_id": {
+                      "description": "ID of the AWS VPC Lattice resource configuration backing this PrivateLink share.",
+                      "type": "string"
+                    },
+                    "resource_access_manager_share_arn": {
+                      "description": "ARN of the AWS Resource Access Manager resource share for this association.",
+                      "type": "string"
+                    },
+                    "shared_at": {
+                      "description": "The time and date at which the AWS Resource Share Association was requested from Supabase. `null` means that the association was not yet requested while the PrivateLink Association is pending.",
+                      "format": "date-time",
+                      "nullable": true,
+                      "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                      "type": "string"
+                    },
+                    "status": {
+                      "description": "\n  - `CREATING`: The PrivateLink resources and the Association are in the process of being created. The PrivateLink Share cannot be accepted yet.\n  - `READY`: The PrivateLink resources have been created and the PrivateLink Share can be accepted for the duration of 12h after sharing. See `shared_at`.\n  - `ASSOCIATION_REQUEST_EXPIRED`: The PrivateLink Share has not been accepted within the 12h time limit. This association can now be deleted.\n  - `ASSOCIATION_ACCEPTED`: The PrivateLink Share was successfully accepted.\n  - `CREATION_FAILED`: The PrivateLink resources failed to create. This likely means something went wrong on Supabase's and and support should be contacted.\n  - `DELETING`: The PrivateLink resources and the Association are in the process of being deleted. The PrivateLink Share cannot be accepted yet.\n",
+                      "enum": [
+                        "ASSOCIATION_ACCEPTED",
+                        "ASSOCIATION_REQUEST_EXPIRED",
+                        "CREATING",
+                        "CREATION_FAILED",
+                        "DELETING",
+                        "READY"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "aws_account_id",
+                    "database_identifier",
+                    "database_type",
+                    "shared_at",
+                    "status"
+                  ],
+                  "type": "object"
+                },
+                "id": {
+                  "type": "string"
+                },
+                "type": {
+                  "description": "Resource type.",
+                  "enum": ["private_link_association"],
+                  "type": "string"
+                }
+              },
+              "required": ["attributes", "id", "type"],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": ["data"],
+        "type": "object"
+      },
+      "V2ListProjectsResponse": {
+        "properties": {
+          "data": {
+            "items": {
+              "properties": {
+                "attributes": {
+                  "properties": {
+                    "cloud_provider": {
+                      "description": "Cloud provider hosting the project",
+                      "type": "string"
+                    },
+                    "databases": {
+                      "description": "The project's databases including compute and disk attributes.",
+                      "items": {
+                        "properties": {
+                          "cloud_provider": {
+                            "type": "string"
+                          },
+                          "disk_last_modified_at": {
+                            "type": "string"
+                          },
+                          "disk_throughput_mbps": {
+                            "type": "number"
+                          },
+                          "disk_type": {
+                            "enum": ["gp3", "io2"],
+                            "type": "string"
+                          },
+                          "disk_volume_size_gb": {
+                            "type": "number"
+                          },
+                          "identifier": {
+                            "type": "string"
+                          },
+                          "infra_compute_size": {
+                            "enum": [
+                              "12xlarge",
+                              "16xlarge",
+                              "24xlarge",
+                              "24xlarge_high_memory",
+                              "24xlarge_optimized_cpu",
+                              "24xlarge_optimized_memory",
+                              "2xlarge",
+                              "48xlarge",
+                              "48xlarge_high_memory",
+                              "48xlarge_optimized_cpu",
+                              "48xlarge_optimized_memory",
+                              "4xlarge",
+                              "8xlarge",
+                              "large",
+                              "medium",
+                              "micro",
+                              "nano",
+                              "pico",
+                              "small",
+                              "xlarge"
+                            ],
+                            "type": "string"
+                          },
+                          "region": {
+                            "nullable": true,
+                            "type": "string"
+                          },
+                          "status": {
+                            "enum": [
+                              "ACTIVE_HEALTHY",
+                              "ACTIVE_UNHEALTHY",
+                              "COMING_UP",
+                              "GOING_DOWN",
+                              "INIT_FAILED",
+                              "INIT_READ_REPLICA",
+                              "INIT_READ_REPLICA_FAILED",
+                              "REMOVED",
+                              "RESIZING",
+                              "RESTARTING",
+                              "RESTORING",
+                              "UNKNOWN"
+                            ],
+                            "type": "string"
+                          },
+                          "type": {
+                            "enum": ["PRIMARY", "READ_REPLICA"],
+                            "type": "string"
+                          }
+                        },
+                        "required": [
+                          "cloud_provider",
+                          "identifier",
+                          "region",
+                          "status",
+                          "type"
+                        ],
+                        "type": "object"
+                      },
+                      "type": "array"
+                    },
+                    "inserted_at": {
+                      "description": "When the project was created",
+                      "type": "string"
+                    },
+                    "name": {
+                      "description": "Project name",
+                      "type": "string"
+                    },
+                    "region": {
+                      "description": "Region the project is hosted in",
+                      "type": "string"
+                    },
+                    "status": {
+                      "description": "Project status",
+                      "enum": [
+                        "ACTIVE_HEALTHY",
+                        "ACTIVE_UNHEALTHY",
+                        "COMING_UP",
+                        "GOING_DOWN",
+                        "INACTIVE",
+                        "INIT_FAILED",
+                        "PAUSE_FAILED",
+                        "PAUSING",
+                        "REMOVED",
+                        "RESIZING",
+                        "RESTARTING",
+                        "RESTORE_FAILED",
+                        "RESTORING",
+                        "UNKNOWN",
+                        "UPGRADING"
+                      ],
+                      "type": "string"
+                    }
+                  },
+                  "required": [
+                    "cloud_provider",
+                    "databases",
+                    "inserted_at",
+                    "name",
+                    "region",
+                    "status"
+                  ],
+                  "type": "object"
+                },
+                "id": {
+                  "description": "Project ref",
+                  "example": "abcdefghijklmnopqrst",
+                  "maxLength": 20,
+                  "minLength": 20,
+                  "pattern": "^[a-z]+$",
+                  "type": "string"
+                },
+                "type": {
+                  "description": "Resource type.",
+                  "enum": ["project"],
+                  "type": "string"
+                }
+              },
+              "required": ["attributes", "id", "type"],
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "links": {
+            "properties": {
+              "first": {
+                "description": "URL path to the first page if available.",
+                "example": "/v2/organizations/my-org/projects?page[size]=10",
+                "nullable": true,
+                "type": "string"
+              },
+              "last": {
+                "description": "URL path to the last page if available.",
+                "example": "/v2/organizations/my-org/projects?page[size]=10&page[after]=019adf7d-4513-71ba-b264-21900edb4295",
+                "nullable": true,
+                "type": "string"
+              },
+              "next": {
+                "description": "URL path to the next page.",
+                "example": "/v2/organizations/my-org/projects?page[size]=10&page[after]=019adf7d-4513-7062-b292-78b86cc470a4",
+                "nullable": true,
+                "type": "string"
+              },
+              "prev": {
+                "description": "URL path to the previous page.",
+                "example": "/v2/organizations/my-org/projects?page[size]=10&page[before]=019adf7d-4513-74c5-bb9a-f1bc0f7a95d7",
+                "nullable": true,
+                "type": "string"
+              }
+            },
+            "required": ["next", "prev"],
+            "type": "object"
+          }
+        },
+        "required": ["data", "links"],
+        "type": "object"
+      },
+      "V2ListRolesResponse": {
+        "properties": {
+          "data": {
+            "items": {
+              "properties": {
+                "attributes": {
+                  "properties": {
+                    "name": {
+                      "description": "Role name.",
+                      "example": "developer",
+                      "type": "string"
+                    }
+                  },
+                  "required": ["name"],
+                  "type": "object"
+                },
+                "type": {
+                  "description": "Resource type.",
+                  "enum": ["organization_role"],
+                  "type": "string"
+                }
+              },
+              "required": ["attributes", "type"],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": ["data"],
+        "type": "object"
+      },
+      "V2ListWorkersResponse": {
+        "properties": {
+          "data": {
+            "items": {
+              "properties": {
+                "attributes": {
+                  "properties": {
+                    "build_state": {
+                      "enum": ["active", "building", "failed"],
+                      "type": "string"
+                    },
+                    "deleting": {
+                      "type": "boolean"
+                    },
+                    "image_version": {
+                      "type": "string"
+                    },
+                    "instances": {
+                      "properties": {
+                        "declared": {
+                          "maximum": 9007199254740991,
+                          "minimum": -9007199254740991,
+                          "type": "integer"
+                        },
+                        "live": {
+                          "maximum": 9007199254740991,
+                          "minimum": -9007199254740991,
+                          "type": "integer"
+                        },
+                        "ready": {
+                          "maximum": 9007199254740991,
+                          "minimum": -9007199254740991,
+                          "type": "integer"
+                        },
+                        "stale": {
+                          "maximum": 9007199254740991,
+                          "minimum": -9007199254740991,
+                          "type": "integer"
+                        }
+                      },
+                      "required": ["declared", "live", "ready", "stale"],
+                      "type": "object"
+                    },
+                    "instances_error": {
+                      "type": "string"
+                    },
+                    "secret_generation": {
+                      "type": "string"
+                    },
+                    "spec": {
+                      "properties": {
+                        "exposure": {
+                          "example": "public",
+                          "type": "string"
+                        },
+                        "instances": {
+                          "example": 1,
+                          "maximum": 9007199254740991,
+                          "minimum": -9007199254740991,
+                          "type": "integer"
+                        },
+                        "runtime": {
+                          "example": "node",
+                          "type": "string"
+                        },
+                        "size": {
+                          "example": "2gb-1vcpu",
+                          "type": "string"
+                        }
+                      },
+                      "required": ["exposure", "instances", "size"],
+                      "type": "object"
+                    },
+                    "state_reason": {
+                      "type": "string"
+                    }
+                  },
+                  "required": ["build_state", "secret_generation", "spec"],
+                  "type": "object"
+                },
+                "id": {
+                  "description": "Worker name.",
+                  "example": "hello-world",
+                  "type": "string"
+                },
+                "type": {
+                  "description": "Resource type.",
+                  "enum": ["project_worker"],
+                  "type": "string"
+                }
+              },
+              "required": ["attributes", "id", "type"],
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "required": ["data"],
+        "type": "object"
+      },
+      "V2PreviewProjectTransferResponse": {
+        "properties": {
+          "data": {
+            "properties": {
+              "attributes": {
+                "properties": {
+                  "errors": {
+                    "items": {
+                      "properties": {
+                        "key": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["key", "message"],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "info": {
+                    "items": {
+                      "properties": {
+                        "key": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["key", "message"],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  },
+                  "valid": {
+                    "type": "boolean"
+                  },
+                  "warnings": {
+                    "items": {
+                      "properties": {
+                        "key": {
+                          "type": "string"
+                        },
+                        "message": {
+                          "type": "string"
+                        }
+                      },
+                      "required": ["key", "message"],
+                      "type": "object"
+                    },
+                    "type": "array"
+                  }
+                },
+                "required": ["errors", "info", "valid", "warnings"],
+                "type": "object"
+              },
+              "type": {
+                "description": "Resource type.",
+                "enum": ["project_transfer_result"],
+                "type": "string"
+              }
+            },
+            "required": ["attributes", "type"],
+            "type": "object"
+          }
+        },
+        "required": ["data"],
+        "type": "object"
+      },
+      "V2PrivateLinkAssociationResponse": {
+        "properties": {
+          "data": {
+            "properties": {
+              "attributes": {
+                "properties": {
+                  "account_name": {
+                    "description": "Human-readable name for the AWS account.",
+                    "type": "string"
+                  },
+                  "aws_account_id": {
+                    "description": "The AWS account ID this PrivateLink share is associated with.",
+                    "maxLength": 12,
+                    "minLength": 12,
+                    "pattern": "^\\d{12}$",
+                    "type": "string"
+                  },
+                  "database_identifier": {
+                    "description": "Identifier of the database this PrivateLink share targets - the project ref for the primary, or the read replica identifier.",
+                    "type": "string"
+                  },
+                  "database_type": {
+                    "description": "Whether this PrivateLink share targets the primary database or a read replica.",
+                    "enum": ["PRIMARY", "READ_REPLICA"],
+                    "type": "string"
+                  },
+                  "resource_access_manager_resource_config_arn": {
+                    "description": "ARN of the AWS VPC Lattice resource configuration backing this PrivateLink share.",
+                    "type": "string"
+                  },
+                  "resource_access_manager_resource_config_id": {
+                    "description": "ID of the AWS VPC Lattice resource configuration backing this PrivateLink share.",
+                    "type": "string"
+                  },
+                  "resource_access_manager_share_arn": {
+                    "description": "ARN of the AWS Resource Access Manager resource share for this association.",
+                    "type": "string"
+                  },
+                  "shared_at": {
+                    "description": "The time and date at which the AWS Resource Share Association was requested from Supabase. `null` means that the association was not yet requested while the PrivateLink Association is pending.",
+                    "format": "date-time",
+                    "nullable": true,
+                    "pattern": "^(?:(?:\\d\\d[2468][048]|\\d\\d[13579][26]|\\d\\d0[48]|[02468][048]00|[13579][26]00)-02-29|\\d{4}-(?:(?:0[13578]|1[02])-(?:0[1-9]|[12]\\d|3[01])|(?:0[469]|11)-(?:0[1-9]|[12]\\d|30)|(?:02)-(?:0[1-9]|1\\d|2[0-8])))T(?:(?:[01]\\d|2[0-3]):[0-5]\\d(?::[0-5]\\d(?:\\.\\d+)?)?(?:Z))$",
+                    "type": "string"
+                  },
+                  "status": {
+                    "description": "\n  - `CREATING`: The PrivateLink resources and the Association are in the process of being created. The PrivateLink Share cannot be accepted yet.\n  - `READY`: The PrivateLink resources have been created and the PrivateLink Share can be accepted for the duration of 12h after sharing. See `shared_at`.\n  - `ASSOCIATION_REQUEST_EXPIRED`: The PrivateLink Share has not been accepted within the 12h time limit. This association can now be deleted.\n  - `ASSOCIATION_ACCEPTED`: The PrivateLink Share was successfully accepted.\n  - `CREATION_FAILED`: The PrivateLink resources failed to create. This likely means something went wrong on Supabase's and and support should be contacted.\n  - `DELETING`: The PrivateLink resources and the Association are in the process of being deleted. The PrivateLink Share cannot be accepted yet.\n",
+                    "enum": [
+                      "ASSOCIATION_ACCEPTED",
+                      "ASSOCIATION_REQUEST_EXPIRED",
+                      "CREATING",
+                      "CREATION_FAILED",
+                      "DELETING",
+                      "READY"
+                    ],
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "aws_account_id",
+                  "database_identifier",
+                  "database_type",
+                  "shared_at",
+                  "status"
+                ],
+                "type": "object"
+              },
+              "id": {
+                "type": "string"
+              },
+              "type": {
+                "description": "Resource type.",
+                "enum": ["private_link_association"],
+                "type": "string"
+              }
+            },
+            "required": ["attributes", "id", "type"],
+            "type": "object"
+          }
+        },
+        "required": ["data"],
+        "type": "object"
+      },
+      "V2ProjectConfigResponse": {
+        "properties": {
+          "data": {
+            "properties": {
+              "attributes": {
+                "properties": {
+                  "api": {
+                    "properties": {
+                      "db_extra_search_path": {
+                        "type": "string"
+                      },
+                      "db_pool": {
+                        "description": "If `null`, no pool size is written to the project's PostgREST config and PostgREST's own default applies. The platform does not pick a value here.",
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "nullable": true,
+                        "type": "integer"
+                      },
+                      "db_pool_acquisition_timeout": {
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer"
+                      },
+                      "db_schema": {
+                        "description": "Schemas exposed through the Data API",
+                        "type": "string"
+                      },
+                      "max_rows": {
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "db_extra_search_path",
+                      "db_pool",
+                      "db_pool_acquisition_timeout",
+                      "db_schema",
+                      "max_rows"
+                    ],
+                    "type": "object"
+                  },
+                  "auth": {
+                    "additionalProperties": {},
+                    "description": "Effective Auth config, keyed by lowercased GoTrue setting name and resolved through the `gotrue_config` view, so a setting the project has never overridden is reported at its platform default. Secrets are returned as an HMAC of their value, never in plaintext.",
+                    "type": "object"
+                  },
+                  "database": {
+                    "properties": {
+                      "major_version": {
+                        "description": "The major Postgres version the database runs. `17` covers both Postgres 17 and Oriole on 17, since Oriole is a storage engine rather than a version.",
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer"
+                      },
+                      "network_restrictions": {
+                        "properties": {
+                          "allowed_cidrs": {
+                            "items": {
+                              "properties": {
+                                "address": {
+                                  "type": "string"
+                                },
+                                "type": {
+                                  "enum": ["v4", "v6"],
+                                  "type": "string"
+                                }
+                              },
+                              "required": ["address", "type"],
+                              "type": "object"
+                            },
+                            "type": "array"
+                          },
+                          "applied_at": {
+                            "type": "string"
+                          },
+                          "entitlement": {
+                            "enum": ["allowed", "disallowed"],
+                            "type": "string"
+                          },
+                          "status": {
+                            "description": "Whether the allowlist below is applied to the project or only stored.",
+                            "enum": ["applied", "stored"],
+                            "type": "string"
+                          },
+                          "updated_at": {
+                            "type": "string"
+                          }
+                        },
+                        "required": ["allowed_cidrs", "entitlement", "status"],
+                        "type": "object"
+                      },
+                      "postgres_settings": {
+                        "description": "Postgres parameter overrides. Empty when the project runs entirely on defaults.",
+                        "properties": {
+                          "checkpoint_timeout": {
+                            "description": "Default unit: s",
+                            "pattern": "^(-?[0-9]+(?:\\.[0-9]+)?)(us|ms|s|min|h|d)?$",
+                            "type": "string"
+                          },
+                          "cron_log_statement": {
+                            "type": "boolean"
+                          },
+                          "effective_cache_size": {
+                            "type": "string"
+                          },
+                          "hot_standby_feedback": {
+                            "type": "boolean"
+                          },
+                          "log_autovacuum_min_duration": {
+                            "description": "Default unit: ms",
+                            "pattern": "^(-?[0-9]+(?:\\.[0-9]+)?)(us|ms|s|min|h|d)?$",
+                            "type": "string"
+                          },
+                          "log_checkpoints": {
+                            "type": "boolean"
+                          },
+                          "log_connections": {
+                            "type": "boolean"
+                          },
+                          "log_disconnections": {
+                            "type": "boolean"
+                          },
+                          "log_duration": {
+                            "type": "boolean"
+                          },
+                          "log_lock_waits": {
+                            "type": "boolean"
+                          },
+                          "log_recovery_conflict_waits": {
+                            "type": "boolean"
+                          },
+                          "log_replication_commands": {
+                            "type": "boolean"
+                          },
+                          "log_startup_progress_interval": {
+                            "description": "Default unit: ms",
+                            "pattern": "^(-?[0-9]+(?:\\.[0-9]+)?)(us|ms|s|min|h|d)?$",
+                            "type": "string"
+                          },
+                          "log_temp_files": {
+                            "type": "string"
+                          },
+                          "logical_decoding_work_mem": {
+                            "type": "string"
+                          },
+                          "maintenance_work_mem": {
+                            "type": "string"
+                          },
+                          "max_connections": {
+                            "maximum": 262143,
+                            "minimum": 1,
+                            "type": "integer"
+                          },
+                          "max_locks_per_transaction": {
+                            "maximum": 2147483640,
+                            "minimum": 10,
+                            "type": "integer"
+                          },
+                          "max_logical_replication_workers": {
+                            "maximum": 262143,
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          "max_parallel_maintenance_workers": {
+                            "maximum": 1024,
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          "max_parallel_workers": {
+                            "maximum": 1024,
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          "max_parallel_workers_per_gather": {
+                            "maximum": 1024,
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          "max_replication_slots": {
+                            "maximum": 9007199254740991,
+                            "minimum": -9007199254740991,
+                            "type": "integer"
+                          },
+                          "max_slot_wal_keep_size": {
+                            "type": "string"
+                          },
+                          "max_standby_archive_delay": {
+                            "type": "string"
+                          },
+                          "max_standby_streaming_delay": {
+                            "type": "string"
+                          },
+                          "max_sync_workers_per_subscription": {
+                            "maximum": 262143,
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          "max_wal_senders": {
+                            "maximum": 9007199254740991,
+                            "minimum": -9007199254740991,
+                            "type": "integer"
+                          },
+                          "max_wal_size": {
+                            "type": "string"
+                          },
+                          "max_worker_processes": {
+                            "maximum": 262143,
+                            "minimum": 0,
+                            "type": "integer"
+                          },
+                          "session_replication_role": {
+                            "enum": ["local", "origin", "replica"],
+                            "type": "string"
+                          },
+                          "shared_buffers": {
+                            "type": "string"
+                          },
+                          "statement_timeout": {
+                            "description": "Default unit: ms",
+                            "pattern": "^(-?[0-9]+(?:\\.[0-9]+)?)(us|ms|s|min|h|d)?$",
+                            "type": "string"
+                          },
+                          "track_activity_query_size": {
+                            "type": "string"
+                          },
+                          "track_commit_timestamp": {
+                            "type": "boolean"
+                          },
+                          "wal_keep_size": {
+                            "type": "string"
+                          },
+                          "wal_sender_timeout": {
+                            "description": "Default unit: ms",
+                            "pattern": "^(-?[0-9]+(?:\\.[0-9]+)?)(us|ms|s|min|h|d)?$",
+                            "type": "string"
+                          },
+                          "work_mem": {
+                            "type": "string"
+                          }
+                        },
+                        "type": "object"
+                      },
+                      "ssl_enforced": {
+                        "description": "Whether the database rejects plaintext connections",
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "major_version",
+                      "network_restrictions",
+                      "postgres_settings",
+                      "ssl_enforced"
+                    ],
+                    "type": "object"
+                  },
+                  "pooler": {
+                    "properties": {
+                      "default_pool_size": {
+                        "description": "Defaults to the pooler's size for the project's compute when not overridden.",
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer"
+                      },
+                      "ignore_startup_parameters": {
+                        "type": "string"
+                      },
+                      "max_client_conn": {
+                        "description": "Defaults to the pooler's size for the project's compute when not overridden.",
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer"
+                      },
+                      "pool_mode": {
+                        "enum": ["session", "statement", "transaction"],
+                        "type": "string"
+                      },
+                      "query_wait_timeout": {
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer"
+                      },
+                      "reserve_pool_size": {
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer"
+                      },
+                      "server_idle_timeout": {
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer"
+                      },
+                      "server_lifetime": {
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer"
+                      }
+                    },
+                    "required": [
+                      "default_pool_size",
+                      "ignore_startup_parameters",
+                      "max_client_conn",
+                      "pool_mode",
+                      "query_wait_timeout",
+                      "reserve_pool_size",
+                      "server_idle_timeout",
+                      "server_lifetime"
+                    ],
+                    "type": "object"
+                  },
+                  "realtime": {
+                    "properties": {
+                      "connection_pool": {
+                        "description": "Defaults to Realtime's pool size for the project's compute when not overridden.",
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer"
+                      },
+                      "max_bytes_per_second": {
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer"
+                      },
+                      "max_channels_per_client": {
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer"
+                      },
+                      "max_concurrent_users": {
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer"
+                      },
+                      "max_events_per_second": {
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer"
+                      },
+                      "max_joins_per_second": {
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer"
+                      },
+                      "max_payload_size_in_kb": {
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer"
+                      },
+                      "max_presence_events_per_second": {
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer"
+                      },
+                      "postgres_changes_pool": {
+                        "description": "If `null`, no override is stored and Realtime applies its own default.",
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "nullable": true,
+                        "type": "integer"
+                      },
+                      "presence_enabled": {
+                        "type": "boolean"
+                      },
+                      "private_only": {
+                        "type": "boolean"
+                      },
+                      "suspend": {
+                        "type": "boolean"
+                      }
+                    },
+                    "required": [
+                      "connection_pool",
+                      "max_bytes_per_second",
+                      "max_channels_per_client",
+                      "max_concurrent_users",
+                      "max_events_per_second",
+                      "max_joins_per_second",
+                      "max_payload_size_in_kb",
+                      "max_presence_events_per_second",
+                      "postgres_changes_pool",
+                      "presence_enabled",
+                      "private_only",
+                      "suspend"
+                    ],
+                    "type": "object"
+                  },
+                  "storage": {
+                    "description": "Read from the storage service's admin API rather than the middleware DB, so unlike the rest of this resource it reflects the tenant's live config.",
+                    "properties": {
+                      "capabilities": {
+                        "properties": {
+                          "iceberg_catalog": {
+                            "type": "boolean"
+                          },
+                          "list_v2": {
+                            "type": "boolean"
+                          }
+                        },
+                        "required": ["iceberg_catalog", "list_v2"],
+                        "type": "object"
+                      },
+                      "database_pool_mode": {
+                        "type": "string"
+                      },
+                      "features": {
+                        "properties": {
+                          "iceberg_catalog": {
+                            "properties": {
+                              "enabled": {
+                                "type": "boolean"
+                              },
+                              "max_catalogs": {
+                                "maximum": 9007199254740991,
+                                "minimum": -9007199254740991,
+                                "type": "integer"
+                              },
+                              "max_namespaces": {
+                                "maximum": 9007199254740991,
+                                "minimum": -9007199254740991,
+                                "type": "integer"
+                              },
+                              "max_tables": {
+                                "maximum": 9007199254740991,
+                                "minimum": -9007199254740991,
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "enabled",
+                              "max_catalogs",
+                              "max_namespaces",
+                              "max_tables"
+                            ],
+                            "type": "object"
+                          },
+                          "image_transformation": {
+                            "properties": {
+                              "enabled": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": ["enabled"],
+                            "type": "object"
+                          },
+                          "purge_cache": {
+                            "properties": {
+                              "enabled": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": ["enabled"],
+                            "type": "object"
+                          },
+                          "s3_protocol": {
+                            "properties": {
+                              "enabled": {
+                                "type": "boolean"
+                              }
+                            },
+                            "required": ["enabled"],
+                            "type": "object"
+                          },
+                          "vector_buckets": {
+                            "properties": {
+                              "enabled": {
+                                "type": "boolean"
+                              },
+                              "max_buckets": {
+                                "maximum": 9007199254740991,
+                                "minimum": -9007199254740991,
+                                "type": "integer"
+                              },
+                              "max_indexes": {
+                                "maximum": 9007199254740991,
+                                "minimum": -9007199254740991,
+                                "type": "integer"
+                              }
+                            },
+                            "required": [
+                              "enabled",
+                              "max_buckets",
+                              "max_indexes"
+                            ],
+                            "type": "object"
+                          }
+                        },
+                        "required": [
+                          "iceberg_catalog",
+                          "image_transformation",
+                          "purge_cache",
+                          "s3_protocol",
+                          "vector_buckets"
+                        ],
+                        "type": "object"
+                      },
+                      "file_size_limit": {
+                        "format": "int64",
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer"
+                      },
+                      "migration_version": {
+                        "type": "string"
+                      },
+                      "upstream_target": {
+                        "enum": ["canary", "main"],
+                        "type": "string"
+                      }
+                    },
+                    "required": [
+                      "capabilities",
+                      "database_pool_mode",
+                      "features",
+                      "file_size_limit",
+                      "migration_version",
+                      "upstream_target"
+                    ],
+                    "type": "object"
+                  }
+                },
+                "required": [
+                  "api",
+                  "auth",
+                  "database",
+                  "pooler",
+                  "realtime",
+                  "storage"
+                ],
+                "type": "object"
+              },
+              "id": {
+                "description": "Project ref.",
+                "type": "string"
+              },
+              "type": {
+                "description": "Resource type.",
+                "enum": ["project_config"],
+                "type": "string"
+              }
+            },
+            "required": ["attributes", "id", "type"],
+            "type": "object"
+          }
+        },
+        "required": ["data"],
+        "type": "object"
+      },
+      "V2ProjectCreationRateResponse": {
+        "properties": {
+          "data": {
+            "properties": {
+              "attributes": {
+                "additionalProperties": {},
+                "properties": {
+                  "active_project_count": {
+                    "description": "Active projects already in the organization. On a paid plan the first one is absorbed by the organization's compute credits, so this decides whether the amount is zero.",
+                    "example": 1,
+                    "maximum": 9007199254740991,
+                    "minimum": -9007199254740991,
+                    "type": "integer"
+                  },
+                  "amount": {
+                    "description": "Authoritative rate a new project adds to the organization. Zero is authoritative and means the project can be created without an additional charge.",
+                    "example": 10,
+                    "type": "number"
+                  },
+                  "currency": {
+                    "description": "ISO 4217 currency of the amount.",
+                    "example": "USD",
+                    "type": "string"
+                  },
+                  "organization_slug": {
+                    "description": "Organization the charge lands on.",
+                    "example": "my-org",
+                    "type": "string"
+                  },
+                  "plan_id": {
+                    "description": "Plan that decided the amount.",
+                    "example": "pro",
+                    "type": "string"
+                  },
+                  "recurrence": {
+                    "description": "Interval the amount recurs at.",
+                    "enum": ["hourly", "monthly"],
+                    "example": "monthly",
+                    "type": "string"
+                  }
+                },
+                "required": [
+                  "active_project_count",
+                  "amount",
+                  "currency",
+                  "organization_slug",
+                  "plan_id",
+                  "recurrence"
+                ],
+                "type": "object"
+              },
+              "type": {
+                "description": "Resource type.",
+                "enum": ["project_creation_rate"],
+                "type": "string"
+              }
+            },
+            "required": ["attributes", "type"],
+            "type": "object"
+          }
+        },
+        "required": ["data"],
+        "type": "object"
+      },
+      "V2TransferProjectBody": {
+        "properties": {
+          "data": {
+            "properties": {
+              "attributes": {
+                "properties": {
+                  "target_organization_slug": {
+                    "type": "string"
+                  }
+                },
+                "required": ["target_organization_slug"],
+                "type": "object"
+              },
+              "type": {
+                "description": "Resource type.",
+                "enum": ["project_transfer_input"],
+                "type": "string"
+              }
+            },
+            "required": ["attributes", "type"],
+            "type": "object"
+          }
+        },
+        "required": ["data"],
+        "type": "object"
+      },
+      "V2WorkerResponse": {
+        "properties": {
+          "data": {
+            "properties": {
+              "attributes": {
+                "properties": {
+                  "build_state": {
+                    "enum": ["active", "building", "failed"],
+                    "type": "string"
+                  },
+                  "deleting": {
+                    "type": "boolean"
+                  },
+                  "image_version": {
+                    "type": "string"
+                  },
+                  "instances": {
+                    "properties": {
+                      "declared": {
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer"
+                      },
+                      "live": {
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer"
+                      },
+                      "ready": {
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer"
+                      },
+                      "stale": {
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer"
+                      }
+                    },
+                    "required": ["declared", "live", "ready", "stale"],
+                    "type": "object"
+                  },
+                  "instances_error": {
+                    "type": "string"
+                  },
+                  "secret_generation": {
+                    "type": "string"
+                  },
+                  "spec": {
+                    "properties": {
+                      "exposure": {
+                        "example": "public",
+                        "type": "string"
+                      },
+                      "instances": {
+                        "example": 1,
+                        "maximum": 9007199254740991,
+                        "minimum": -9007199254740991,
+                        "type": "integer"
+                      },
+                      "runtime": {
+                        "example": "node",
+                        "type": "string"
+                      },
+                      "size": {
+                        "example": "2gb-1vcpu",
+                        "type": "string"
+                      }
+                    },
+                    "required": ["exposure", "instances", "size"],
+                    "type": "object"
+                  },
+                  "state_reason": {
+                    "type": "string"
+                  }
+                },
+                "required": ["build_state", "secret_generation", "spec"],
+                "type": "object"
+              },
+              "id": {
+                "description": "Worker name.",
+                "example": "hello-world",
+                "type": "string"
+              },
+              "type": {
+                "description": "Resource type.",
+                "enum": ["project_worker"],
+                "type": "string"
+              }
+            },
+            "required": ["attributes", "id", "type"],
+            "type": "object"
+          }
+        },
+        "required": ["data"],
+        "type": "object"
+      },
+      "V2WorkerUploadResponse": {
+        "properties": {
+          "data": {
+            "properties": {
+              "attributes": {
+                "properties": {
+                  "expires_at": {
+                    "description": "When the slot stops accepting the upload.",
+                    "type": "string"
+                  },
+                  "method": {
+                    "example": "PUT",
+                    "type": "string"
+                  },
+                  "url": {
+                    "description": "Presigned destination for the `.tar.gz` build context.",
+                    "type": "string"
+                  }
+                },
+                "required": ["expires_at", "method", "url"],
+                "type": "object"
+              },
+              "id": {
+                "description": "Upload id to pass to the deploy endpoint as `context_upload_id`.",
+                "example": "cafe0000000000000000000000000000",
+                "type": "string"
+              },
+              "type": {
+                "description": "Resource type.",
+                "enum": ["project_worker_upload"],
+                "type": "string"
+              }
+            },
+            "required": ["attributes", "id", "type"],
+            "type": "object"
+          }
+        },
+        "required": ["data"],
+        "type": "object"
+      }
+    },
+    "securitySchemes": {
+      "bearer": {
+        "bearerFormat": "JWT",
+        "scheme": "bearer",
+        "type": "http"
+      }
+    }
+  },
+  "info": {
+    "contact": {},
+    "description": "Supabase API generated from the OpenAPI specification.<br>Visit [https://supabase.com/docs](https://supabase.com/docs) for a complete documentation.",
+    "title": "Supabase API (v2)",
+    "version": "1.0.0"
+  },
+  "openapi": "3.0.0",
+  "paths": {
+    "/v2/organizations/{slug}/integrations/github/connections": {
+      "get": {
+        "description": "Returns a cursor-paginated list of the GitHub connections of the organization's projects.\n\nUse `page[after]` and `page[before]` to navigate pages and `page[size]` to control the page size.\nPaging walks the organization projects, so a page holds at most `page[size]` connections and can hold fewer (or none) when some of its projects are not connected.\nFollow `links.next` until it is `null` rather than stopping on a short page.\n\nUse `filter[project_ref]` to narrow the list down to a single project.",
+        "operationId": "v2-list-organization-github-connections",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "filter",
+            "required": false,
+            "schema": {
+              "properties": {
+                "project_ref": {
+                  "description": "Project ref",
+                  "example": "abcdefghijklmnopqrst",
+                  "maxLength": 20,
+                  "minLength": 20,
+                  "pattern": "^[a-z]+$",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "style": "deepObject"
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "properties": {
+                "after": {
+                  "description": "Project ref",
+                  "example": "abcdefghijklmnopqrst",
+                  "maxLength": 20,
+                  "minLength": 20,
+                  "pattern": "^[a-z]+$",
+                  "type": "string"
+                },
+                "before": {
+                  "description": "Project ref",
+                  "example": "abcdefghijklmnopqrst",
+                  "maxLength": 20,
+                  "minLength": 20,
+                  "pattern": "^[a-z]+$",
+                  "type": "string"
+                },
+                "size": {
+                  "maximum": 100,
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              },
+              "type": "object"
+            },
+            "style": "deepObject"
+          },
+          {
+            "description": "Organization slug",
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "example": "tsrqponmlkjihgfedcba",
+              "pattern": "^[\\w-]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/V2ListGitHubConnectionsResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Forbidden action"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List GitHub connections of an organization",
+        "tags": ["Organizations"],
+        "x-badges": [
+          {
+            "name": "OAuth scope: projects:read",
+            "position": "after"
+          }
+        ],
+        "x-endpoint-owners": ["control-plane", "dev-workflows"],
+        "x-fga-permissions": [["organization_projects_read"]],
+        "x-oauth-scope": "projects:read"
+      }
+    },
+    "/v2/organizations/{slug}/members": {
+      "get": {
+        "description": "Returns a cursor-paginated list of organization members including their roles and project-scoped permissions.",
+        "operationId": "v2-list-organization-members",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "filter",
+            "required": false,
+            "schema": {
+              "properties": {
+                "primary_email": {
+                  "format": "email",
+                  "pattern": "^(?!\\.)(?!.*\\.\\.)([A-Za-z0-9_'+\\-\\.]*)[A-Za-z0-9_+-]@([A-Za-z0-9][A-Za-z0-9\\-]*\\.)+[A-Za-z]{2,}$",
+                  "type": "string"
+                },
+                "username": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "style": "deepObject"
+          },
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "properties": {
+                "after": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string"
+                },
+                "before": {
+                  "format": "uuid",
+                  "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                  "type": "string"
+                },
+                "size": {
+                  "maximum": 100,
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              },
+              "type": "object"
+            },
+            "style": "deepObject"
+          },
+          {
+            "description": "Organization slug",
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "example": "tsrqponmlkjihgfedcba",
+              "pattern": "^[\\w-]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/V2ListMembersResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Forbidden action"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List members of an organization",
+        "tags": ["Organizations"],
+        "x-badges": [
+          {
+            "name": "OAuth scope: organizations:read",
+            "position": "after"
+          }
+        ],
+        "x-endpoint-owners": ["control-plane"],
+        "x-fga-permissions": [["members_read"]],
+        "x-oauth-scope": "organizations:read"
+      }
+    },
+    "/v2/organizations/{slug}/members/invitations": {
+      "delete": {
+        "description": "Bulk delete member invitations for an organization by email address.",
+        "operationId": "v2-delete-organization-invitations",
+        "parameters": [
+          {
+            "description": "Organization slug",
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "example": "tsrqponmlkjihgfedcba",
+              "pattern": "^[\\w-]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/V2DeleteInvitationsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/V2DeleteInvitationsResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "This feature requires the Enterprise organization plan."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Forbidden action"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Deletes organization invitations by email",
+        "tags": ["Organizations Members Invitations"],
+        "x-allowed-plans": ["Enterprise"],
+        "x-badges": [
+          {
+            "name": "OAuth scope: organizations:write",
+            "position": "after"
+          },
+          {
+            "name": "Only available on Enterprise",
+            "position": "before"
+          }
+        ],
+        "x-endpoint-owners": ["control-plane"],
+        "x-fga-permissions": [["members_write"]],
+        "x-oauth-scope": "organizations:write"
+      },
+      "post": {
+        "description": "Creates member invitations for an organization. Each invitation can have different role and project scope settings.",
+        "operationId": "v2-create-organization-invitations",
+        "parameters": [
+          {
+            "description": "Organization slug",
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "example": "tsrqponmlkjihgfedcba",
+              "pattern": "^[\\w-]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/V2CreateInvitationsRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/V2CreateInvitationsResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "This feature requires the Enterprise organization plan."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Forbidden action"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Creates organization invitations",
+        "tags": ["Organizations Members Invitations"],
+        "x-allowed-plans": ["Enterprise"],
+        "x-badges": [
+          {
+            "name": "OAuth scope: organizations:write",
+            "position": "after"
+          },
+          {
+            "name": "Only available on Enterprise",
+            "position": "before"
+          }
+        ],
+        "x-endpoint-owners": ["control-plane"],
+        "x-fga-permissions": [["members_write"]],
+        "x-oauth-scope": "organizations:write"
+      }
+    },
+    "/v2/organizations/{slug}/members/{user_id}/roles": {
+      "patch": {
+        "description": "Assigns an org-wide role when projects is omitted, or creates a project-scoped assignment when projects is provided. Uses an org-level role template id from GET /v2/organizations/{slug}/roles. Stale role assignments are automatically cleaned up: if a role no longer has any projects, it is deleted; overlapping project assignments in other roles are automatically removed to avoid duplication.",
+        "operationId": "v2-assign-organization-member-role",
+        "parameters": [
+          {
+            "description": "Organization slug",
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "example": "tsrqponmlkjihgfedcba",
+              "pattern": "^[\\w-]+$",
+              "type": "string"
+            }
+          },
+          {
+            "in": "path",
+            "name": "user_id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/V2AssignOrganizationMemberRoleRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/OrganizationMemberRoleResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "This feature requires the Enterprise organization plan."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Forbidden action"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Failed to assign organization member role"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Assign or change an organization member role",
+        "tags": ["Organizations"],
+        "x-allowed-plans": ["Enterprise"],
+        "x-badges": [
+          {
+            "name": "Only available on Enterprise",
+            "position": "before"
+          }
+        ],
+        "x-endpoint-owners": ["control-plane"],
+        "x-fga-permissions": [["organization_admin_write"]]
+      }
+    },
+    "/v2/organizations/{slug}/project-creation-rate": {
+      "get": {
+        "description": "Returns the authoritative rate a new project adds to the organization, together with the context that decided it. A zero amount is authoritative and means the project can be created without an additional charge.",
+        "operationId": "v2-get-project-creation-rate",
+        "parameters": [
+          {
+            "description": "Organization slug",
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "example": "tsrqponmlkjihgfedcba",
+              "pattern": "^[\\w-]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/V2ProjectCreationRateResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Forbidden action"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Organization not found"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get the rate for creating a project in an organization",
+        "tags": ["Organizations"],
+        "x-badges": [
+          {
+            "name": "OAuth scope: projects:read",
+            "position": "after"
+          }
+        ],
+        "x-endpoint-owners": ["billing"],
+        "x-fga-permissions": [["organization_projects_read"]],
+        "x-oauth-scope": "projects:read"
+      }
+    },
+    "/v2/organizations/{slug}/projects": {
+      "get": {
+        "description": "Returns a cursor-paginated list of projects for the specified organization, including their databases.\n\nUse `page[after]` and `page[before]` to navigate pages and `page[size]` to control the number of projects returned per page.",
+        "operationId": "v2-list-organization-projects",
+        "parameters": [
+          {
+            "in": "query",
+            "name": "page",
+            "required": false,
+            "schema": {
+              "properties": {
+                "after": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "before": {
+                  "minLength": 1,
+                  "type": "string"
+                },
+                "size": {
+                  "maximum": 100,
+                  "minimum": 1,
+                  "type": "integer"
+                }
+              },
+              "type": "object"
+            },
+            "style": "deepObject"
+          },
+          {
+            "description": "Case-insensitive substring match on the project name.",
+            "in": "query",
+            "name": "search",
+            "required": false,
+            "schema": {
+              "minLength": 1,
+              "type": "string"
+            }
+          },
+          {
+            "description": "Organization slug",
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "example": "tsrqponmlkjihgfedcba",
+              "pattern": "^[\\w-]+$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Sort order by creation time: `inserted_at` (oldest first) or `-inserted_at` (newest first). Defaults to `inserted_at`.",
+            "in": "query",
+            "name": "sort",
+            "required": false,
+            "schema": {
+              "enum": ["-inserted_at", "inserted_at"],
+              "example": "-inserted_at",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/V2ListProjectsResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Forbidden action"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List projects of an organization",
+        "tags": ["Organizations"],
+        "x-badges": [
+          {
+            "name": "OAuth scope: projects:read",
+            "position": "after"
+          }
+        ],
+        "x-endpoint-owners": ["control-plane"],
+        "x-fga-permissions": [["organization_projects_read"]],
+        "x-oauth-scope": "projects:read"
+      }
+    },
+    "/v2/organizations/{slug}/roles": {
+      "get": {
+        "description": "Returns a list of org-level roles for the organization.",
+        "operationId": "v2-list-organization-roles",
+        "parameters": [
+          {
+            "description": "Organization slug",
+            "in": "path",
+            "name": "slug",
+            "required": true,
+            "schema": {
+              "example": "tsrqponmlkjihgfedcba",
+              "pattern": "^[\\w-]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/V2ListRolesResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Forbidden action"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List roles of an organization",
+        "tags": ["Organizations"],
+        "x-badges": [
+          {
+            "name": "OAuth scope: organizations:read",
+            "position": "after"
+          }
+        ],
+        "x-endpoint-owners": ["control-plane"],
+        "x-fga-permissions": [["members_read"]],
+        "x-oauth-scope": "organizations:read"
+      }
+    },
+    "/v2/projects/{ref}/analytics/log-drains": {
+      "get": {
+        "operationId": "v2-list-log-drains",
+        "parameters": [
+          {
+            "description": "Project ref",
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "example": "abcdefghijklmnopqrst",
+              "maxLength": 20,
+              "minLength": 20,
+              "pattern": "^[a-z]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ListLogDrainsResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Forbidden action"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Failed to fetch log drains"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List project log drains",
+        "tags": ["Analytics"],
+        "x-badges": [
+          {
+            "name": "OAuth scope: analytics_config:read",
+            "position": "after"
+          }
+        ],
+        "x-endpoint-owners": ["analytics"],
+        "x-fga-permissions": [["analytics_config_read"]],
+        "x-oauth-scope": "analytics_config:read"
+      },
+      "post": {
+        "operationId": "v2-create-log-drain",
+        "parameters": [
+          {
+            "description": "Project ref",
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "example": "abcdefghijklmnopqrst",
+              "maxLength": 20,
+              "minLength": 20,
+              "pattern": "^[a-z]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateLogDrainRequestOpenApi"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogDrainResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "This feature requires the Pro, Team, or Enterprise organization plan."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Forbidden action"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Failed to create a log drain"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Create a log drain for a project",
+        "tags": ["Analytics"],
+        "x-allowed-plans": ["Enterprise", "Pro", "Team"],
+        "x-badges": [
+          {
+            "name": "Only available on Pro, Team, Enterprise",
+            "position": "before"
+          },
+          {
+            "name": "OAuth scope: analytics_config:write",
+            "position": "after"
+          }
+        ],
+        "x-endpoint-owners": ["analytics"],
+        "x-fga-permissions": [["analytics_config_write"]],
+        "x-oauth-scope": "analytics_config:write"
+      }
+    },
+    "/v2/projects/{ref}/analytics/log-drains/{id}": {
+      "delete": {
+        "operationId": "v2-delete-log-drain",
+        "parameters": [
+          {
+            "description": "Log drains identifier",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Project ref",
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "example": "abcdefghijklmnopqrst",
+              "maxLength": 20,
+              "minLength": 20,
+              "pattern": "^[a-z]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Forbidden action"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Failed to delete a log drain"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Delete a project log drain",
+        "tags": ["Analytics"],
+        "x-badges": [
+          {
+            "name": "OAuth scope: analytics_config:write",
+            "position": "after"
+          }
+        ],
+        "x-endpoint-owners": ["analytics"],
+        "x-fga-permissions": [["analytics_config_write"]],
+        "x-oauth-scope": "analytics_config:write"
+      },
+      "put": {
+        "operationId": "v2-update-log-drain",
+        "parameters": [
+          {
+            "description": "Log drains identifier",
+            "in": "path",
+            "name": "id",
+            "required": true,
+            "schema": {
+              "format": "uuid",
+              "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Project ref",
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "example": "abcdefghijklmnopqrst",
+              "maxLength": 20,
+              "minLength": 20,
+              "pattern": "^[a-z]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UpdateLogDrainRequestOpenApi"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/LogDrainResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Forbidden action"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Failed to update log drain"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Update a project log drain",
+        "tags": ["Analytics"],
+        "x-badges": [
+          {
+            "name": "OAuth scope: analytics_config:write",
+            "position": "after"
+          }
+        ],
+        "x-endpoint-owners": ["analytics"],
+        "x-fga-permissions": [["analytics_config_write"]],
+        "x-oauth-scope": "analytics_config:write"
+      }
+    },
+    "/v2/projects/{ref}/branch-creation-rate": {
+      "get": {
+        "description": "Returns the authoritative rate a new branch of this project adds to its organization, together with the context that decided it. A zero amount is authoritative and means the branch can be created without an additional charge.",
+        "operationId": "v2-get-branch-creation-rate",
+        "parameters": [
+          {
+            "description": "Project ref",
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "example": "abcdefghijklmnopqrst",
+              "maxLength": 20,
+              "minLength": 20,
+              "pattern": "^[a-z]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/V2BranchCreationRateResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Forbidden action"
+          },
+          "404": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Project not found"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Get the rate for creating a branch of a project",
+        "tags": ["Environments"],
+        "x-badges": [
+          {
+            "name": "OAuth scope: environment:read",
+            "position": "after"
+          }
+        ],
+        "x-endpoint-owners": ["billing"],
+        "x-fga-permissions": [["branching_development_read"]],
+        "x-oauth-scope": "environment:read"
+      }
+    },
+    "/v2/projects/{ref}/config": {
+      "get": {
+        "description": "Returns the project's database, pooler, Auth, Data API, Realtime and Storage configuration — the same configuration a branch inherits from its base project. Each is the effective config, so a setting the project has never overridden is reported at its platform default rather than as null. Auth secrets are returned as an HMAC of their value. `storage` is read live from the storage service; the rest come from this platform's own records.",
+        "operationId": "v2-get-project-config",
+        "parameters": [
+          {
+            "description": "Project ref",
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "example": "abcdefghijklmnopqrst",
+              "maxLength": 20,
+              "minLength": 20,
+              "pattern": "^[a-z]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/V2ProjectConfigResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Forbidden action"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "[Alpha] Get a project's service configuration",
+        "tags": ["Projects"],
+        "x-endpoint-owners": ["control-plane", "infra"],
+        "x-fga-permissions": [
+          [
+            "auth_config_read",
+            "data_api_config_read",
+            "database_config_read",
+            "database_network_restrictions_read",
+            "database_read",
+            "database_ssl_config_read",
+            "realtime_config_read",
+            "storage_config_read"
+          ]
+        ]
+      }
+    },
+    "/v2/projects/{ref}/private-link/associations": {
+      "get": {
+        "operationId": "v2-list-private-link-associations",
+        "parameters": [
+          {
+            "description": "Project ref",
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "example": "abcdefghijklmnopqrst",
+              "maxLength": 20,
+              "minLength": 20,
+              "pattern": "^[a-z]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/V2ListPrivateLinkAssociationsResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Forbidden action"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Failed to retrieve AWS accounts for project"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "List AWS accounts attached to the project PrivateLink share",
+        "tags": ["Projects"],
+        "x-endpoint-owners": ["control-plane", "platform-networking"],
+        "x-fga-permissions": [["project_admin_read"]]
+      },
+      "post": {
+        "description": "Adds an AWS account to the project's PrivateLink configuration and schedules the AWS resources to be created.",
+        "operationId": "v2-create-private-link-association",
+        "parameters": [
+          {
+            "description": "Project ref",
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "example": "abcdefghijklmnopqrst",
+              "maxLength": 20,
+              "minLength": 20,
+              "pattern": "^[a-z]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/V2CreatePrivateLinkAssociationRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/V2PrivateLinkAssociationResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "402": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "This feature requires the Team, or Enterprise organization plan."
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Forbidden action"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Failed to add AWS account to PrivateLink share"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Add an AWS account to the project PrivateLink share",
+        "tags": ["Projects"],
+        "x-allowed-plans": ["Enterprise", "Team"],
+        "x-badges": [
+          {
+            "name": "Only available on Team, Enterprise",
+            "position": "before"
+          }
+        ],
+        "x-endpoint-owners": ["control-plane", "platform-networking"],
+        "x-fga-permissions": [["project_admin_write"]]
+      }
+    },
+    "/v2/projects/{ref}/private-link/associations/aws-account/{aws_account_id}": {
+      "delete": {
+        "description": "Removes an AWS account from the project's PrivateLink configuration (targeting the primary database). Cleans up the associated AWS resources.",
+        "operationId": "v2-delete-private-link-association",
+        "parameters": [
+          {
+            "description": "AWS account ID used in PrivateLink association",
+            "in": "path",
+            "name": "aws_account_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Project ref",
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "example": "abcdefghijklmnopqrst",
+              "maxLength": 20,
+              "minLength": 20,
+              "pattern": "^[a-z]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Forbidden action"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Failed to remove AWS account from PrivateLink share"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Remove an AWS account from the project PrivateLink share",
+        "tags": ["Projects"],
+        "x-endpoint-owners": ["control-plane", "platform-networking"],
+        "x-fga-permissions": [["project_admin_write"]]
+      }
+    },
+    "/v2/projects/{ref}/private-link/associations/aws-account/{aws_account_id}/database/{database_identifier}": {
+      "delete": {
+        "description": "Removes an AWS account from the project's PrivateLink configuration for the given read replica. Cleans up the associated AWS resources.",
+        "operationId": "v2-delete-private-link-association-for-database",
+        "parameters": [
+          {
+            "description": "AWS account ID used in PrivateLink association",
+            "in": "path",
+            "name": "aws_account_id",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Identifier of the read replica this PrivateLink association targets",
+            "in": "path",
+            "name": "database_identifier",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Project ref",
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "example": "abcdefghijklmnopqrst",
+              "maxLength": 20,
+              "minLength": 20,
+              "pattern": "^[a-z]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Forbidden action"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Failed to remove AWS account from PrivateLink share"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Remove an AWS account from a specific database PrivateLink share",
+        "tags": ["Projects"],
+        "x-endpoint-owners": ["control-plane", "platform-networking"],
+        "x-fga-permissions": [["project_admin_write"]]
+      }
+    },
+    "/v2/projects/{ref}/transfers": {
+      "post": {
+        "operationId": "v2-transfer-a-project",
+        "parameters": [
+          {
+            "description": "Project ref",
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "example": "abcdefghijklmnopqrst",
+              "maxLength": 20,
+              "minLength": 20,
+              "pattern": "^[a-z]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/V2TransferProjectBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Forbidden action"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Transfers a project to a different organization",
+        "tags": ["Projects"],
+        "x-endpoint-owners": ["control-plane"],
+        "x-fga-permissions": [["organization_admin_write"]]
+      }
+    },
+    "/v2/projects/{ref}/transfers/previews": {
+      "post": {
+        "operationId": "v2-preview-a-project-transfer",
+        "parameters": [
+          {
+            "description": "Project ref",
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "example": "abcdefghijklmnopqrst",
+              "maxLength": 20,
+              "minLength": 20,
+              "pattern": "^[a-z]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/V2TransferProjectBody"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/V2PreviewProjectTransferResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Forbidden action"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "Previews transferring a project to a different organizations, shows eligibility and impact",
+        "tags": ["Projects"],
+        "x-endpoint-owners": ["control-plane"],
+        "x-fga-permissions": [["project_admin_read"]]
+      }
+    },
+    "/v2/projects/{ref}/workers": {
+      "get": {
+        "description": "Returns all workers you've previously deployed to the specified project.",
+        "operationId": "v2-list-all-workers",
+        "parameters": [
+          {
+            "description": "Project ref",
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "example": "abcdefghijklmnopqrst",
+              "maxLength": 20,
+              "minLength": 20,
+              "pattern": "^[a-z]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/V2ListWorkersResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Forbidden action"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "[Alpha] List all workers",
+        "tags": ["Workers"],
+        "x-badges": [
+          {
+            "name": "OAuth scope: edge_functions:read",
+            "position": "after"
+          }
+        ],
+        "x-endpoint-owners": ["functions"],
+        "x-fga-permissions": [["workers_read"]],
+        "x-oauth-scope": "edge_functions:read"
+      }
+    },
+    "/v2/projects/{ref}/workers/{name}": {
+      "delete": {
+        "description": "Tombstones the worker. Its instances and image are torn down asynchronously.",
+        "operationId": "v2-delete-a-worker",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "example": "hello-world",
+              "pattern": "^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Project ref",
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "example": "abcdefghijklmnopqrst",
+              "maxLength": 20,
+              "minLength": 20,
+              "pattern": "^[a-z]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Forbidden action"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "[Alpha] Delete a worker",
+        "tags": ["Workers"],
+        "x-badges": [
+          {
+            "name": "OAuth scope: edge_functions:write",
+            "position": "after"
+          }
+        ],
+        "x-endpoint-owners": ["functions"],
+        "x-fga-permissions": [["workers_write"]],
+        "x-oauth-scope": "edge_functions:write"
+      },
+      "get": {
+        "description": "Returns a worker along with its instance tally. Poll this after a deploy until `build_state` leaves `building`.",
+        "operationId": "v2-get-a-worker",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "example": "hello-world",
+              "pattern": "^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Project ref",
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "example": "abcdefghijklmnopqrst",
+              "maxLength": 20,
+              "minLength": 20,
+              "pattern": "^[a-z]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/V2WorkerResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Forbidden action"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "[Alpha] Retrieve a worker",
+        "tags": ["Workers"],
+        "x-badges": [
+          {
+            "name": "OAuth scope: edge_functions:read",
+            "position": "after"
+          }
+        ],
+        "x-endpoint-owners": ["functions"],
+        "x-fga-permissions": [["workers_read"]],
+        "x-oauth-scope": "edge_functions:read"
+      }
+    },
+    "/v2/projects/{ref}/workers/{name}/deploy": {
+      "post": {
+        "description": "Creates the worker if it does not exist, building from a context staged through the uploads endpoint. The build runs asynchronously: this answers 202 and the worker reaches `build_state` `active` or `failed` later.",
+        "operationId": "v2-deploy-a-worker",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "example": "hello-world",
+              "pattern": "^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Project ref",
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "example": "abcdefghijklmnopqrst",
+              "maxLength": 20,
+              "minLength": 20,
+              "pattern": "^[a-z]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/V2DeployWorkerRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "202": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/V2WorkerResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Forbidden action"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "[Alpha] Deploy a worker",
+        "tags": ["Workers"],
+        "x-badges": [
+          {
+            "name": "OAuth scope: edge_functions:write",
+            "position": "after"
+          }
+        ],
+        "x-endpoint-owners": ["functions"],
+        "x-fga-permissions": [["workers_write"]],
+        "x-oauth-scope": "edge_functions:write"
+      }
+    },
+    "/v2/projects/{ref}/workers/{name}/uploads": {
+      "post": {
+        "description": "PUT the `.tar.gz` build context to the returned `url` before `expires_at`, then deploy with the upload id as `context_upload_id`. The bytes go straight to storage — no management API request carries them.",
+        "operationId": "v2-create-worker-upload",
+        "parameters": [
+          {
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "example": "hello-world",
+              "pattern": "^[a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?$",
+              "type": "string"
+            }
+          },
+          {
+            "description": "Project ref",
+            "in": "path",
+            "name": "ref",
+            "required": true,
+            "schema": {
+              "example": "abcdefghijklmnopqrst",
+              "maxLength": 20,
+              "minLength": 20,
+              "pattern": "^[a-z]+$",
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/V2WorkerUploadResponse"
+                }
+              }
+            },
+            "description": ""
+          },
+          "401": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Unauthorized"
+          },
+          "403": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Forbidden action"
+          },
+          "429": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ErrorResponseBody"
+                }
+              }
+            },
+            "description": "Rate limit exceeded"
+          }
+        },
+        "security": [
+          {
+            "bearer": []
+          }
+        ],
+        "summary": "[Alpha] Mint a presigned slot for a build-context upload",
+        "tags": ["Workers"],
+        "x-badges": [
+          {
+            "name": "OAuth scope: edge_functions:write",
+            "position": "after"
+          }
+        ],
+        "x-endpoint-owners": ["functions"],
+        "x-fga-permissions": [["workers_write"]],
+        "x-oauth-scope": "edge_functions:write"
+      }
+    }
+  },
+  "servers": [],
+  "tags": []
+}

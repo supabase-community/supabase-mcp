@@ -15,7 +15,7 @@ import { getDocsTools } from './tools/docs-tools.js';
 import { getEdgeFunctionTools } from './tools/edge-function-tools.js';
 import { getStorageTools } from './tools/storage-tools.js';
 import { writeToolSet } from './tools/tool-schemas.js';
-import type { FeatureGroup } from './types.js';
+import { PLATFORM_INDEPENDENT_FEATURES, type FeatureGroup } from './types.js';
 import { parseFeatureGroups } from './util.js';
 
 const { version } = packageJson;
@@ -65,8 +65,6 @@ const DEFAULT_FEATURES: FeatureGroup[] = [
   'functions',
   'branching',
 ];
-
-export const PLATFORM_INDEPENDENT_FEATURES: FeatureGroup[] = ['docs'];
 
 export const instructions = `
 Here are guidelines for using Supabase tools effectively:

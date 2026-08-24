@@ -2,7 +2,11 @@ import { tool } from '@supabase/mcp-utils';
 import { z } from 'zod/v4';
 import type { BranchingOperations } from '../platform/types.js';
 import { branchSchema } from '../platform/types.js';
-import { getBranchCost } from '../pricing.js';
+import {
+  assertRateStillApproved,
+  type CostConfirmationResolution,
+} from '../policies/cost-confirmation.js';
+import { legacyBranchCost } from '../pricing.js';
 import { hashObject } from '../util.js';
 import { injectableTool, type ToolDefs } from './util.js';
 
@@ -159,21 +163,36 @@ export function getBranchingTools({
   const project_id = projectId;
 
   return {
-    create_branch: injectableTool({
+    create_branch: injectableTool<
+      typeof createBranchInputSchema,
+      typeof createBranchOutputSchema,
+      { project_id: string | undefined },
+      CostConfirmationResolution | undefined
+    >({
       ...branchingToolDefs.create_branch,
       inject: { project_id },
-      execute: async ({ project_id, name, confirm_cost_id }) => {
+      execute: async ({ project_id, name, confirm_cost_id }, resolution) => {
         if (readOnly) {
           throw new Error('Cannot create a branch in read-only mode.');
         }
 
-        const cost = getBranchCost();
-        const costHash = await hashObject(cost);
-        if (costHash !== confirm_cost_id) {
-          throw new Error(
-            'Cost confirmation ID does not match the expected cost of creating a branch.'
+        if (resolution === undefined) {
+          const cost = legacyBranchCost();
+          const costHash = await hashObject(cost);
+          if (costHash !== confirm_cost_id) {
+            throw new Error(
+              'Cost confirmation ID does not match the expected cost of creating a branch.'
+            );
+          }
+        } else {
+          // Read here and nowhere earlier: nothing runs between this rate and
+          // the creation call below.
+          assertRateStillApproved(
+            await branching.getBranchCreationRate(project_id),
+            resolution.maximumCreationRate
           );
         }
+
         return await branching.createBranch(project_id, { name });
       },
     }),

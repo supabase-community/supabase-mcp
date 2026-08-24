@@ -17,12 +17,13 @@ import {
   createProject,
   MCP_CLIENT_NAME,
   MCP_CLIENT_VERSION,
+  MOCK_BRANCH_CREATION_RATE,
+  MOCK_PROJECT_CREATION_RATE,
   mockContentApiSchemaLoadCount,
   setupMockApis,
 } from '../test/mocks.js';
 import { createSupabaseApiPlatform } from './platform/api-platform.js';
 import type { SupabasePlatform } from './platform/types.js';
-import { BRANCH_COST_HOURLY, PROJECT_COST_MONTHLY } from './pricing.js';
 import { createSupabaseMcpServer, instructions } from './server.js';
 import {
   createToolSchemas,
@@ -247,7 +248,7 @@ describe('tools', () => {
 
     expect(result).toEqual({
       type: 'project',
-      amount: PROJECT_COST_MONTHLY,
+      amount: MOCK_PROJECT_CREATION_RATE.amount,
       recurrence: 'monthly',
     });
   });
@@ -302,7 +303,7 @@ describe('tools', () => {
 
     expect(result).toEqual({
       type: 'branch',
-      amount: BRANCH_COST_HOURLY,
+      amount: MOCK_BRANCH_CREATION_RATE.amount,
       recurrence: 'hourly',
     });
   });
@@ -3078,7 +3079,7 @@ describe('tools', () => {
       arguments: {
         type: 'branch',
         recurrence: 'hourly',
-        amount: BRANCH_COST_HOURLY,
+        amount: MOCK_BRANCH_CREATION_RATE.amount,
       },
     });
 
@@ -3134,7 +3135,7 @@ describe('tools', () => {
       arguments: {
         type: 'branch',
         recurrence: 'hourly',
-        amount: BRANCH_COST_HOURLY,
+        amount: MOCK_BRANCH_CREATION_RATE.amount,
       },
     });
 
@@ -3206,7 +3207,7 @@ describe('tools', () => {
       arguments: {
         type: 'branch',
         recurrence: 'hourly',
-        amount: BRANCH_COST_HOURLY,
+        amount: MOCK_BRANCH_CREATION_RATE.amount,
       },
     });
 
@@ -3361,7 +3362,7 @@ describe('tools', () => {
       arguments: {
         type: 'branch',
         recurrence: 'hourly',
-        amount: BRANCH_COST_HOURLY,
+        amount: MOCK_BRANCH_CREATION_RATE.amount,
       },
     });
 
@@ -3466,7 +3467,7 @@ describe('tools', () => {
       arguments: {
         type: 'branch',
         recurrence: 'hourly',
-        amount: BRANCH_COST_HOURLY,
+        amount: MOCK_BRANCH_CREATION_RATE.amount,
       },
     });
 
@@ -3580,7 +3581,7 @@ describe('tools', () => {
       arguments: {
         type: 'branch',
         recurrence: 'hourly',
-        amount: BRANCH_COST_HOURLY,
+        amount: MOCK_BRANCH_CREATION_RATE.amount,
       },
     });
 
@@ -3682,7 +3683,7 @@ describe('tools', () => {
       arguments: {
         type: 'branch',
         recurrence: 'hourly',
-        amount: BRANCH_COST_HOURLY,
+        amount: MOCK_BRANCH_CREATION_RATE.amount,
       },
     });
 

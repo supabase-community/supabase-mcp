@@ -15,6 +15,7 @@ import {
 } from '../src/content-api/graphql.js';
 import { getDeploymentId, getPathPrefix } from '../src/edge-function.js';
 import type { components } from '../src/management-api/types.js';
+import type { CreationRate } from '../src/platform/types.js';
 
 const { version } = packageJson;
 
@@ -84,6 +85,30 @@ export type Migration = {
 export const mockOrgs = new Map<string, MockOrganization>();
 export const mockProjects = new Map<string, MockProject>();
 export const mockBranches = new Map<string, MockBranch>();
+
+/**
+ * Rates the mock Management API reports. They are the values Billing's addon
+ * catalog returns today, and they live here rather than in the package because
+ * the package holds no price of its own.
+ */
+export const MOCK_PROJECT_CREATION_RATE: CreationRate = {
+  amount: 10,
+  currency: 'USD',
+  recurrence: 'monthly',
+};
+export const MOCK_BRANCH_CREATION_RATE: CreationRate = {
+  amount: 0.01344,
+  currency: 'USD',
+  recurrence: 'hourly',
+};
+
+/**
+ * Authoritative creation rates the next reads return, one per read, before the
+ * mock falls back to the rate Billing would compute. A test queues entries to
+ * reproduce a rate that moves between the proposal and the creation call.
+ */
+export const queuedProjectCreationRates: CreationRate[] = [];
+export const queuedBranchCreationRates: CreationRate[] = [];
 
 export const mockContentApiSchemaLoadCount = { value: 0 };
 
@@ -264,6 +289,84 @@ export const mockManagementApi = [
       (org) => org.id === params.id
     );
     return HttpResponse.json(organization);
+  }),
+
+  /**
+   * Authoritative rate for the next project in an organization
+   */
+  http.get(
+    `${API_URL}/v2/organizations/:slug/project-creation-rate`,
+    ({ params }) => {
+      // Slug-strict, like the route: v2 paths take a slug, and nothing else
+      // resolves. A UUID-shaped identifier is not found here, exactly as it
+      // would not be found in production.
+      const organization = Array.from(mockOrgs.values()).find(
+        (org) => org.slug === params.slug
+      );
+
+      if (!organization) {
+        return HttpResponse.json(
+          { message: 'Organization not found' },
+          { status: 404 }
+        );
+      }
+
+      const activeProjects = Array.from(mockProjects.values()).filter(
+        (project) =>
+          project.organization_id === organization.id &&
+          !['INACTIVE', 'GOING_DOWN', 'REMOVED'].includes(project.status)
+      );
+
+      // Billing absorbs the first active project of a paid plan into the
+      // organization's compute credits, and a free plan is never charged.
+      const billable =
+        organization.plan !== 'free' && activeProjects.length > 0;
+      const rate =
+        queuedProjectCreationRates.shift() ??
+        (billable
+          ? MOCK_PROJECT_CREATION_RATE
+          : { ...MOCK_PROJECT_CREATION_RATE, amount: 0 });
+
+      return HttpResponse.json({
+        data: {
+          type: 'project_creation_rate',
+          attributes: {
+            ...rate,
+            organization_slug: organization.slug,
+            plan_id: organization.plan,
+            active_project_count: activeProjects.length,
+          },
+        },
+      });
+    }
+  ),
+
+  /**
+   * Authoritative rate for one new branch of a project
+   */
+  http.get(`${API_URL}/v2/projects/:ref/branch-creation-rate`, ({ params }) => {
+    const project = mockProjects.get(params.ref as string);
+
+    if (!project) {
+      return HttpResponse.json(
+        { message: 'Project not found' },
+        { status: 404 }
+      );
+    }
+
+    const rate = queuedBranchCreationRates.shift() ?? MOCK_BRANCH_CREATION_RATE;
+
+    return HttpResponse.json({
+      data: {
+        type: 'branch_creation_rate',
+        attributes: {
+          ...rate,
+          organization_slug: project.organization_slug,
+          plan_id: 'pro',
+          parent_project_ref: project.ref,
+        },
+      },
+    });
   }),
 
   /**
@@ -939,6 +1042,8 @@ export function setupMockApis(): SetupServer {
   mockOrgs.clear();
   mockProjects.clear();
   mockBranches.clear();
+  queuedProjectCreationRates.length = 0;
+  queuedBranchCreationRates.length = 0;
   mockContentApiSchemaLoadCount.value = 0;
 
   const mockServer = setupServer(...mockContentApi, ...mockManagementApi);
@@ -1034,7 +1139,11 @@ export class MockOrganization {
 
   constructor(options: MockOrganizationOptions) {
     this.id = nanoid();
-    this.slug = nanoid();
+    // The Management API reports an organization's slug under both names: v1
+    // marks `id` a deprecated alias of `slug`, kept for backwards
+    // compatibility. Mirroring that here keeps a test honest about what a
+    // client actually holds in `organization_id`.
+    this.slug = this.id;
     this.name = options.name;
     this.plan = options.plan;
     this.allowed_release_channels = options.allowed_release_channels;

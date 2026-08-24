@@ -11,6 +11,15 @@ export const CURRENT_FEATURE_GROUPS = [
   'storage',
 ] as const;
 
+/**
+ * Feature groups that need no platform implementation behind them.
+ *
+ * It lives beside the feature groups themselves rather than next to the server
+ * that consumes it, so a module reading feature facts never has to import the
+ * server and the cycle that used to create.
+ */
+export const PLATFORM_INDEPENDENT_FEATURES: FeatureGroup[] = ['docs'];
+
 export const deprecatedFeatureGroupSchema = z.enum(['debug']);
 
 export const currentFeatureGroupSchema = z.enum(CURRENT_FEATURE_GROUPS);

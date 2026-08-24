@@ -1,9 +1,9 @@
 import { z } from 'zod/v4';
 import type { SupabasePlatform } from './platform/types.js';
-import { PLATFORM_INDEPENDENT_FEATURES } from './server.js';
 import {
   currentFeatureGroupSchema,
   featureGroupSchema,
+  PLATFORM_INDEPENDENT_FEATURES,
   type FeatureGroup,
 } from './types.js';
 

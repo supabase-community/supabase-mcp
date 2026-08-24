@@ -158,6 +158,22 @@ export const generateTypescriptTypesResultSchema = z.object({
   types: z.string(),
 });
 
+/**
+ * The authoritative rate creating one resource adds to an account, as the
+ * Management API reports it.
+ *
+ * Zero is authoritative: it means the resource can be created without an
+ * additional charge, not that the rate is unknown. This package holds no
+ * fallback price of its own, so a platform that cannot report a rate blocks
+ * creation instead of guessing one.
+ */
+export const creationRateSchema = z.object({
+  amount: z.number(),
+  /** ISO 4217 currency of the amount. */
+  currency: z.string(),
+  recurrence: z.enum(['hourly', 'monthly']),
+});
+
 export type Organization = z.infer<typeof organizationSchema>;
 export type Project = z.infer<typeof projectSchema>;
 export type Branch = z.infer<typeof branchSchema>;
@@ -182,6 +198,7 @@ export type QueryLogsOptions = z.infer<typeof queryLogsOptionsSchema>;
 export type GenerateTypescriptTypesResult = z.infer<
   typeof generateTypescriptTypesResultSchema
 >;
+export type CreationRate = z.infer<typeof creationRateSchema>;
 
 export type StorageConfig = z.infer<typeof storageConfigSchema>;
 export type StorageBucket = z.infer<typeof storageBucketSchema>;
@@ -203,6 +220,11 @@ export type AccountOperations = {
   createProject(options: CreateProjectOptions): Promise<Project>;
   pauseProject(projectId: string): Promise<void>;
   restoreProject(projectId: string): Promise<void>;
+  /**
+   * Authoritative rate the next project adds to this organization, read both
+   * for the initial proposal and immediately before creation.
+   */
+  getProjectCreationRate(organizationId: string): Promise<CreationRate>;
 };
 
 export type EdgeFunctionsOperations = {
@@ -273,6 +295,11 @@ export type BranchingOperations = {
   mergeBranch(branchId: string): Promise<void>;
   resetBranch(branchId: string, options: ResetBranchOptions): Promise<void>;
   rebaseBranch(branchId: string): Promise<void>;
+  /**
+   * Authoritative rate one new branch adds to this project's organization,
+   * read both for the initial proposal and immediately before creation.
+   */
+  getBranchCreationRate(projectId: string): Promise<CreationRate>;
 };
 
 export type SupabasePlatform = {

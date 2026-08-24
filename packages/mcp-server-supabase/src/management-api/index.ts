@@ -9,14 +9,25 @@ import type {
   SuccessResponse,
 } from 'openapi-typescript-helpers';
 import { z } from 'zod/v4';
-import type { paths } from './types.js';
+import type { paths as v1Paths } from './types.js';
+import type { paths as v2Paths } from './v2-types.js';
+
+/**
+ * Every Management API version this package speaks, in one path map.
+ *
+ * The versions are separate generated modules with disjoint path prefixes, so
+ * one client covers both and a call site names the version in the path it
+ * requests. New public endpoints start at v2 while every existing caller keeps
+ * the v1 contract it was written against.
+ */
+export type ManagementApiPaths = v1Paths & v2Paths;
 
 export function createManagementApiClient(
   baseUrl: string,
   accessToken: string,
   headers: Record<string, string> = {}
 ) {
-  return createClient<paths>({
+  return createClient<ManagementApiPaths>({
     baseUrl,
     headers: {
       Authorization: `Bearer ${accessToken}`,
@@ -25,7 +36,7 @@ export function createManagementApiClient(
   });
 }
 
-export type ManagementApiClient = Client<paths>;
+export type ManagementApiClient = Client<ManagementApiPaths>;
 
 export type SuccessResponseType<
   T extends Record<string | number, any>,

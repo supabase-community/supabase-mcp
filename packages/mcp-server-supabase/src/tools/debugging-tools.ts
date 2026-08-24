@@ -97,7 +97,7 @@ const queryLogsByDialect = {
     name: 'ClickHouse',
     logsNoun: 'unified logs stream',
     schemaHint:
-      "Logs are exposed through a `logs` table; filter by `source` (common values include 'edge_logs', 'postgres_logs', and 'function_edge_logs', but this list is not exhaustive — run `select distinct source from logs` to discover the sources available for this project) and read nested fields via `log_attributes['<key>']`.",
+      "Logs are exposed through a `logs` table; filter by `source` (common values include 'edge_logs', 'postgres_logs', 'function_edge_logs' for Edge Function invocation/request logs, and 'function_logs' for console output from inside an Edge Function, but this list is not exhaustive — run `select distinct source from logs` to discover the sources available for this project) and read nested fields via `log_attributes['<key>']`.",
   }),
   bigquery: buildQueryLogsCopy({
     name: 'BigQuery',

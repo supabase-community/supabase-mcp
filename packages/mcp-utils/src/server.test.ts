@@ -15,6 +15,7 @@ import {
   resources,
   resourceTemplate,
   tool,
+  type Tool,
   type ToolPolicy,
 } from './index.js';
 import { StreamTransport } from './stream-transport.js';
@@ -753,6 +754,34 @@ describe('SDK request state pass-through', () => {
     expect(result.content).toEqual([
       { type: 'text', text: JSON.stringify({ value: 'hi' }) },
     ]);
+  });
+});
+
+describe('public package surface', () => {
+  test('a tool with no formatResult and no policy stays assignable', async () => {
+    // Mirrors how consumers wrap `Tool` today, without going through the
+    // `tool()` helper: no `formatResult`, no policy, one-argument `execute`.
+    const consumerTool: Tool<
+      z.ZodObject<{ value: z.ZodString }>,
+      z.ZodObject<{ value: z.ZodString }>
+    > = {
+      description: 'Consumer',
+      parameters: z.object({ value: z.string() }),
+      outputSchema: z.object({ value: z.string() }),
+      execute: async ({ value }) => ({ value }),
+    };
+
+    const server = createMcpServer({
+      name: 'test-server',
+      version: '0.0.0',
+      tools: { consumer: consumerTool },
+    });
+
+    const { callTool } = await setup({ server });
+
+    await expect(
+      callTool({ name: 'consumer', arguments: { value: 'hi' } })
+    ).resolves.toEqual({ value: 'hi' });
   });
 });
 

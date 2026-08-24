@@ -192,6 +192,57 @@ export function creationOutcomeMessage(
   return `The client reported that ${rateStatement(approved)} was accepted. The ${resource} "${resourceName}" was created.`;
 }
 
+export type CreationOutcomeText = {
+  /** Notes the ceiling one creation executed under, keyed by its own result. */
+  record(
+    result: object,
+    resolution: CostConfirmationResolution | undefined
+  ): void;
+  /** Renders that creation's text. */
+  render(result: object, resourceName: string): string;
+};
+
+/**
+ * Carries the approved ceiling from a creation to the text rendered for it.
+ *
+ * Result text is rendered by a hook that receives only the business output, so
+ * the rate that decided the wording travels here instead. The key is the
+ * output's JSON bytes rather than the result object: the server validates a
+ * round-tripped snapshot and hands the text hook its own copy, so no object
+ * identity survives from `execute` to `render`. Those bytes are an exact key,
+ * because the same server refuses to emit output its schema did not accept
+ * as-is, which makes the rendered copy byte-identical to the recorded result.
+ *
+ * Nothing is added to that object, so what reaches the wire is unchanged, and
+ * a request that is not normalized never renders text at all. A recorded
+ * ceiling is consumed once: the normalized lane is the only one that records,
+ * and it always renders.
+ */
+export function createCreationOutcomeText(
+  action: CostConfirmationSubject['action']
+): CreationOutcomeText {
+  const approved = new Map<string, ApprovedCreationRate>();
+
+  return {
+    record(result, resolution) {
+      if (resolution !== undefined) {
+        approved.set(JSON.stringify(result), resolution.maximumCreationRate);
+      }
+    },
+
+    render(result, resourceName) {
+      const key = JSON.stringify(result);
+      const ceiling = approved.get(key);
+      approved.delete(key);
+      // No ceiling means this creation did not come through the policy, so it
+      // keeps the single-encoded rendering every caller has always received.
+      return ceiling === undefined
+        ? JSON.stringify(result)
+        : creationOutcomeMessage(action, resourceName, ceiling);
+    },
+  };
+}
+
 export type CostConfirmationPolicyOptions<Args> = {
   action: CostConfirmationSubject['action'];
   /** Whether this request can carry the confirmation at all. */

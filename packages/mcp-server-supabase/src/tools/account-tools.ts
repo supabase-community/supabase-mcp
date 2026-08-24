@@ -7,6 +7,7 @@ import { organizationSchema, projectSchema } from '../platform/types.js';
 import {
   assertRateStillApproved,
   createCostConfirmationPolicy,
+  createCreationOutcomeText,
   routeCostConfirmation,
   routeLegacyConfirmation,
   type CostConfirmationResolution,
@@ -234,14 +235,19 @@ export function getAccountTools({
   readOnly,
   elicitation,
 }: AccountToolsOptions) {
+  // A read-only server creates nothing, so there is nothing to confirm. The
+  // paid tools stay policy-free and answer a direct call with the read-only
+  // error they always have, instead of reading a rate and prompting first.
+  const costConfirmation = readOnly === true ? undefined : elicitation;
   const capable = (ctx: ToolRequestContext) =>
-    elicitation?.availability(ctx).formElicitation === true;
+    costConfirmation?.availability(ctx).formElicitation === true;
+  const projectOutcome = createCreationOutcomeText('create_project');
 
   const createProjectPolicy =
-    elicitation &&
+    costConfirmation &&
     routeCostConfirmation({
       capable,
-      confirmed: elicitation.policy(
+      confirmed: costConfirmation.policy(
         'create_project',
         createCostConfirmationPolicy<z.infer<typeof createProjectInputSchema>>({
           action: 'create_project',
@@ -309,7 +315,7 @@ export function getAccountTools({
       // Hidden from a capable client's tool list, and still registered: a
       // client that calls it by name is answered either way.
       hidden: (ctx) => capable(ctx),
-      policy: elicitation && routeLegacyConfirmation({ capable }),
+      policy: costConfirmation && routeLegacyConfirmation({ capable }),
       execute: async (cost) => {
         return { confirmation_id: await hashObject(cost) };
       },
@@ -321,6 +327,9 @@ export function getAccountTools({
     >({
       ...accountToolDefs.create_project,
       policy: createProjectPolicy,
+      // Rendered only for a request the policy normalized. A legacy request
+      // skips this hook entirely and keeps its single-encoded text.
+      formatResult: (project) => projectOutcome.render(project, project.name),
       execute: async (
         { name, region, organization_id, confirm_cost_id },
         resolution
@@ -347,11 +356,15 @@ export function getAccountTools({
           );
         }
 
-        return await account.createProject({
+        const project = await account.createProject({
           name,
           region,
           organization_id,
         });
+
+        projectOutcome.record(project, resolution);
+
+        return project;
       },
     }),
     pause_project: tool({

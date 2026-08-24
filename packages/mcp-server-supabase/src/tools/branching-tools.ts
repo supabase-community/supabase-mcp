@@ -6,6 +6,7 @@ import { branchSchema } from '../platform/types.js';
 import {
   assertRateStillApproved,
   createCostConfirmationPolicy,
+  createCreationOutcomeText,
   routeCostConfirmation,
   type CostConfirmationResolution,
 } from '../policies/cost-confirmation.js';
@@ -167,14 +168,17 @@ export function getBranchingTools({
   elicitation,
 }: BranchingToolsOptions) {
   const project_id = projectId;
+  // A read-only server creates nothing, so there is nothing to confirm.
+  const costConfirmation = readOnly === true ? undefined : elicitation;
   const capable = (ctx: ToolRequestContext) =>
-    elicitation?.availability(ctx).formElicitation === true;
+    costConfirmation?.availability(ctx).formElicitation === true;
+  const branchOutcome = createCreationOutcomeText('create_branch');
 
   const createBranchPolicy =
-    elicitation &&
+    costConfirmation &&
     routeCostConfirmation({
       capable,
-      confirmed: elicitation.policy(
+      confirmed: costConfirmation.policy(
         'create_branch',
         createCostConfirmationPolicy<z.infer<typeof createBranchInputSchema>>({
           action: 'create_branch',
@@ -199,6 +203,9 @@ export function getBranchingTools({
     >({
       ...branchingToolDefs.create_branch,
       policy: createBranchPolicy,
+      // Rendered only for a request the policy normalized. A legacy request
+      // skips this hook entirely and keeps its single-encoded text.
+      formatResult: (branch) => branchOutcome.render(branch, branch.name),
       inject: { project_id },
       execute: async ({ project_id, name, confirm_cost_id }, resolution) => {
         if (readOnly) {
@@ -222,7 +229,11 @@ export function getBranchingTools({
           );
         }
 
-        return await branching.createBranch(project_id, { name });
+        const branch = await branching.createBranch(project_id, { name });
+
+        branchOutcome.record(branch, resolution);
+
+        return branch;
       },
     }),
     list_branches: injectableTool({

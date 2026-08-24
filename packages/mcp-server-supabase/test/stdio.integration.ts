@@ -329,6 +329,19 @@ describe('stdio', () => {
         },
       ]);
       expect(contentApiStub.hits.length).toBeGreaterThan(0);
+
+      // Deprecated stdio stays legacy-only: nothing injects form delivery
+      // here, so the paid tools keep the confirmation token they always
+      // required and advertise no structured output.
+      const createProject = tools.find(
+        (tool) => tool.name === 'create_project'
+      );
+      const createBranch = tools.find((tool) => tool.name === 'create_branch');
+
+      for (const tool of [createProject, createBranch]) {
+        expect(tool?.inputSchema.required).toContain('confirm_cost_id');
+        expect(tool?.outputSchema).toBeUndefined();
+      }
     } finally {
       await client.close();
     }

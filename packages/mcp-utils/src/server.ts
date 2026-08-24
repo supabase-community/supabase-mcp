@@ -14,6 +14,7 @@ import type {
   ReadResourceResult,
   ServerCapabilities,
   ServerContext,
+  ServerOptions,
 } from '@modelcontextprotocol/server';
 import { z } from 'zod/v4';
 
@@ -299,6 +300,16 @@ export type McpServerOptions = {
   onToolPolicyCall?: ToolPolicyCallCallback;
 
   /**
+   * Multi-round-trip request-state integrity hook, forwarded unchanged to the
+   * SDK server.
+   *
+   * The SDK owns the option shape, when `verify` runs, what a resolved value
+   * means, and the JSON-RPC error a rejection produces. This package adds one
+   * typed pass-through and no behavior of its own.
+   */
+  requestState?: ServerOptions['requestState'];
+
+  /**
    * Resources to be served by the server. These can be defined as a static
    * object or as a function that dynamically returns the object synchronously
    * or asynchronously.
@@ -418,6 +429,7 @@ export function createMcpServer(options: McpServerOptions) {
     {
       capabilities,
       instructions: options.instructions,
+      requestState: options.requestState,
     }
   );
 

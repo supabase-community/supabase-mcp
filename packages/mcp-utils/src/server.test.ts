@@ -3,8 +3,8 @@ import {
   StreamableHTTPClientTransport,
 } from '@modelcontextprotocol/client';
 import type { CallToolRequestParams } from '@modelcontextprotocol/client';
-import { createMcpHandler } from '@modelcontextprotocol/server';
-import type { Server } from '@modelcontextprotocol/server';
+import { createMcpHandler, inputRequired } from '@modelcontextprotocol/server';
+import type { Server, ServerOptions } from '@modelcontextprotocol/server';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { z } from 'zod/v4';
 
@@ -634,6 +634,125 @@ describe('structured tool results', () => {
 
     expect(result.content).toEqual([]);
     expect(result.structuredContent).toBeUndefined();
+  });
+});
+
+describe('SDK request state pass-through', () => {
+  test('the verifier runs before dispatch and its value reaches the handler', async () => {
+    const order: string[] = [];
+    let round = 0;
+    // Typed as the whole SDK option object, so narrowing it to `verify` or
+    // republishing its fields would fail to compile.
+    const requestState: ServerOptions['requestState'] = {
+      verify: async (state) => {
+        order.push(`verify:${state}`);
+        return { approved: true };
+      },
+    };
+    const client = await setupModernClient({
+      requestState,
+      tools: {
+        guarded: tool({
+          description: 'Guarded',
+          parameters: z.object({ value: z.string() }),
+          outputSchema: z.object({ value: z.string() }),
+          policy: {
+            resolve: async (_params, ctx) => {
+              round += 1;
+              order.push(
+                `resolve:${round}:${JSON.stringify(ctx.server.mcpReq.requestState())}`
+              );
+
+              if (round === 1) {
+                return {
+                  type: 'result',
+                  result: inputRequired({ requestState: 'minted-state' }),
+                  telemetry,
+                };
+              }
+
+              return { type: 'execute', resolution: undefined, telemetry };
+            },
+          },
+          execute: async ({ value }) => ({ value }),
+        }),
+      },
+    });
+
+    const result = await client.callTool({
+      name: 'guarded',
+      arguments: { value: 'hi' },
+    });
+
+    expect(order).toEqual([
+      'resolve:1:undefined',
+      'verify:minted-state',
+      'resolve:2:{"approved":true}',
+    ]);
+    expect(result.structuredContent).toEqual({ value: 'hi' });
+  });
+
+  test('verifier rejection propagates the SDK-owned -32602 and skips the handler', async () => {
+    const resolve = vi.fn(async () => ({
+      type: 'result' as const,
+      result: inputRequired({ requestState: 'minted-state' }),
+      telemetry,
+    }));
+    const client = await setupModernClient({
+      requestState: {
+        verify: async () => {
+          throw new Error('bad signature');
+        },
+      },
+      tools: {
+        guarded: tool({
+          description: 'Guarded',
+          parameters: z.object({ value: z.string() }),
+          outputSchema: z.object({ value: z.string() }),
+          policy: { resolve },
+          execute: async ({ value }) => ({ value }),
+        }),
+      },
+    });
+
+    const call = client.callTool({
+      name: 'guarded',
+      arguments: { value: 'hi' },
+    });
+
+    // The SDK owns the code, the frozen message, and the reason. This package
+    // neither wraps nor translates them.
+    await expect(call).rejects.toMatchObject({
+      code: -32602,
+      message: 'Invalid or expired requestState',
+      data: { reason: 'invalid_request_state' },
+    });
+    // Only the first round reached the handler.
+    expect(resolve.mock.calls).toHaveLength(1);
+  });
+
+  test('omitting requestState leaves tool execution unchanged', async () => {
+    const client = await setupModernClient({
+      tools: {
+        plain: tool({
+          description: 'Plain',
+          parameters: z.object({ value: z.string() }),
+          outputSchema: z.object({ value: z.string() }),
+          execute: async ({ value }) => ({ value }),
+        }),
+      },
+    });
+
+    const result = await client.callTool({
+      name: 'plain',
+      arguments: { value: 'hi' },
+    });
+
+    // A policy-free tool, so the result keeps its pre-normalization shape.
+    expect(result.structuredContent).toBeUndefined();
+    expect(result.content).toEqual([
+      { type: 'text', text: JSON.stringify({ value: 'hi' }) },
+    ]);
   });
 });
 

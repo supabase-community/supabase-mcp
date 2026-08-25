@@ -13,6 +13,7 @@ import { createMcpServer, type McpServerOptions, tool } from './server.js';
 import { StreamTransport } from './stream-transport.js';
 import type {
   ToolPolicy,
+  ToolPolicyDecision,
   ToolPolicyTelemetry,
   ToolRequestContext,
 } from './tool-policy.js';
@@ -280,6 +281,38 @@ describe('pre-execution tool policy', () => {
     expect(execute).not.toHaveBeenCalled();
     expect(result.content).toEqual([{ type: 'text', text: 'intercepted' }]);
     expect(result.structuredContent).toBeUndefined();
+  });
+
+  test('an unrecognized decision type fails closed', async () => {
+    const execute = vi.fn();
+    const client = await setupModernClient({
+      tools: {
+        guarded: tool({
+          description: 'Guarded',
+          parameters: z.object({ value: z.string() }),
+          outputSchema: z.object({ value: z.string() }),
+          policy: {
+            // A policy written in plain JavaScript, or one casting its
+            // decision, can return a type this package does not recognize.
+            resolve: async () =>
+              ({
+                type: 'deny',
+                telemetry,
+              }) as unknown as ToolPolicyDecision<undefined>,
+          },
+          execute,
+        }),
+      },
+    });
+
+    const result = await client.callTool({
+      name: 'guarded',
+      arguments: { value: 'ignored' },
+    });
+
+    // Fail closed: the guarded tool never runs and the caller gets an error.
+    expect(result.isError).toBe(true);
+    expect(execute).not.toHaveBeenCalled();
   });
 
   test('an execute decision hands the parsed arguments and the resolution to execute', async () => {

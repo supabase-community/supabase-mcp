@@ -691,10 +691,24 @@ export function createMcpServer(options: McpServerOptions) {
             console.error('Failed to run tool policy callback', error);
           }
 
-          if (decision.type === 'result') {
-            return decision.result;
+          // Exhaustive on purpose: an unrecognized decision (a plain
+          // JavaScript policy, a cast, or a decision type added later) must
+          // fail closed instead of falling through and executing the guarded
+          // tool with no resolution. The throw lands in this handler's catch,
+          // which is how a policy that throws already behaves.
+          const { type: decisionType } = decision;
+
+          switch (decisionType) {
+            case 'execute':
+              resolution = decision.resolution;
+              break;
+            case 'result':
+              return decision.result;
+            default:
+              throw new Error(
+                `Unrecognized tool policy decision type: ${String(decisionType)}`
+              );
           }
-          resolution = decision.resolution;
         }
 
         const executeWithCallback = async () => {

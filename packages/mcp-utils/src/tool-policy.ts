@@ -89,7 +89,12 @@ export type ToolPolicyDecision<Resolution> =
  * Business execution runs only after `resolve` returns an `execute` decision.
  */
 export type ToolPolicy<Params, Resolution> = {
-  /** Replaces the advertised and enforced input schema for this request. */
+  /**
+   * Replaces the advertised and enforced input schema for this request.
+   *
+   * It runs inside `tools/list`, once per tool, and must not throw: a throw
+   * fails the whole discovery response, not just this tool's entry.
+   */
   inputSchema?(
     schema: z.ZodObject<any>,
     ctx: ToolRequestContext
@@ -113,6 +118,10 @@ export type ToolPolicy<Params, Resolution> = {
    * Defining no hook at all normalizes every request against the tool's own
    * `outputSchema`. Discovery and the call path evaluate this once per
    * request and always agree.
+   *
+   * Like `inputSchema`, this runs inside `tools/list`, once per tool, and must
+   * not throw: a throw fails the whole discovery response, not just this
+   * tool's entry.
    */
   outputSchema?(
     schema: z.ZodObject<any>,

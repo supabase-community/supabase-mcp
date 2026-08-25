@@ -67,6 +67,9 @@ export type Tool<
    * If true, excludes the tool from `tools/list` while keeping it callable via
    * `tools/call`. A function decides the same thing per request, from the
    * normalized request context.
+   *
+   * The function runs inside `tools/list`, once per tool, and must not throw:
+   * a throw fails the whole discovery response, not just this entry.
    */
   hidden?: boolean | ((ctx: ToolRequestContext) => boolean);
   /**

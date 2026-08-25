@@ -373,6 +373,61 @@ function resolveResultShape(
 }
 
 /**
+ * Resolves the input schema one request advertises and enforces.
+ *
+ * `tools/list` and `tools/call` resolve it here, from the same hook call, so
+ * the advertised schema and the schema strict parsing enforces cannot
+ * disagree.
+ */
+function resolveParameters(
+  tool: Tool<any, any, any>,
+  ctx: ToolRequestContext
+): z.ZodObject<any> {
+  return tool.policy?.inputSchema?.(tool.parameters, ctx) ?? tool.parameters;
+}
+
+/**
+ * Renders one `tools/list` entry for one request.
+ */
+async function describeTool(
+  name: string,
+  tool: Tool<any, any, any>,
+  ctx: ToolRequestContext
+): Promise<ListToolsResult['tools'][number]> {
+  const inputSchema = z.toJSONSchema(resolveParameters(tool, ctx), {
+    target: 'draft-7',
+  });
+  const entry = {
+    name,
+    description:
+      typeof tool.description === 'function'
+        ? await tool.description()
+        : tool.description,
+    annotations: tool.annotations,
+    // Casting the same as the SDK does:
+    // https://github.com/modelcontextprotocol/typescript-sdk/blob/fb07af810b51003c338dc4885a9e42f54519f9af/src/server/mcp.ts#L154
+    inputSchema: inputSchema as McpTool['inputSchema'],
+  };
+
+  // A request advertises only when the shared decision normalizes it: a
+  // policy-free tool never does, and a policy can suppress per request.
+  // Suppressed and policy-free entries keep the discovery bytes they had
+  // before structured results existed.
+  const shape = resolveResultShape(tool, ctx);
+
+  if (shape.kind !== 'normalized') {
+    return entry;
+  }
+
+  return {
+    ...entry,
+    outputSchema: z.toJSONSchema(shape.outputSchema, {
+      target: 'draft-7',
+    }) as McpTool['outputSchema'],
+  };
+}
+
+/**
  * Derives the product-neutral request context from SDK-owned metadata.
  * Called once per `tools/list` and `tools/call`, so every policy hook and
  * visibility filter in one request sees the same facts.
@@ -596,42 +651,7 @@ export function createMcpServer(options: McpServerOptions) {
 
         return {
           tools: await Promise.all(
-            visibleTools.map(async ([name, tool]) => {
-              const parameters =
-                tool.policy?.inputSchema?.(tool.parameters, context) ??
-                tool.parameters;
-              const inputSchema = z.toJSONSchema(parameters, {
-                target: 'draft-7',
-              });
-              const entry = {
-                name,
-                description:
-                  typeof tool.description === 'function'
-                    ? await tool.description()
-                    : tool.description,
-                annotations: tool.annotations,
-                // Casting the same as the SDK does:
-                // https://github.com/modelcontextprotocol/typescript-sdk/blob/fb07af810b51003c338dc4885a9e42f54519f9af/src/server/mcp.ts#L154
-                inputSchema: inputSchema as McpTool['inputSchema'],
-              };
-
-              // A request advertises only when the shared decision normalizes
-              // it: a policy-free tool never does, and a policy can suppress
-              // per request. Suppressed and policy-free entries keep the
-              // discovery bytes they had before structured results existed.
-              const shape = resolveResultShape(tool, context);
-
-              if (shape.kind !== 'normalized') {
-                return entry;
-              }
-
-              return {
-                ...entry,
-                outputSchema: z.toJSONSchema(shape.outputSchema, {
-                  target: 'draft-7',
-                }) as McpTool['outputSchema'],
-              };
-            })
+            visibleTools.map(([name, tool]) => describeTool(name, tool, context))
           ),
         } satisfies ListToolsResult;
       }
@@ -661,13 +681,9 @@ export function createMcpServer(options: McpServerOptions) {
         const normalizedArguments = tool.policy?.normalizeArguments
           ? tool.policy.normalizeArguments(rawArguments, context)
           : rawArguments;
-        const parameters =
-          tool.policy?.inputSchema?.(tool.parameters, context) ??
-          tool.parameters;
-        const args = parameters.strict().parse(normalizedArguments) as Record<
-          string,
-          unknown
-        >;
+        const args = resolveParameters(tool, context)
+          .strict()
+          .parse(normalizedArguments) as Record<string, unknown>;
 
         // Resolved once per request, before the policy runs, so the hook
         // cannot observe anything `resolve` changed and discovery and the

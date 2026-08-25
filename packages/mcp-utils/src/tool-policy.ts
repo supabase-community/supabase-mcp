@@ -67,6 +67,16 @@ export type ToolPolicyDecision<Resolution> =
     }
   | {
       type: 'result';
+      /**
+       * The terminal result the caller receives instead of business output.
+       *
+       * On a normalized request (one whose discovery entry advertises an
+       * output schema) this must be an `InputRequiredResult`, set `isError`,
+       * or carry `structuredContent` conforming to the advertised schema.
+       * mcp-utils passes the result through verbatim and never synthesizes
+       * `structuredContent`, so a content-only success on a normalized
+       * request contradicts what that request advertised.
+       */
       result: CallToolResult | InputRequiredResult;
       telemetry: ToolPolicyTelemetry;
     };

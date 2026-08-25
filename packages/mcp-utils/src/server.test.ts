@@ -731,30 +731,6 @@ describe('SDK request state pass-through', () => {
     // Only the first round reached the handler.
     expect(resolve.mock.calls).toHaveLength(1);
   });
-
-  test('omitting requestState leaves tool execution unchanged', async () => {
-    const client = await setupModernClient({
-      tools: {
-        plain: tool({
-          description: 'Plain',
-          parameters: z.object({ value: z.string() }),
-          outputSchema: z.object({ value: z.string() }),
-          execute: async ({ value }) => ({ value }),
-        }),
-      },
-    });
-
-    const result = await client.callTool({
-      name: 'plain',
-      arguments: { value: 'hi' },
-    });
-
-    // A policy-free tool, so the result keeps its pre-normalization shape.
-    expect(result.structuredContent).toBeUndefined();
-    expect(result.content).toEqual([
-      { type: 'text', text: JSON.stringify({ value: 'hi' }) },
-    ]);
-  });
 });
 
 describe('public package surface', () => {

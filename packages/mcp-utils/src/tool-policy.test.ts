@@ -260,6 +260,58 @@ describe('pre-execution tool policy', () => {
           parameters: z.object({ value: z.string() }),
           outputSchema: z.object({ value: z.string() }),
           policy: {
+            // The request is normalized, so it advertises an output schema.
+            // A terminal result on a normalized request must be one the
+            // protocol exempts from `structuredContent`: an error here.
+            // This package never synthesizes structured content for it.
+            resolve: async () => ({
+              type: 'result',
+              result: {
+                isError: true,
+                content: [
+                  {
+                    type: 'text' as const,
+                    text: 'Not permitted: request approval before retrying.',
+                  },
+                ],
+              },
+              telemetry,
+            }),
+          },
+          execute,
+        }),
+      },
+    });
+
+    const result = await client.callTool({
+      name: 'guarded',
+      arguments: { value: 'ignored' },
+    });
+
+    expect(execute).not.toHaveBeenCalled();
+    expect(result.isError).toBe(true);
+    expect(result.content).toEqual([
+      {
+        type: 'text',
+        text: 'Not permitted: request approval before retrying.',
+      },
+    ]);
+    expect(result.structuredContent).toBeUndefined();
+  });
+
+  test('a result decision on a suppressed request stays content-only', async () => {
+    const execute = vi.fn();
+    const client = await setupModernClient({
+      tools: {
+        guarded: tool({
+          description: 'Guarded',
+          parameters: z.object({ value: z.string() }),
+          outputSchema: z.object({ value: z.string() }),
+          policy: {
+            // Suppressed: the request advertises no output schema, so a
+            // content-only terminal result is the shape its discovery entry
+            // promised.
+            outputSchema: () => undefined,
             resolve: async () => ({
               type: 'result',
               result: {
@@ -272,6 +324,10 @@ describe('pre-execution tool policy', () => {
         }),
       },
     });
+
+    const discovery = await client.listTools();
+
+    expect(discovery.tools[0]?.outputSchema).toBeUndefined();
 
     const result = await client.callTool({
       name: 'guarded',

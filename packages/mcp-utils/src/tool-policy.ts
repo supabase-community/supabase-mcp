@@ -33,26 +33,30 @@ export type ToolRequestContext = {
 /**
  * Closed allowlist of fields a policy may report about its own decision.
  *
- * Deliberately has no index signature: every field is an optional named
- * scalar, so raw arguments, request state, and response content cannot reach
- * a telemetry sink through this type. Widening the allowlist is a deliberate,
- * reviewed change rather than a smuggled open record.
+ * Deliberately has no index signature: every field is a named scalar, so raw
+ * arguments, request state, and response content cannot reach a telemetry sink
+ * through this type. Widening the allowlist is a deliberate, reviewed change
+ * rather than a smuggled open record.
+ *
+ * Policy identity and the outcome are required: an audit record that cannot
+ * name the policy that produced it, its contract version, and how the request
+ * ended is not auditable.
  *
  * The values are opaque to this package. A downstream policy chooses them.
  */
 export type ToolPolicyTelemetry = {
+  /** Stable identifier of the policy that produced the decision. */
+  policyId: string;
+  /** Version of the policy contract that produced the decision. */
+  policyVersion: number;
+  /** Terminal classification of the decision. */
+  outcome: string;
   /** Correlates every round and repeated attempt of one logical interaction. */
   interactionId?: string;
   /** Which authority path granted the action. */
   authorityPath?: string;
-  /** Terminal classification of the decision. */
-  outcome?: string;
   /** Internal, non-user-facing explanation of the outcome. */
   reason?: string;
-  /** Stable identifier of the policy that produced the decision. */
-  policyId?: string;
-  /** Version of the policy contract that produced the decision. */
-  policyVersion?: number;
 };
 
 /**

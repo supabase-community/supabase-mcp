@@ -22,7 +22,11 @@ import type {
 const MODERN_PROTOCOL_VERSION = '2026-07-28';
 const MCP_ENDPOINT = new URL('https://mcp.test');
 
-const telemetry: ToolPolicyTelemetry = { outcome: 'allowed' };
+const telemetry: ToolPolicyTelemetry = {
+  policyId: 'test-policy',
+  policyVersion: 1,
+  outcome: 'allowed',
+};
 
 const cleanups: Array<() => Promise<void>> = [];
 
@@ -470,7 +474,7 @@ describe('pre-execution tool policy', () => {
               // A policy compiled from plain JavaScript, or one spreading a
               // wider object, can carry fields the type does not allow.
               telemetry: {
-                outcome: 'allowed',
+                ...telemetry,
                 rawArguments: params,
                 token: 'super-secret',
               } as ToolPolicyTelemetry,
@@ -484,7 +488,7 @@ describe('pre-execution tool policy', () => {
     await client.callTool({ name: 'leaky', arguments: { value: 'ok' } });
 
     expect(onToolPolicyCall).toHaveBeenCalledWith(
-      expect.objectContaining({ telemetry: { outcome: 'allowed' } })
+      expect.objectContaining({ telemetry })
     );
   });
 

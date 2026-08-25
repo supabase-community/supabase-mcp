@@ -88,7 +88,11 @@ async function setup(options: SetupOptions) {
 // https://blog.modelcontextprotocol.io/posts/2026-07-28-release-candidate/
 const MODERN_PROTOCOL_VERSION = '2026-07-28';
 const MCP_ENDPOINT = new URL('https://mcp.test');
-const telemetry = { outcome: 'allowed' };
+const telemetry = {
+  policyId: 'test-policy',
+  policyVersion: 1,
+  outcome: 'allowed',
+};
 const cleanups: Array<() => Promise<void>> = [];
 
 /**

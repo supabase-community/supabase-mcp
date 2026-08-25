@@ -243,8 +243,14 @@ type ToolPolicyCallDetails = {
   durationMs: number;
   /** Client identity, when the request carried it. */
   clientInfo?: Implementation;
-  /** Allowlisted telemetry reported by the policy. */
-  telemetry: ToolPolicyTelemetry;
+  /**
+   * Allowlisted telemetry reported by the policy.
+   *
+   * Partial because types erase at runtime: a policy written in plain
+   * JavaScript can omit the required identity fields, and the record then
+   * carries only what survived the allowlist.
+   */
+  telemetry: Partial<ToolPolicyTelemetry>;
 };
 
 export type InitCallback = (initData: InitData) => void | Promise<void>;
@@ -654,7 +660,9 @@ export function createMcpServer(options: McpServerOptions) {
 
         return {
           tools: await Promise.all(
-            visibleTools.map(([name, tool]) => describeTool(name, tool, context))
+            visibleTools.map(([name, tool]) =>
+              describeTool(name, tool, context)
+            )
           ),
         } satisfies ListToolsResult;
       }
@@ -826,12 +834,12 @@ export function createMcpServer(options: McpServerOptions) {
  */
 function safeToolPolicyTelemetry(
   telemetry: ToolPolicyTelemetry | undefined
-): ToolPolicyTelemetry {
+): Partial<ToolPolicyTelemetry> {
   if (!telemetry || typeof telemetry !== 'object') {
     return {};
   }
 
-  const safe: ToolPolicyTelemetry = {};
+  const safe: Partial<ToolPolicyTelemetry> = {};
 
   if (typeof telemetry.interactionId === 'string') {
     safe.interactionId = telemetry.interactionId;

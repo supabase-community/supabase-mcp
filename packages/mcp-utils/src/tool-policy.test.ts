@@ -525,4 +525,47 @@ describe('pre-execution tool policy', () => {
     );
     consoleError.mockRestore();
   });
+
+  test('a decision without telemetry still records an audit call', async () => {
+    const onToolPolicyCall = vi.fn();
+    const consoleError = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+    const client = await setupModernClient({
+      onToolPolicyCall,
+      tools: {
+        observed: tool({
+          description: 'Observed',
+          parameters: z.object({ value: z.string() }),
+          outputSchema: z.object({ value: z.string() }),
+          policy: {
+            // A plain JavaScript policy can omit the telemetry object.
+            resolve: async () =>
+              ({
+                type: 'execute',
+                resolution: undefined,
+              }) as unknown as ToolPolicyDecision<undefined>,
+          },
+          execute: async ({ value }) => ({ value }),
+        }),
+      },
+    });
+
+    const result = await client.callTool({
+      name: 'observed',
+      arguments: { value: 'ok' },
+    });
+
+    expect(result.structuredContent).toEqual({ value: 'ok' });
+    expect(onToolPolicyCall).toHaveBeenCalledWith(
+      expect.objectContaining({ decision: 'execute', telemetry: {} })
+    );
+    // The audit record survives: no sanitizer `TypeError` misattributed to
+    // the callback.
+    expect(consoleError).not.toHaveBeenCalledWith(
+      'Failed to run tool policy callback',
+      expect.any(Error)
+    );
+    consoleError.mockRestore();
+  });
 });

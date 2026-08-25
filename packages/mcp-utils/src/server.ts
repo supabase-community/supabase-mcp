@@ -678,18 +678,24 @@ export function createMcpServer(options: McpServerOptions) {
           const decision = await tool.policy.resolve(args, context);
           const durationMs = performance.now() - policyStartedAt;
 
-          try {
-            await options.onToolPolicyCall?.({
-              name: toolName,
-              decision: decision.type,
-              clientInfo: context.clientInfo,
-              durationMs,
-              telemetry: safeToolPolicyTelemetry(decision.telemetry),
+          // Fire-and-forget: the callback is an audit sink that the JSDoc
+          // promises cannot change the result, so a slow or never-settling
+          // one must not stall the request. `Promise.resolve().then` also
+          // captures a synchronous throw from a plain JavaScript callback.
+          void Promise.resolve()
+            .then(() =>
+              options.onToolPolicyCall?.({
+                name: toolName,
+                decision: decision.type,
+                clientInfo: context.clientInfo,
+                durationMs,
+                telemetry: safeToolPolicyTelemetry(decision.telemetry),
+              })
+            )
+            .catch((error) => {
+              // Don't fail the tool call if the callback fails
+              console.error('Failed to run tool policy callback', error);
             });
-          } catch (error) {
-            // Don't fail the tool call if the callback fails
-            console.error('Failed to run tool policy callback', error);
-          }
 
           // Exhaustive on purpose: an unrecognized decision (a plain
           // JavaScript policy, a cast, or a decision type added later) must
@@ -792,10 +798,18 @@ export function createMcpServer(options: McpServerOptions) {
  * plain JavaScript, could otherwise push raw arguments or request state into
  * a telemetry sink. Widening the allowlist means changing both the type and
  * this function.
+ *
+ * A decision missing the object entirely (again, a plain JavaScript policy or
+ * a cast) yields empty telemetry rather than a `TypeError`, which would
+ * otherwise drop the audit record and log it as a callback failure.
  */
 function safeToolPolicyTelemetry(
-  telemetry: ToolPolicyTelemetry
+  telemetry: ToolPolicyTelemetry | undefined
 ): ToolPolicyTelemetry {
+  if (!telemetry || typeof telemetry !== 'object') {
+    return {};
+  }
+
   const safe: ToolPolicyTelemetry = {};
 
   if (typeof telemetry.interactionId === 'string') {

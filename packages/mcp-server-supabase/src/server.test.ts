@@ -4056,6 +4056,11 @@ describe('feature groups', () => {
     // `function_logs`. See getClickHouseLogQuery in logs.ts.
     expect(sqlDescription).toContain("'function_edge_logs'");
     expect(sqlDescription).toContain("'function_logs'");
+    // The log line text lives in `event_message`; `log_attributes` carries only
+    // per-row metadata. Without naming the column the model reads
+    // `log_attributes`, finds no message key, and reports that the console
+    // output was never stored. See getClickHouseLogQuery in logs.ts.
+    expect(sqlDescription).toContain('event_message');
   });
 
   test('query_logs advertises the BigQuery dialect when the platform declares it', async () => {

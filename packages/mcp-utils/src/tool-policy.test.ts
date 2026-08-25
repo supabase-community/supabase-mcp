@@ -186,7 +186,7 @@ describe('pre-execution tool policy', () => {
         description: 'Contextual',
         parameters: z.object({ value: z.string() }),
         outputSchema: z.object({ value: z.string() }),
-        visible: (ctx) => ctx.era === 'modern',
+        hidden: (ctx) => ctx.era !== 'modern',
         policy,
         execute: async ({ value }) => ({ value }),
       }),

@@ -63,13 +63,12 @@ export type Tool<
   annotations?: Annotations;
   parameters: Params;
   outputSchema: OutputSchema;
-  /** If true, excludes the tool from `tools/list` while keeping it callable via `tools/call`. */
-  hidden?: boolean;
   /**
-   * Contextual discovery filter. Returning `false` hides the tool from
-   * `tools/list` while keeping it callable via `tools/call`.
+   * If true, excludes the tool from `tools/list` while keeping it callable via
+   * `tools/call`. A function decides the same thing per request, from the
+   * normalized request context.
    */
-  visible?: (ctx: ToolRequestContext) => boolean;
+  hidden?: boolean | ((ctx: ToolRequestContext) => boolean);
   /**
    * Pre-execution policy consulted for discovery schemas, argument
    * normalization, and the decision to execute or answer directly.
@@ -589,7 +588,10 @@ export function createMcpServer(options: McpServerOptions) {
         const tools = await getTools();
         const context = normalizeToolRequestContext(serverContext, server);
         const visibleTools = Object.entries(tools).filter(
-          ([, tool]) => !tool.hidden && tool.visible?.(context) !== false
+          ([, tool]) =>
+            !(typeof tool.hidden === 'function'
+              ? tool.hidden(context)
+              : tool.hidden)
         );
 
         return {

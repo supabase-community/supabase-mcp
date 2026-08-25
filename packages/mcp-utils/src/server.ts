@@ -237,8 +237,15 @@ export type ToolCallDetails = ToolCallSuccessDetails | ToolCallErrorDetails;
 type ToolPolicyCallDetails = {
   /** Name of the tool whose policy produced the decision. */
   name: string;
-  /** Whether the decision short-circuited business execution. */
-  decision: 'execute' | 'result';
+  /**
+   * Whether the decision short-circuited business execution.
+   *
+   * `'rejected'` is this package's own outcome for a decision it could not
+   * recognize, never the policy's raw string. On `'rejected'` the
+   * policy-reported `telemetry.outcome` is unreliable by construction, so
+   * this label is the authoritative one.
+   */
+  decision: 'execute' | 'result' | 'rejected';
   /** Wall-clock duration of policy resolution, in milliseconds. */
   durationMs: number;
   /** Client identity, when the request carried it. */
@@ -304,6 +311,11 @@ export type McpServerOptions = {
   /**
    * Callback for each pre-execution policy decision. Receives allowlisted
    * telemetry only; a failure here never changes a tool result.
+   *
+   * The callback is not awaited. Its completion is not ordered before the
+   * response, and on serving paths that stop work once the response is sent
+   * it is not guaranteed to run to completion at all. A failing or slow sink
+   * never changes or delays the tool result.
    */
   onToolPolicyCall?: ToolPolicyCallCallback;
 
@@ -384,9 +396,11 @@ function resolveResultShape(
 /**
  * Resolves the input schema one request advertises and enforces.
  *
- * `tools/list` and `tools/call` resolve it here, from the same hook call, so
- * the advertised schema and the schema strict parsing enforces cannot
- * disagree.
+ * `tools/list` and `tools/call` both resolve it here, from the same hook
+ * call, so they start from the same schema. The call path then applies
+ * `.strict()` before parsing, which discovery does not: a hook returning a
+ * loose or catchall object advertises keys that parsing rejects. A hook
+ * should return the exact schema it wants enforced.
  */
 function resolveParameters(
   tool: Tool<any, any, any>,
@@ -707,18 +721,36 @@ export function createMcpServer(options: McpServerOptions) {
           const decision = await tool.policy.resolve(args, context);
           const durationMs = performance.now() - policyStartedAt;
 
-          // Fire-and-forget: the callback is an audit sink that the JSDoc
-          // promises cannot change the result, so a slow or never-settling
-          // one must not stall the request. `Promise.resolve().then` also
-          // captures a synchronous throw from a plain JavaScript callback.
+          // Guard first, then narrow, so the audit record is built from a
+          // recognized decision instead of whatever the policy returned.
+          // Types erase at runtime: a plain JavaScript policy or a cast can
+          // return a nullish value, a non-object, or an unknown `type`, and
+          // all three are unrecognizable the same way.
+          const rawDecision = decision as
+            | { type?: unknown; telemetry?: ToolPolicyTelemetry }
+            | null
+            | undefined;
+          const recognized =
+            typeof decision === 'object' &&
+            decision !== null &&
+            (decision.type === 'execute' || decision.type === 'result')
+              ? decision
+              : undefined;
+
+          // Fire-and-forget, exactly once per request and after narrowing, so
+          // every outcome reaches the sink under a label this package owns.
+          // The callback is an audit sink that the JSDoc promises cannot
+          // change the result, so a slow or never-settling one must not stall
+          // the request. `Promise.resolve().then` also captures a synchronous
+          // throw from a plain JavaScript callback.
           void Promise.resolve()
             .then(() =>
               options.onToolPolicyCall?.({
                 name: toolName,
-                decision: decision.type,
+                decision: recognized?.type ?? 'rejected',
                 clientInfo: context.clientInfo,
                 durationMs,
-                telemetry: safeToolPolicyTelemetry(decision.telemetry),
+                telemetry: safeToolPolicyTelemetry(rawDecision?.telemetry),
               })
             )
             .catch((error) => {
@@ -726,23 +758,22 @@ export function createMcpServer(options: McpServerOptions) {
               console.error('Failed to run tool policy callback', error);
             });
 
-          // Exhaustive on purpose: an unrecognized decision (a plain
-          // JavaScript policy, a cast, or a decision type added later) must
-          // fail closed instead of falling through and executing the guarded
-          // tool with no resolution. The throw lands in this handler's catch,
-          // which is how a policy that throws already behaves.
-          const { type: decisionType } = decision;
+          if (!recognized) {
+            // Fail closed instead of falling through and executing the
+            // guarded tool with no resolution. The throw lands in this
+            // handler's catch, which is how a policy that throws already
+            // behaves.
+            throw new Error(
+              `Unrecognized tool policy decision type: ${String(rawDecision?.type)}`
+            );
+          }
 
-          switch (decisionType) {
+          switch (recognized.type) {
             case 'execute':
-              resolution = decision.resolution;
+              resolution = recognized.resolution;
               break;
             case 'result':
-              return decision.result;
-            default:
-              throw new Error(
-                `Unrecognized tool policy decision type: ${String(decisionType)}`
-              );
+              return recognized.result;
           }
         }
 

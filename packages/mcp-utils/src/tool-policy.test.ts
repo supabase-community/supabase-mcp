@@ -170,7 +170,10 @@ describe('tool request context', () => {
 
 describe('pre-execution tool policy', () => {
   test('discovery applies contextual visibility and policy schemas', async () => {
-    const policy: ToolPolicy<{ value: string }, undefined> = {
+    const policy: ToolPolicy<
+      { value: string },
+      { era: ToolRequestContext['era'] }
+    > = {
       inputSchema: (schema, ctx) =>
         ctx.era === 'modern'
           ? schema.extend({ confirmation: z.string() })
@@ -179,9 +182,11 @@ describe('pre-execution tool policy', () => {
         ctx.era === 'modern'
           ? schema.extend({ confirmed: z.boolean() })
           : schema,
-      resolve: async () => ({
+      // The resolution carries the era, so `execute` can satisfy the schema
+      // this request advertised without re-deriving the context.
+      resolve: async (_args, ctx) => ({
         type: 'execute',
-        resolution: undefined,
+        resolution: { era: ctx.era },
         telemetry,
       }),
     };
@@ -192,7 +197,8 @@ describe('pre-execution tool policy', () => {
         outputSchema: z.object({ value: z.string() }),
         hidden: (ctx) => ctx.era !== 'modern',
         policy,
-        execute: async ({ value }) => ({ value }),
+        execute: async ({ value }, { era }) =>
+          era === 'modern' ? { value, confirmed: true } : { value },
       }),
     };
 
@@ -209,6 +215,28 @@ describe('pre-execution tool policy', () => {
       'properties.confirmed'
     );
     expect(legacyDiscovery.tools).toEqual([]);
+
+    // The call path must resolve its input schema from the same hook, not
+    // from `tool.parameters`: the hook-supplied `confirmation` key would
+    // otherwise be rejected by strict parsing.
+    const modernResult = await modernClient.callTool({
+      name: 'contextual',
+      arguments: { value: 'ok', confirmation: 'yes' },
+    });
+
+    expect(modernResult.structuredContent).toEqual({
+      value: 'ok',
+      confirmed: true,
+    });
+
+    // Hidden from `tools/list`, still alive via `tools/call`.
+    const legacyResult = await legacyClient.callTool({
+      name: 'contextual',
+      arguments: { value: 'ok' },
+    });
+
+    expect(legacyResult.isError).not.toBe(true);
+    expect(legacyResult.structuredContent).toEqual({ value: 'ok' });
   });
 
   test('normalizeArguments runs before strict parsing', async () => {
@@ -345,7 +373,9 @@ describe('pre-execution tool policy', () => {
 
   test('an unrecognized decision type fails closed', async () => {
     const execute = vi.fn();
+    const onToolPolicyCall = vi.fn();
     const client = await setupModernClient({
+      onToolPolicyCall,
       tools: {
         guarded: tool({
           description: 'Guarded',
@@ -373,6 +403,52 @@ describe('pre-execution tool policy', () => {
     // Fail closed: the guarded tool never runs and the caller gets an error.
     expect(result.isError).toBe(true);
     expect(execute).not.toHaveBeenCalled();
+    // The sink sees this package's own label, never the policy's raw string.
+    expect(onToolPolicyCall).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'guarded', decision: 'rejected' })
+    );
+  });
+
+  test('a nullish decision fails closed and still records an audit call', async () => {
+    const execute = vi.fn();
+    const onToolPolicyCall = vi.fn();
+    const consoleError = vi
+      .spyOn(console, 'error')
+      .mockImplementation(() => {});
+    const client = await setupModernClient({
+      onToolPolicyCall,
+      tools: {
+        guarded: tool({
+          description: 'Guarded',
+          parameters: z.object({ value: z.string() }),
+          outputSchema: z.object({ value: z.string() }),
+          policy: {
+            // A plain JavaScript policy can resolve to nothing at all.
+            resolve: async () =>
+              undefined as unknown as ToolPolicyDecision<undefined>,
+          },
+          execute,
+        }),
+      },
+    });
+
+    const result = await client.callTool({
+      name: 'guarded',
+      arguments: { value: 'ignored' },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(execute).not.toHaveBeenCalled();
+    expect(onToolPolicyCall).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'guarded', decision: 'rejected' })
+    );
+    // The record is built before the throw, so nothing is misattributed to
+    // the callback.
+    expect(consoleError).not.toHaveBeenCalledWith(
+      'Failed to run tool policy callback',
+      expect.any(Error)
+    );
+    consoleError.mockRestore();
   });
 
   test('an execute decision hands the parsed arguments and the resolution to execute', async () => {
@@ -588,9 +664,6 @@ describe('pre-execution tool policy', () => {
 
   test('a decision without telemetry still records an audit call', async () => {
     const onToolPolicyCall = vi.fn();
-    const consoleError = vi
-      .spyOn(console, 'error')
-      .mockImplementation(() => {});
     const client = await setupModernClient({
       onToolPolicyCall,
       tools: {
@@ -617,15 +690,40 @@ describe('pre-execution tool policy', () => {
     });
 
     expect(result.structuredContent).toEqual({ value: 'ok' });
+    // The record survives the missing telemetry object: the sanitizer
+    // returns an empty allowlist instead of throwing.
     expect(onToolPolicyCall).toHaveBeenCalledWith(
       expect.objectContaining({ decision: 'execute', telemetry: {} })
     );
-    // The audit record survives: no sanitizer `TypeError` misattributed to
-    // the callback.
-    expect(consoleError).not.toHaveBeenCalledWith(
-      'Failed to run tool policy callback',
-      expect.any(Error)
-    );
-    consoleError.mockRestore();
+  });
+
+  test('a never-settling policy callback cannot delay the tool result', async () => {
+    const client = await setupModernClient({
+      // The callback is not awaited, so a sink that never completes must not
+      // hold the response.
+      onToolPolicyCall: () => new Promise<void>(() => {}),
+      tools: {
+        observed: tool({
+          description: 'Observed',
+          parameters: z.object({ value: z.string() }),
+          outputSchema: z.object({ value: z.string() }),
+          policy: {
+            resolve: async () => ({
+              type: 'execute',
+              resolution: undefined,
+              telemetry,
+            }),
+          },
+          execute: async ({ value }) => ({ value }),
+        }),
+      },
+    });
+
+    const result = await client.callTool({
+      name: 'observed',
+      arguments: { value: 'ok' },
+    });
+
+    expect(result.structuredContent).toEqual({ value: 'ok' });
   });
 });

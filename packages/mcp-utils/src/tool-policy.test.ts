@@ -936,7 +936,7 @@ describe('policy schema contracts', () => {
         conforming: tool({
           description: 'Conforming',
           parameters: z.object({ value: z.string() }),
-          outputSchema: z.object({ value: z.string(), count: z.number() }),
+          outputSchema: z.object({ count: z.number(), value: z.string() }),
           policy: {
             resolve: async () => ({
               type: 'execute',

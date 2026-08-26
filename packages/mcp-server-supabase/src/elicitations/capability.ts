@@ -50,12 +50,15 @@ export function resolveElicitationAvailability(
     return { formElicitation: false, reason: 'opt_out' };
   }
 
-  const elicitation = ctx.clientCapabilities?.elicitation;
+  const elicitation: unknown = ctx.clientCapabilities?.elicitation;
   // A mode-less `elicitation: {}` predates the mode split and means every
   // mode. A declaration that names its modes must name `form`, which leaves a
-  // URL-only declaration incapable.
+  // URL-only declaration incapable. Malformed client-controlled values grant
+  // no capability.
   const declaresForm =
-    elicitation !== undefined &&
+    elicitation !== null &&
+    typeof elicitation === 'object' &&
+    !Array.isArray(elicitation) &&
     (Object.keys(elicitation).length === 0 || 'form' in elicitation);
 
   if (!declaresForm) {

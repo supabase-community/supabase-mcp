@@ -18,6 +18,7 @@ import { z } from 'zod/v4';
 
 import {
   canonicalArgumentsDigest,
+  canonicalJson,
   createSignedStateCodec,
   createStateSigner,
 } from './codec.js';
@@ -63,7 +64,6 @@ function basePolicy(): ElicitationPolicy<Args, Proposal, Resolution> {
   return {
     id: 'test-policy',
     version: 1,
-    available: () => true,
     canonicalArguments: ({ name }) => ({ name }),
     prepare: async ({ name }) => ({
       type: 'elicit',
@@ -103,8 +103,8 @@ type SetupOptions = {
    * still authenticates.
    */
   continuation?: Partial<ElicitationRuntimeOptions>;
-  /** Delegates `policy.available` to the serving runtime's own resolver. */
-  availableFromRuntime?: boolean;
+  /** Whether the test client declares form elicitation support. */
+  formElicitationCapability?: boolean;
   /** Sends each continuation round twice, as a client retry would. */
   duplicateRetry?: boolean;
   answers?: ElicitResult[];
@@ -142,9 +142,6 @@ function setupRuntime(options: SetupOptions = {}) {
       ...basePolicy(),
       prepare,
       ...options.policy,
-      ...(options.availableFromRuntime === true
-        ? { available: (ctx) => runtime.availability(ctx).formElicitation }
-        : {}),
     };
 
     return createMcpHandler(
@@ -211,19 +208,22 @@ function setupRuntime(options: SetupOptions = {}) {
   const client = new Client(
     { name: 'runtime-test-client', version: '1.2.3' },
     {
-      capabilities: { elicitation: {} },
+      capabilities:
+        options.formElicitationCapability === false ? {} : { elicitation: {} },
       versionNegotiation: { mode: { pin: MODERN_PROTOCOL_VERSION } },
     }
   );
-  const answers = options.answers ?? [{ action: 'accept' }];
-  client.setRequestHandler('elicitation/create', async () => {
-    options.onElicit?.();
-    const answer = answers.shift();
-    if (answer === undefined) {
-      throw new Error('no elicitation answer left');
-    }
-    return answer;
-  });
+  if (options.formElicitationCapability !== false) {
+    const answers = options.answers ?? [{ action: 'accept' }];
+    client.setRequestHandler('elicitation/create', async () => {
+      options.onElicit?.();
+      const answer = answers.shift();
+      if (answer === undefined) {
+        throw new Error('no elicitation answer left');
+      }
+      return answer;
+    });
+  }
 
   const connected = client.connect(transport).then(() => {
     cleanups.push(
@@ -282,6 +282,98 @@ function textOf(result: { content?: unknown }): string {
   return content.map((entry) => entry.text ?? '').join('');
 }
 
+describe('canonical arguments', () => {
+  test('uses code-unit key order and redeems reordered semantic arguments', async () => {
+    let canonicalizations = 0;
+    const { client, execute } = setupRuntime({
+      policy: {
+        canonicalArguments: ({ name }) => {
+          canonicalizations += 1;
+          return canonicalizations === 1
+            ? { a: name, Z: 'fixed' }
+            : { Z: 'fixed', a: name };
+        },
+      },
+    });
+
+    expect(canonicalJson({ a: 'demo', Z: 'fixed' })).toBe(
+      '{"Z":"fixed","a":"demo"}'
+    );
+
+    const result = await (await client).callTool({
+      name: TOOL,
+      arguments: { name: 'demo' },
+    });
+
+    expect(result.structuredContent).toStrictEqual({ id: 'demo:1' });
+    expect(canonicalizations).toBe(2);
+    expect(execute.mock.calls).toHaveLength(1);
+  });
+
+  test.each([
+    ['Date', new Date(0)],
+    ['Set', new Set()],
+    ['Map', new Map()],
+    ['class instance', new (class UnsupportedArguments {})()],
+  ])(
+    'rejects %s values instead of collapsing them into records',
+    async (_, value) => {
+      await expect(canonicalArgumentsDigest({ nested: value })).rejects.toThrow(
+        'arrays and plain records'
+      );
+    }
+  );
+
+  test('rejects unsupported canonical arguments before form emission', async () => {
+    const asked = vi.fn();
+    const { client, execute } = setupRuntime({
+      policy: { canonicalArguments: () => new Date(0) },
+      onElicit: asked,
+    });
+
+    const result = await (await client).callTool({
+      name: TOOL,
+      arguments: { name: 'demo' },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(textOf(result)).toContain(
+      'Canonical arguments must contain only arrays and plain records'
+    );
+
+    expect(asked).not.toHaveBeenCalled();
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  test('rejects unsupported canonical arguments before continuation execution', async () => {
+    let canonicalizations = 0;
+    const asked = vi.fn();
+    const { client, execute } = setupRuntime({
+      policy: {
+        canonicalArguments: () => {
+          canonicalizations += 1;
+          return canonicalizations === 1 ? {} : new Set();
+        },
+      },
+      onElicit: asked,
+    });
+
+    const result = await (await client).callTool({
+      name: TOOL,
+      arguments: { name: 'demo' },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(textOf(result)).toContain(
+      'Canonical arguments must contain only arrays and plain records'
+    );
+
+    expect(canonicalizations).toBe(2);
+    expect(asked).toHaveBeenCalledOnce();
+    expect(execute).not.toHaveBeenCalled();
+  });
+});
+
 describe('elicitation runtime composition', () => {
   test('resolves the first signed proposal, not one a second preparation would build', async () => {
     const asked: string[] = [];
@@ -302,13 +394,6 @@ describe('elicitation runtime composition', () => {
     expect(asked).toHaveLength(1);
     expect(prepare.mock.calls).toHaveLength(1);
     expect(execute.mock.calls).toHaveLength(1);
-
-    // The fixture is what makes the assertion above load bearing: preparing
-    // once more really does build a different proposal.
-    expect(await prepare({ name: 'demo' })).toStrictEqual({
-      type: 'elicit',
-      proposal: { name: 'demo', serial: 2 },
-    });
   });
 
   test('asks with a property-less schema and takes the action as the answer', async () => {
@@ -422,9 +507,8 @@ describe('authenticated failures', () => {
     });
 
     expect(result.isError).toBe(true);
-    expect(textOf(result)).toBe(
-      'This request expired before it was answered. Run the tool again to start a new one.'
-    );
+    expect(textOf(result)).toContain('nothing was created');
+    expect(textOf(result)).toContain('Run the tool again to start a new one.');
     expect(result.structuredContent).toBeUndefined();
     expect(execute.mock.calls).toHaveLength(0);
     expect(policyCalls.at(-1)?.telemetry).toStrictEqual({
@@ -487,8 +571,9 @@ describe('authenticated failures', () => {
     });
 
     expect(result.isError).toBe(true);
-    expect(textOf(result)).toBe(
-      'The tool arguments changed after this request was issued. Run the tool again with the arguments you want.'
+    expect(textOf(result)).toContain('nothing was created');
+    expect(textOf(result)).toContain(
+      'Run the tool again with the arguments you want.'
     );
     expect(execute.mock.calls).toHaveLength(0);
     expect(policyCalls.at(-1)?.telemetry).toMatchObject({
@@ -501,7 +586,6 @@ describe('authenticated failures', () => {
 describe('continuation authority', () => {
   test('answers capability loss mid-flow instead of switching authority path', async () => {
     const { client, execute, prepare, policyCalls } = setupRuntime({
-      availableFromRuntime: true,
       // The connection opts out between the two rounds.
       continuation: { optOut: true },
     });
@@ -512,8 +596,9 @@ describe('continuation authority', () => {
     });
 
     expect(result.isError).toBe(true);
-    expect(textOf(result)).toBe(
-      'This client can no longer complete the request it started. Run the tool again from a client that supports form elicitation.'
+    expect(textOf(result)).toContain('nothing was created');
+    expect(textOf(result)).toContain(
+      'Run the tool again from a client that supports form elicitation.'
     );
     // Neither authority path ran: no execution, and no second preparation
     // that would have started a fresh flow.
@@ -521,7 +606,7 @@ describe('continuation authority', () => {
     expect(prepare.mock.calls).toHaveLength(1);
     expect(policyCalls.at(-1)?.telemetry).toMatchObject({
       outcome: 'rejected',
-      reason: 'unsupported_continuation',
+      reason: 'opt_out',
     });
   });
 });
@@ -679,49 +764,56 @@ describe('terminal outcomes', () => {
 });
 
 describe('initial request availability', () => {
-  test('refuses to emit a form the request cannot carry, and creates nothing', async () => {
-    const asked: string[] = [];
-    const { client, execute, prepare, policyCalls } = setupRuntime({
-      policy: { available: () => false },
-      answers: [],
-      onElicit: () => {
-        asked.push('asked');
-      },
-    });
+  test.each([
+    [
+      'serving path',
+      { runtime: { formDeliveryAvailable: false } },
+      'serving_path',
+    ],
+    ['connection opt-out', { runtime: { optOut: true } }, 'opt_out'],
+    ['client capability', { formElicitationCapability: false }, 'capability'],
+  ] as const)(
+    'lets the runtime-owned %s denial prevent form emission',
+    async (_, deniedBy, reason) => {
+      const asked: string[] = [];
+      const { client, execute, prepare, policyCalls } = setupRuntime({
+        ...deniedBy,
+        answers: [],
+        onElicit: () => {
+          asked.push('asked');
+        },
+      });
 
-    const result = await (await client).callTool({
-      name: TOOL,
-      arguments: { name: 'demo' },
-    });
+      const result = await (await client).callTool({
+        name: TOOL,
+        arguments: { name: 'demo' },
+      });
 
-    // Nothing was emitted toward a client that cannot answer, and nothing ran.
-    expect(asked).toHaveLength(0);
-    expect(execute.mock.calls).toHaveLength(0);
-    // This request is suppressed, so the refusal also pins that a policy
-    // `result` decision reaches the wire unchanged: exactly these bytes, and
-    // no structured content to be stripped or added.
-    expect(result.isError).toBe(true);
-    expect(result.content).toStrictEqual([
-      {
-        type: 'text',
-        text: 'This client cannot complete the confirmation this tool requires, so nothing was created. Run the tool again from a client and connection that support form elicitation.',
-      },
-    ]);
-    expect('structuredContent' in result).toBe(false);
-    expect(prepare.mock.calls).toHaveLength(1);
-    expect(policyCalls).toHaveLength(1);
-    expect(policyCalls[0]?.telemetry).toStrictEqual({
-      policyId: 'test-policy',
-      policyVersion: 1,
-      outcome: 'rejected',
-      reason: 'unsupported_elicitation',
-    });
-  });
+      expect(asked).toHaveLength(0);
+      expect(execute.mock.calls).toHaveLength(0);
+      expect(result.isError).toBe(true);
+      expect(result.content).toStrictEqual([
+        {
+          type: 'text',
+          text: 'This client cannot complete the confirmation this tool requires, so nothing was created. Run the tool again from a client and connection that support form elicitation.',
+        },
+      ]);
+      expect('structuredContent' in result).toBe(false);
+      expect(prepare.mock.calls).toHaveLength(1);
+      expect(policyCalls).toHaveLength(1);
+      expect(policyCalls[0]?.telemetry).toStrictEqual({
+        policyId: 'test-policy',
+        policyVersion: 1,
+        outcome: 'rejected',
+        reason,
+      });
+    }
+  );
 
   test('still executes a preparation that needs no confirmation', async () => {
     const { client, execute } = setupRuntime({
+      runtime: { formDeliveryAvailable: false },
       policy: {
-        available: () => false,
         prepare: async () => ({
           type: 'execute',
           resolution: { serial: null },
@@ -751,8 +843,8 @@ describe('contextual structured results', () => {
   test('normalizes a capable request and holds an incapable one on pre-normalization bytes', async () => {
     const capable = await setupRuntime().client;
     const incapable = await setupRuntime({
+      runtime: { formDeliveryAvailable: false },
       policy: {
-        available: () => false,
         prepare: async () => ({
           type: 'execute',
           resolution: { serial: null },

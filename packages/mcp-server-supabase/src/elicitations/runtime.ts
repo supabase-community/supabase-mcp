@@ -37,7 +37,7 @@ import {
  */
 const RECOVERY_TEXT = {
   state_expired:
-    'This request expired before it was answered. Run the tool again to start a new one.',
+    'This request expired before it was answered, so nothing was created. Run the tool again to start a new one.',
   payload_version:
     'This request was issued by a different version of this server. Run the tool again.',
   policy_id: 'This request belongs to a different policy. Run the tool again.',
@@ -45,9 +45,9 @@ const RECOVERY_TEXT = {
     'This request was issued under a policy version this server no longer supports. Run the tool again.',
   tool: 'This request belongs to a different tool. Run the tool again.',
   arguments:
-    'The tool arguments changed after this request was issued. Run the tool again with the arguments you want.',
+    'The tool arguments changed after this request was issued, so nothing was created. Run the tool again with the arguments you want.',
   unsupported_continuation:
-    'This client can no longer complete the request it started. Run the tool again from a client that supports form elicitation.',
+    'This client can no longer complete the request it started, so nothing was created. Run the tool again from a client that supports form elicitation.',
   unsupported_elicitation:
     'This client cannot complete the confirmation this tool requires, so nothing was created. Run the tool again from a client and connection that support form elicitation.',
 } as const;
@@ -114,26 +114,31 @@ export function createElicitationRuntime(
     formDeliveryAvailable: options.formDeliveryAvailable ?? false,
     optOut: options.optOut,
   };
+  const availability = (ctx: ToolRequestContext) =>
+    resolveElicitationAvailability(ctx, servingFacts);
 
   function recover(
-    reason: RecoveryReason,
+    recoveryReason: RecoveryReason,
     // The outcome is this helper's own: every recovery is a rejection, so a
     // caller supplies only the identity the record is filed under.
-    telemetry: Omit<ToolPolicyTelemetry, 'outcome'>
+    telemetry: Omit<ToolPolicyTelemetry, 'outcome'>,
+    telemetryReason: string = recoveryReason
   ): ToolPolicyDecision<never> {
     return {
       type: 'result',
-      result: recoveryResult(RECOVERY_TEXT[reason]),
-      telemetry: { ...telemetry, outcome: 'rejected', reason },
+      result: recoveryResult(RECOVERY_TEXT[recoveryReason]),
+      telemetry: {
+        ...telemetry,
+        outcome: 'rejected',
+        reason: telemetryReason,
+      },
     };
   }
 
   return {
     requestState: { verify: state.verify },
 
-    availability(ctx) {
-      return resolveElicitationAvailability(ctx, servingFacts);
-    },
+    availability,
 
     policy<Args, Proposal, Resolution>(
       tool: string,
@@ -215,11 +220,16 @@ export function createElicitationRuntime(
         if (signed.argsDigest !== argsDigest) {
           return recover('arguments', telemetry);
         }
-        // Capability is consulted only after the state proved it belongs
-        // here, so a client that lost form support gets an actionable answer
-        // instead of a different authority path.
-        if (!policy.available(ctx)) {
-          return recover('unsupported_continuation', telemetry);
+        // Runtime availability is consulted only after the state proved it
+        // belongs here. A current denial cannot switch authority paths or
+        // discard the resolver's stable reason.
+        const currentAvailability = availability(ctx);
+        if (!currentAvailability.formElicitation) {
+          return recover(
+            'unsupported_continuation',
+            telemetry,
+            currentAvailability.reason
+          );
         }
 
         const blocked = options.gate?.(ctx);
@@ -274,11 +284,13 @@ export function createElicitationRuntime(
         // keeps the tool's pre-normalization output byte for byte instead of
         // advertising terminal variants it will never produce.
         outputSchema: (schema, ctx) =>
-          policy.available(ctx) ? withTerminalOutput(schema) : undefined,
+          availability(ctx).formElicitation
+            ? withTerminalOutput(schema)
+            : undefined,
 
         resolve: async (args, ctx) => {
-          // Signed state resolves first. Current capability cannot promote a
-          // request that carries none, and cannot demote one that does.
+          // Signed state resolves first. A request that carries it stays on
+          // the continuation path, where current availability can reject it.
           const verified =
             ctx.server.mcpReq.requestState<VerifiedContinuation>();
           const argsDigest = await state.argumentsDigest(
@@ -318,8 +330,13 @@ export function createElicitationRuntime(
           // preparation that needs no confirmation must still execute on an
           // incapable request. Only the branch that would emit a form is
           // refused, and it is refused before anything is emitted or run.
-          if (!policy.available(ctx)) {
-            return recover('unsupported_elicitation', identity);
+          const currentAvailability = availability(ctx);
+          if (!currentAvailability.formElicitation) {
+            return recover(
+              'unsupported_elicitation',
+              identity,
+              currentAvailability.reason
+            );
           }
 
           return elicit(preparation.proposal, argsDigest, ctx);

@@ -46,6 +46,25 @@ describe('form elicitation availability', () => {
     ).toStrictEqual({ formElicitation: false, reason: 'capability' });
   });
 
+  test.each([
+    ['null', null],
+    ['string', 'form'],
+    ['number', 1],
+    ['boolean', true],
+    ['array', []],
+  ])(
+    'treats a malformed %s elicitation declaration as incapable',
+    (_, elicitation) => {
+      const clientCapabilities = {
+        elicitation,
+      } as unknown as ToolRequestContext['clientCapabilities'];
+
+      expect(
+        resolveElicitationAvailability(modern(clientCapabilities), servingPath)
+      ).toStrictEqual({ formElicitation: false, reason: 'capability' });
+    }
+  );
+
   test('reports an unsupported serving path and an injected opt-out apart', () => {
     expect(
       resolveElicitationAvailability(modern({ elicitation: {} }), {

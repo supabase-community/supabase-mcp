@@ -1,5 +1,4 @@
 import type { InputResponseView } from '@modelcontextprotocol/server';
-import type { ToolRequestContext } from '@supabase/mcp-utils';
 
 /**
  * What a policy decides before anything is asked of the caller: either the
@@ -31,8 +30,6 @@ export type ElicitationPolicy<Args, Proposal, Resolution> = {
   id: string;
   /** Contract version bound into the signed state. */
   version: number;
-  /** Whether this request can carry the policy's elicitation. */
-  available(ctx: ToolRequestContext): boolean;
   /** The arguments an approval is bound to, minus incidental fields. */
   canonicalArguments(args: Args): unknown;
   prepare(args: Args): Promise<ElicitationPreparation<Proposal, Resolution>>;

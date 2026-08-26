@@ -95,10 +95,16 @@ export function canonicalJson(value: unknown): string {
   if (Array.isArray(value)) {
     return `[${value.map(canonicalJson).join(',')}]`;
   }
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null) {
+    throw new TypeError(
+      'Canonical arguments must contain only arrays and plain records'
+    );
+  }
 
   const entries = Object.entries(value as Record<string, unknown>)
     .filter(([, entry]) => entry !== undefined)
-    .sort(([left], [right]) => left.localeCompare(right));
+    .sort(([left], [right]) => (left < right ? -1 : left > right ? 1 : 0));
 
   return `{${entries
     .map(([key, entry]) => `${JSON.stringify(key)}:${canonicalJson(entry)}`)

@@ -233,6 +233,37 @@ describe('modern capable creation', () => {
     expect(result.structuredContent).toMatchObject({ name: 'develop' });
   });
 
+  test('a declined branch reports the client outcome and creates nothing', async () => {
+    const { client, calls } = await setupModern({
+      answers: [{ action: 'decline' }],
+    });
+
+    const result = await client.callTool({
+      name: 'create_branch',
+      arguments: BRANCH_ARGS,
+    });
+
+    expect(result.structuredContent).toStrictEqual({ status: 'declined' });
+    expect(textOf(result)).toContain('The client reported');
+    expect(textOf(result)).toContain('no branch was created');
+    expect(calls).not.toContain('create_branch');
+  });
+
+  test('a cancelled branch stays distinct from a declined one', async () => {
+    const { client, calls } = await setupModern({
+      answers: [{ action: 'cancel' }],
+    });
+
+    const result = await client.callTool({
+      name: 'create_branch',
+      arguments: BRANCH_ARGS,
+    });
+
+    expect(result.structuredContent).toStrictEqual({ status: 'cancelled' });
+    expect(textOf(result)).toContain('dismissed');
+    expect(calls).not.toContain('create_branch');
+  });
+
   test('a declined project reports the client outcome and creates nothing', async () => {
     const { client, calls } = await setupModern({
       answers: [{ action: 'decline' }],
@@ -460,6 +491,7 @@ describe('rolling deployment', () => {
 
     expect(result.isError).toBe(true);
     expect(textOf(result)).toContain('Run the tool again');
+    expect(textOf(result)).toContain('nothing was created');
     expect(calls).not.toContain('create_project');
     expect(result.structuredContent).toBeUndefined();
   });

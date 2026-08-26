@@ -591,7 +591,6 @@ describe('authenticated failures', () => {
   test.each([
     ['payload_version', { v: 2 }],
     ['policy_id', { policy: 'other-policy' }],
-    ['policy_version', { policyVersion: 2 }],
     ['tool', { tool: 'other_tool' }],
   ] as const)(
     'answers a %s mismatch with recovery text and creates nothing',
@@ -620,6 +619,33 @@ describe('authenticated failures', () => {
       });
     }
   );
+
+  test('state issued by policy version 2 cannot authorize version 1', async () => {
+    const replacement = await foreignState({ policyVersion: 2 });
+    const { client, execute, policyCalls } = setupRuntime({
+      transformRequest: (body) => {
+        if (typeof body.params?.requestState === 'string') {
+          body.params.requestState = replacement;
+        }
+      },
+    });
+
+    const result = await (await client).callTool({
+      name: TOOL,
+      arguments: { name: 'demo' },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(textOf(result)).toContain('nothing was created');
+    expect(textOf(result)).toContain('Run the tool again');
+    expect(result.structuredContent).toBeUndefined();
+    expect(execute.mock.calls).toHaveLength(0);
+    expect(policyCalls.at(-1)?.telemetry).toMatchObject({
+      policyVersion: 1,
+      outcome: 'rejected',
+      reason: 'policy_version',
+    });
+  });
 
   test('answers changed arguments with recovery text and creates nothing', async () => {
     const { client, execute, policyCalls } = setupRuntime({

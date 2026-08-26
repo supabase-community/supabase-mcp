@@ -42,7 +42,7 @@ const RECOVERY_TEXT = {
     'This request was issued by a different version of this server. Run the tool again.',
   policy_id: 'This request belongs to a different policy. Run the tool again.',
   policy_version:
-    'This request was issued under a policy version this server no longer supports. Run the tool again.',
+    'This request was issued under a policy version this server no longer supports, so nothing was created. Run the tool again.',
   tool: 'This request belongs to a different tool. Run the tool again.',
   arguments:
     'The tool arguments changed after this request was issued, so nothing was created. Run the tool again with the arguments you want.',

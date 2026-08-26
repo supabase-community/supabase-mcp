@@ -19,6 +19,7 @@ import {
   MCP_CLIENT_VERSION,
   MOCK_BRANCH_CREATION_RATE,
   MOCK_PROJECT_CREATION_RATE,
+  queuedProjectCreationRates,
   mockContentApiSchemaLoadCount,
   setupMockApis,
 } from '../test/mocks.js';
@@ -223,6 +224,12 @@ describe('tools', () => {
   });
 
   test('get next project cost for paid org with > 0 active projects', async () => {
+    const authoritativeRate = {
+      ...MOCK_PROJECT_CREATION_RATE,
+      amount: 37.25,
+    };
+    queuedProjectCreationRates.push(authoritativeRate);
+
     const { callTool } = await setup();
 
     const paidOrg = await createOrganization({
@@ -248,7 +255,7 @@ describe('tools', () => {
 
     expect(result).toEqual({
       type: 'project',
-      amount: MOCK_PROJECT_CREATION_RATE.amount,
+      amount: authoritativeRate.amount,
       recurrence: 'monthly',
     });
   });
@@ -284,7 +291,7 @@ describe('tools', () => {
     });
   });
 
-  test('get branch cost', async () => {
+  test('get legacy branch cost without implying an authoritative read', async () => {
     const { callTool } = await setup();
 
     const paidOrg = await createOrganization({
@@ -301,6 +308,8 @@ describe('tools', () => {
       },
     });
 
+    // The frozen input has no parent project reference. This is the legacy
+    // catalog quote, not the project-scoped authoritative branch rate.
     expect(result).toEqual({
       type: 'branch',
       amount: MOCK_BRANCH_CREATION_RATE.amount,

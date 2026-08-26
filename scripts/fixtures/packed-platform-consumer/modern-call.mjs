@@ -148,16 +148,28 @@ if (created.structuredContent?.ref !== FIXED_PROJECT.ref) {
   );
 }
 
-// The runtime, its state, its codec, and the policy stay private: a hosted
-// consumer injects dependencies and never reaches inside.
-const leaked = Object.keys(packageExports).filter((name) =>
-  /elicitation|runtime|continuation|codec|policy|interaction|replay|cost/i.test(
-    name
-  )
+// The package entry point is a value-level allowlist. Any new value export,
+// regardless of its name, is a public API change that this fixture must catch.
+const allowedValueExports = new Set([
+  'CURRENT_FEATURE_GROUPS',
+  'createSupabaseMcpHandler',
+  'createSupabaseMcpServer',
+  'createToolSchemas',
+  'supabaseMcpToolSchemas',
+  'version',
+]);
+const actualValueExports = Object.keys(packageExports);
+const unexpectedValueExports = actualValueExports.filter(
+  (name) => !allowedValueExports.has(name)
+);
+const missingValueExports = [...allowedValueExports].filter(
+  (name) => !actualValueExports.includes(name)
 );
 
-if (leaked.length > 0) {
-  throw new Error(`package entry point leaked private symbols: ${leaked}`);
+if (unexpectedValueExports.length > 0 || missingValueExports.length > 0) {
+  throw new Error(
+    `package entry point value exports changed: unexpected=${JSON.stringify(unexpectedValueExports)} missing=${JSON.stringify(missingValueExports)}`
+  );
 }
 
 await client.close();

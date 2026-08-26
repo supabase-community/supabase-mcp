@@ -19,7 +19,7 @@ const V1_OUTPUT_PATH = new URL(
 // formatter checks every JSON file it can parse and a generated artifact that
 // fails the formatter would fail CI. The documents are equal as documents:
 // their canonical JSON (keys sorted, no insignificant whitespace) hashes to
-// sha256 1b5a1548e91e81d1e6951019cd84ad2a8e193ca1fe2ef7f1578dd6a40c8ebb92 on
+// sha256 10250c8bd4c29332f10cec5556ee6b5ebc8766f39f9f763cb2e3a0d3db71d1bb on
 // both sides.
 //
 // Refresh, once `/api/v2-json` is served: copy the served document over this

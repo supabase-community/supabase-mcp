@@ -45,11 +45,10 @@ Non-trivial or multi-file PRs must fill in the reading path below. Trivial singl
 - [ ] Do failures stop safely?
 - [ ] Do tests protect observable behavior rather than implementation details?
 
+## Verification
+
+How you verified the change. Include the steps and evidence (commands, test output, screenshots). AI-assisted contributions are welcome, but a human must review and verify the output.
+
 ## Additional context
 
 Add any other context or screenshots.
-
-<!--
-AI-assisted contributions are welcome, but a human must review and verify the output.
-Include the verification steps and evidence (screenshots, test output, etc.).
--->

@@ -355,6 +355,82 @@ export type McpServerOptions = {
 };
 
 /**
+ * Whether a value is a plain object, which is what MCP permits at the root of
+ * structured output.
+ *
+ * Prototype-exact on purpose. A `Date` or anything else carrying `toJSON`
+ * serializes to a non-object root, and a `Map` or `Set` serializes to `{}`,
+ * silently dropping its contents. Both would defeat a root check that only
+ * asked `typeof`. The cost is that a class instance is rejected even though
+ * it serializes to its own fields: this seam advertises a data shape, so a
+ * tool that wants to emit one returns the data.
+ */
+function isPlainObject(value: unknown): value is Record<string, unknown> {
+  if (typeof value !== 'object' || value === null) {
+    return false;
+  }
+
+  const prototype = Object.getPrototypeOf(value);
+
+  return prototype === Object.prototype || prototype === null;
+}
+
+/** Names a non-plain-object value in an error a tool author can act on. */
+function describeNonPlainObject(value: unknown): string {
+  if (value === null) {
+    return 'null';
+  }
+
+  if (Array.isArray(value)) {
+    return 'an array';
+  }
+
+  if (typeof value !== 'object') {
+    return typeof value;
+  }
+
+  return `an instance of ${value.constructor?.name ?? 'an anonymous class'}`;
+}
+
+/**
+ * JSON-value equality, not a general-purpose deep equal.
+ *
+ * It only has to hold for values that are JSON-serializable, which
+ * `structuredContent` is by contract: object keys compare order-insensitively,
+ * array elements order-sensitively, and everything else by identity. It knows
+ * nothing about `Date`, `Map`, cycles or `NaN`, none of which can appear here,
+ * because the plain-object check runs first and rejects the containers that
+ * could carry them at the root.
+ */
+function jsonValueEquals(a: unknown, b: unknown): boolean {
+  if (a === b) {
+    return true;
+  }
+
+  if (Array.isArray(a) || Array.isArray(b)) {
+    return (
+      Array.isArray(a) &&
+      Array.isArray(b) &&
+      a.length === b.length &&
+      a.every((element, index) => jsonValueEquals(element, b[index]))
+    );
+  }
+
+  if (!isPlainObject(a) || !isPlainObject(b)) {
+    return false;
+  }
+
+  const keys = Object.keys(a);
+
+  return (
+    keys.length === Object.keys(b).length &&
+    keys.every(
+      (key) => Object.hasOwn(b, key) && jsonValueEquals(a[key], b[key])
+    )
+  );
+}
+
+/**
  * The result shape one request gets. Discovery and the call path resolve this
  * once per request from the same function, so they always agree.
  */
@@ -854,17 +930,13 @@ export function createMcpServer(options: McpServerOptions) {
 
         // This request advertised a schema, so it owes the caller output that
         // conforms to it. Two independent checks, because neither implies the
-        // other: `outputSchema` hooks may resolve a non-object schema, under
-        // which `null` or a scalar parses successfully but is still output MCP
-        // does not permit at the root.
-        if (
-          typeof result !== 'object' ||
-          result === null ||
-          Array.isArray(result)
-        ) {
+        // other: `outputSchema` hooks may resolve a permissive schema, under
+        // which `null`, a scalar or a `Date` parses successfully and is still
+        // output MCP does not permit at the root.
+        if (!isPlainObject(result)) {
           throw new Error(
             `Tool "${toolName}" advertised an output schema but produced ` +
-              `${result === null ? 'null' : Array.isArray(result) ? 'an array' : typeof result}. ` +
+              `${describeNonPlainObject(result)}. ` +
               'Structured output must be a plain object.'
           );
         }
@@ -884,7 +956,24 @@ export function createMcpServer(options: McpServerOptions) {
           );
         }
 
-        const structuredContent = result as Record<string, unknown>;
+        // A successful parse is not yet agreement. A zod object strips
+        // undeclared keys and coercions rewrite values, both while reporting
+        // success, and the advertised JSON for those same schemas says
+        // `additionalProperties: false`. So require the schema to have
+        // accepted the result as-is: anything it had to change is mismatched
+        // output, answered rather than silently normalized away.
+        if (!jsonValueEquals(parsed.data, result)) {
+          throw new Error(
+            `Tool "${toolName}" produced output its advertised output schema ` +
+              'did not accept as-is: the schema stripped or coerced fields. ' +
+              'Return exactly the advertised shape, and do not advertise a ' +
+              'transforming or coercing schema.'
+          );
+        }
+
+        // Equal to `parsed.data`, so emitting the business result keeps A1's
+        // "structuredContent equals the business result" literally true.
+        const structuredContent = result;
         const text = tool.formatResult
           ? tool.formatResult(structuredContent)
           : JSON.stringify(structuredContent);

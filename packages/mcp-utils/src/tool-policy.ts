@@ -129,9 +129,12 @@ export type ToolPolicy<Params, Resolution> = {
    *
    * The author owes two things on a normalized request: the resolved schema
    * must be object-rooted, because MCP restricts structured output to an
-   * object root, and `execute`'s output must conform to it. mcp-utils checks
-   * both and answers `isError` rather than emitting output that contradicts
-   * what the request advertised.
+   * object root, and `execute`'s output must conform to it as-is. mcp-utils
+   * checks both and answers `isError` rather than emitting output that
+   * contradicts what the request advertised. Conformance is identity, so a
+   * transforming, coercing or stripping schema is unsupported by
+   * construction: it would diverge from the business result on every call
+   * and therefore always error.
    *
    * A resolved schema that is not object-rooted fails the entire discovery
    * response, by design: it is an authoring error, not a runtime condition,

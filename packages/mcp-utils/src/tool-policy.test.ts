@@ -890,4 +890,110 @@ describe('policy schema contracts', () => {
     // behind a healthy neighbour entry.
     await expect(client.listTools()).rejects.toThrow(/broken/);
   });
+
+  test('output the advertised schema only accepts after stripping fails closed', async () => {
+    const client = await setupModernClient({
+      tools: {
+        leaky: tool({
+          description: 'Leaky',
+          parameters: z.object({ value: z.string() }),
+          outputSchema: z.object({ value: z.string() }),
+          policy: {
+            resolve: async () => ({
+              type: 'execute',
+              resolution: undefined,
+              telemetry,
+            }),
+          },
+          // A zod object strips undeclared keys and still reports success,
+          // while the advertised JSON for that same schema says
+          // `additionalProperties: false`. The extra key is mismatched
+          // output, so it must be answered, not quietly removed.
+          execute: async ({ value }) =>
+            ({ value, extra: 'unadvertised' }) as unknown as {
+              value: string;
+            },
+        }),
+      },
+    });
+
+    const result = await client.callTool({
+      name: 'leaky',
+      arguments: { value: 'ok' },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(result.structuredContent).toBeUndefined();
+    expect(result.content).toEqual([
+      { type: 'text', text: expect.stringContaining('did not accept') },
+    ]);
+  });
+
+  test('a conforming result is emitted exactly as execute returned it', async () => {
+    const businessResult = { value: 'ok', count: 2 };
+    const client = await setupModernClient({
+      tools: {
+        conforming: tool({
+          description: 'Conforming',
+          parameters: z.object({ value: z.string() }),
+          outputSchema: z.object({ value: z.string(), count: z.number() }),
+          policy: {
+            resolve: async () => ({
+              type: 'execute',
+              resolution: undefined,
+              telemetry,
+            }),
+          },
+          execute: async () => businessResult,
+        }),
+      },
+    });
+
+    const result = await client.callTool({
+      name: 'conforming',
+      arguments: { value: 'ok' },
+    });
+
+    // The validation lane must be byte-transparent for a conforming result:
+    // same keys, same order, same single-encoded text.
+    expect(result.isError).not.toBe(true);
+    expect(JSON.stringify(result.structuredContent)).toBe(
+      JSON.stringify(businessResult)
+    );
+    expect(result.content).toEqual([
+      { type: 'text', text: JSON.stringify(businessResult) },
+    ]);
+  });
+
+  test('a non-plain object on a normalized request fails closed', async () => {
+    const client = await setupModernClient({
+      tools: {
+        dated: tool({
+          description: 'Dated',
+          parameters: z.object({ value: z.string() }),
+          outputSchema: z.object({ value: z.string() }),
+          policy: {
+            // A permissive resolved schema is what makes this reachable: a
+            // `Date` parses here and then serializes to a JSON string, so
+            // the advertised object root would be contradicted on the wire.
+            outputSchema: () => z.unknown() as unknown as z.ZodType,
+            resolve: async () => ({
+              type: 'execute',
+              resolution: undefined,
+              telemetry,
+            }),
+          },
+          execute: async () => new Date(0) as unknown as { value: string },
+        }),
+      },
+    });
+
+    const result = await client.callTool({
+      name: 'dated',
+      arguments: { value: 'ok' },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(result.structuredContent).toBeUndefined();
+  });
 });

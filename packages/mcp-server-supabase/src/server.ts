@@ -67,7 +67,9 @@ export type SupabaseElicitationOptions = {
    * confirmation is redeemable once the gate reopens. Tools without a cost
    * policy never reach it.
    */
-  gate?: (ctx: ToolRequestContext) => CallToolResult | null;
+  gate?: (
+    ctx: ToolRequestContext
+  ) => (CallToolResult & { isError: true }) | null;
 };
 
 const { version } = packageJson;

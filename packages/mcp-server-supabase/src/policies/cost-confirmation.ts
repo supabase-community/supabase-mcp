@@ -245,8 +245,6 @@ export function createCreationOutcomeText(
 
 export type CostConfirmationPolicyOptions<Args> = {
   action: CostConfirmationSubject['action'];
-  /** Whether this request can carry the confirmation at all. */
-  available(ctx: ToolRequestContext): boolean;
   /** Business arguments the approval binds to, without the legacy token. */
   canonicalArguments(args: Args): unknown;
   /** What the caller is being asked about. */
@@ -273,7 +271,6 @@ export function createCostConfirmationPolicy<Args>(
   return {
     id: COST_CONFIRMATION_POLICY_ID,
     version: POLICY_VERSION,
-    available: options.available,
     canonicalArguments: options.canonicalArguments,
 
     async prepare(

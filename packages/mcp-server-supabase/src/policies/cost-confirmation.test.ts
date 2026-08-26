@@ -32,7 +32,6 @@ function policyFor(rate: CreationRate) {
   const readRate = vi.fn(async () => rate);
   const options: CostConfirmationPolicyOptions<Args> = {
     action: 'create_project',
-    available: () => true,
     canonicalArguments: ({ name, organization_id }) => ({
       name,
       organization_id,
@@ -51,7 +50,6 @@ function policyFor(rate: CreationRate) {
 function onlyRequest(proposal: CostConfirmationProposal) {
   const requests = createCostConfirmationPolicy<Args>({
     action: proposal.action,
-    available: () => true,
     canonicalArguments: (args) => args,
     subject: () => ({
       resourceName: proposal.resourceName,

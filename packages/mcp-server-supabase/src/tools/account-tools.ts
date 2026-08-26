@@ -251,7 +251,6 @@ export function getAccountTools({
         'create_project',
         createCostConfirmationPolicy<z.infer<typeof createProjectInputSchema>>({
           action: 'create_project',
-          available: capable,
           // The legacy token is deliberately absent: an approval binds to the
           // project that was proposed, never to a token from the other lane.
           canonicalArguments: ({ name, region, organization_id }) => ({

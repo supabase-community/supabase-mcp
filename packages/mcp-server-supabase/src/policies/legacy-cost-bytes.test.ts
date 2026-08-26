@@ -165,7 +165,6 @@ async function setupLegacyClient() {
           'create_project',
           createCostConfirmationPolicy<CreateProjectArgs>({
             action: 'create_project',
-            available: capable,
             canonicalArguments: ({ name, region, organization_id }) => ({
               name,
               region,
@@ -188,7 +187,6 @@ async function setupLegacyClient() {
           'create_branch',
           createCostConfirmationPolicy<CreateBranchArgs>({
             action: 'create_branch',
-            available: capable,
             canonicalArguments: ({ project_id, name }) => ({
               project_id,
               name,

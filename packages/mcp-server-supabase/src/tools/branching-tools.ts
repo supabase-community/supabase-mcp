@@ -182,7 +182,6 @@ export function getBranchingTools({
         'create_branch',
         createCostConfirmationPolicy<z.infer<typeof createBranchInputSchema>>({
           action: 'create_branch',
-          available: capable,
           canonicalArguments: ({ project_id, name }) => ({ project_id, name }),
           subject: ({ project_id, name }) => ({
             resourceName: name,

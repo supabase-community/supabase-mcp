@@ -187,8 +187,8 @@ describe('continuation state', () => {
     ).rejects.toThrow('bind');
   });
 
-  test('classifies an elapsed lifetime as expired and keeps the Interaction ID', async () => {
-    let now = 1_700_000_000_000;
+  test('expires at the fixed 120 second maximum between whole-second boundaries', async () => {
+    let now = 1_700_000_000_500;
     const state = createContinuationState({
       actorId: ACTOR_ID,
       stateKey: STATE_KEY,
@@ -196,7 +196,7 @@ describe('continuation state', () => {
     });
 
     const minted = await state.mint(claims, context());
-    now += 121_000;
+    now += 120_000;
     const verified = await state.verify(minted.requestState, context());
 
     expect(verified).toStrictEqual({

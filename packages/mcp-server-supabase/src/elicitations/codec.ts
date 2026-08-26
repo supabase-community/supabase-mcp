@@ -251,7 +251,7 @@ export function createSignedStateCodec<T extends ExpiringPayload>(options: {
 
       // Authenticate first, classify second: an elapsed lifetime is a fact
       // about a value this server signed, so the caller can recover from it.
-      if (envelope.exp < Math.floor(clock() / 1_000)) {
+      if (envelope.exp <= Math.floor(clock() / 1_000)) {
         return { kind: 'expired', payload };
       }
 

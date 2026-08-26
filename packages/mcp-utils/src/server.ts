@@ -84,6 +84,9 @@ export type Tool<
   /**
    * Renders the tool result as MCP text content.
    *
+   * It receives a copy of the emitted structured content, so mutating the
+   * argument does not reach the wire. Only the returned string does.
+   *
    * Defaults to `JSON.stringify`, which keeps the text content a
    * single-encoded rendering of the business result. Setting it never
    * changes discovery bytes and never decides whether `structuredContent`
@@ -992,9 +995,18 @@ export function createMcpServer(options: McpServerOptions) {
         // result" stays true on the wire. A result whose accessors diverge
         // across reads now either fails the equality walk or ships the
         // validated snapshot, never bytes no check has seen.
+        //
+        // The formatter renders text only, so it gets its own copy of that
+        // snapshot: a formatter that writes to its argument mutates a value
+        // thrown away here, never the emitted object.
         const structuredContent = roundTripped as Record<string, unknown>;
         const text = tool.formatResult
-          ? tool.formatResult(structuredContent)
+          ? tool.formatResult(
+              JSON.parse(JSON.stringify(structuredContent)) as Record<
+                string,
+                unknown
+              >
+            )
           : JSON.stringify(structuredContent);
 
         return {

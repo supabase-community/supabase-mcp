@@ -1146,6 +1146,46 @@ describe('policy schema contracts', () => {
     ]);
   });
 
+  test('a formatter that mutates its argument cannot reach the wire', async () => {
+    // `formatResult` renders text only. It is handed a copy of the emitted
+    // snapshot, so a formatter that writes to its argument changes something
+    // thrown away rather than the bytes the checks above ran on.
+    const businessResult = { tier: 'validated' };
+    const client = await setupModernClient({
+      tools: {
+        mutating: tool({
+          description: 'Mutating',
+          parameters: z.object({ value: z.string() }),
+          outputSchema: z.object({ tier: z.string() }),
+          policy: {
+            resolve: async () => ({
+              type: 'execute',
+              resolution: undefined,
+              telemetry,
+            }),
+          },
+          execute: async () => businessResult,
+          formatResult: (result) => {
+            const rendered = JSON.stringify(result);
+            result.tier = 'MUTATED';
+            return rendered;
+          },
+        }),
+      },
+    });
+
+    const result = await client.callTool({
+      name: 'mutating',
+      arguments: { value: 'ok' },
+    });
+
+    expect(result.isError).not.toBe(true);
+    expect(result.structuredContent).toEqual({ tier: 'validated' });
+    expect(result.content).toEqual([
+      { type: 'text', text: JSON.stringify({ tier: 'validated' }) },
+    ]);
+  });
+
   test('an accessor that diverges during validation fails closed', async () => {
     // The same construct, diverging one read earlier: the equality walk reads
     // a value the snapshot never carried, so the two checks disagree and the

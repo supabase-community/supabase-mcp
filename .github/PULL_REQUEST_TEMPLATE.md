@@ -1,10 +1,14 @@
-## What
+## What kind of change does this PR introduce?
 
-<!-- What does this PR change? One or two sentences. -->
+Bug fix, feature, docs update, ...
 
-## Why
+## What is the current behavior?
 
-<!-- Why is this change needed? Link the accepted issue. -->
+Please link any relevant issues here.
+
+## What is the new behavior?
+
+Feel free to include screenshots if it includes visual changes.
 
 ## How to Review
 
@@ -41,7 +45,9 @@ Non-trivial or multi-file PRs must fill in the reading path below. Trivial singl
 - [ ] Do failures stop safely?
 - [ ] Do tests protect observable behavior rather than implementation details?
 
-## Verification
+## Additional context
+
+Add any other context or screenshots.
 
 <!--
 AI-assisted contributions are welcome, but a human must review and verify the output.

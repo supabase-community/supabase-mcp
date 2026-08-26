@@ -397,16 +397,18 @@ function resolveResultShape(
  * Resolves the input schema one request advertises and enforces.
  *
  * `tools/list` and `tools/call` both resolve it here, from the same hook
- * call, so they start from the same schema. The call path then applies
- * `.strict()` before parsing, which discovery does not: a hook returning a
- * loose or catchall object advertises keys that parsing rejects. A hook
- * should return the exact schema it wants enforced.
+ * call and in the same strict form, so the advertised schema and the schema
+ * strict parsing enforces cannot disagree. A hook returning a loose or
+ * catchall object still advertises and rejects unknown keys: strictness at
+ * this seam belongs to the server, not to the policy.
  */
 function resolveParameters(
   tool: Tool<any, any, any>,
   ctx: ToolRequestContext
 ): z.ZodObject<any> {
-  return tool.policy?.inputSchema?.(tool.parameters, ctx) ?? tool.parameters;
+  return (
+    tool.policy?.inputSchema?.(tool.parameters, ctx) ?? tool.parameters
+  ).strict();
 }
 
 /**
@@ -706,9 +708,10 @@ export function createMcpServer(options: McpServerOptions) {
         const normalizedArguments = tool.policy?.normalizeArguments
           ? tool.policy.normalizeArguments(rawArguments, context)
           : rawArguments;
-        const args = resolveParameters(tool, context)
-          .strict()
-          .parse(normalizedArguments) as Record<string, unknown>;
+        // Already strict, and the exact schema discovery advertised.
+        const args = resolveParameters(tool, context).parse(
+          normalizedArguments
+        ) as Record<string, unknown>;
 
         // Resolved once per request, before the policy runs, so the hook
         // cannot observe anything `resolve` changed and discovery and the

@@ -727,3 +727,42 @@ describe('pre-execution tool policy', () => {
     expect(result.structuredContent).toEqual({ value: 'ok' });
   });
 });
+
+describe('policy schema contracts', () => {
+  test('a loose input schema hook advertises the strict schema parsing enforces', async () => {
+    const client = await setupModernClient({
+      tools: {
+        open: tool({
+          description: 'Open',
+          parameters: z.object({ value: z.string() }),
+          outputSchema: z.object({ value: z.string() }),
+          policy: {
+            // A hook is free to hand back a loose or catchall object. The
+            // call path parses strictly either way, so discovery must not
+            // advertise unknown keys as acceptable.
+            inputSchema: (schema) => schema.loose(),
+            resolve: async () => ({
+              type: 'execute',
+              resolution: undefined,
+              telemetry,
+            }),
+          },
+          execute: async ({ value }) => ({ value }),
+        }),
+      },
+    });
+
+    const discovery = await client.listTools();
+
+    expect(discovery.tools[0]?.inputSchema).toMatchObject({
+      additionalProperties: false,
+    });
+
+    const result = await client.callTool({
+      name: 'open',
+      arguments: { value: 'ok', extra: 'rejected' },
+    });
+
+    expect(result.isError).toBe(true);
+  });
+});

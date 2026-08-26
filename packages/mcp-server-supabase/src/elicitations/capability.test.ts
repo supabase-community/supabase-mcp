@@ -34,6 +34,22 @@ describe('form elicitation availability', () => {
     ).toStrictEqual({ formElicitation: true, reason: 'available' });
   });
 
+  test.each([
+    ['null', null],
+    ['array', []],
+    ['string', 'form'],
+    ['number', 1],
+    ['boolean', true],
+  ])('treats a malformed nested form %s as incapable', (_, form) => {
+    const clientCapabilities = {
+      elicitation: { form },
+    } as unknown as ToolRequestContext['clientCapabilities'];
+
+    expect(
+      resolveElicitationAvailability(modern(clientCapabilities), servingPath)
+    ).toStrictEqual({ formElicitation: false, reason: 'capability' });
+  });
+
   test('treats URL-only and absent declarations as incapable', () => {
     expect(
       resolveElicitationAvailability(

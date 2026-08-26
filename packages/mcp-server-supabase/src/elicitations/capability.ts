@@ -52,14 +52,23 @@ export function resolveElicitationAvailability(
 
   const elicitation: unknown = ctx.clientCapabilities?.elicitation;
   // A mode-less `elicitation: {}` predates the mode split and means every
-  // mode. A declaration that names its modes must name `form`, which leaves a
-  // URL-only declaration incapable. Malformed client-controlled values grant
-  // no capability.
-  const declaresForm =
+  // mode. A declaration that names its modes must name a valid object-valued
+  // `form`, which leaves URL-only and malformed declarations incapable.
+  const isModeDeclaration =
     elicitation !== null &&
     typeof elicitation === 'object' &&
-    !Array.isArray(elicitation) &&
-    (Object.keys(elicitation).length === 0 || 'form' in elicitation);
+    !Array.isArray(elicitation);
+  const modes = isModeDeclaration
+    ? (elicitation as Record<string, unknown>)
+    : undefined;
+  const form = modes?.form;
+  const declaresForm =
+    modes !== undefined &&
+    (Object.keys(modes).length === 0 ||
+      ('form' in modes &&
+        form !== null &&
+        typeof form === 'object' &&
+        !Array.isArray(form)));
 
   if (!declaresForm) {
     return { formElicitation: false, reason: 'capability' };

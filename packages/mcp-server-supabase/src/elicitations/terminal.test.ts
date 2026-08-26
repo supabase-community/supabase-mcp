@@ -12,6 +12,11 @@ const businessSchema = z.object({
   status: z.literal('created'),
 });
 
+const overlappingBusinessSchema = z.object({
+  id: z.string(),
+  status: z.enum(['created', 'declined', 'cancelled']),
+});
+
 describe('elicitation output widening', () => {
   test('keeps business output and adds the two terminal variants', () => {
     const outputSchema = withTerminalOutput(businessSchema);
@@ -26,6 +31,19 @@ describe('elicitation output widening', () => {
       status: 'cancelled',
     });
   });
+
+  test.each(['declined', 'cancelled'] as const)(
+    'keeps complete business output whose status is %s',
+    (status) => {
+      const outputSchema = withTerminalOutput(overlappingBusinessSchema);
+
+      expect(outputSchema.parse({ id: 'project-1', status })).toStrictEqual({
+        id: 'project-1',
+        status,
+      });
+      expect(outputSchema.parse({ status })).toStrictEqual({ status });
+    }
+  );
 
   test('advertises an object root MCP structured output accepts', () => {
     const jsonSchema = z.toJSONSchema(withTerminalOutput(businessSchema), {

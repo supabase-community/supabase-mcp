@@ -84,6 +84,10 @@ function constantTimeEqual(left: string, right: string): boolean {
  * whatever order they arrived in.
  */
 export function canonicalJson(value: unknown): string {
+  if (typeof value === 'number' && !Number.isFinite(value)) {
+    throw new TypeError('Canonical arguments must contain only finite numbers');
+  }
+
   if (value === null || typeof value !== 'object') {
     const encoded = JSON.stringify(value);
     if (encoded === undefined) {
@@ -93,7 +97,16 @@ export function canonicalJson(value: unknown): string {
   }
 
   if (Array.isArray(value)) {
-    return `[${value.map(canonicalJson).join(',')}]`;
+    const entries: string[] = [];
+    for (let index = 0; index < value.length; index += 1) {
+      if (!Object.hasOwn(value, index)) {
+        throw new TypeError(
+          'Canonical arguments must contain only dense arrays'
+        );
+      }
+      entries.push(canonicalJson(value[index]));
+    }
+    return `[${entries.join(',')}]`;
   }
   const prototype = Object.getPrototypeOf(value);
   if (prototype !== Object.prototype && prototype !== null) {

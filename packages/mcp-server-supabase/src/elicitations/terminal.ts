@@ -53,6 +53,13 @@ export function withTerminalOutput<Schema extends z.ZodObject<any>>(
   });
 
   return root.superRefine((value, ctx) => {
+    const business = schema.safeParse(value);
+    if (business.success) {
+      // The original schema owns complete business output. A terminal word in
+      // its status field does not turn that valid value into a terminal result.
+      return;
+    }
+
     const record = value as Record<string, unknown>;
     const terminal = elicitationTerminalStatusSchema.safeParse(record.status);
 
@@ -71,12 +78,8 @@ export function withTerminalOutput<Schema extends z.ZodObject<any>>(
       return;
     }
 
-    const business = schema.safeParse(value);
-
-    if (!business.success) {
-      for (const issue of business.error.issues) {
-        ctx.addIssue({ ...issue });
-      }
+    for (const issue of business.error.issues) {
+      ctx.addIssue({ ...issue });
     }
   });
 }

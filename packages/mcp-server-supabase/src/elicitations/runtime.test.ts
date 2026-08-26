@@ -12,6 +12,7 @@ import {
   createMcpServer,
   tool,
   type McpServerOptions,
+  type ToolRequestContext,
 } from '@supabase/mcp-utils';
 import { afterEach, describe, expect, test, vi } from 'vitest';
 import { z } from 'zod/v4';
@@ -323,6 +324,73 @@ describe('canonical arguments', () => {
       );
     }
   );
+
+  test('rejects sparse arrays instead of treating holes as omitted values', async () => {
+    await expect(canonicalArgumentsDigest(Array(1))).rejects.toThrow(
+      'dense arrays'
+    );
+  });
+
+  test.each([Number.NaN, Number.POSITIVE_INFINITY, Number.NEGATIVE_INFINITY])(
+    'rejects the non-finite number %s',
+    async (value) => {
+      await expect(canonicalArgumentsDigest(value)).rejects.toThrow(
+        'finite numbers'
+      );
+    }
+  );
+
+  test('preserves the supported JSON value domain', () => {
+    expect(
+      canonicalJson({
+        array: [null, 'text', true, false, 0, 1.5],
+        record: {},
+      })
+    ).toBe('{"array":[null,"text",true,false,0,1.5],"record":{}}');
+  });
+
+  test('rejects a sparse canonical array before form emission', async () => {
+    const asked = vi.fn();
+    const { client, execute } = setupRuntime({
+      policy: { canonicalArguments: () => Array(1) },
+      onElicit: asked,
+    });
+
+    const result = await (await client).callTool({
+      name: TOOL,
+      arguments: { name: 'demo' },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(textOf(result)).toContain('dense arrays');
+    expect(asked).not.toHaveBeenCalled();
+    expect(execute).not.toHaveBeenCalled();
+  });
+
+  test('rejects a non-finite canonical number before continuation execution', async () => {
+    let canonicalizations = 0;
+    const asked = vi.fn();
+    const { client, execute } = setupRuntime({
+      policy: {
+        canonicalArguments: () => {
+          canonicalizations += 1;
+          return canonicalizations === 1 ? 1 : Number.NaN;
+        },
+      },
+      onElicit: asked,
+    });
+
+    const result = await (await client).callTool({
+      name: TOOL,
+      arguments: { name: 'demo' },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(textOf(result)).toContain('finite numbers');
+    expect(canonicalizations).toBe(2);
+    expect(asked).toHaveBeenCalledOnce();
+    expect(execute).not.toHaveBeenCalled();
+  });
 
   test('rejects unsupported canonical arguments before form emission', async () => {
     const asked = vi.fn();
@@ -809,6 +877,55 @@ describe('initial request availability', () => {
       });
     }
   );
+
+  test('rejects a malformed nested form through the runtime with stable telemetry', async () => {
+    const base = basePolicy();
+    const prepare = vi.fn(base.prepare);
+    const inputRequests = vi.fn(base.inputRequests);
+    const runtime = createElicitationRuntime({
+      actorId: ACTOR_ID,
+      stateKey: STATE_KEY,
+      formDeliveryAvailable: true,
+    });
+    const guarded = runtime.policy(TOOL, {
+      ...base,
+      prepare,
+      inputRequests,
+    });
+    const ctx = {
+      server: {
+        mcpReq: { requestState: () => undefined },
+      } as unknown as ServerContext,
+      era: 'modern',
+      clientInfo: { name: 'runtime-test-client', version: '1.2.3' },
+      clientCapabilities: {
+        elicitation: { form: null },
+      } as unknown as ToolRequestContext['clientCapabilities'],
+    } satisfies ToolRequestContext;
+
+    const decision = await guarded.resolve({ name: 'demo' }, ctx);
+
+    expect(decision.type).toBe('result');
+    expect(decision.telemetry).toStrictEqual({
+      policyId: 'test-policy',
+      policyVersion: 1,
+      outcome: 'rejected',
+      reason: 'capability',
+    });
+    expect(prepare).toHaveBeenCalledOnce();
+    expect(inputRequests).not.toHaveBeenCalled();
+    if (decision.type !== 'result') {
+      throw new Error('Expected runtime capability rejection');
+    }
+    expect(decision.result.isError).toBe(true);
+    expect(decision.result.content).toStrictEqual([
+      {
+        type: 'text',
+        text: 'This client cannot complete the confirmation this tool requires, so nothing was created. Run the tool again from a client and connection that support form elicitation.',
+      },
+    ]);
+    expect('structuredContent' in decision.result).toBe(false);
+  });
 
   test('still executes a preparation that needs no confirmation', async () => {
     const { client, execute } = setupRuntime({

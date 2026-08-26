@@ -996,4 +996,111 @@ describe('policy schema contracts', () => {
     expect(result.isError).toBe(true);
     expect(result.structuredContent).toBeUndefined();
   });
+
+  test('a Map under a permissive output leaf fails closed', async () => {
+    const client = await setupModernClient({
+      tools: {
+        mapping: tool({
+          description: 'Mapping',
+          parameters: z.object({ value: z.string() }),
+          // A permissive leaf advertises `{}` and parses any value by
+          // identity, so the root plain-object check never sees the `Map`.
+          // JSON serializes it to `{}`, silently dropping its contents.
+          outputSchema: z.object({ value: z.unknown() }),
+          policy: {
+            resolve: async () => ({
+              type: 'execute',
+              resolution: undefined,
+              telemetry,
+            }),
+          },
+          execute: async () =>
+            ({ value: new Map([['a', 1]]) }) as unknown as { value: unknown },
+        }),
+      },
+    });
+
+    const result = await client.callTool({
+      name: 'mapping',
+      arguments: { value: 'ok' },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(result.structuredContent).toBeUndefined();
+  });
+
+  test('an own `toJSON` property that replaces the root fails closed', async () => {
+    const client = await setupModernClient({
+      tools: {
+        hijacking: tool({
+          description: 'Hijacking',
+          parameters: z.object({ value: z.string() }),
+          outputSchema: z.object({ value: z.string() }),
+          policy: {
+            // Loose keeps the extra key from being stripped, which is what
+            // isolates the hazard: `toJSON` is an own data property, so the
+            // prototype-exact root check passes it, and serialization then
+            // replaces the whole object with a string.
+            outputSchema: (schema) => schema.loose(),
+            resolve: async () => ({
+              type: 'execute',
+              resolution: undefined,
+              telemetry,
+            }),
+          },
+          execute: async ({ value }) =>
+            ({ value, toJSON: () => 'hijacked' }) as unknown as {
+              value: string;
+            },
+        }),
+      },
+    });
+
+    const result = await client.callTool({
+      name: 'hijacking',
+      arguments: { value: 'ok' },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(result.structuredContent).toBeUndefined();
+  });
+
+  test('a loose output schema passes conforming extra keys through', async () => {
+    const businessResult = { value: 'ok', extra: 1 };
+    const client = await setupModernClient({
+      tools: {
+        spacious: tool({
+          description: 'Spacious',
+          parameters: z.object({ value: z.string() }),
+          outputSchema: z.object({ value: z.string() }),
+          policy: {
+            // The documented escape hatch: a tool that owes callers more
+            // than it can declare advertises `additionalProperties: {}` and
+            // keeps emitting the undeclared keys.
+            outputSchema: (schema) => schema.loose(),
+            resolve: async () => ({
+              type: 'execute',
+              resolution: undefined,
+              telemetry,
+            }),
+          },
+          execute: async () => businessResult as unknown as { value: string },
+        }),
+      },
+    });
+
+    const discovery = await client.listTools();
+
+    expect(discovery.tools[0]?.outputSchema).toMatchObject({
+      additionalProperties: {},
+    });
+
+    const result = await client.callTool({
+      name: 'spacious',
+      arguments: { value: 'ok' },
+    });
+
+    expect(result.isError).not.toBe(true);
+    expect(result.structuredContent).toEqual(businessResult);
+  });
 });

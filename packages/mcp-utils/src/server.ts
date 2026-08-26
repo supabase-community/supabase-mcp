@@ -395,12 +395,14 @@ function describeNonPlainObject(value: unknown): string {
 /**
  * JSON-value equality, not a general-purpose deep equal.
  *
- * It only has to hold for values that are JSON-serializable, which
- * `structuredContent` is by contract: object keys compare order-insensitively,
- * array elements order-sensitively, and everything else by identity. It knows
- * nothing about `Date`, `Map`, cycles or `NaN`, none of which can appear here,
- * because the plain-object check runs first and rejects the containers that
- * could carry them at the root.
+ * Object keys compare order-insensitively, array elements order-sensitively,
+ * and everything else by identity. It knows nothing about `Date`, `Map`,
+ * cycles or `NaN`, and it does not need to: the sole caller compares a value
+ * that survived a JSON round trip against the raw result, so anything JSON
+ * cannot represent faithfully has already become something else by the time
+ * it arrives here and simply compares unequal. Divergence is what rejects a
+ * non-JSON value, not a precondition. Only the root is checked for
+ * plain-objectness before the walk, so arbitrary values do reach it.
  */
 function jsonValueEquals(a: unknown, b: unknown): boolean {
   if (a === b) {
@@ -941,7 +943,14 @@ export function createMcpServer(options: McpServerOptions) {
           );
         }
 
-        const parsed = shape.outputSchema.safeParse(result);
+        // Compare and validate what the wire will actually carry. A
+        // permissive leaf (`z.any()`, `z.unknown()`) hands its input straight
+        // back, so parsing the raw result would let a `Map`, `Date` or
+        // `Infinity` one level down pass by identity and then be mangled by
+        // serialization. The round trip makes any such value diverge from the
+        // raw result below, or fail this parse outright.
+        const roundTripped = JSON.parse(JSON.stringify(result)) as unknown;
+        const parsed = shape.outputSchema.safeParse(roundTripped);
 
         if (!parsed.success) {
           throw new Error(
@@ -960,14 +969,16 @@ export function createMcpServer(options: McpServerOptions) {
         // undeclared keys and coercions rewrite values, both while reporting
         // success, and the advertised JSON for those same schemas says
         // `additionalProperties: false`. So require the schema to have
-        // accepted the result as-is: anything it had to change is mismatched
+        // accepted the result as-is, comparing against the raw result:
+        // anything the schema or serialization had to change is mismatched
         // output, answered rather than silently normalized away.
         if (!jsonValueEquals(parsed.data, result)) {
           throw new Error(
             `Tool "${toolName}" produced output its advertised output schema ` +
-              'did not accept as-is: the schema stripped or coerced fields. ' +
-              'Return exactly the advertised shape, and do not advertise a ' +
-              'transforming or coercing schema.'
+              'did not accept as-is: the schema stripped or coerced fields, ' +
+              'or the result carries values JSON cannot represent. ' +
+              'Return exactly the advertised shape using JSON values, and do ' +
+              'not advertise a transforming or coercing schema.'
           );
         }
 

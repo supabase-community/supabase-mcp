@@ -6,6 +6,46 @@ Before opening an issue or PR, please read this guide.
 - **PRs** should address an accepted issue. Open an issue first for new features or behavior changes so we can agree on the approach before you invest time coding. PRs that promote unaffiliated products or services will be closed.
 - AI-assisted contributions are welcome, but a human must review and verify the output. Include verification steps and evidence (screenshots, test output, etc.) in the PR description.
 
+## PR descriptions
+
+A reviewer should understand what a PR does within 15-30 seconds, then know where to start reading.
+
+Non-trivial or multi-file PRs must include a `## How to Review` section that lays out the reading path. Trivial single-file changes may leave it out when the review path is obvious.
+
+- Start from the main public entrypoint or request handler, and follow the actual execution path before reading tests.
+- Use bold numbered areas, each with one or two indented bullets: the exact files, then what to inspect.
+- Use exact repository-relative paths, and avoid line numbers while the branch is still changing.
+- Close with four to six short checkbox questions covering the reviewer's judgment calls.
+- Prefer project-facing language such as `interface`, `extension point`, or `contract` over internal design jargon.
+- Don't repeat the PR purpose or the verification commands here. Keep the section scannable.
+
+```markdown
+## How to Review
+
+1. **Review area**
+   - `path/to/main-entrypoint.ts`
+   - What to follow or verify.
+
+2. **Next review area**
+   - `path/to/next-file.ts`
+   - What to follow or verify.
+
+3. **Integration or behavior**
+   - Exact relevant files
+   - What contract or behavior to inspect.
+
+4. **Tests**
+   - Exact test files
+   - Which observable contracts they protect.
+
+**Review questions**
+
+- [ ] Is the public contract minimal and intentional?
+- [ ] Do the main execution paths preserve existing behavior?
+- [ ] Do failures stop safely?
+- [ ] Do tests protect observable behavior rather than implementation details?
+```
+
 ## Development setup
 
 This repo uses pnpm for package management and the active LTS version of Node.js. Node.js and pnpm versions are managed via [mise](https://mise.jdx.dev/) (see `mise.toml`).

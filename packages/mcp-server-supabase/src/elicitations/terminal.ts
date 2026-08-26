@@ -29,84 +29,59 @@ export type ElicitationTerminalStatus = z.infer<
  * satisfy. A root-level union serializes to `anyOf` with no root `type`,
  * which fails the entire `tools/list` response.
  *
- * The business schema itself owns business validation and parsing. The root
- * only preserves the object's declared keys and unknown-key policy until that
- * parse, so defaults, refinements, catchalls, and transforms each run once.
- * Successful business output is then returned exactly as the original schema
- * parsed it.
+ * The business schema itself passes through unchanged: an accepted execution
+ * is validated by the tool's own schema, not by the widened copy, so an
+ * incomplete business payload stays a rejection. The widened root is derived
+ * from that same schema, so whatever it says about undeclared fields still
+ * holds and an accepted payload survives validation byte for byte.
  */
 export function withTerminalOutput<Schema extends z.ZodObject<any>>(
   schema: Schema
 ) {
-  const businessShape = schema.shape as Record<string, z.ZodType>;
-  const catchall = schema._zod.def.catchall;
-  const advertisedShape: Record<string, z.ZodType> = Object.fromEntries(
-    Object.entries(businessShape).map(([key, field]) => [key, field.optional()])
-  );
-  advertisedShape.status =
-    businessShape.status === undefined
-      ? elicitationTerminalStatusSchema.optional()
-      : z
-          .union([businessShape.status, elicitationTerminalStatusSchema])
-          .optional();
+  const businessStatus = (schema.shape as Record<string, z.ZodType>).status;
 
-  const advertisedRoot =
-    catchall === undefined
-      ? z.object(advertisedShape)
-      : z.object(advertisedShape).catchall(catchall);
-  const advertisedJSONSchema = z.toJSONSchema(advertisedRoot, {
-    target: 'draft-7',
-    io: 'input',
+  // Deriving the root from the business schema keeps its own unknown-key
+  // handling: a widened copy that stripped what the tool is allowed to emit
+  // would turn valid output into an error.
+  const root = schema.partial().extend({
+    // A business schema that already carries `status` keeps its own values;
+    // the terminal ones are offered beside them rather than replacing them.
+    status:
+      businessStatus === undefined
+        ? elicitationTerminalStatusSchema.optional()
+        : z.union([businessStatus, elicitationTerminalStatusSchema]).optional(),
   });
-  delete advertisedJSONSchema.$schema;
 
-  const runtimeShape: Record<string, z.ZodType> = Object.fromEntries(
-    Object.keys(businessShape).map((key) => [key, z.unknown().optional()])
-  );
-  runtimeShape.status = z.unknown().optional();
+  return root.superRefine((value, ctx) => {
+    const business = schema.safeParse(value);
+    if (business.success) {
+      // The original schema owns complete business output. A terminal word in
+      // its status field does not turn that valid value into a terminal result.
+      return;
+    }
 
-  // Preserve raw catchall values for the business parse. A stripping object
-  // must still strip undeclared keys before that parse, matching the original.
-  const root =
-    catchall === undefined
-      ? z.object(runtimeShape)
-      : z.looseObject(runtimeShape);
-  const businessOutputs = new WeakMap<object, z.output<Schema>>();
+    const record = value as Record<string, unknown>;
+    const terminal = elicitationTerminalStatusSchema.safeParse(record.status);
 
-  return root
-    .superRefine((value, ctx) => {
-      const business = schema.safeParse(value);
-      if (business.success) {
-        // Keep this result for the overwrite below. Parsing the original
-        // schema again would apply field transforms and defaults twice.
-        businessOutputs.set(value, business.data);
-        return;
-      }
-
-      const record = value as Record<string, unknown>;
-      const terminal = elicitationTerminalStatusSchema.safeParse(record.status);
-
-      if (terminal.success) {
-        // A terminal payload carries the status and nothing else: a business
-        // field beside it would claim work that never ran.
-        for (const key of Object.keys(record)) {
-          if (key !== 'status') {
-            ctx.addIssue({
-              code: 'custom',
-              path: [key],
-              message: `Unexpected field on a "${terminal.data}" terminal result.`,
-            });
-          }
+    if (terminal.success) {
+      // A terminal payload carries the status and nothing else: a business
+      // field beside it would claim work that never ran.
+      for (const key of Object.keys(record)) {
+        if (key !== 'status') {
+          ctx.addIssue({
+            code: 'custom',
+            path: [key],
+            message: `Unexpected field on a "${terminal.data}" terminal result.`,
+          });
         }
-        return;
       }
+      return;
+    }
 
-      for (const issue of business.error.issues) {
-        ctx.addIssue({ ...issue });
-      }
-    })
-    .overwrite((value) => businessOutputs.get(value) ?? value)
-    .meta(advertisedJSONSchema);
+    for (const issue of business.error.issues) {
+      ctx.addIssue({ ...issue });
+    }
+  });
 }
 
 /**

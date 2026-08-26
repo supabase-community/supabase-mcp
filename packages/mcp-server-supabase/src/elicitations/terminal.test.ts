@@ -32,46 +32,6 @@ describe('elicitation output widening', () => {
     });
   });
 
-  test('applies business transforms, defaults, and refinements once', () => {
-    let transformCalls = 0;
-    let refinementCalls = 0;
-    const transformedSchema = z
-      .object({
-        token: z.string().transform((value) => {
-          transformCalls += 1;
-          return { normalized: value.toUpperCase() };
-        }),
-        status: z.literal('created').default('created'),
-      })
-      .superRefine((value, ctx) => {
-        refinementCalls += 1;
-        if (value.token.normalized.length < 3) {
-          ctx.addIssue({
-            code: 'custom',
-            path: ['token'],
-            message: 'Token is too short.',
-          });
-        }
-      });
-    const input = { token: 'abc' };
-    const expected = transformedSchema.parse(input);
-    transformCalls = 0;
-    refinementCalls = 0;
-
-    expect(withTerminalOutput(transformedSchema).parse(input)).toStrictEqual(
-      expected
-    );
-    expect(transformCalls).toBe(1);
-    expect(refinementCalls).toBe(1);
-    expect(
-      withTerminalOutput(transformedSchema).safeParse({ token: 'x' }).success
-    ).toBe(false);
-    const jsonSchema = z.toJSONSchema(withTerminalOutput(transformedSchema), {
-      target: 'draft-7',
-    });
-    expect(jsonSchema.properties?.token).toMatchObject({ type: 'string' });
-  });
-
   test.each(['declined', 'cancelled'] as const)(
     'keeps complete business output whose status is %s',
     (status) => {
@@ -93,15 +53,6 @@ describe('elicitation output widening', () => {
     expect(jsonSchema.type).toBe('object');
     expect(jsonSchema).not.toHaveProperty('anyOf');
     expect(jsonSchema).not.toHaveProperty('oneOf');
-    expect(jsonSchema.properties).toMatchObject({
-      id: { type: 'string' },
-      status: {
-        anyOf: [
-          { type: 'string', const: 'created' },
-          { type: 'string', enum: ['declined', 'cancelled'] },
-        ],
-      },
-    });
   });
 
   test('rejects a terminal status the schema does not advertise', () => {

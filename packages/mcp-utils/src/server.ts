@@ -982,9 +982,17 @@ export function createMcpServer(options: McpServerOptions) {
           );
         }
 
-        // Equal to `parsed.data`, so emitting the business result keeps A1's
-        // "structuredContent equals the business result" literally true.
-        const structuredContent = result;
+        // Emit the snapshot the checks above ran on, so the wire carries
+        // exactly the bytes validation saw. The cast is sound: the parse
+        // succeeded and the walk found `parsed.data` equal to the raw result,
+        // whose root `isPlainObject` already vetted. For every deterministic
+        // JSON-faithful result this is byte-identical to emitting the result
+        // itself, because a JSON round trip preserves own string-key
+        // insertion order, so A1's "structuredContent equals the business
+        // result" stays true on the wire. A result whose accessors diverge
+        // across reads now either fails the equality walk or ships the
+        // validated snapshot, never bytes no check has seen.
+        const structuredContent = roundTripped as Record<string, unknown>;
         const text = tool.formatResult
           ? tool.formatResult(structuredContent)
           : JSON.stringify(structuredContent);

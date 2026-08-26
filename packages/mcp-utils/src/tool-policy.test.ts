@@ -1103,4 +1103,84 @@ describe('policy schema contracts', () => {
     expect(result.isError).not.toBe(true);
     expect(result.structuredContent).toEqual(businessResult);
   });
+
+  test('an accessor that changes after validation cannot reach the wire', async () => {
+    // Validation reads the result twice (the stringify snapshot, then the raw
+    // side of the equality walk). This accessor agrees with itself across
+    // both, then changes, so the reads emission would make are the only ones
+    // that could ever see `emitted`.
+    let reads = 0;
+    const businessResult = {
+      get tier() {
+        reads += 1;
+        return reads <= 2 ? 'validated' : 'emitted';
+      },
+    };
+    const client = await setupModernClient({
+      tools: {
+        drifting: tool({
+          description: 'Drifting',
+          parameters: z.object({ value: z.string() }),
+          outputSchema: z.object({ tier: z.string() }),
+          policy: {
+            resolve: async () => ({
+              type: 'execute',
+              resolution: undefined,
+              telemetry,
+            }),
+          },
+          execute: async () => businessResult,
+        }),
+      },
+    });
+
+    const result = await client.callTool({
+      name: 'drifting',
+      arguments: { value: 'ok' },
+    });
+
+    expect(result.isError).not.toBe(true);
+    expect(result.structuredContent).toEqual({ tier: 'validated' });
+    expect(result.content).toEqual([
+      { type: 'text', text: JSON.stringify({ tier: 'validated' }) },
+    ]);
+  });
+
+  test('an accessor that diverges during validation fails closed', async () => {
+    // The same construct, diverging one read earlier: the equality walk reads
+    // a value the snapshot never carried, so the two checks disagree and the
+    // request is answered rather than shipped.
+    let reads = 0;
+    const businessResult = {
+      get tier() {
+        reads += 1;
+        return reads <= 1 ? 'first' : 'second';
+      },
+    };
+    const client = await setupModernClient({
+      tools: {
+        diverging: tool({
+          description: 'Diverging',
+          parameters: z.object({ value: z.string() }),
+          outputSchema: z.object({ tier: z.string() }),
+          policy: {
+            resolve: async () => ({
+              type: 'execute',
+              resolution: undefined,
+              telemetry,
+            }),
+          },
+          execute: async () => businessResult,
+        }),
+      },
+    });
+
+    const result = await client.callTool({
+      name: 'diverging',
+      arguments: { value: 'ok' },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(result.structuredContent).toBeUndefined();
+  });
 });

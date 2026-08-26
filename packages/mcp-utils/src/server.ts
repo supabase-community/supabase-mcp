@@ -444,11 +444,29 @@ async function describeTool(
     return entry;
   }
 
+  const outputSchema = z.toJSONSchema(shape.outputSchema, {
+    target: 'draft-7',
+  });
+
+  // MCP restricts a tool's structured output to an object root, so a
+  // resolved schema that declares anything else can never be advertised.
+  // Fail the whole discovery response rather than dropping the key, which
+  // would advertise the suppressed shape while the call path still emits
+  // `structuredContent`, or dropping the entry, which would silently hide a
+  // tool on a policy bug. The error is deterministic: every `tools/list`
+  // fails identically, so an authoring error surfaces in development.
+  if (outputSchema.type !== 'object') {
+    throw new Error(
+      `Tool "${name}" resolved an output schema that is not object-rooted: ` +
+        `root type ${JSON.stringify(outputSchema.type ?? null)}. ` +
+        'MCP restricts structured output to an object root, so model ' +
+        'variants beneath an object root instead of at the root.'
+    );
+  }
+
   return {
     ...entry,
-    outputSchema: z.toJSONSchema(shape.outputSchema, {
-      target: 'draft-7',
-    }) as McpTool['outputSchema'],
+    outputSchema: outputSchema as McpTool['outputSchema'],
   };
 }
 
@@ -815,22 +833,61 @@ export function createMcpServer(options: McpServerOptions) {
 
         const result = await executeWithCallback();
 
-        if (result == null) {
-          return { content: [] };
+        if (shape.kind !== 'normalized') {
+          // These lanes advertise nothing, so they keep the answers they gave
+          // before structured results existed, a nullish result included.
+          if (result == null) {
+            return { content: [] };
+          }
+
+          const base = result as Record<string, unknown>;
+          // A suppressed request reproduces the whole pre-normalization
+          // result, which means the default single-encoded text:
+          // `formatResult` is skipped. A policy-free request applies it.
+          const text =
+            shape.kind === 'suppressed' || !tool.formatResult
+              ? JSON.stringify(base)
+              : tool.formatResult(base);
+
+          return { content: [{ type: 'text', text }] };
+        }
+
+        // This request advertised a schema, so it owes the caller output that
+        // conforms to it. Two independent checks, because neither implies the
+        // other: `outputSchema` hooks may resolve a non-object schema, under
+        // which `null` or a scalar parses successfully but is still output MCP
+        // does not permit at the root.
+        if (
+          typeof result !== 'object' ||
+          result === null ||
+          Array.isArray(result)
+        ) {
+          throw new Error(
+            `Tool "${toolName}" advertised an output schema but produced ` +
+              `${result === null ? 'null' : Array.isArray(result) ? 'an array' : typeof result}. ` +
+              'Structured output must be a plain object.'
+          );
+        }
+
+        const parsed = shape.outputSchema.safeParse(result);
+
+        if (!parsed.success) {
+          throw new Error(
+            `Tool "${toolName}" produced output that does not conform to its ` +
+              'advertised output schema: ' +
+              parsed.error.issues
+                .map(
+                  (issue) =>
+                    `${issue.path.join('.') || '(root)'}: ${issue.message}`
+                )
+                .join('; ')
+          );
         }
 
         const structuredContent = result as Record<string, unknown>;
-        // A suppressed request reproduces the whole pre-normalization result,
-        // which means the default single-encoded text: `formatResult` is
-        // skipped. Policy-free and normalized requests both apply it.
-        const text =
-          shape.kind !== 'suppressed' && tool.formatResult
-            ? tool.formatResult(structuredContent)
-            : JSON.stringify(structuredContent);
-
-        if (shape.kind !== 'normalized') {
-          return { content: [{ type: 'text', text }] };
-        }
+        const text = tool.formatResult
+          ? tool.formatResult(structuredContent)
+          : JSON.stringify(structuredContent);
 
         return {
           structuredContent,

@@ -126,6 +126,16 @@ export type ToolPolicy<Params, Resolution> = {
    * Like `inputSchema`, this runs inside `tools/list`, once per tool, and must
    * not throw: a throw fails the whole discovery response, not just this
    * tool's entry.
+   *
+   * The author owes two things on a normalized request: the resolved schema
+   * must be object-rooted, because MCP restricts structured output to an
+   * object root, and `execute`'s output must conform to it. mcp-utils checks
+   * both and answers `isError` rather than emitting output that contradicts
+   * what the request advertised.
+   *
+   * A resolved schema that is not object-rooted fails the entire discovery
+   * response, by design: it is an authoring error, not a runtime condition,
+   * so every `tools/list` fails identically and it cannot reach production.
    */
   outputSchema?(
     schema: z.ZodObject<any>,

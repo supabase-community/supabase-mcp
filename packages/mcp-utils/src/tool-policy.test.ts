@@ -765,4 +765,129 @@ describe('policy schema contracts', () => {
 
     expect(result.isError).toBe(true);
   });
+
+  test('output that contradicts the advertised schema fails closed', async () => {
+    const client = await setupModernClient({
+      tools: {
+        drifting: tool({
+          description: 'Drifting',
+          parameters: z.object({ value: z.string() }),
+          outputSchema: z.object({ value: z.string() }),
+          policy: {
+            outputSchema: (schema) => schema.extend({ confirmed: z.boolean() }),
+            resolve: async () => ({
+              type: 'execute',
+              resolution: undefined,
+              telemetry,
+            }),
+          },
+          // Drifts from what this request advertised: `confirmed` is missing.
+          execute: async ({ value }) =>
+            ({ value }) as unknown as { value: string; confirmed: boolean },
+        }),
+      },
+    });
+
+    const result = await client.callTool({
+      name: 'drifting',
+      arguments: { value: 'ok' },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(result.structuredContent).toBeUndefined();
+    expect(result.content).toEqual([
+      { type: 'text', text: expect.stringContaining('confirmed') },
+    ]);
+  });
+
+  test('a null result on a normalized request fails closed', async () => {
+    const client = await setupModernClient({
+      tools: {
+        empty: tool({
+          description: 'Empty',
+          parameters: z.object({ value: z.string() }),
+          outputSchema: z.object({ value: z.string() }),
+          policy: {
+            resolve: async () => ({
+              type: 'execute',
+              resolution: undefined,
+              telemetry,
+            }),
+          },
+          // Reachable from plain JavaScript: the cast is only needed to get
+          // past `execute`'s declared return type.
+          execute: async () => null as unknown as { value: string },
+        }),
+      },
+    });
+
+    const result = await client.callTool({
+      name: 'empty',
+      arguments: { value: 'ok' },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(result.content).not.toEqual([]);
+  });
+
+  test('a scalar result on a normalized request fails closed', async () => {
+    const client = await setupModernClient({
+      tools: {
+        scalar: tool({
+          description: 'Scalar',
+          parameters: z.object({ value: z.string() }),
+          outputSchema: z.object({ value: z.string() }),
+          policy: {
+            resolve: async () => ({
+              type: 'execute',
+              resolution: undefined,
+              telemetry,
+            }),
+          },
+          execute: async () => 7 as unknown as { value: string },
+        }),
+      },
+    });
+
+    const result = await client.callTool({
+      name: 'scalar',
+      arguments: { value: 'ok' },
+    });
+
+    expect(result.isError).toBe(true);
+    expect(result.structuredContent).toBeUndefined();
+  });
+
+  test('a non-object-rooted output schema fails the whole discovery response', async () => {
+    const client = await setupModernClient({
+      tools: {
+        healthy: tool({
+          description: 'Healthy',
+          parameters: z.object({ value: z.string() }),
+          outputSchema: z.object({ value: z.string() }),
+          execute: async ({ value }) => ({ value }),
+        }),
+        broken: tool({
+          description: 'Broken',
+          parameters: z.object({ value: z.string() }),
+          outputSchema: z.object({ value: z.string() }),
+          policy: {
+            // MCP restricts structured output to an object root, so this
+            // resolved schema can never be advertised.
+            outputSchema: () => z.string(),
+            resolve: async () => ({
+              type: 'execute',
+              resolution: undefined,
+              telemetry,
+            }),
+          },
+          execute: async ({ value }) => ({ value }),
+        }),
+      },
+    });
+
+    // The whole list fails, deliberately: an authoring error must not hide
+    // behind a healthy neighbour entry.
+    await expect(client.listTools()).rejects.toThrow(/broken/);
+  });
 });

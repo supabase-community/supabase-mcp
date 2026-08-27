@@ -1284,7 +1284,7 @@ export interface paths {
          *     If both are not provided, only the last 1 minute of logs will be queried.
          *     The timestamp range must be no more than 24 hours and is rounded to the nearest minute. If the range is more than 24 hours, a validation error will be thrown.
          *
-         *     Note: Unless the `sql` parameter is provided, only edge_logs will be queried. See the [log query docs](/docs/guides/telemetry/logs?queryGroups=product&product=postgres&queryGroups=source&source=edge_logs#querying-with-the-logs-explorer:~:text=logs%20from%20the-,Sources,-drop%2Ddown%3A) for all available sources.
+         *     Note: Unless the `sql` parameter is provided, only edge_logs will be queried. See the [log query docs](https://supabase.com/docs/guides/monitoring-and-debugging/logs#logs-explorer) for all available sources.
          *
          */
         get: operations["v1-get-project-logs-all"];
@@ -3922,15 +3922,15 @@ export interface components {
             created_by: string;
         };
         V1ProjectAdvisorsResponse: {
-            lints: {
+            lints: ({
                 /** @enum {string} */
-                name: "unindexed_foreign_keys" | "auth_users_exposed" | "auth_rls_initplan" | "no_primary_key" | "unused_index" | "multiple_permissive_policies" | "policy_exists_rls_disabled" | "rls_enabled_no_policy" | "duplicate_index" | "security_definer_view" | "function_search_path_mutable" | "rls_disabled_in_public" | "extension_in_public" | "rls_references_user_metadata" | "materialized_view_in_api" | "foreign_table_in_api" | "unsupported_reg_types" | "auth_otp_long_expiry" | "auth_otp_short_length" | "ssl_not_enforced" | "network_restrictions_not_set" | "password_requirements_min_length" | "pitr_not_enabled" | "auth_leaked_password_protection" | "auth_insufficient_mfa_options" | "auth_password_policy_missing" | "leaked_service_key" | "no_backup_admin" | "vulnerable_postgres_version";
+                name: "unindexed_foreign_keys" | "auth_users_exposed" | "auth_rls_initplan" | "no_primary_key" | "unused_index" | "multiple_permissive_policies" | "policy_exists_rls_disabled" | "rls_enabled_no_policy" | "duplicate_index" | "security_definer_view" | "function_search_path_mutable" | "rls_disabled_in_public" | "extension_in_public" | "rls_references_user_metadata" | "materialized_view_in_api" | "foreign_table_in_api" | "unsupported_reg_types" | "auth_otp_long_expiry" | "auth_otp_short_length" | "ssl_not_enforced" | "log_connections_not_enabled" | "network_restrictions_not_set" | "password_requirements_min_length" | "pitr_not_enabled" | "auth_leaked_password_protection" | "auth_insufficient_mfa_options" | "auth_password_policy_missing" | "leaked_service_key" | "no_backup_admin" | "vulnerable_postgres_version" | "db_not_reachable" | "db_connection_failing" | "db_connection_limit_reached" | "instance_telemetry_lost" | "instance_db_down" | "instance_alert_firing" | "log_service_error_rate_high" | "project_not_active" | "advisor_check_unavailable";
                 title: string;
                 /** @enum {string} */
                 level: "ERROR" | "WARN" | "INFO";
                 /** @enum {string} */
                 facing: "EXTERNAL";
-                categories: ("PERFORMANCE" | "SECURITY")[];
+                categories: ("PERFORMANCE" | "SECURITY" | "HEALTH")[];
                 description: string;
                 detail: string;
                 remediation: string;
@@ -3939,12 +3939,16 @@ export interface components {
                     name?: string;
                     entity?: string;
                     /** @enum {string} */
-                    type?: "table" | "view" | "auth" | "function" | "extension" | "compliance";
+                    type?: "table" | "view" | "materialized view" | "foreign table" | "auth" | "function" | "extension" | "compliance" | "health";
                     fkey_name?: string;
                     fkey_columns?: number[];
                 };
                 cache_key: string;
-            }[];
+                /** Format: date-time */
+                observed_at?: string;
+            } & {
+                [key: string]: unknown;
+            })[];
         };
         AnalyticsResponse: {
             result?: unknown[];
@@ -9798,7 +9802,7 @@ export interface operations {
     "v1-get-project-logs-all": {
         parameters: {
             query?: {
-                /** @description Custom SQL query to execute on the logs. See [querying logs](/docs/guides/telemetry/logs?queryGroups=product&product=postgres&queryGroups=source&source=edge_logs#querying-with-the-logs-explorer) for more details. */
+                /** @description Custom SQL query to execute on the logs. See [querying logs](https://supabase.com/docs/guides/monitoring-and-debugging/logs#querying-with-the-logs-explorer) for more details. */
                 sql?: string;
                 iso_timestamp_start?: string;
                 iso_timestamp_end?: string;
@@ -9853,7 +9857,7 @@ export interface operations {
     "v1-get-project-logs": {
         parameters: {
             query?: {
-                /** @description Custom SQL query to execute on the logs. See [querying logs](/docs/guides/telemetry/logs?queryGroups=product&product=postgres&queryGroups=source&source=edge_logs#querying-with-the-logs-explorer) for more details. */
+                /** @description Custom SQL query to execute on the logs. See [querying logs](https://supabase.com/docs/guides/monitoring-and-debugging/logs#querying-with-the-logs-explorer) for more details. */
                 sql?: string;
                 iso_timestamp_start?: string;
                 iso_timestamp_end?: string;

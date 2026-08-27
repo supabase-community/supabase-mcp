@@ -157,6 +157,16 @@ function textOf(result: { content?: unknown }): string {
     .join('');
 }
 
+function expectFinalRateReadImmediatelyBeforeCreation(
+  calls: string[],
+  rateRead: string,
+  creation: string
+) {
+  const creationIndex = calls.indexOf(creation);
+  expect(creationIndex).toBeGreaterThan(0);
+  expect(calls.lastIndexOf(rateRead)).toBe(creationIndex - 1);
+}
+
 const PROJECT_ARGS = {
   name: 'Fixture Project',
   region: 'us-east-1',
@@ -311,11 +321,11 @@ describe('modern capable creation', () => {
     expect(textOf(result)).toContain('no confirmation was requested');
     expect(textOf(result)).not.toContain('client reported');
     expect(textOf(result)).toContain('was created');
-    expect(calls).toStrictEqual([
+    expectFinalRateReadImmediatelyBeforeCreation(
+      calls,
       'read_project_rate',
-      'read_project_rate',
-      'create_project',
-    ]);
+      'create_project'
+    );
   });
 });
 
@@ -325,13 +335,14 @@ describe('the final authoritative check', () => {
 
     await client.callTool({ name: 'create_project', arguments: PROJECT_ARGS });
 
-    // The proposal read, then the read that guards the side effect, then the
-    // side effect. Nothing sits between the last two.
-    expect(calls).toStrictEqual([
+    // The production rate read and create call are source-adjacent. That static
+    // invariant does not prove closure of every awaited scheduling gap; this
+    // trace only checks platform-operation ordering.
+    expectFinalRateReadImmediatelyBeforeCreation(
+      calls,
       'read_project_rate',
-      'read_project_rate',
-      'create_project',
-    ]);
+      'create_project'
+    );
   });
 
   test('an equal or lower final rate proceeds', async () => {

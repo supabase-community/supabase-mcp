@@ -51,6 +51,24 @@ if (managementApiUrl && managementApiToken) {
   }
 }
 
+function ttlSecondsFromEnv(fallback: number): number {
+  const raw = process.env.POC_STATE_TTL_SECONDS;
+  if (raw === undefined) return fallback;
+
+  const parsed = Number(raw);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    console.error(
+      "POC_STATE_TTL_SECONDS must be a positive whole number of seconds",
+    );
+    process.exit(1);
+  }
+  return parsed;
+}
+
+// Manual client runs pause on the elicitation UI. Raise the TTL for those.
+const formTtlSeconds = ttlSecondsFromEnv(120);
+const urlTtlSeconds = ttlSecondsFromEnv(300);
+
 const projectCreator =
   managementApiUrl && managementApiToken
     ? createManagementProjectCreator({
@@ -73,19 +91,31 @@ if (projectCreator) {
 const { handler } = createPoc({
   projectCreator,
   jtiStore: projectCreator ? new InMemoryJtiStore() : undefined,
+  ttlSeconds: formTtlSeconds,
+  trace: true,
 });
 const server = createServer(toNodeHandler(handler));
 
 server.listen(3900, () => {
-  console.log("MCP Elicitations PoC listening on http://localhost:3900/mcp");
+  console.log(
+    `Form-mode MCP PoC listening on http://localhost:3900/mcp (requestState TTL ${formTtlSeconds}s)`,
+  );
+  console.log(
+    "  claude mcp add --transport http poc-form http://localhost:3900/mcp",
+  );
 });
 
-const urlPoc = createUrlPoc();
+const urlPoc = createUrlPoc({ ttlSeconds: urlTtlSeconds, trace: true });
 const urlMcpServer = createServer(toNodeHandler(urlPoc.handler));
 const connectServer = createServer(toNodeHandler(urlPoc.connect));
 
 urlMcpServer.listen(3902, () => {
-  console.log("URL-mode MCP PoC listening on http://localhost:3902/mcp");
+  console.log(
+    `URL-mode MCP PoC listening on http://localhost:3902/mcp (interaction TTL ${urlTtlSeconds}s)`,
+  );
+  console.log(
+    "  claude mcp add --transport http poc-url http://localhost:3902/mcp",
+  );
 });
 
 connectServer.listen(3901, () => {

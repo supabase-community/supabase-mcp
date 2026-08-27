@@ -13,6 +13,12 @@ import { z } from "zod";
 
 import { createConnectApp } from "./connect-app.js";
 import {
+  clientFields,
+  createTrace,
+  principalTag,
+  withRequestTrace,
+} from "./trace.js";
+import {
   InMemoryInteractionStore,
   InMemorySecretStore,
   type InteractionStore,
@@ -26,6 +32,7 @@ export type UrlPocOptions = {
   secrets?: SecretStore;
   connectBaseUrl?: string;
   clock?: () => number;
+  trace?: boolean;
 };
 
 export type UrlPoc = {
@@ -76,6 +83,7 @@ export function createUrlPoc(opts: UrlPocOptions = {}): UrlPoc {
   const interactions = opts.interactions ?? new InMemoryInteractionStore(clock);
   const secrets = opts.secrets ?? new InMemorySecretStore();
   const connectBaseUrl = (opts.connectBaseUrl ?? "http://localhost:3901").replace(/\/$/, "");
+  const trace = createTrace("poc url", opts.trace);
   const codec = createRequestStateCodec<State>({
     key: opts.stateKey ?? randomBytes(32).toString("hex"),
     ttlSeconds,
@@ -99,17 +107,25 @@ export function createUrlPoc(opts: UrlPocOptions = {}): UrlPoc {
     name: string,
     interactionId: string,
     waiting = false,
-  ) => inputRequired({
-    inputRequests: {
-      provide_api_key: inputRequired.elicitUrl({
-        message: waiting
-          ? `Still waiting for the API key "${name}". Open this page to finish.`
-          : `Open this page to enter your API key for "${name}". It is stored by Supabase and never passes through your MCP client.`,
-        url: `${connectBaseUrl}/connect?i=${encodeURIComponent(interactionId)}`,
-      }),
-    },
-    requestState: await mintState(ctx, sub, name, interactionId),
-  });
+  ) => {
+    trace("-> input_required", {
+      key: "provide_api_key",
+      mode: "url",
+      interaction: interactionId,
+      waiting,
+    });
+    return inputRequired({
+      inputRequests: {
+        provide_api_key: inputRequired.elicitUrl({
+          message: waiting
+            ? `Still waiting for the API key "${name}". Open this page to finish.`
+            : `Open this page to enter your API key for "${name}". It is stored by Supabase and never passes through your MCP client.`,
+          url: `${connectBaseUrl}/connect?i=${encodeURIComponent(interactionId)}`,
+        }),
+      },
+      requestState: await mintState(ctx, sub, name, interactionId),
+    });
+  };
 
   const handler = createMcpHandler(() => {
     const server = new McpServer(
@@ -121,7 +137,14 @@ export function createUrlPoc(opts: UrlPocOptions = {}): UrlPoc {
       { description: "Store an API key through a browser page.", inputSchema: z.object({ name: z.string() }) },
       async ({ name }, ctx) => {
         const sub = principal(ctx);
-        if (!declaresUrl(ctx)) {
+        const urlMode = declaresUrl(ctx);
+        trace("tools/call store_api_key", {
+          ...clientFields(ctx),
+          sub: principalTag(sub),
+          path: urlMode ? "url" : "unsupported",
+        });
+
+        if (!urlMode) {
           return result(
             { status: "unsupported_client", message: "A browser-capable client that declares URL elicitation is required." },
             "A browser-capable client that declares URL elicitation is required.",
@@ -140,14 +163,22 @@ export function createUrlPoc(opts: UrlPocOptions = {}): UrlPoc {
           });
           return ask(ctx, sub, name, interactionId);
         }
-        if (state.sub !== sub) return result({ status: "error" }, "Request state principal mismatch.", true);
-        if (state.argsDigest !== digest(name)) return result({ status: "error" }, "Request state arguments mismatch.", true);
+        if (state.sub !== sub) {
+          trace("-> rejected", { reason: "principal mismatch" });
+          return result({ status: "error" }, "Request state principal mismatch.", true);
+        }
+        if (state.argsDigest !== digest(name)) {
+          trace("-> rejected", { reason: "argument digest mismatch" });
+          return result({ status: "error" }, "Request state arguments mismatch.", true);
+        }
 
         const response = inputResponse(ctx.mcpReq.inputResponses, "provide_api_key");
         if (response.kind === "elicit" && response.action === "decline") {
+          trace("-> declined", { key: "provide_api_key", action: "decline" });
           return result({ status: "declined" }, "API key storage was declined.");
         }
         if (response.kind === "elicit" && response.action === "cancel") {
+          trace("-> cancelled", { key: "provide_api_key", action: "cancel" });
           return result({ status: "cancelled" }, "API key storage was cancelled.");
         }
         if (response.kind !== "elicit" || response.action !== "accept") {
@@ -155,14 +186,22 @@ export function createUrlPoc(opts: UrlPocOptions = {}): UrlPoc {
         }
 
         const interaction = interactions.get(state.interactionId);
-        if (!interaction) return result({ status: "error" }, "The interaction is missing or expired.", true);
+        if (!interaction) {
+          trace("-> rejected", { reason: "interaction missing or expired" });
+          return result({ status: "error" }, "The interaction is missing or expired.", true);
+        }
         if (interaction.status === "pending") return ask(ctx, sub, name, state.interactionId, true);
         if (!interactions.consume(state.interactionId)) {
+          trace("-> rejected", { reason: "interaction replay" });
           return result({ status: "error" }, "The interaction replay was rejected.", true);
         }
         const secret = secrets.get(sub, name);
-        if (!secret) return result({ status: "error" }, "The stored secret reference is missing.", true);
+        if (!secret) {
+          trace("-> rejected", { reason: "secret reference missing" });
+          return result({ status: "error" }, "The stored secret reference is missing.", true);
+        }
         // Any suffix is credential material in model context. Fingerprints need an RFC decision, not a PoC default.
+        trace("stored secret", { name, ref: secret.ref });
         return result(
           { status: "stored", name, secret_ref: secret.ref },
           `Stored API key "${name}".`,
@@ -173,7 +212,7 @@ export function createUrlPoc(opts: UrlPocOptions = {}): UrlPoc {
   });
 
   return {
-    handler,
+    handler: withRequestTrace("poc url", opts.trace, handler),
     connect: createConnectApp({ interactions, secrets, clock }),
     interactions,
     secrets,

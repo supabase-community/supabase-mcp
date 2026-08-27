@@ -108,11 +108,7 @@ describe("risk 4: capability gating", () => {
       method: "elicitation/create",
       params: {
         mode: "form",
-        requestedSchema: {
-          properties: {
-            confirm: { type: "boolean" },
-          },
-        },
+        requestedSchema: { type: "object", properties: {} },
       },
     });
   });

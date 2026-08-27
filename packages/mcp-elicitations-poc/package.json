@@ -6,7 +6,10 @@
   "scripts": {
     "test": "vitest run",
     "typecheck": "tsc --noEmit",
-    "dev": "tsx src/main.ts"
+    "dev": "tsx src/main.ts",
+    "dev:stdio": "tsx src/stdio.ts",
+    "spike:modern-session": "tsx src/modern-session-spike.ts",
+    "spike:auth-grant": "tsx src/auth-grant-spike.ts"
   },
   "dependencies": {
     "@modelcontextprotocol/client": "2.0.0",

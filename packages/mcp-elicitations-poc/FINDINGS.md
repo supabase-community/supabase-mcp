@@ -4,6 +4,14 @@
 
 The PoC supports proceeding to an RFC: form-mode multi round-trip request (MRTR) elicitation can replace `confirm_cost` for capable clients, preserve a legacy fallback for other clients, and carry signed state without server-side conversation state; URL-mode secret handling was also exercised with a mock connect page and fake sessions. The RFC must treat the state as readable, require shared single-use enforcement for replay protection, specify fail-closed store behavior and production key management, and define the capability-policy edges. Inspector CLI coverage is insufficient for manual MRTR validation.
 
+Four shipping clients were then driven by hand against the same prompt, which is
+[section 7](#7-client-ui-survey-pass). Two of them elicit on their 2025-era
+connections, so elicitation is available to clients shipping today and not only to
+2026-07-28 ones. The PoC therefore serves three lanes rather than two, described in
+[What the PoC added](#what-the-poc-added-to-serve-both-eras). Two clients reach the
+modern lane only after the server accepts a mode-less capability declaration, and
+Claude Desktop does not support form elicitation at all.
+
 ## 1. Happy path: PASS
 
 **Asserted:** [`test/happy-path.test.ts`](test/happy-path.test.ts), suite `create_project MRTR happy path`, proves that acceptance creates exactly one project; decline returns a normal, agent-readable non-error result and creates none; cancellation is distinct from decline; and absent or empty `inputResponses` reissues `input_required` with fresh state and no side effect.
@@ -41,6 +49,42 @@ The PoC supports proceeding to an RFC: form-mode multi round-trip request (MRTR)
 **Surprises and RFC impact:** URL-mode completion is application state. The PoC correlates the pending interaction with the principal, then stores the credential by principal and name; MRTR remains stateless because the retry can use echoed signed `requestState` to decide completion. Inspector 2.0.0's web UI renders the full URL, waits for explicit consent, and offers the spec's manual "I've completed it" control without polling. **That full round is now verified by hand (2026-08-03):** clicking "I've completed it" after the out-of-band submission closed the round, returning `Stored API key "openai-key".` with the MRTR conversation settling at 2 rounds complete. The earlier automation-only gap is closed. Form mode was verified the same way, returning `Created project "test_project".` at 2 rounds.
 
 **One observed counterexample to a shared 120 second lifetime.** That manual URL round took about 175 seconds of wall time between round 1 (13:27:30) and round 2 (13:30:25) at an unhurried human pace: open the page, authenticate, locate the key, paste it, return to the client. It survived because the PoC's URL flow uses a 300 second interaction lifetime (`src/url-server.ts:75,81`) against 120 seconds for form mode (`src/server.ts:126`). The approved design pins Continuation State at "120 seconds and cannot be configured above 120 seconds", so this particular run would have expired mid-flow under that cap. This is a single observation, not a measured minimum: it does not establish what the right Secret Collection lifetime is, only that the shared 120 second cap needs a deliberate per-policy decision before Secret Collection could ship. It also reinforces the design's own sequencing, since longer-lived Elicitation state is already blocked until the dedicated request-state secret replaces `JWT_SECRET`.
+
+## 7. Client UI survey: PASS
+
+**Observed:** manual runs on 2026-08-21 against [`src/stdio.ts`](src/stdio.ts), one
+server, one prompt payload, four client surfaces. Screenshots and per-client notes:
+`~/Work/handoffs/mcp-elicitations/2026-08-21-client-ui-screenshots.md`. Wire evidence:
+[`NOTES.claude-code.md`](NOTES.claude-code.md).
+
+| Client | Era | Surface | Outcomes exercised |
+|---|---|---|---|
+| Claude Code 2.1.226 | 2025-11-25 | inline prompt, `Accept` / `Decline`, `Esc` | created, declined, cancelled |
+| Claude Code 2.1.226 | 2026-07-28 | same, labelled `round 1` | created, declined, cancelled |
+| Codex CLI v0.149.0 | 2025 | numbered list, `Allow` / `Deny` / `Cancel` | created, declined, cancelled |
+| ChatGPT desktop 26.818 | 2025 | GUI card, `Continue` / `Skip` | created |
+| Claude Desktop 1.34493.1 | — | no prompt; form elicitation unsupported | legacy token path |
+
+**RFC impact.** Four points the RFC should absorb.
+
+The `message` is the entire design surface, and it is enough: every client rendered
+the aligned cost block faithfully, including newlines and column padding. Anything
+richer costs the user an extra interaction, because it has to become a schema field.
+
+Action labels diverge across clients over the same three wire values. `decline` reads
+as "Decline", "Deny", and "Skip" depending on the client, and `cancel` is reachable in
+every client while never being labelled the same way. A server must not attach
+distinct meaning to `cancel` versus `decline`, because the distinction is not visible
+to the person answering.
+
+Codex reuses its tool-permission widget for elicitation, so a cost confirmation is
+visually indistinguishable from a "may this tool run" gate. Consent copy has to carry
+the difference on its own.
+
+The model narrating the result cannot see which control the user pressed. In one
+Claude Code run, three identical calls answered differently were reported as server
+non-determinism. Result text should therefore state the outcome plainly enough that a
+model repeating it stays accurate.
 
 ## Explicit RFC flags
 
@@ -99,6 +143,104 @@ Consequences for the RFC and for external wording:
   produce attested human approval. That requires an explicit human-presence control on
   the page, such as reauthentication or a WebAuthn step-up, which nothing in this PoC
   implements or tests.
+
+### Legacy-era clients already elicit
+
+**Asserted:** elicitation is not a 2026-07-28 feature waiting on client adoption. Both
+2025-era clients tested here already support it. Claude Code 2.1.226 initialized with
+protocol version `2025-11-25` and classic `capabilities.elicitation = {}`, sent no
+`server/discover` probe, and rendered a prompt when the server pushed one. Codex CLI
+v0.149.0 did the same on its 2025 connection. What reaches those clients is the
+2025-era push: a server-to-client `elicitation/create` request answered inline, not an
+`input_required` result. [`test/classic-elicitation.test.ts`](test/classic-elicitation.test.ts)
+covers that path against the wire shape they send, and
+[section 7](#7-client-ui-survey-pass) has the screenshots.
+
+So the choice is not elicitation for modern clients and a token for everyone else. A
+deployment can elicit from today's clients, and the RFC should say so.
+
+There is a deployment catch, and it decides which fallback the RFC can promise.
+Stateless legacy HTTP cannot push a 2025-era elicitation at all: with
+`createMcpHandler`'s default `legacy: 'stateless'` posture, the instance that answers
+`tools/call` never saw `initialize`, so it cannot know the client declared
+`elicitation`, and the client lands in the deterministic `confirm_cost_token` path in
+[`src/server.ts`](src/server.ts).
+
+A 2025-era elicitation path therefore needs connection-scoped server state.
+[`src/stdio.ts`](src/stdio.ts) supplies it with `serveStdio(factory)`: one pinned
+instance per connection, `getClientCapabilities()` readable at tool-call time, and
+`ctx.mcpReq.elicitInput` available to push `elicitation/create`. A sessionful HTTP
+wiring would be the deployed equivalent, which this PoC did not build.
+
+**Observed:** a manual Claude Code session completed the classic round three times
+against [`src/stdio.ts`](src/stdio.ts): one accept that created the project, and two
+declines. Claude Code renders the request inline in its transcript with a heading, the
+server's `message`, one row per schema property, and `Accept` / `Decline` actions.
+[`NOTES.claude-code.md`](NOTES.claude-code.md) records the trace and the UI shape.
+
+One consequence belongs in the RFC. Claude Code validates `requestedSchema` before it
+submits, so `Accept` with an untouched required boolean is refused client-side with
+`This field is required` and nothing reaches the server. Ticking the box and unticking
+it leaves an explicit `false`, which `Accept` does submit: on the 2026-07-28 era that
+arrived as `accept` with `confirm: false`. Consent therefore lives in the content, not
+in `action`, and a server that reads `accept` as approval approves a refusal.
+
+That is an argument about schema shape, and it points at a recommendation. A cost
+confirmation is one yes-or-no, and a required boolean makes the user set a field and
+then press `Accept` for the same answer. The PoC now sends
+`{"type":"object","properties":{}}` and reads consent from `action`, which removes the
+field, the client-side validation, and the `accept`-with-`false` ambiguity together.
+The cost breakdown moves into `message`, the only part of the prompt a server
+formats. Multi-line messages survive the wire on both eras.
+
+**Also observed, on the 2026-07-28 era:** with
+`MCP_SDK_GENERATION=v2 MCP_PROTOCOL_NEGOTIATION=auto`, Claude Code negotiates
+`2026-07-28`, declares a mode-less `elicitation: {}`, carries that declaration in each
+request envelope, and completes the MRTR round: `input_required`, then a second
+`tools/call` echoing `requestState` with the response, twice over, one refusal and one
+creation.
+
+The mode is the flag for the RFC. A declaration of `elicitation: {}` names no mode, so
+a server gating on `elicitation.form` downgrades a client that renders forms, and the
+PoC only reached the form lane once it read a mode-less declaration as form capable.
+The SDK reads it the same way at the emit gate, which refuses only when the envelope
+declares no elicitation at all (`-32021`, naming
+`{"elicitation":{"form":{}}}`). The RFC should state what a mode-less declaration
+means, and whether a server may treat an opening declaration as binding for the
+connection: one earlier v2 session sent envelopes with no elicitation at all and was
+downgraded, which is what `restoreDeclaredElicitation` in
+[`src/stdio.ts`](src/stdio.ts) repairs.
+
+### What the PoC added to serve both eras
+
+Everything above is served by one tool and one factory. The routing lives in `lane()`
+in [`src/server.ts`](src/server.ts), which reads the era from the per-request envelope
+and picks between three exits.
+
+| Lane | Reached by | Mechanism |
+|---|---|---|
+| `form` | modern era declaring elicitation, mode-less or `form` | `inputRequired.elicit`, signed `requestState`, two tool calls |
+| `classic` | 2025-era connection declaring `elicitation` | `ctx.mcpReq.elicitInput` pushes `elicitation/create`, one tool call, no state minted |
+| `legacy` | anything else | deterministic `confirm_cost_token`, unchanged from the original flow |
+
+The pieces that made the two elicitation lanes reachable:
+
+- `createPocServerFactory` in [`src/server.ts`](src/server.ts) exposes the tool logic as
+  a factory, so the same registration serves `createMcpHandler` per request and a
+  pinned STDIO connection.
+- [`src/stdio.ts`](src/stdio.ts) is that pinned entry: `serveStdio(factory)`, plus
+  `restoreDeclaredElicitation` for a client that declares only at its opening exchange.
+- `isFormCapable` in [`src/client-capabilities.ts`](src/client-capabilities.ts) treats a
+  mode-less `elicitation: {}` as form capable, which is what shipping clients send.
+- The classic lane's pushed request carries the same `message` and schema as the modern
+  lane, so the two eras cannot drift in what the user is asked. Its request timeout
+  defaults to 600s, because a human reading a cost prompt is slower than a default.
+- [`src/trace.ts`](src/trace.ts) narrates the chosen lane, the negotiated protocol, and
+  the declared capabilities to stderr and `POC_TRACE_FILE`. Principals are logged as a
+  digest prefix, never as the bearer token.
+
+Not built: a sessionful HTTP wiring, which is what a deployed server would need to
+offer the classic lane over HTTP rather than STDIO.
 
 ### Design consequences
 

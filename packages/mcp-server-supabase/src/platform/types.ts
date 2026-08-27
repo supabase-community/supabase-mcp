@@ -167,12 +167,12 @@ export const generateTypescriptTypesResultSchema = z.object({
  * fallback price of its own, so a platform that cannot report a rate blocks
  * creation instead of guessing one.
  */
-export const creationRateSchema = z.object({
-  amount: z.number(),
+export type CreationRate = {
+  amount: number;
   /** ISO 4217 currency of the amount. */
-  currency: z.string(),
-  recurrence: z.enum(['hourly', 'monthly']),
-});
+  currency: string;
+  recurrence: 'hourly' | 'monthly';
+};
 
 export type Organization = z.infer<typeof organizationSchema>;
 export type Project = z.infer<typeof projectSchema>;
@@ -198,7 +198,6 @@ export type QueryLogsOptions = z.infer<typeof queryLogsOptionsSchema>;
 export type GenerateTypescriptTypesResult = z.infer<
   typeof generateTypescriptTypesResultSchema
 >;
-export type CreationRate = z.infer<typeof creationRateSchema>;
 
 export type StorageConfig = z.infer<typeof storageConfigSchema>;
 export type StorageBucket = z.infer<typeof storageBucketSchema>;
@@ -221,8 +220,10 @@ export type AccountOperations = {
   pauseProject(projectId: string): Promise<void>;
   restoreProject(projectId: string): Promise<void>;
   /**
-   * Authoritative rate the next project adds to this organization, read both
-   * for the initial proposal and immediately before creation.
+   * Authoritative rate the next project adds to this organization. It is read
+   * for the initial proposal and again as late as possible before creation.
+   * This minimizes the check-to-create window on a best-effort basis; rate
+   * enforcement and creation are not atomic.
    */
   getProjectCreationRate(organizationId: string): Promise<CreationRate>;
 };
@@ -296,8 +297,10 @@ export type BranchingOperations = {
   resetBranch(branchId: string, options: ResetBranchOptions): Promise<void>;
   rebaseBranch(branchId: string): Promise<void>;
   /**
-   * Authoritative rate one new branch adds to this project's organization,
-   * read both for the initial proposal and immediately before creation.
+   * Authoritative rate one new branch adds to this project's organization. It
+   * is read for the initial proposal and again as late as possible before
+   * creation. This minimizes the check-to-create window on a best-effort
+   * basis; rate enforcement and creation are not atomic.
    */
   getBranchCreationRate(projectId: string): Promise<CreationRate>;
 };

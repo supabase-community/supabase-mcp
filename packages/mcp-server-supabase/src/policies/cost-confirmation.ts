@@ -24,9 +24,9 @@ export const APPROVED_RATE_STALE = 'approved_rate_stale';
 /**
  * Refuses a creation the approved ceiling no longer covers.
  *
- * Both paid tools call this immediately before their creation call, with a
- * rate read at that moment. Nothing runs between the read and the side effect,
- * so an approval cannot be spent at a price the caller never saw.
+ * Both paid tools call this as late as possible before their creation call,
+ * with a freshly read rate. This minimizes the check-to-create window on a
+ * best-effort basis, but does not make rate enforcement atomic with creation.
  */
 export function assertRateStillApproved(
   rate: CreationRate,

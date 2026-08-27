@@ -220,8 +220,9 @@ export function getBranchingTools({
             );
           }
         } else {
-          // Read here and nowhere earlier: nothing runs between this rate and
-          // the creation call below.
+          // Read here and nowhere earlier to minimize the check-to-create
+          // window on a best-effort basis. The check and creation are not
+          // atomic.
           assertRateStillApproved(
             await branching.getBranchCreationRate(project_id),
             resolution.maximumCreationRate

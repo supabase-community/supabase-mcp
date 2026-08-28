@@ -1,6 +1,12 @@
 import { tool } from '@supabase/mcp-utils';
 import { z } from 'zod/v4';
 import type { ToolDefs } from './util.js';
+import {
+  type CostConfirmation,
+  type CostConfirmationResolution,
+  createCreationOutcomeText,
+  type CreationRate,
+} from '../cost-confirmation.js';
 import type { AccountOperations } from '../platform/types.js';
 import { organizationSchema, projectSchema } from '../platform/types.js';
 import { getBranchCost, getNextProjectCost } from '../pricing.js';
@@ -10,6 +16,10 @@ import { hashObject } from '../util.js';
 type AccountToolsOptions = {
   account: AccountOperations;
   readOnly?: boolean;
+  elicitation?: {
+    costConfirmation: CostConfirmation;
+    readProjectCreationRate(organizationId: string): Promise<CreationRate>;
+  };
 };
 
 const listOrganizationsInputSchema = z.object({});
@@ -215,7 +225,31 @@ export const accountToolDefs = {
   },
 } as const satisfies ToolDefs;
 
-export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
+export function getAccountTools({
+  account,
+  readOnly,
+  elicitation,
+}: AccountToolsOptions) {
+  const costConfirmation = readOnly === true ? undefined : elicitation;
+  const projectOutcome = createCreationOutcomeText<
+    z.infer<typeof createProjectOutputSchema>
+  >('create_project', (project) => project.ref);
+  const createProjectPolicy = costConfirmation?.costConfirmation.policy<
+    z.infer<typeof createProjectInputSchema>
+  >({
+    tool: 'create_project',
+    canonicalArguments: ({ name, region, organization_id }) => ({
+      name,
+      region,
+      organization_id,
+    }),
+    subject: ({ name, organization_id }) => ({
+      resourceName: name,
+      account: { type: 'organization', id: organization_id },
+    }),
+    readRate: ({ organization_id }) =>
+      costConfirmation.readProjectCreationRate(organization_id),
+  });
   return {
     list_organizations: tool({
       ...accountToolDefs.list_organizations,
@@ -256,30 +290,45 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
     }),
     confirm_cost: tool({
       ...accountToolDefs.confirm_cost,
+      hidden: (ctx) => costConfirmation?.costConfirmation.capable(ctx) === true,
+      policy: costConfirmation?.costConfirmation.legacyConfirmationPolicy,
       execute: async (cost) => {
         return { confirmation_id: await hashObject(cost) };
       },
     }),
-    create_project: tool({
+    create_project: tool<
+      typeof createProjectInputSchema,
+      typeof createProjectOutputSchema,
+      CostConfirmationResolution | undefined
+    >({
       ...accountToolDefs.create_project,
-      execute: async ({ name, region, organization_id, confirm_cost_id }) => {
+      policy: createProjectPolicy,
+      formatResult: (project) => projectOutcome.render(project, project.name),
+      execute: async (
+        { name, region, organization_id, confirm_cost_id },
+        resolution
+      ) => {
         if (readOnly) {
           throw new Error('Cannot create a project in read-only mode.');
         }
 
-        const cost = await getNextProjectCost(account, organization_id);
-        const costHash = await hashObject(cost);
-        if (costHash !== confirm_cost_id) {
-          throw new Error(
-            'Cost confirmation ID does not match the expected cost of creating a project.'
-          );
+        if (resolution === undefined) {
+          const cost = await getNextProjectCost(account, organization_id);
+          const costHash = await hashObject(cost);
+          if (costHash !== confirm_cost_id) {
+            throw new Error(
+              'Cost confirmation ID does not match the expected cost of creating a project.'
+            );
+          }
         }
 
-        return await account.createProject({
+        const project = await account.createProject({
           name,
           region,
           organization_id,
         });
+        projectOutcome.record(project, resolution);
+        return project;
       },
     }),
     pause_project: tool({

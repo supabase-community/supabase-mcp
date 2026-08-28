@@ -1,9 +1,14 @@
+import type { ServerContext } from '@modelcontextprotocol/server';
 import {
   createMcpServer,
   type Tool,
   type ToolCallCallback,
 } from '@supabase/mcp-utils';
 import packageJson from '../package.json' with { type: 'json' };
+import {
+  createCostConfirmation,
+  type CreationRate,
+} from './cost-confirmation.js';
 import { createContentApiClient } from './content-api/index.js';
 import type { SupabasePlatform } from './platform/types.js';
 import { getAccountTools } from './tools/account-tools.js';
@@ -19,6 +24,64 @@ import type { FeatureGroup } from './types.js';
 import { parseFeatureGroups } from './util.js';
 
 const { version } = packageJson;
+type HostedPolicyCallDetails = {
+  name: string;
+  decision: 'execute' | 'result' | 'rejected';
+  clientInfo?: { name: string; version: string; title?: string };
+  durationMs: number;
+  telemetry: {
+    policyId?: string;
+    policyVersion?: number;
+    outcome?: string;
+    interactionId?: string;
+    authorityPath?: string;
+    reason?: string;
+  };
+};
+
+type HostedElicitationOptions = {
+  /** Shared SDK request-state HMAC key, at least 32 bytes. */
+  key: string | Uint8Array;
+  /** Binds request state to the authenticated actor and MCP method. */
+  bind(ctx: ServerContext): string;
+  /** Reads the authoritative project creation rate outside SupabasePlatform. */
+  readProjectCreationRate(organizationId: string): Promise<CreationRate>;
+  /** Reads the authoritative branch creation rate outside SupabasePlatform. */
+  readBranchCreationRate(projectId: string): Promise<CreationRate>;
+  /** Whether this serving path can deliver form input requests. */
+  formDeliveryAvailable: boolean;
+  /** Direct product kill switch, checked at proposal and redemption time. */
+  enabled(): boolean;
+  /** Connection-level form elicitation opt-out. */
+  optOut?: boolean;
+  /** Callback for each allowlisted cost-policy decision. */
+  onToolPolicyCall?: (details: HostedPolicyCallDetails) => void | Promise<void>;
+};
+function assertHostedElicitationOptions(
+  value: unknown
+): asserts value is HostedElicitationOptions {
+  if (value === null || typeof value !== 'object') {
+    throw new TypeError('Hosted elicitation options must be an object.');
+  }
+  const options = value as Record<string, unknown>;
+  for (const field of [
+    'bind',
+    'readProjectCreationRate',
+    'readBranchCreationRate',
+    'enabled',
+  ]) {
+    if (typeof options[field] !== 'function') {
+      throw new TypeError(
+        `Hosted elicitation option "${field}" must be a function.`
+      );
+    }
+  }
+  if (typeof options.formDeliveryAvailable !== 'boolean') {
+    throw new TypeError(
+      'Hosted elicitation option "formDeliveryAvailable" must be a boolean.'
+    );
+  }
+}
 
 export type SupabaseMcpServerOptions = {
   /**
@@ -49,6 +112,14 @@ export type SupabaseMcpServerOptions = {
    * Options: 'account', 'branching', 'database', 'debugging', 'development', 'docs', 'functions', 'storage'
    */
   features?: string[];
+  /**
+   * Hosted cost-confirmation integration.
+   *
+   * Omit this block for classic, local, and stdio serving. When present, all
+   * security dependencies are required: state integrity and actor/method
+   * binding, authoritative rate readers, form delivery, and the kill switch.
+   */
+  elicitation?: HostedElicitationOptions;
 
   /**
    * Callback for after a supabase tool is called.
@@ -86,7 +157,7 @@ If you are running in a web-only or remote environment without filesystem or she
 `.trim();
 
 /**
- * Creates an MCP server for interacting with Supabase.
+ * Creates an MCP server for Supabase.
  */
 export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
   const {
@@ -95,9 +166,24 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
     readOnly,
     features,
     contentApiUrl = 'https://supabase.com/docs/api/graphql',
+    elicitation: elicitationOptions,
     onToolCall,
   } = options;
+  if (elicitationOptions !== undefined) {
+    assertHostedElicitationOptions(elicitationOptions);
+  }
+  const onToolPolicyCall = elicitationOptions?.onToolPolicyCall;
 
+  const costConfirmation =
+    elicitationOptions === undefined
+      ? undefined
+      : createCostConfirmation({
+          key: elicitationOptions.key,
+          bind: elicitationOptions.bind,
+          formDeliveryAvailable: elicitationOptions.formDeliveryAvailable,
+          optOut: elicitationOptions.optOut,
+          enabled: () => elicitationOptions.enabled(),
+        });
   const contentApiClientPromise = createContentApiClient(contentApiUrl, {
     'User-Agent': `supabase-mcp/${version}`,
   });
@@ -133,6 +219,8 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
         ),
       ]);
     },
+    requestState: costConfirmation?.requestState,
+    onToolPolicyCall,
     onToolCall,
     tools: async () => {
       const contentApiClient = await contentApiClientPromise;
@@ -153,7 +241,21 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       }
 
       if (!projectId && account && enabledFeatures.has('account')) {
-        Object.assign(tools, getAccountTools({ account, readOnly }));
+        Object.assign(
+          tools,
+          getAccountTools({
+            account,
+            readOnly,
+            elicitation:
+              costConfirmation === undefined || elicitationOptions === undefined
+                ? undefined
+                : {
+                    costConfirmation,
+                    readProjectCreationRate:
+                      elicitationOptions.readProjectCreationRate,
+                  },
+          })
+        );
       }
 
       if (database && enabledFeatures.has('database')) {
@@ -185,7 +287,19 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       if (branching && enabledFeatures.has('branching')) {
         Object.assign(
           tools,
-          getBranchingTools({ branching, projectId, readOnly })
+          getBranchingTools({
+            branching,
+            projectId,
+            readOnly,
+            elicitation:
+              costConfirmation === undefined || elicitationOptions === undefined
+                ? undefined
+                : {
+                    costConfirmation,
+                    readBranchCreationRate:
+                      elicitationOptions.readBranchCreationRate,
+                  },
+          })
         );
       }
 

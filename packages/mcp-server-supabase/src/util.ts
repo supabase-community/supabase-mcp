@@ -1,4 +1,5 @@
 import { z } from 'zod/v4';
+import { canonicalObjectDigest } from './object-digest.js';
 import type { SupabasePlatform } from './platform/types.js';
 import { PLATFORM_INDEPENDENT_FEATURES } from './server.js';
 import {
@@ -35,27 +36,7 @@ export async function hashObject(
   obj: Record<string, any>,
   length?: number
 ): Promise<string> {
-  // Sort object keys to ensure consistent output regardless of original key order
-  const str = JSON.stringify(obj, (_, value) => {
-    if (value && typeof value === 'object' && !Array.isArray(value)) {
-      return Object.keys(value)
-        .sort()
-        .reduce<Record<string, any>>((result, key) => {
-          result[key] = value[key];
-          return result;
-        }, {});
-    }
-    return value;
-  });
-
-  const buffer = await crypto.subtle.digest(
-    'SHA-256',
-    new TextEncoder().encode(str)
-  );
-
-  // Convert to base64
-  const base64Hash = btoa(String.fromCharCode(...new Uint8Array(buffer)));
-  return base64Hash.slice(0, length);
+  return canonicalObjectDigest(obj, length);
 }
 
 /**

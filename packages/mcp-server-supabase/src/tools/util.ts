@@ -10,7 +10,7 @@ export type ToolDef = {
   /** 'adapt' = stays available in read-only mode, adapts behavior. 'exclude' (default) = removed from tool list. */
   readOnlyBehavior?: 'exclude' | 'adapt';
   /** If true, excludes the tool from `tools/list` while keeping it callable via `tools/call`. */
-  hidden?: boolean;
+  hidden?: Tool['hidden'];
 };
 
 export type ToolDefs = Record<string, ToolDef>;
@@ -23,7 +23,8 @@ export type InjectableTool<
   Params extends z.ZodObject,
   OutputSchema extends z.ZodObject,
   Injected extends Partial<z.infer<Params>> = {},
-> = Tool<Params, OutputSchema> & {
+  Resolution = never,
+> = Tool<Params, OutputSchema, Resolution> & {
   /**
    * Optionally injects static parameter values into the tool's
    * execute function and removes them from the parameter schema.
@@ -38,15 +39,18 @@ export function injectableTool<
   Params extends z.ZodObject,
   OutputSchema extends z.ZodObject,
   Injected extends Partial<z.infer<Params>>,
+  Resolution = never,
 >({
   description,
   annotations,
   parameters,
   outputSchema,
   hidden,
+  policy,
   inject,
   execute,
-}: InjectableTool<Params, OutputSchema, Injected>) {
+  formatResult,
+}: InjectableTool<Params, OutputSchema, Injected, Resolution>) {
   // If all injected parameters are undefined, return the original tool
   if (!inject || Object.values(inject).every((value) => value === undefined)) {
     return tool({
@@ -55,7 +59,9 @@ export function injectableTool<
       parameters,
       outputSchema,
       hidden,
+      policy,
       execute,
+      formatResult,
     });
   }
 
@@ -71,9 +77,10 @@ export function injectableTool<
 
   // Wrapper that merges injected values with provided args
   const executeWithInjection = async (
-    args: z.infer<typeof cleanParametersSchema>
+    args: z.infer<typeof cleanParametersSchema>,
+    ...resolution: [Resolution] extends [never] ? [] : [Resolution]
   ) => {
-    return execute({ ...args, ...inject } as z.infer<Params>);
+    return execute({ ...args, ...inject } as z.infer<Params>, ...resolution);
   };
 
   return tool({
@@ -82,7 +89,13 @@ export function injectableTool<
     parameters: cleanParametersSchema,
     outputSchema,
     hidden,
+    policy: policy && {
+      ...policy,
+      resolve: (args, ctx) =>
+        policy.resolve({ ...args, ...inject } as z.infer<Params>, ctx),
+    },
     execute: executeWithInjection,
+    formatResult,
   });
 }
 

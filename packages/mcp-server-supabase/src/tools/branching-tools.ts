@@ -1,5 +1,11 @@
 import { tool } from '@supabase/mcp-utils';
 import { z } from 'zod/v4';
+import {
+  type CostConfirmation,
+  type CostConfirmationResolution,
+  createCreationOutcomeText,
+  type CreationRate,
+} from '../cost-confirmation.js';
 import type { BranchingOperations } from '../platform/types.js';
 import { branchSchema } from '../platform/types.js';
 import { getBranchCost } from '../pricing.js';
@@ -10,6 +16,10 @@ type BranchingToolsOptions = {
   branching: BranchingOperations;
   projectId?: string;
   readOnly?: boolean;
+  elicitation?: {
+    costConfirmation: CostConfirmation;
+    readBranchCreationRate(projectId: string): Promise<CreationRate>;
+  };
 };
 
 const createBranchInputSchema = z.object({
@@ -155,26 +165,54 @@ export function getBranchingTools({
   branching,
   projectId,
   readOnly,
+  elicitation,
 }: BranchingToolsOptions) {
   const project_id = projectId;
-
+  const costConfirmation = readOnly === true ? undefined : elicitation;
+  const branchOutcome = createCreationOutcomeText<
+    z.infer<typeof createBranchOutputSchema>
+  >('create_branch', (branch) => branch.id);
+  const createBranchPolicy = costConfirmation?.costConfirmation.policy<
+    z.infer<typeof createBranchInputSchema>
+  >({
+    tool: 'create_branch',
+    canonicalArguments: ({ project_id, name }) => ({ project_id, name }),
+    subject: ({ project_id, name }) => ({
+      resourceName: name,
+      account: { type: 'parent_project', id: project_id },
+    }),
+    readRate: ({ project_id }) =>
+      costConfirmation.readBranchCreationRate(project_id),
+  });
   return {
-    create_branch: injectableTool({
+    create_branch: injectableTool<
+      typeof createBranchInputSchema,
+      typeof createBranchOutputSchema,
+      { project_id: string | undefined },
+      CostConfirmationResolution | undefined
+    >({
       ...branchingToolDefs.create_branch,
+      policy: createBranchPolicy,
+      formatResult: (branch) => branchOutcome.render(branch, branch.name),
       inject: { project_id },
-      execute: async ({ project_id, name, confirm_cost_id }) => {
+      execute: async ({ project_id, name, confirm_cost_id }, resolution) => {
         if (readOnly) {
           throw new Error('Cannot create a branch in read-only mode.');
         }
 
-        const cost = getBranchCost();
-        const costHash = await hashObject(cost);
-        if (costHash !== confirm_cost_id) {
-          throw new Error(
-            'Cost confirmation ID does not match the expected cost of creating a branch.'
-          );
+        if (resolution === undefined) {
+          const cost = getBranchCost();
+          const costHash = await hashObject(cost);
+          if (costHash !== confirm_cost_id) {
+            throw new Error(
+              'Cost confirmation ID does not match the expected cost of creating a branch.'
+            );
+          }
         }
-        return await branching.createBranch(project_id, { name });
+
+        const branch = await branching.createBranch(project_id, { name });
+        branchOutcome.record(branch, resolution);
+        return branch;
       },
     }),
     list_branches: injectableTool({

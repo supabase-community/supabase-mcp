@@ -16,6 +16,7 @@ import { afterEach, describe, expect, test, vi } from 'vitest';
 import {
   BRANCH_RATE,
   createCostPlatform,
+  FIXED_BRANCH,
   FIXED_PROJECT,
   PROJECT_RATE,
 } from '../test/cost-platform.js';
@@ -213,6 +214,7 @@ async function sealState(payload: Record<string, unknown>) {
 describe('direct SDK cost confirmation', () => {
   test('accepts an action-only project confirmation with sealed policy state', async () => {
     const setup = await setupModern();
+    await setup.client.listTools();
 
     const result = await setup.client.callTool({
       name: 'create_project',
@@ -245,6 +247,18 @@ describe('direct SDK cost confirmation', () => {
     });
     expect(state.argsDigest).toEqual(expect.any(String));
     expect(state.interactionId).toEqual(expect.any(String));
+  });
+  test('validates an accepted branch against the advertised modern output schema', async () => {
+    const setup = await setupModern();
+    await setup.client.listTools();
+
+    const result = await setup.client.callTool({
+      name: 'create_branch',
+      arguments: BRANCH_ARGS,
+    });
+    expect(result.isError, textOf(result)).not.toBe(true);
+
+    expect(result.structuredContent).toStrictEqual(FIXED_BRANCH);
   });
   test('accept action ignores irrelevant response content', async () => {
     const setup = await setupModern({
@@ -324,6 +338,7 @@ describe('direct SDK cost confirmation', () => {
   test('keeps decline and cancel distinct and creates nothing', async () => {
     for (const action of ['decline', 'cancel'] as const) {
       const setup = await setupModern({ answers: [{ action }] });
+      await setup.client.listTools();
       const result = await setup.client.callTool({
         name: 'create_project',
         arguments: PROJECT_ARGS,
@@ -420,8 +435,14 @@ describe('direct SDK cost confirmation', () => {
       onContinuation(body) {
         const state = body.params?.requestState;
         if (state !== undefined) {
-          const replacement = state.endsWith('x') ? 'y' : 'x';
-          body.params!.requestState = `${state.slice(0, -1)}${replacement}`;
+          const signatureStart = state.lastIndexOf('.') + 1;
+          expect(signatureStart).toBeGreaterThan(0);
+          const signatureChar = state[signatureStart];
+          expect(signatureChar).toEqual(expect.any(String));
+          const replacement = signatureChar === 'A' ? 'B' : 'A';
+          const tampered = `${state.slice(0, signatureStart)}${replacement}${state.slice(signatureStart + 1)}`;
+          expect(tampered).not.toBe(state);
+          body.params!.requestState = tampered;
         }
       },
     });

@@ -145,12 +145,15 @@ function errorResult(message: string): CallToolResult {
 function withTerminalOutput(schema: z.ZodObject<any>) {
   const terminal = z.enum(['declined', 'cancelled']);
   const businessStatus = (schema.shape as Record<string, z.ZodType>).status;
-  const root = schema.partial().extend({
-    status:
-      businessStatus === undefined
-        ? terminal.optional()
-        : z.union([businessStatus, terminal]).optional(),
-  });
+  const root = schema
+    .partial()
+    .extend({
+      status:
+        businessStatus === undefined
+          ? terminal.optional()
+          : z.union([businessStatus, terminal]).optional(),
+    })
+    .loose();
 
   return root.superRefine((value, ctx) => {
     const business = schema.safeParse(value);

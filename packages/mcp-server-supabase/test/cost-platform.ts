@@ -35,6 +35,7 @@ export const FIXED_BRANCH = {
   parent_project_ref: 'fixed-project-ref',
   is_default: false,
   persistent: false,
+  with_data: false,
   status: 'CREATING_PROJECT' as const,
   created_at: '2026-01-01T00:00:00.000Z',
   updated_at: '2026-01-01T00:00:00.000Z',

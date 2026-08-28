@@ -129,7 +129,7 @@ const getAdvisorsOutputSchema = z.object({
 });
 
 /** Fields the API repeats verbatim on every finding of the same lint. */
-const SHARED_LINT_FIELDS = [
+const SHARED_LINT_FIELDS: readonly string[] = [
   'name',
   'title',
   'level',
@@ -137,7 +137,7 @@ const SHARED_LINT_FIELDS = [
   'categories',
   'description',
   'remediation',
-] as const;
+];
 
 /**
  * `cache_key` is mainly used for Studio's advisor UI, for selecting individual
@@ -178,7 +178,7 @@ export function groupAdvisorLints(lints: AdvisorLint[]): GroupedAdvisorLint[] {
       if (DROPPED_LINT_FIELDS.includes(key)) {
         continue;
       }
-      if ((SHARED_LINT_FIELDS as readonly string[]).includes(key)) {
+      if (SHARED_LINT_FIELDS.includes(key)) {
         shared[key] = value;
       } else {
         finding[key] = value;

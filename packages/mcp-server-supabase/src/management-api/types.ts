@@ -3942,6 +3942,8 @@ export interface components {
                     type?: "table" | "view" | "materialized view" | "foreign table" | "auth" | "function" | "extension" | "compliance" | "health";
                     fkey_name?: string;
                     fkey_columns?: number[];
+                } & {
+                    [key: string]: unknown;
                 };
                 cache_key: string;
                 /** Format: date-time */

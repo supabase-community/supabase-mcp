@@ -1,3 +1,4 @@
+import { type ServerContext } from '@modelcontextprotocol/server';
 import { type Annotations, type Tool, tool } from '@supabase/mcp-utils';
 import { source } from 'common-tags';
 import { z } from 'zod/v4';
@@ -71,9 +72,10 @@ export function injectableTool<
 
   // Wrapper that merges injected values with provided args
   const executeWithInjection = async (
-    args: z.infer<typeof cleanParametersSchema>
+    args: z.infer<typeof cleanParametersSchema>,
+    ctx: ServerContext
   ) => {
-    return execute({ ...args, ...inject } as z.infer<Params>);
+    return execute({ ...args, ...inject } as z.infer<Params>, ctx);
   };
 
   return tool({

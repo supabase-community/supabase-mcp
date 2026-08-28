@@ -1,15 +1,32 @@
+import {
+  CLIENT_CAPABILITIES_META_KEY,
+  PROTOCOL_VERSION_META_KEY,
+  inputRequired,
+  inputResponse,
+  type RequestStateCodec,
+  type ServerContext,
+} from '@modelcontextprotocol/server';
 import { tool } from '@supabase/mcp-utils';
 import { z } from 'zod/v4';
 import type { ToolDefs } from './util.js';
 import type { AccountOperations } from '../platform/types.js';
 import { organizationSchema, projectSchema } from '../platform/types.js';
-import { getBranchCost, getNextProjectCost } from '../pricing.js';
+import { type Cost, getBranchCost, getNextProjectCost } from '../pricing.js';
 import { AWS_REGION_CODES } from '../regions.js';
 import { hashObject } from '../util.js';
 
 type AccountToolsOptions = {
   account: AccountOperations;
   readOnly?: boolean;
+  /**
+   * Enables cost confirmation via elicitation inside `create_project` for
+   * clients that declare per-request form capability (see
+   * `isFormCapable`). Absent, `create_project` keeps requiring
+   * `confirm_cost_id` from `confirm_cost` unchanged.
+   */
+  projectCostConfirmation?: {
+    codec: RequestStateCodec<ProjectCostState>;
+  };
 };
 
 const listOrganizationsInputSchema = z.object({});
@@ -82,6 +99,59 @@ const createProjectInputSchema = z.object({
 });
 
 const createProjectOutputSchema = projectSchema;
+
+const createProjectInputSchemaWithElicitation = createProjectInputSchema.extend(
+  {
+    confirm_cost_id: z
+      .string()
+      .optional()
+      .describe(
+        'The cost confirmation ID. Only required for clients without per-request form-elicitation capability; those clients must call `confirm_cost` first. Form-capable clients are asked to confirm the cost inline when creating the project.'
+      ),
+  }
+);
+
+/**
+ * Signed `requestState` payload for the `create_project` cost-confirmation
+ * elicitation, bound to the project arguments and the cost quoted to the
+ * user.
+ */
+export type ProjectCostState = {
+  name: string;
+  region: (typeof AWS_REGION_CODES)[number];
+  organization_id: string;
+  cost: Cost;
+};
+
+/**
+ * An action-only elicitation: no properties, so the client renders the
+ * message with just its accept/decline/cancel controls and consent lives
+ * in `action`.
+ */
+const confirmProjectCostSchema = { type: 'object' as const, properties: {} };
+
+/**
+ * Whether the current request declares per-request form-elicitation
+ * capability (protocol revision 2026-07-28): an `elicitation` declaration
+ * with an empty mode map or an explicit `form` mode.
+ */
+function isFormCapable(ctx: ServerContext): boolean {
+  const envelope = ctx.mcpReq.envelope as Record<string, unknown> | undefined;
+  if (typeof envelope?.[PROTOCOL_VERSION_META_KEY] !== 'string') {
+    return false;
+  }
+
+  const capabilities = envelope[CLIENT_CAPABILITIES_META_KEY] as
+    | { elicitation?: Record<string, unknown> }
+    | undefined;
+  const elicitation = capabilities?.elicitation;
+  if (elicitation === undefined) {
+    return false;
+  }
+
+  const modes = Object.keys(elicitation);
+  return modes.length === 0 || modes.includes('form');
+}
 
 const pauseProjectInputSchema = z.object({
   project_id: z.string(),
@@ -215,7 +285,11 @@ export const accountToolDefs = {
   },
 } as const satisfies ToolDefs;
 
-export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
+export function getAccountTools({
+  account,
+  readOnly,
+  projectCostConfirmation,
+}: AccountToolsOptions) {
   return {
     list_organizations: tool({
       ...accountToolDefs.list_organizations,
@@ -262,9 +336,120 @@ export function getAccountTools({ account, readOnly }: AccountToolsOptions) {
     }),
     create_project: tool({
       ...accountToolDefs.create_project,
-      execute: async ({ name, region, organization_id, confirm_cost_id }) => {
+      parameters: projectCostConfirmation
+        ? createProjectInputSchemaWithElicitation
+        : createProjectInputSchema,
+      execute: async (
+        {
+          name,
+          region,
+          organization_id,
+          confirm_cost_id,
+        }: z.infer<typeof createProjectInputSchemaWithElicitation>,
+        ctx: ServerContext
+      ) => {
         if (readOnly) {
           throw new Error('Cannot create a project in read-only mode.');
+        }
+
+        if (projectCostConfirmation && isFormCapable(ctx)) {
+          const { codec } = projectCostConfirmation;
+          const cost = await getNextProjectCost(account, organization_id);
+
+          const askForConfirmation = async () =>
+            inputRequired({
+              inputRequests: {
+                confirm_cost: inputRequired.elicit({
+                  mode: 'form',
+                  message: [
+                    `Creating this project costs $${cost.amount}/month.`,
+                    '',
+                    `Project        ${name}`,
+                    `Organization   ${organization_id}`,
+                    `Cost           $${cost.amount}/month`,
+                    '',
+                    'Cost recurs until the project is deleted.',
+                  ].join('\n'),
+                  requestedSchema: confirmProjectCostSchema,
+                }),
+              },
+              requestState: await codec.mint(
+                { name, region, organization_id, cost },
+                ctx
+              ),
+            });
+
+          const state = ctx.mcpReq.requestState<ProjectCostState>();
+          if (!state) {
+            return askForConfirmation();
+          }
+
+          if (
+            state.name !== name ||
+            state.region !== region ||
+            state.organization_id !== organization_id
+          ) {
+            return {
+              content: [
+                {
+                  type: 'text' as const,
+                  text: 'Request state arguments do not match the current arguments.',
+                },
+              ],
+              structuredContent: { status: 'error' },
+              isError: true,
+            };
+          }
+
+          if (
+            state.cost.type !== cost.type ||
+            state.cost.recurrence !== cost.recurrence ||
+            state.cost.amount !== cost.amount
+          ) {
+            // Pricing changed since the state was minted (e.g. the org's
+            // plan or active-project count shifted) - reissue a fresh
+            // prompt bound to the recomputed cost rather than honoring a
+            // stale quote.
+            return askForConfirmation();
+          }
+
+          const response = inputResponse(
+            ctx.mcpReq.inputResponses,
+            'confirm_cost'
+          );
+          if (response.kind !== 'elicit') {
+            return askForConfirmation();
+          }
+
+          if (response.action === 'decline') {
+            return {
+              content: [
+                {
+                  type: 'text' as const,
+                  text: 'Project creation was declined.',
+                },
+              ],
+              structuredContent: { status: 'declined' },
+            };
+          }
+
+          if (response.action === 'cancel') {
+            return {
+              content: [
+                {
+                  type: 'text' as const,
+                  text: 'Project creation was cancelled.',
+                },
+              ],
+              structuredContent: { status: 'cancelled' },
+            };
+          }
+
+          return await account.createProject({
+            name: state.name,
+            region: state.region,
+            organization_id: state.organization_id,
+          });
         }
 
         const cost = await getNextProjectCost(account, organization_id);

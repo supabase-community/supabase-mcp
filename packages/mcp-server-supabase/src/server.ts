@@ -1,3 +1,4 @@
+import { createRequestStateCodec } from '@modelcontextprotocol/server';
 import {
   createMcpServer,
   type Tool,
@@ -6,7 +7,10 @@ import {
 import packageJson from '../package.json' with { type: 'json' };
 import { createContentApiClient } from './content-api/index.js';
 import type { SupabasePlatform } from './platform/types.js';
-import { getAccountTools } from './tools/account-tools.js';
+import {
+  getAccountTools,
+  type ProjectCostState,
+} from './tools/account-tools.js';
 import { getBranchingTools } from './tools/branching-tools.js';
 import { getDatabaseTools } from './tools/database-operation-tools.js';
 import { getDebuggingTools } from './tools/debugging-tools.js';
@@ -54,6 +58,21 @@ export type SupabaseMcpServerOptions = {
    * Callback for after a supabase tool is called.
    */
   onToolCall?: ToolCallCallback;
+
+  /**
+   * Enables cost confirmation via elicitation inside `create_project` for
+   * clients that declare per-request form-elicitation capability. Clients
+   * without that capability keep using `get_cost` -> `confirm_cost` ->
+   * `create_project(confirm_cost_id)`.
+   */
+  projectCostConfirmation?: {
+    /** HMAC key for the `requestState` codec. MUST be at least 32 bytes. */
+    requestStateKey: string | Uint8Array;
+    /** The authenticated principal `requestState` is bound to. */
+    principal: string;
+    /** How long a minted `requestState` stays valid, in seconds. */
+    ttlSeconds?: number;
+  };
 };
 
 const DEFAULT_FEATURES: FeatureGroup[] = [
@@ -96,6 +115,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
     features,
     contentApiUrl = 'https://supabase.com/docs/api/graphql',
     onToolCall,
+    projectCostConfirmation,
   } = options;
 
   const contentApiClientPromise = createContentApiClient(contentApiUrl, {
@@ -114,6 +134,15 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
     platform,
     features ?? availableDefaultFeatures
   );
+
+  const projectCostConfirmationCodec = projectCostConfirmation
+    ? createRequestStateCodec<ProjectCostState>({
+        key: projectCostConfirmation.requestStateKey,
+        ttlSeconds: projectCostConfirmation.ttlSeconds,
+        bind: (ctx) =>
+          `${ctx.mcpReq.method}:${projectCostConfirmation.principal}`,
+      })
+    : undefined;
 
   const server = createMcpServer({
     name: 'supabase',
@@ -134,6 +163,9 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       ]);
     },
     onToolCall,
+    requestState: projectCostConfirmationCodec && {
+      verify: projectCostConfirmationCodec.verify,
+    },
     tools: async () => {
       const contentApiClient = await contentApiClientPromise;
       const tools: Record<string, Tool> = {};
@@ -153,7 +185,16 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       }
 
       if (!projectId && account && enabledFeatures.has('account')) {
-        Object.assign(tools, getAccountTools({ account, readOnly }));
+        Object.assign(
+          tools,
+          getAccountTools({
+            account,
+            readOnly,
+            projectCostConfirmation: projectCostConfirmationCodec && {
+              codec: projectCostConfirmationCodec,
+            },
+          })
+        );
       }
 
       if (database && enabledFeatures.has('database')) {

@@ -162,10 +162,8 @@ function isAdvisorLintArray(value: unknown): value is AdvisorLint[] {
 
 /**
  * Collapses a flat lint list into one entry per distinct lint, with the
- * per-object details listed underneath.
- *
- * Keyed on every shared field rather than `name` alone, so findings only merge
- * when all of them match.
+ * per-object findings underneath. Keyed on every shared field, so findings only
+ * merge when all of them match.
  */
 export function groupAdvisorLints(lints: AdvisorLint[]): GroupedAdvisorLint[] {
   const groups = new Map<string, GroupedAdvisorLint>();
@@ -203,8 +201,8 @@ export function groupAdvisorLints(lints: AdvisorLint[]): GroupedAdvisorLint[] {
 
 /**
  * Groups the lints in an advisors response and leaves the rest of the payload
- * alone. An unrecognised shape passes through untouched, so an API change
- * degrades to the ungrouped response instead of throwing.
+ * alone. An unrecognised shape passes through, so an API change degrades to the
+ * ungrouped response instead of throwing.
  */
 export function groupAdvisorsResult(result: unknown): unknown {
   if (typeof result !== 'object' || result === null || !('lints' in result)) {

@@ -7,10 +7,6 @@ import {
   resolveLogWindow,
 } from './debugging-tools.js';
 
-/**
- * The lint shape the Management API actually returns, so these fixtures fail
- * typecheck if `GET /v1/projects/{ref}/advisors/{type}` changes under us.
- */
 type AdvisorLint =
   components['schemas']['V1ProjectAdvisorsResponse']['lints'][number];
 

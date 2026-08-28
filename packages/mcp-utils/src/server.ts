@@ -283,10 +283,7 @@ export type McpServerOptions = {
    * Leaving it unset keeps the SDK's passthrough behavior.
    */
   requestState?: {
-    verify?: (
-      state: string,
-      ctx: ServerContext
-    ) => unknown | Promise<unknown>;
+    verify?: (state: string, ctx: ServerContext) => unknown | Promise<unknown>;
   };
 };
 

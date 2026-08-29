@@ -1,6 +1,4 @@
 import {
-  CLIENT_CAPABILITIES_META_KEY,
-  PROTOCOL_VERSION_META_KEY,
   inputRequired,
   inputResponse,
   type RequestStateCodec,
@@ -9,9 +7,14 @@ import {
 import { tool } from '@supabase/mcp-utils';
 import { z } from 'zod/v4';
 import type { ToolDefs } from './util.js';
+import {
+  actionOnlyElicitationSchema,
+  isFormCapable,
+  type CostConfirmationState,
+} from './cost-confirmation.js';
 import type { AccountOperations } from '../platform/types.js';
 import { organizationSchema, projectSchema } from '../platform/types.js';
-import { type Cost, getBranchCost, getNextProjectCost } from '../pricing.js';
+import { getBranchCost, getNextProjectCost } from '../pricing.js';
 import { AWS_REGION_CODES } from '../regions.js';
 import { hashObject } from '../util.js';
 
@@ -24,8 +27,8 @@ type AccountToolsOptions = {
    * `isFormCapable`). Absent, `create_project` keeps requiring
    * `confirm_cost_id` from `confirm_cost` unchanged.
    */
-  projectCostConfirmation?: {
-    codec: RequestStateCodec<ProjectCostState>;
+  costConfirmation?: {
+    codec: RequestStateCodec<CostConfirmationState>;
   };
 };
 
@@ -110,48 +113,6 @@ const createProjectInputSchemaWithElicitation = createProjectInputSchema.extend(
       ),
   }
 );
-
-/**
- * Signed `requestState` payload for the `create_project` cost-confirmation
- * elicitation, bound to the project arguments and the cost quoted to the
- * user.
- */
-export type ProjectCostState = {
-  name: string;
-  region: (typeof AWS_REGION_CODES)[number];
-  organization_id: string;
-  cost: Cost;
-};
-
-/**
- * An action-only elicitation: no properties, so the client renders the
- * message with just its accept/decline/cancel controls and consent lives
- * in `action`.
- */
-const confirmProjectCostSchema = { type: 'object' as const, properties: {} };
-
-/**
- * Whether the current request declares per-request form-elicitation
- * capability (protocol revision 2026-07-28): an `elicitation` declaration
- * with an empty mode map or an explicit `form` mode.
- */
-function isFormCapable(ctx: ServerContext): boolean {
-  const envelope = ctx.mcpReq.envelope as Record<string, unknown> | undefined;
-  if (typeof envelope?.[PROTOCOL_VERSION_META_KEY] !== 'string') {
-    return false;
-  }
-
-  const capabilities = envelope[CLIENT_CAPABILITIES_META_KEY] as
-    | { elicitation?: Record<string, unknown> }
-    | undefined;
-  const elicitation = capabilities?.elicitation;
-  if (elicitation === undefined) {
-    return false;
-  }
-
-  const modes = Object.keys(elicitation);
-  return modes.length === 0 || modes.includes('form');
-}
 
 const pauseProjectInputSchema = z.object({
   project_id: z.string(),
@@ -288,7 +249,7 @@ export const accountToolDefs = {
 export function getAccountTools({
   account,
   readOnly,
-  projectCostConfirmation,
+  costConfirmation,
 }: AccountToolsOptions) {
   return {
     list_organizations: tool({
@@ -336,7 +297,7 @@ export function getAccountTools({
     }),
     create_project: tool({
       ...accountToolDefs.create_project,
-      parameters: projectCostConfirmation
+      parameters: costConfirmation
         ? createProjectInputSchemaWithElicitation
         : createProjectInputSchema,
       execute: async (
@@ -352,8 +313,8 @@ export function getAccountTools({
           throw new Error('Cannot create a project in read-only mode.');
         }
 
-        if (projectCostConfirmation && isFormCapable(ctx)) {
-          const { codec } = projectCostConfirmation;
+        if (costConfirmation && isFormCapable(ctx)) {
+          const { codec } = costConfirmation;
           const cost = await getNextProjectCost(account, organization_id);
 
           const askForConfirmation = async () =>
@@ -370,18 +331,31 @@ export function getAccountTools({
                     '',
                     'Cost recurs until the project is deleted.',
                   ].join('\n'),
-                  requestedSchema: confirmProjectCostSchema,
+                  requestedSchema: actionOnlyElicitationSchema,
                 }),
               },
               requestState: await codec.mint(
-                { name, region, organization_id, cost },
+                { tool: 'create_project', name, region, organization_id, cost },
                 ctx
               ),
             });
 
-          const state = ctx.mcpReq.requestState<ProjectCostState>();
+          const state = ctx.mcpReq.requestState<CostConfirmationState>();
           if (!state) {
             return askForConfirmation();
+          }
+
+          if (state.tool !== 'create_project') {
+            return {
+              content: [
+                {
+                  type: 'text' as const,
+                  text: 'Request state was not issued for create_project.',
+                },
+              ],
+              structuredContent: { status: 'error' },
+              isError: true,
+            };
           }
 
           if (

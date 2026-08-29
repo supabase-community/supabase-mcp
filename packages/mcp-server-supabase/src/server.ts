@@ -7,11 +7,9 @@ import {
 import packageJson from '../package.json' with { type: 'json' };
 import { createContentApiClient } from './content-api/index.js';
 import type { SupabasePlatform } from './platform/types.js';
-import {
-  getAccountTools,
-  type ProjectCostState,
-} from './tools/account-tools.js';
+import { getAccountTools } from './tools/account-tools.js';
 import { getBranchingTools } from './tools/branching-tools.js';
+import type { CostConfirmationState } from './tools/cost-confirmation.js';
 import { getDatabaseTools } from './tools/database-operation-tools.js';
 import { getDebuggingTools } from './tools/debugging-tools.js';
 import { getDevelopmentTools } from './tools/development-tools.js';
@@ -60,18 +58,20 @@ export type SupabaseMcpServerOptions = {
   onToolCall?: ToolCallCallback;
 
   /**
-   * Enables cost confirmation via elicitation inside `create_project` for
-   * clients that declare per-request form-elicitation capability. Clients
-   * without that capability keep using `get_cost` -> `confirm_cost` ->
+   * Enables cost confirmation via elicitation for clients that declare
+   * per-request form-elicitation capability. Clients without that
+   * capability keep using `get_cost` -> `confirm_cost` ->
    * `create_project(confirm_cost_id)`.
    */
-  projectCostConfirmation?: {
+  costConfirmation?: {
     /** HMAC key for the `requestState` codec. MUST be at least 32 bytes. */
     requestStateKey: string | Uint8Array;
     /** The authenticated principal `requestState` is bound to. */
     principal: string;
     /** How long a minted `requestState` stays valid, in seconds. */
     ttlSeconds?: number;
+    /** Tools that accept a cost-confirmation elicitation. */
+    enabledTools: readonly 'create_project'[];
   };
 };
 
@@ -115,7 +115,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
     features,
     contentApiUrl = 'https://supabase.com/docs/api/graphql',
     onToolCall,
-    projectCostConfirmation,
+    costConfirmation,
   } = options;
 
   const contentApiClientPromise = createContentApiClient(contentApiUrl, {
@@ -135,12 +135,13 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
     features ?? availableDefaultFeatures
   );
 
-  const projectCostConfirmationCodec = projectCostConfirmation
-    ? createRequestStateCodec<ProjectCostState>({
-        key: projectCostConfirmation.requestStateKey,
-        ttlSeconds: projectCostConfirmation.ttlSeconds,
-        bind: (ctx) =>
-          `${ctx.mcpReq.method}:${projectCostConfirmation.principal}`,
+  const costConfirmationCodec = costConfirmation?.enabledTools.includes(
+    'create_project'
+  )
+    ? createRequestStateCodec<CostConfirmationState>({
+        key: costConfirmation.requestStateKey,
+        ttlSeconds: costConfirmation.ttlSeconds,
+        bind: (ctx) => `${ctx.mcpReq.method}:${costConfirmation.principal}`,
       })
     : undefined;
 
@@ -163,8 +164,8 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       ]);
     },
     onToolCall,
-    requestState: projectCostConfirmationCodec && {
-      verify: projectCostConfirmationCodec.verify,
+    requestState: costConfirmationCodec && {
+      verify: costConfirmationCodec.verify,
     },
     tools: async () => {
       const contentApiClient = await contentApiClientPromise;
@@ -190,8 +191,8 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
           getAccountTools({
             account,
             readOnly,
-            projectCostConfirmation: projectCostConfirmationCodec && {
-              codec: projectCostConfirmationCodec,
+            costConfirmation: costConfirmationCodec && {
+              codec: costConfirmationCodec,
             },
           })
         );

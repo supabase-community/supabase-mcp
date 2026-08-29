@@ -59,7 +59,7 @@ type SetupOptions = {
   platform?: SupabasePlatform;
   readOnly?: boolean;
   features?: string[];
-  projectCostConfirmation?: SupabaseMcpServerOptions['projectCostConfirmation'];
+  costConfirmation?: SupabaseMcpServerOptions['costConfirmation'];
 };
 
 /**
@@ -71,7 +71,7 @@ async function setup(options: SetupOptions = {}) {
     projectId,
     readOnly,
     features,
-    projectCostConfirmation,
+    costConfirmation,
   } = options;
   const clientTransport = new StreamTransport();
   const serverTransport = new StreamTransport();
@@ -101,7 +101,7 @@ async function setup(options: SetupOptions = {}) {
     projectId,
     readOnly,
     features,
-    projectCostConfirmation,
+    costConfirmation,
   });
 
   await server.connect(serverTransport);
@@ -151,11 +151,12 @@ type FormCapableSetupOptions = {
   elicitationAction?: 'accept' | 'decline' | 'cancel';
 };
 
-const PROJECT_COST_CONFIRMATION: NonNullable<
-  SupabaseMcpServerOptions['projectCostConfirmation']
+const COST_CONFIRMATION: NonNullable<
+  SupabaseMcpServerOptions['costConfirmation']
 > = {
   requestStateKey: 'a'.repeat(32),
   principal: 'test-user',
+  enabledTools: ['create_project'],
 };
 
 // https://blog.modelcontextprotocol.io/posts/2026-07-28-release-candidate/
@@ -190,7 +191,7 @@ async function setupFormCapable(options: FormCapableSetupOptions = {}) {
   const handler = createSupabaseMcpHandler({
     platform,
     readOnly,
-    projectCostConfirmation: PROJECT_COST_CONFIRMATION,
+    costConfirmation: COST_CONFIRMATION,
   });
 
   const transport = new StreamableHTTPClientTransport(MCP_ENDPOINT, {
@@ -615,7 +616,7 @@ describe('tools', () => {
 
     test('create_project advertises confirm_cost_id as optional when cost confirmation is configured', async () => {
       const { client } = await setup({
-        projectCostConfirmation: PROJECT_COST_CONFIRMATION,
+        costConfirmation: COST_CONFIRMATION,
       });
 
       const { tools } = await client.listTools();
@@ -630,7 +631,7 @@ describe('tools', () => {
 
     test('capability-free client still succeeds via get_cost -> confirm_cost -> create_project', async () => {
       const { callTool } = await setup({
-        projectCostConfirmation: PROJECT_COST_CONFIRMATION,
+        costConfirmation: COST_CONFIRMATION,
       });
 
       const freeOrg = await createOrganization({

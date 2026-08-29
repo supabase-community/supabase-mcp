@@ -25,13 +25,18 @@ import {
   createProject,
   MCP_CLIENT_NAME,
   MCP_CLIENT_VERSION,
+  mockBranches,
   mockContentApiSchemaLoadCount,
   mockProjects,
   setupMockApis,
 } from '../test/mocks.js';
 import { createSupabaseApiPlatform } from './platform/api-platform.js';
 import type { SupabasePlatform } from './platform/types.js';
-import { BRANCH_COST_HOURLY, PROJECT_COST_MONTHLY } from './pricing.js';
+import {
+  BRANCH_COST_HOURLY,
+  getBranchCost,
+  PROJECT_COST_MONTHLY,
+} from './pricing.js';
 import {
   createSupabaseMcpServer,
   instructions,
@@ -42,6 +47,7 @@ import {
   supabaseMcpToolSchemas,
 } from './tools/tool-schemas.js';
 import { createSupabaseMcpHandler } from './transports/http.js';
+import { hashObject } from './util.js';
 
 let mockServer: SetupServer | undefined;
 
@@ -143,6 +149,7 @@ async function setup(options: SetupOptions = {}) {
 
 type FormCapableSetupOptions = {
   readOnly?: boolean;
+  projectId?: string;
   /**
    * Registers an auto-fulfilling `elicitation/create` handler that always
    * answers with this action, driven via `client.callTool`. Omit for manual
@@ -156,7 +163,7 @@ const COST_CONFIRMATION: NonNullable<
 > = {
   requestStateKey: 'a'.repeat(32),
   principal: 'test-user',
-  enabledTools: ['create_project'],
+  enabledTools: ['create_project', 'create_branch'],
 };
 
 // https://blog.modelcontextprotocol.io/posts/2026-07-28-release-candidate/
@@ -165,14 +172,15 @@ const MCP_ENDPOINT = new URL('https://mcp.test');
 
 /**
  * Sets up an MCP client against the hosted HTTP handler (in-process, via a
- * custom `fetch`) for the `create_project` cost-confirmation elicitation
- * lane: a client pinned to the 2026-07-28 protocol, declaring per-request
- * form capability. Raw `StreamTransport` only speaks the 2025 era, so the
- * form-capable lane - which depends on the per-request `_meta` envelope -
- * needs the same in-process HTTP transport the hosted runtime uses.
+ * custom `fetch`) for the `create_project`/`create_branch` cost-confirmation
+ * elicitation lanes: a client pinned to the 2026-07-28 protocol, declaring
+ * per-request form capability. Raw `StreamTransport` only speaks the 2025
+ * era, so the form-capable lane - which depends on the per-request `_meta`
+ * envelope - needs the same in-process HTTP transport the hosted runtime
+ * uses.
  */
 async function setupFormCapable(options: FormCapableSetupOptions = {}) {
-  const { readOnly, elicitationAction } = options;
+  const { readOnly, projectId, elicitationAction } = options;
 
   const platform = createSupabaseApiPlatform({
     accessToken: ACCESS_TOKEN,
@@ -190,6 +198,7 @@ async function setupFormCapable(options: FormCapableSetupOptions = {}) {
 
   const handler = createSupabaseMcpHandler({
     platform,
+    projectId,
     readOnly,
     costConfirmation: COST_CONFIRMATION,
   });
@@ -3730,6 +3739,330 @@ describe('tools', () => {
     await expect(createBranchPromise).rejects.toThrow(
       'User must confirm understanding of costs before creating a branch.'
     );
+  });
+
+  describe('create_branch cost confirmation via elicitation', () => {
+    test('create_branch requires confirm_cost_id when cost confirmation is not configured', async () => {
+      const { client } = await setup({ features: ['branching'] });
+
+      const { tools } = await client.listTools();
+      const createBranchTool = tools.find(
+        (tool) => tool.name === 'create_branch'
+      );
+
+      expect(createBranchTool?.inputSchema.required).toContain(
+        'confirm_cost_id'
+      );
+    });
+
+    test('create_branch advertises confirm_cost_id as optional when cost confirmation is configured', async () => {
+      const { client } = await setup({
+        features: ['branching'],
+        costConfirmation: COST_CONFIRMATION,
+      });
+
+      const { tools } = await client.listTools();
+      const createBranchTool = tools.find(
+        (tool) => tool.name === 'create_branch'
+      );
+
+      expect(createBranchTool?.inputSchema.required).not.toContain(
+        'confirm_cost_id'
+      );
+    });
+
+    test('capability-free client still succeeds via get_cost -> confirm_cost -> create_branch', async () => {
+      const { callTool } = await setup({
+        features: ['account', 'branching'],
+        costConfirmation: COST_CONFIRMATION,
+      });
+
+      const org = await createOrganization({
+        name: 'My Org',
+        plan: 'free',
+        allowed_release_channels: ['ga'],
+      });
+
+      const project = await createProject({
+        name: 'Project 1',
+        region: 'us-east-1',
+        organization_id: org.id,
+      });
+      project.status = 'ACTIVE_HEALTHY';
+
+      const confirm_cost_id_result = await callTool({
+        name: 'confirm_cost',
+        arguments: {
+          type: 'branch',
+          recurrence: 'hourly',
+          amount: BRANCH_COST_HOURLY,
+        },
+      });
+
+      const branchName = 'test-branch';
+      const result = await callTool({
+        name: 'create_branch',
+        arguments: {
+          project_id: project.id,
+          name: branchName,
+          confirm_cost_id: confirm_cost_id_result.confirmation_id,
+        },
+      });
+
+      expect(result).toMatchObject({
+        name: branchName,
+        parent_project_ref: project.id,
+      });
+      // Creating a project's first branch also mints a same-named
+      // `is_default` mock branch representing the parent project itself -
+      // filter it out to count only the branch this call created.
+      expect(
+        Array.from(mockBranches.values()).filter(
+          (branch) => branch.name === branchName && !branch.is_default
+        )
+      ).toHaveLength(1);
+    });
+
+    test('form-capable client: accept creates the branch exactly once', async () => {
+      const { client } = await setupFormCapable({
+        elicitationAction: 'accept',
+      });
+
+      const org = await createOrganization({
+        name: 'My Org',
+        plan: 'free',
+        allowed_release_channels: ['ga'],
+      });
+
+      const project = await createProject({
+        name: 'Project 1',
+        region: 'us-east-1',
+        organization_id: org.id,
+      });
+      project.status = 'ACTIVE_HEALTHY';
+
+      const result = await client.callTool({
+        name: 'create_branch',
+        arguments: { project_id: project.id, name: 'test-branch' },
+      });
+
+      expect(result.isError).toBeFalsy();
+      const [content] = result.content;
+      if (content?.type !== 'text') {
+        throw new Error('expected text content');
+      }
+      const branch = JSON.parse(content.text);
+      expect(branch).toMatchObject({
+        name: 'test-branch',
+        parent_project_ref: project.id,
+      });
+      expect(
+        Array.from(mockBranches.values()).filter(
+          (branch) => branch.name === 'test-branch' && !branch.is_default
+        )
+      ).toHaveLength(1);
+    });
+
+    test('form-capable client: decline does not create a branch', async () => {
+      const { client } = await setupFormCapable({
+        elicitationAction: 'decline',
+      });
+
+      const org = await createOrganization({
+        name: 'My Org',
+        plan: 'free',
+        allowed_release_channels: ['ga'],
+      });
+
+      const project = await createProject({
+        name: 'Project 1',
+        region: 'us-east-1',
+        organization_id: org.id,
+      });
+      project.status = 'ACTIVE_HEALTHY';
+
+      const result = await client.callTool({
+        name: 'create_branch',
+        arguments: { project_id: project.id, name: 'test-branch' },
+      });
+
+      expect(result.isError).toBeFalsy();
+      expect(result.structuredContent).toEqual({ status: 'declined' });
+      expect(mockBranches.size).toBe(0);
+    });
+
+    test('form-capable client: cancel does not create a branch', async () => {
+      const { client } = await setupFormCapable({
+        elicitationAction: 'cancel',
+      });
+
+      const org = await createOrganization({
+        name: 'My Org',
+        plan: 'free',
+        allowed_release_channels: ['ga'],
+      });
+
+      const project = await createProject({
+        name: 'Project 1',
+        region: 'us-east-1',
+        organization_id: org.id,
+      });
+      project.status = 'ACTIVE_HEALTHY';
+
+      const result = await client.callTool({
+        name: 'create_branch',
+        arguments: { project_id: project.id, name: 'test-branch' },
+      });
+
+      expect(result.isError).toBeFalsy();
+      expect(result.structuredContent).toEqual({ status: 'cancelled' });
+      expect(mockBranches.size).toBe(0);
+    });
+
+    test('form-capable client: a supplied confirm_cost_id cannot bypass the form', async () => {
+      const { client } = await setupFormCapable();
+
+      const org = await createOrganization({
+        name: 'My Org',
+        plan: 'free',
+        allowed_release_channels: ['ga'],
+      });
+
+      const project = await createProject({
+        name: 'Project 1',
+        region: 'us-east-1',
+        organization_id: org.id,
+      });
+      project.status = 'ACTIVE_HEALTHY';
+
+      // The correct legacy hash - even a valid confirmation ID must not
+      // let a form-capable client skip straight to creation.
+      const legacyConfirmCostId = await hashObject(getBranchCost());
+
+      const result = (await client.request(
+        {
+          method: 'tools/call',
+          params: {
+            name: 'create_branch',
+            arguments: {
+              project_id: project.id,
+              name: 'test-branch',
+              confirm_cost_id: legacyConfirmCostId,
+            },
+          },
+        },
+        { allowInputRequired: true }
+      )) as CallToolResult | InputRequiredResult;
+
+      if (!isInputRequiredResult(result)) {
+        throw new Error('expected an input_required result');
+      }
+      expect(mockBranches.size).toBe(0);
+    });
+
+    test('rejects a retry whose arguments changed since the state was minted', async () => {
+      const { client } = await setupFormCapable();
+
+      const org = await createOrganization({
+        name: 'My Org',
+        plan: 'free',
+        allowed_release_channels: ['ga'],
+      });
+
+      const project = await createProject({
+        name: 'Project 1',
+        region: 'us-east-1',
+        organization_id: org.id,
+      });
+      project.status = 'ACTIVE_HEALTHY';
+
+      const first = (await client.request(
+        {
+          method: 'tools/call',
+          params: {
+            name: 'create_branch',
+            arguments: { project_id: project.id, name: 'test-branch' },
+          },
+        },
+        { allowInputRequired: true }
+      )) as CallToolResult | InputRequiredResult;
+
+      if (!isInputRequiredResult(first)) {
+        throw new Error('expected an input_required result');
+      }
+
+      const second = (await client.request(
+        {
+          method: 'tools/call',
+          params: {
+            name: 'create_branch',
+            arguments: { project_id: project.id, name: 'renamed-branch' },
+            inputResponses: {
+              confirm_cost: { action: 'accept', content: {} },
+            },
+            requestState: first.requestState,
+          },
+        },
+        { allowInputRequired: true }
+      )) as CallToolResult | InputRequiredResult;
+
+      if (isInputRequiredResult(second)) {
+        throw new Error('expected a CallToolResult');
+      }
+
+      expect(second.isError).toBe(true);
+      expect(second.structuredContent).toEqual({ status: 'error' });
+      expect(mockBranches.size).toBe(0);
+    });
+
+    test('project-scoped server signs and uses the configured project', async () => {
+      const org = await createOrganization({
+        name: 'My Org',
+        plan: 'free',
+        allowed_release_channels: ['ga'],
+      });
+
+      const project = await createProject({
+        name: 'Project 1',
+        region: 'us-east-1',
+        organization_id: org.id,
+      });
+      project.status = 'ACTIVE_HEALTHY';
+
+      const { client } = await setupFormCapable({
+        projectId: project.id,
+        elicitationAction: 'accept',
+      });
+
+      const { tools } = await client.listTools();
+      const createBranchTool = tools.find(
+        (tool) => tool.name === 'create_branch'
+      );
+      expect(
+        Object.keys(createBranchTool?.inputSchema.properties ?? {})
+      ).not.toContain('project_id');
+
+      const result = await client.callTool({
+        name: 'create_branch',
+        arguments: { name: 'test-branch' },
+      });
+
+      expect(result.isError).toBeFalsy();
+      const [content] = result.content;
+      if (content?.type !== 'text') {
+        throw new Error('expected text content');
+      }
+      const branch = JSON.parse(content.text);
+      expect(branch).toMatchObject({
+        name: 'test-branch',
+        parent_project_ref: project.id,
+      });
+      expect(
+        Array.from(mockBranches.values()).filter(
+          (branch) => branch.name === 'test-branch' && !branch.is_default
+        )
+      ).toHaveLength(1);
+    });
   });
 
   test('delete branch', async () => {

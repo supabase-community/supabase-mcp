@@ -3,7 +3,7 @@ import {
   PROTOCOL_VERSION_META_KEY,
   type ServerContext,
 } from '@modelcontextprotocol/server';
-import type { Cost } from '../pricing.js';
+import type { BranchCost, Cost } from '../pricing.js';
 import type { AWS_REGION_CODES } from '../regions.js';
 
 /**
@@ -20,10 +20,22 @@ export type ProjectCostState = {
 };
 
 /**
+ * Signed `requestState` payload for the `create_branch` cost-confirmation
+ * elicitation, bound to the branch arguments and the cost quoted to the
+ * user.
+ */
+export type BranchCostState = {
+  tool: 'create_branch';
+  project_id: string;
+  name: string;
+  cost: BranchCost;
+};
+
+/**
  * Signed `requestState` payload for any cost-confirmation elicitation this
  * server issues, discriminated by `tool`.
  */
-export type CostConfirmationState = ProjectCostState;
+export type CostConfirmationState = ProjectCostState | BranchCostState;
 
 /**
  * An action-only elicitation: no properties, so the client renders the

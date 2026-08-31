@@ -407,7 +407,7 @@ export function getAccountTools({
             };
           }
 
-          if (response.action === 'cancel') {
+          if (response.action !== 'accept') {
             return {
               content: [
                 {

@@ -316,6 +316,15 @@ export function getAccountTools({
         if (costConfirmation && isFormCapable(ctx)) {
           const { codec } = costConfirmation;
           const cost = await getNextProjectCost(account, organization_id);
+          const state = ctx.mcpReq.requestState<CostConfirmationState>();
+          if (!state && cost.amount === 0) {
+            return await account.createProject({
+              name,
+              region,
+              organization_id,
+            });
+          }
+
           const costSuffix = cost.recurrence === 'monthly' ? '/month' : '/hr';
 
           const askForConfirmation = async () =>
@@ -341,7 +350,6 @@ export function getAccountTools({
               ),
             });
 
-          const state = ctx.mcpReq.requestState<CostConfirmationState>();
           if (!state) {
             return askForConfirmation();
           }
@@ -409,9 +417,10 @@ export function getAccountTools({
           }
 
           if (
-            state.cost.type !== cost.type ||
-            state.cost.recurrence !== cost.recurrence ||
-            state.cost.amount !== cost.amount
+            cost.amount !== 0 &&
+            (state.cost.type !== cost.type ||
+              state.cost.recurrence !== cost.recurrence ||
+              state.cost.amount !== cost.amount)
           ) {
             // Pricing changed since the state was minted (e.g. the org's
             // plan or active-project count shifted) - reissue a fresh

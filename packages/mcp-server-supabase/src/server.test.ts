@@ -601,6 +601,22 @@ describe('tools', () => {
   });
 
   describe('create_project cost confirmation via elicitation', () => {
+    async function createOrganizationWithBillableNextProject() {
+      const org = await createOrganization({
+        name: 'Paid Org',
+        plan: 'pro',
+        allowed_release_channels: ['ga'],
+      });
+      const existingProject = await createProject({
+        name: 'Existing Project',
+        region: 'us-east-1',
+        organization_id: org.id,
+      });
+      existingProject.status = 'ACTIVE_HEALTHY';
+
+      return { org, existingProject };
+    }
+
     test('create_project requires confirm_cost_id when cost confirmation is not configured', async () => {
       const { client } = await setup();
 
@@ -663,10 +679,8 @@ describe('tools', () => {
       expect(mockProjects.size).toBe(1);
     });
 
-    test('form-capable client: accept creates the project exactly once', async () => {
-      const { client } = await setupFormCapable({
-        elicitationAction: 'accept',
-      });
+    test('form-capable client: $0 creates without elicitation', async () => {
+      const { client } = await setupFormCapable();
 
       const freeOrg = await createOrganization({
         name: 'Free Org',
@@ -674,12 +688,41 @@ describe('tools', () => {
         allowed_release_channels: ['ga'],
       });
 
+      const result = (await client.request(
+        {
+          method: 'tools/call',
+          params: {
+            name: 'create_project',
+            arguments: {
+              name: 'New Project',
+              region: 'us-east-1',
+              organization_id: freeOrg.id,
+            },
+          },
+        },
+        { allowInputRequired: true }
+      )) as CallToolResult | InputRequiredResult;
+
+      expect(isInputRequiredResult(result)).toBe(false);
+      if (isInputRequiredResult(result)) {
+        throw new Error('expected a CallToolResult');
+      }
+      expect(result.isError).toBeFalsy();
+      expect(mockProjects.size).toBe(1);
+    });
+
+    test('form-capable client: accept creates the project exactly once', async () => {
+      const { client } = await setupFormCapable({
+        elicitationAction: 'accept',
+      });
+      const { org } = await createOrganizationWithBillableNextProject();
+
       const result = await client.callTool({
         name: 'create_project',
         arguments: {
           name: 'New Project',
           region: 'us-east-1',
-          organization_id: freeOrg.id,
+          organization_id: org.id,
         },
       });
 
@@ -692,69 +735,54 @@ describe('tools', () => {
       expect(project).toMatchObject({
         name: 'New Project',
         region: 'us-east-1',
-        organization_id: freeOrg.id,
+        organization_id: org.id,
       });
-      expect(mockProjects.size).toBe(1);
+      expect(mockProjects.size).toBe(2);
     });
 
     test('form-capable client: decline does not create a project', async () => {
       const { client } = await setupFormCapable({
         elicitationAction: 'decline',
       });
-
-      const freeOrg = await createOrganization({
-        name: 'Free Org',
-        plan: 'free',
-        allowed_release_channels: ['ga'],
-      });
+      const { org } = await createOrganizationWithBillableNextProject();
 
       const result = await client.callTool({
         name: 'create_project',
         arguments: {
           name: 'New Project',
           region: 'us-east-1',
-          organization_id: freeOrg.id,
+          organization_id: org.id,
         },
       });
 
       expect(result.isError).toBeFalsy();
       expect(result.structuredContent).toEqual({ status: 'declined' });
-      expect(mockProjects.size).toBe(0);
+      expect(mockProjects.size).toBe(1);
     });
 
     test('form-capable client: cancel does not create a project', async () => {
       const { client } = await setupFormCapable({
         elicitationAction: 'cancel',
       });
-
-      const freeOrg = await createOrganization({
-        name: 'Free Org',
-        plan: 'free',
-        allowed_release_channels: ['ga'],
-      });
+      const { org } = await createOrganizationWithBillableNextProject();
 
       const result = await client.callTool({
         name: 'create_project',
         arguments: {
           name: 'New Project',
           region: 'us-east-1',
-          organization_id: freeOrg.id,
+          organization_id: org.id,
         },
       });
 
       expect(result.isError).toBeFalsy();
       expect(result.structuredContent).toEqual({ status: 'cancelled' });
-      expect(mockProjects.size).toBe(0);
+      expect(mockProjects.size).toBe(1);
     });
 
     test('rejects a retry whose arguments changed since the state was minted', async () => {
       const { client } = await setupFormCapable();
-
-      const org = await createOrganization({
-        name: 'Free Org',
-        plan: 'free',
-        allowed_release_channels: ['ga'],
-      });
+      const { org } = await createOrganizationWithBillableNextProject();
       const otherOrg = await createOrganization({
         name: 'Other Org',
         plan: 'free',
@@ -805,17 +833,13 @@ describe('tools', () => {
 
       expect(second.isError).toBe(true);
       expect(second.structuredContent).toEqual({ status: 'error' });
-      expect(mockProjects.size).toBe(0);
+      expect(mockProjects.size).toBe(1);
     });
 
-    test('reissues a fresh prompt when the quoted cost changes before confirmation', async () => {
+    test('creates without re-prompting when the quoted cost drops to zero before confirmation', async () => {
       const { client } = await setupFormCapable();
-
-      const org = await createOrganization({
-        name: 'Paid Org',
-        plan: 'pro',
-        allowed_release_channels: ['ga'],
-      });
+      const { org, existingProject } =
+        await createOrganizationWithBillableNextProject();
 
       const args = {
         name: 'New Project',
@@ -835,14 +859,7 @@ describe('tools', () => {
         throw new Error('expected an input_required result');
       }
 
-      // Pricing shifts between rounds: a new active project pushes this
-      // paid org past its free first-project allowance.
-      const priorProject = await createProject({
-        name: 'Existing Project',
-        region: 'us-east-1',
-        organization_id: org.id,
-      });
-      priorProject.status = 'ACTIVE_HEALTHY';
+      existingProject.status = 'INACTIVE';
 
       const second = (await client.request(
         {
@@ -859,20 +876,18 @@ describe('tools', () => {
         { allowInputRequired: true }
       )) as CallToolResult | InputRequiredResult;
 
-      expect(isInputRequiredResult(second)).toBe(true);
-      // Only the project created directly above; create_project itself
-      // reissued instead of creating.
-      expect(mockProjects.size).toBe(1);
+      expect(isInputRequiredResult(second)).toBe(false);
+      if (isInputRequiredResult(second)) {
+        throw new Error('expected a CallToolResult');
+      }
+      expect(second.isError).toBeFalsy();
+      expect(mockProjects.size).toBe(2);
     });
 
     test('a decline is honored even when the quoted cost changed since the state was minted', async () => {
       const { client } = await setupFormCapable();
-
-      const org = await createOrganization({
-        name: 'Paid Org',
-        plan: 'pro',
-        allowed_release_channels: ['ga'],
-      });
+      const { org, existingProject } =
+        await createOrganizationWithBillableNextProject();
 
       const args = {
         name: 'New Project',
@@ -892,14 +907,7 @@ describe('tools', () => {
         throw new Error('expected an input_required result');
       }
 
-      // Pricing shifts between rounds: a new active project pushes this
-      // paid org past its free first-project allowance.
-      const priorProject = await createProject({
-        name: 'Existing Project',
-        region: 'us-east-1',
-        organization_id: org.id,
-      });
-      priorProject.status = 'ACTIVE_HEALTHY';
+      existingProject.status = 'INACTIVE';
 
       const second = (await client.request(
         {
@@ -921,7 +929,6 @@ describe('tools', () => {
       }
 
       expect(second.structuredContent).toEqual({ status: 'declined' });
-      // Only the project created directly above; declining never creates one.
       expect(mockProjects.size).toBe(1);
     });
   });

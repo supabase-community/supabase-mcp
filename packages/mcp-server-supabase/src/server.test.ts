@@ -3920,6 +3920,53 @@ describe('tools', () => {
       expect(mockBranches.size).toBe(0);
     });
 
+    test('form-capable client: a non-elicitation response re-prompts without creating a branch', async () => {
+      const { client } = await setupFormCapable();
+
+      const org = await createOrganization({
+        name: 'My Org',
+        plan: 'free',
+        allowed_release_channels: ['ga'],
+      });
+      const project = await createProject({
+        name: 'Project 1',
+        region: 'us-east-1',
+        organization_id: org.id,
+      });
+      project.status = 'ACTIVE_HEALTHY';
+
+      const args = { project_id: project.id, name: 'test-branch' };
+      const first = (await client.request(
+        {
+          method: 'tools/call',
+          params: { name: 'create_branch', arguments: args },
+        },
+        { allowInputRequired: true }
+      )) as CallToolResult | InputRequiredResult;
+
+      if (!isInputRequiredResult(first)) {
+        throw new Error('expected an input_required result');
+      }
+
+      const second = (await client.request(
+        {
+          method: 'tools/call',
+          params: {
+            name: 'create_branch',
+            arguments: args,
+            inputResponses: {
+              confirm_cost: { roots: [] },
+            },
+            requestState: first.requestState,
+          },
+        },
+        { allowInputRequired: true }
+      )) as CallToolResult | InputRequiredResult;
+
+      expect(isInputRequiredResult(second)).toBe(true);
+      expect(mockBranches.size).toBe(0);
+    });
+
     test('a decline is honored even when the quoted branch cost changed since the state was minted', async () => {
       const getBranchCostSpy = vi
         .spyOn(pricing, 'getBranchCost')
@@ -3959,9 +4006,12 @@ describe('tools', () => {
       if (!isInputRequiredResult(first)) {
         throw new Error('expected an input_required result');
       }
-      expect(first.inputRequests.confirm_cost).toMatchObject({
-        mode: 'form',
-        message: expect.stringContaining(`$${BRANCH_COST_HOURLY}/hr`),
+      expect(first.inputRequests?.confirm_cost).toMatchObject({
+        method: 'elicitation/create',
+        params: {
+          mode: 'form',
+          message: expect.stringContaining(`$${BRANCH_COST_HOURLY}/hr`),
+        },
       });
 
       const second = (await client.request(

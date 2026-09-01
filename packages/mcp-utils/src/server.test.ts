@@ -303,7 +303,8 @@ describe('tools', () => {
       version: '0.0.0',
       tools: {
         report: tool({
-          description: 'Returns business data that happens to have a content field',
+          description:
+            'Returns business data that happens to have a content field',
           parameters: z.object({}),
           outputSchema: z.object({
             title: z.string(),

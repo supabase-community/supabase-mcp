@@ -1,4 +1,4 @@
-import { Server } from '@modelcontextprotocol/server';
+import { isCallToolResult, Server } from '@modelcontextprotocol/server';
 import type {
   CallToolResult,
   ClientCapabilities,
@@ -580,14 +580,6 @@ function isInputRequiredResult(value: unknown): value is InputRequiredResult {
     typeof value === 'object' &&
     value !== null &&
     (value as { resultType?: unknown }).resultType === 'input_required'
-  );
-}
-
-function isCallToolResult(value: unknown): value is CallToolResult {
-  return (
-    typeof value === 'object' &&
-    value !== null &&
-    Array.isArray((value as { content?: unknown }).content)
   );
 }
 

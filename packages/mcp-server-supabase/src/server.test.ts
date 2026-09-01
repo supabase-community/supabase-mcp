@@ -864,6 +864,66 @@ describe('tools', () => {
       // reissued instead of creating.
       expect(mockProjects.size).toBe(1);
     });
+
+    test('a decline is honored even when the quoted cost changed since the state was minted', async () => {
+      const { client } = await setupFormCapable();
+
+      const org = await createOrganization({
+        name: 'Paid Org',
+        plan: 'pro',
+        allowed_release_channels: ['ga'],
+      });
+
+      const args = {
+        name: 'New Project',
+        region: 'us-east-1',
+        organization_id: org.id,
+      };
+
+      const first = (await client.request(
+        {
+          method: 'tools/call',
+          params: { name: 'create_project', arguments: args },
+        },
+        { allowInputRequired: true }
+      )) as CallToolResult | InputRequiredResult;
+
+      if (!isInputRequiredResult(first)) {
+        throw new Error('expected an input_required result');
+      }
+
+      // Pricing shifts between rounds: a new active project pushes this
+      // paid org past its free first-project allowance.
+      const priorProject = await createProject({
+        name: 'Existing Project',
+        region: 'us-east-1',
+        organization_id: org.id,
+      });
+      priorProject.status = 'ACTIVE_HEALTHY';
+
+      const second = (await client.request(
+        {
+          method: 'tools/call',
+          params: {
+            name: 'create_project',
+            arguments: args,
+            inputResponses: {
+              confirm_cost: { action: 'decline' },
+            },
+            requestState: first.requestState,
+          },
+        },
+        { allowInputRequired: true }
+      )) as CallToolResult | InputRequiredResult;
+
+      if (isInputRequiredResult(second)) {
+        throw new Error('expected a CallToolResult');
+      }
+
+      expect(second.structuredContent).toEqual({ status: 'declined' });
+      // Only the project created directly above; declining never creates one.
+      expect(mockProjects.size).toBe(1);
+    });
   });
 
   test('pause project', async () => {

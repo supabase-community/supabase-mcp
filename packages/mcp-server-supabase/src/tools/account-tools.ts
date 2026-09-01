@@ -316,6 +316,7 @@ export function getAccountTools({
         if (costConfirmation && isFormCapable(ctx)) {
           const { codec } = costConfirmation;
           const cost = await getNextProjectCost(account, organization_id);
+          const costSuffix = cost.recurrence === 'monthly' ? '/month' : '/hr';
 
           const askForConfirmation = async () =>
             inputRequired({
@@ -323,11 +324,11 @@ export function getAccountTools({
                 confirm_cost: inputRequired.elicit({
                   mode: 'form',
                   message: [
-                    `Creating this project costs $${cost.amount}/month.`,
+                    `Creating this project costs $${cost.amount}${costSuffix}.`,
                     '',
                     `Project        ${name}`,
                     `Organization   ${organization_id}`,
-                    `Cost           $${cost.amount}/month`,
+                    `Cost           $${cost.amount}${costSuffix}`,
                     '',
                     'Cost recurs until the project is deleted.',
                   ].join('\n'),
@@ -375,18 +376,6 @@ export function getAccountTools({
             };
           }
 
-          if (
-            state.cost.type !== cost.type ||
-            state.cost.recurrence !== cost.recurrence ||
-            state.cost.amount !== cost.amount
-          ) {
-            // Pricing changed since the state was minted (e.g. the org's
-            // plan or active-project count shifted) - reissue a fresh
-            // prompt bound to the recomputed cost rather than honoring a
-            // stale quote.
-            return askForConfirmation();
-          }
-
           const response = inputResponse(
             ctx.mcpReq.inputResponses,
             'confirm_cost'
@@ -417,6 +406,18 @@ export function getAccountTools({
               ],
               structuredContent: { status: 'cancelled' },
             };
+          }
+
+          if (
+            state.cost.type !== cost.type ||
+            state.cost.recurrence !== cost.recurrence ||
+            state.cost.amount !== cost.amount
+          ) {
+            // Pricing changed since the state was minted (e.g. the org's
+            // plan or active-project count shifted) - reissue a fresh
+            // prompt bound to the recomputed cost rather than honoring a
+            // stale quote.
+            return askForConfirmation();
           }
 
           return await account.createProject({

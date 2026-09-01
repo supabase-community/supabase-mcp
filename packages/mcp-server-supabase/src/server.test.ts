@@ -3980,61 +3980,64 @@ describe('tools', () => {
           recurrence: 'hourly',
           amount: BRANCH_COST_HOURLY + 1,
         });
-      const { client } = await setupFormCapable();
+      try {
+        const { client } = await setupFormCapable();
 
-      const org = await createOrganization({
-        name: 'My Org',
-        plan: 'free',
-        allowed_release_channels: ['ga'],
-      });
-      const project = await createProject({
-        name: 'Project 1',
-        region: 'us-east-1',
-        organization_id: org.id,
-      });
-      project.status = 'ACTIVE_HEALTHY';
+        const org = await createOrganization({
+          name: 'My Org',
+          plan: 'free',
+          allowed_release_channels: ['ga'],
+        });
+        const project = await createProject({
+          name: 'Project 1',
+          region: 'us-east-1',
+          organization_id: org.id,
+        });
+        project.status = 'ACTIVE_HEALTHY';
 
-      const args = { project_id: project.id, name: 'test-branch' };
-      const first = (await client.request(
-        {
-          method: 'tools/call',
-          params: { name: 'create_branch', arguments: args },
-        },
-        { allowInputRequired: true }
-      )) as CallToolResult | InputRequiredResult;
-
-      if (!isInputRequiredResult(first)) {
-        throw new Error('expected an input_required result');
-      }
-      expect(first.inputRequests?.confirm_cost).toMatchObject({
-        method: 'elicitation/create',
-        params: {
-          mode: 'form',
-          message: expect.stringContaining(`$${BRANCH_COST_HOURLY}/hr`),
-        },
-      });
-
-      const second = (await client.request(
-        {
-          method: 'tools/call',
-          params: {
-            name: 'create_branch',
-            arguments: args,
-            inputResponses: {
-              confirm_cost: { action: 'decline' },
-            },
-            requestState: first.requestState,
+        const args = { project_id: project.id, name: 'test-branch' };
+        const first = (await client.request(
+          {
+            method: 'tools/call',
+            params: { name: 'create_branch', arguments: args },
           },
-        },
-        { allowInputRequired: true }
-      )) as CallToolResult | InputRequiredResult;
-      getBranchCostSpy.mockRestore();
+          { allowInputRequired: true }
+        )) as CallToolResult | InputRequiredResult;
 
-      if (isInputRequiredResult(second)) {
-        throw new Error('expected a CallToolResult');
+        if (!isInputRequiredResult(first)) {
+          throw new Error('expected an input_required result');
+        }
+        expect(first.inputRequests?.confirm_cost).toMatchObject({
+          method: 'elicitation/create',
+          params: {
+            mode: 'form',
+            message: expect.stringContaining(`$${BRANCH_COST_HOURLY}/hr`),
+          },
+        });
+
+        const second = (await client.request(
+          {
+            method: 'tools/call',
+            params: {
+              name: 'create_branch',
+              arguments: args,
+              inputResponses: {
+                confirm_cost: { action: 'decline' },
+              },
+              requestState: first.requestState,
+            },
+          },
+          { allowInputRequired: true }
+        )) as CallToolResult | InputRequiredResult;
+
+        if (isInputRequiredResult(second)) {
+          throw new Error('expected a CallToolResult');
+        }
+        expect(second.structuredContent).toEqual({ status: 'declined' });
+        expect(mockBranches.size).toBe(0);
+      } finally {
+        getBranchCostSpy.mockRestore();
       }
-      expect(second.structuredContent).toEqual({ status: 'declined' });
-      expect(mockBranches.size).toBe(0);
     });
 
     test('form-capable client: a supplied confirm_cost_id cannot bypass the form', async () => {

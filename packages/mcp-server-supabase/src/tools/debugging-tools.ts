@@ -183,9 +183,7 @@ export function groupAdvisorLints(lints: AdvisorLint[]): GroupedAdvisorLint[] {
       }
     }
 
-    const key = JSON.stringify(
-      SHARED_LINT_FIELDS.map((field) => shared[field] ?? null)
-    );
+    const key = JSON.stringify(shared);
 
     const group = groups.get(key);
     if (group) {

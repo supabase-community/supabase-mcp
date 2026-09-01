@@ -178,6 +178,15 @@ describe('groupAdvisorLints', () => {
   test('handles an empty list', () => {
     expect(groupAdvisorLints([])).toEqual([]);
   });
+
+  test('keeps a lint with an explicit null shared field separate from one missing the field', () => {
+    const explicitNull = lint({ remediation: null });
+    const { remediation, ...missingRemediation } = lint();
+
+    const grouped = groupAdvisorLints([explicitNull, missingRemediation]);
+
+    expect(grouped).toHaveLength(2);
+  });
 });
 
 describe('groupAdvisorsResult', () => {

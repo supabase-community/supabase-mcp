@@ -32,6 +32,7 @@ import {
 } from '../test/mocks.js';
 import { createSupabaseApiPlatform } from './platform/api-platform.js';
 import type { SupabasePlatform } from './platform/types.js';
+import * as pricing from './pricing.js';
 import {
   BRANCH_COST_HOURLY,
   getBranchCost,
@@ -3916,6 +3917,73 @@ describe('tools', () => {
 
       expect(result.isError).toBeFalsy();
       expect(result.structuredContent).toEqual({ status: 'cancelled' });
+      expect(mockBranches.size).toBe(0);
+    });
+
+    test('a decline is honored even when the quoted branch cost changed since the state was minted', async () => {
+      const getBranchCostSpy = vi
+        .spyOn(pricing, 'getBranchCost')
+        .mockReturnValueOnce({
+          type: 'branch',
+          recurrence: 'hourly',
+          amount: BRANCH_COST_HOURLY,
+        })
+        .mockReturnValueOnce({
+          type: 'branch',
+          recurrence: 'hourly',
+          amount: BRANCH_COST_HOURLY + 1,
+        });
+      const { client } = await setupFormCapable();
+
+      const org = await createOrganization({
+        name: 'My Org',
+        plan: 'free',
+        allowed_release_channels: ['ga'],
+      });
+      const project = await createProject({
+        name: 'Project 1',
+        region: 'us-east-1',
+        organization_id: org.id,
+      });
+      project.status = 'ACTIVE_HEALTHY';
+
+      const args = { project_id: project.id, name: 'test-branch' };
+      const first = (await client.request(
+        {
+          method: 'tools/call',
+          params: { name: 'create_branch', arguments: args },
+        },
+        { allowInputRequired: true }
+      )) as CallToolResult | InputRequiredResult;
+
+      if (!isInputRequiredResult(first)) {
+        throw new Error('expected an input_required result');
+      }
+      expect(first.inputRequests.confirm_cost).toMatchObject({
+        mode: 'form',
+        message: expect.stringContaining(`$${BRANCH_COST_HOURLY}/hr`),
+      });
+
+      const second = (await client.request(
+        {
+          method: 'tools/call',
+          params: {
+            name: 'create_branch',
+            arguments: args,
+            inputResponses: {
+              confirm_cost: { action: 'decline' },
+            },
+            requestState: first.requestState,
+          },
+        },
+        { allowInputRequired: true }
+      )) as CallToolResult | InputRequiredResult;
+      getBranchCostSpy.mockRestore();
+
+      if (isInputRequiredResult(second)) {
+        throw new Error('expected a CallToolResult');
+      }
+      expect(second.structuredContent).toEqual({ status: 'declined' });
       expect(mockBranches.size).toBe(0);
     });
 

@@ -210,6 +210,7 @@ export function getBranchingTools({
         if (costConfirmation && isFormCapable(ctx)) {
           const { codec } = costConfirmation;
           const cost = getBranchCost();
+          const costSuffix = { hourly: '/hr' }[cost.recurrence];
 
           const askForConfirmation = async () =>
             inputRequired({
@@ -217,11 +218,11 @@ export function getBranchingTools({
                 confirm_cost: inputRequired.elicit({
                   mode: 'form',
                   message: [
-                    `Creating this branch costs $${cost.amount}/hr while it runs.`,
+                    `Creating this branch costs $${cost.amount}${costSuffix} while it runs.`,
                     '',
                     `Project          ${project_id}`,
                     `Branch           ${name}`,
-                    `Hourly rate      $${cost.amount}/hr`,
+                    `Hourly rate      $${cost.amount}${costSuffix}`,
                     `30-day estimate  ~$${(cost.amount * 24 * 30).toFixed(2)} if left running`,
                     '',
                     'Assumes continuous running. Cost recurs until deletion.',
@@ -266,17 +267,6 @@ export function getBranchingTools({
             };
           }
 
-          if (
-            state.cost.type !== cost.type ||
-            state.cost.recurrence !== cost.recurrence ||
-            state.cost.amount !== cost.amount
-          ) {
-            // Pricing changed since the state was minted - reissue a
-            // fresh prompt bound to the recomputed cost rather than
-            // honoring a stale quote.
-            return askForConfirmation();
-          }
-
           const response = inputResponse(
             ctx.mcpReq.inputResponses,
             'confirm_cost'
@@ -297,7 +287,7 @@ export function getBranchingTools({
             };
           }
 
-          if (response.action === 'cancel') {
+          if (response.action !== 'accept') {
             return {
               content: [
                 {
@@ -307,6 +297,17 @@ export function getBranchingTools({
               ],
               structuredContent: { status: 'cancelled' },
             };
+          }
+
+          if (
+            state.cost.type !== cost.type ||
+            state.cost.recurrence !== cost.recurrence ||
+            state.cost.amount !== cost.amount
+          ) {
+            // Pricing changed since the state was minted - reissue a
+            // fresh prompt bound to the recomputed cost rather than
+            // honoring a stale quote.
+            return askForConfirmation();
           }
 
           return await branching.createBranch(state.project_id, {

@@ -2340,6 +2340,119 @@ describe('tools', () => {
     expect(result).toEqual({ lints: [] });
   });
 
+  test('get advisors groups repeated lints for both security and performance', async () => {
+    const platform: SupabasePlatform = {
+      debugging: {
+        getLogs() {
+          throw new Error('Not implemented');
+        },
+        async getSecurityAdvisors() {
+          return {
+            lints: [
+              {
+                name: 'function_search_path_mutable',
+                title: 'Function Search Path Mutable',
+                level: 'WARN',
+                facing: 'EXTERNAL',
+                categories: ['SECURITY'],
+                description:
+                  'Detects functions where the search_path parameter is not set.',
+                detail: 'Function `public.a` has a role mutable search_path',
+                remediation:
+                  'https://supabase.com/docs/guides/database/database-linter',
+                cache_key: 'function_search_path_mutable_public_a',
+              },
+              {
+                name: 'function_search_path_mutable',
+                title: 'Function Search Path Mutable',
+                level: 'WARN',
+                facing: 'EXTERNAL',
+                categories: ['SECURITY'],
+                description:
+                  'Detects functions where the search_path parameter is not set.',
+                detail: 'Function `public.b` has a role mutable search_path',
+                remediation:
+                  'https://supabase.com/docs/guides/database/database-linter',
+                cache_key: 'function_search_path_mutable_public_b',
+              },
+            ],
+          };
+        },
+        async getPerformanceAdvisors() {
+          return {
+            lints: [
+              { name: 'unused_index', level: 'INFO', detail: 'index a' },
+              { name: 'unused_index', level: 'INFO', detail: 'index b' },
+            ],
+          };
+        },
+      },
+    };
+
+    const { callTool } = await setup({ platform, features: ['debugging'] });
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const { result: security } = await callTool({
+      name: 'get_advisors',
+      arguments: {
+        project_id: project.id,
+        type: 'security',
+      },
+    });
+
+    expect(security).toEqual({
+      lints: [
+        {
+          name: 'function_search_path_mutable',
+          title: 'Function Search Path Mutable',
+          level: 'WARN',
+          facing: 'EXTERNAL',
+          categories: ['SECURITY'],
+          description:
+            'Detects functions where the search_path parameter is not set.',
+          remediation:
+            'https://supabase.com/docs/guides/database/database-linter',
+          count: 2,
+          findings: [
+            { detail: 'Function `public.a` has a role mutable search_path' },
+            { detail: 'Function `public.b` has a role mutable search_path' },
+          ],
+        },
+      ],
+    });
+
+    const { result: performance } = await callTool({
+      name: 'get_advisors',
+      arguments: {
+        project_id: project.id,
+        type: 'performance',
+      },
+    });
+
+    expect(performance).toEqual({
+      lints: [
+        {
+          name: 'unused_index',
+          level: 'INFO',
+          count: 2,
+          findings: [{ detail: 'index a' }, { detail: 'index b' }],
+        },
+      ],
+    });
+  });
+
   test('get performance advisors', async () => {
     const { callTool } = await setup();
 

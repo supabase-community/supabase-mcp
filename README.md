@@ -112,12 +112,10 @@ For more information, see [Schema Definition](https://ai-sdk.dev/docs/ai-sdk-cor
 
 ## Local HTTP dev server
 
-Pass `--http` to serve the current build over HTTP on `http://localhost:3100/mcp` (override with `--port`) instead of stdio. It behaves like the hosted endpoint: the PAT goes in an `Authorization: Bearer` header and `project_ref`, `read_only`, and `features` are query params, so the same client config works against both. Use it to test a build (including a `pkg.pr.new` preview) from any HTTP MCP client without running platform.
-
-Unlike the exported handler it also serves 2025-era clients statelessly, so VS Code works too. Claude Code needs `MCP_SDK_GENERATION=v2 MCP_PROTOCOL_NEGOTIATION=auto` to negotiate the current revision.
+Pass `--http` to serve the package over HTTP instead of stdio. It listens on `http://localhost:3100/mcp` and takes the same inputs as the hosted endpoint. The PAT goes in an `Authorization: Bearer` header, and `project_ref`, `read_only`, and `features` are query params. Use `--port` to change the port.
 
 ```bash
-npx @supabase/mcp-server-supabase --http --api-url=https://api.supabase.green
+npx @supabase/mcp-server-supabase --http
 ```
 
 ```json

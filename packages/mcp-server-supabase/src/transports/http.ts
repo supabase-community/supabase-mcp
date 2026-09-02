@@ -23,9 +23,9 @@ export type ServeHttpOptions = {
 };
 
 /**
- * Local dev server that mirrors the hosted endpoint: a `Bearer` PAT in the
- * `Authorization` header, `project_ref`, `read_only`, and `features` query
- * params, and both protocol eras. Bodies are buffered rather than streamed.
+ * Local dev server shaped like the hosted endpoint. Bearer PAT in the
+ * `Authorization` header, `project_ref`, `read_only`, and `features` as
+ * query params, both protocol eras. Bodies are buffered.
  */
 export function serveHttp({ port, apiUrl, contentApiUrl }: ServeHttpOptions) {
   createServer(async (req, res) => {
@@ -51,8 +51,7 @@ export function serveHttp({ port, apiUrl, contentApiUrl }: ServeHttpOptions) {
       features: features ? parseList(features) : undefined,
       contentApiUrl,
     };
-    // Unlike the exported handler, also serve 2025-era clients (VS Code at
-    // the time of writing) statelessly, like the hosted legacy leg does.
+    // Also serve 2025-era clients statelessly, like the hosted legacy leg.
     const handler = createMcpHandler(() => createSupabaseMcpServer(options), {
       legacy: 'stateless',
     });

@@ -68,8 +68,8 @@ async function main() {
     cliContentApiUrl ?? process.env.SUPABASE_CONTENT_API_URL;
 
   if (http) {
-    // Mirrors the hosted endpoint: the PAT comes from the `Authorization`
-    // header and scoping from query params, so the flags below don't apply.
+    // HTTP mode takes the PAT and scoping per request like the hosted
+    // endpoint, so the flags below don't apply.
     serveHttp({ port: Number(cliPort), apiUrl, contentApiUrl });
     return;
   }

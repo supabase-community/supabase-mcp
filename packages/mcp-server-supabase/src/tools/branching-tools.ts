@@ -218,14 +218,9 @@ export function getBranchingTools({
                 confirm_cost: inputRequired.elicit({
                   mode: 'form',
                   message: [
-                    `Creating this branch costs $${cost.amount}${costSuffix} while it runs.`,
-                    '',
-                    `Project          ${project_id}`,
-                    `Branch           ${name}`,
-                    `Hourly rate      $${cost.amount}${costSuffix}`,
-                    `30-day estimate  ~$${(cost.amount * 24 * 30).toFixed(2)} if left running`,
-                    '',
-                    'Rates and estimates shown are standard, before plan allowances or exemptions; actual charges may be lower. Assumes continuous running. Cost recurs until deletion.',
+                    `Preview branch: $${cost.amount}${costSuffix} until deleted (~$${(cost.amount * 24 * 30).toFixed(2)} per 30 days).`,
+                    'Auto-pauses on inactivity. https://supabase.com/docs/guides/deployment/branching#how-branching-works',
+                    'Standard rate, before plan allowances or exemptions.',
                   ].join('\n'),
                   requestedSchema: actionOnlyElicitationSchema,
                 }),

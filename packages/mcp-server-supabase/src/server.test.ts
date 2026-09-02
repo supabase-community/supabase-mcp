@@ -4019,7 +4019,16 @@ describe('tools', () => {
           params: {
             mode: 'form',
             message: expect.stringContaining(
-              'standard, before plan allowances or exemptions; actual charges may be lower'
+              'Standard rate, before plan allowances or exemptions.'
+            ),
+          },
+        });
+        expect(first.inputRequests?.confirm_cost).toMatchObject({
+          method: 'elicitation/create',
+          params: {
+            mode: 'form',
+            message: expect.stringContaining(
+              'until deleted (~$9.68 per 30 days).'
             ),
           },
         });

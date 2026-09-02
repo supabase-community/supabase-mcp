@@ -26,7 +26,41 @@ cd packages/mcp-server-supabase
 pnpm dev
 ```
 
-Configure your MCP client to run the local build. You may need to restart the server in your MCP client after each change.
+Then start the server with `--http`, which serves the build the same way `mcp.supabase.com` does:
+
+```bash
+node packages/mcp-server-supabase/dist/cli.js --http --project-ref <your project ref>
+```
+
+It binds `127.0.0.1` only and prints a ready-to-paste `.mcp.json` snippet:
+
+```json
+{
+  "mcpServers": {
+    "supabase-local": {
+      "type": "http",
+      "url": "http://127.0.0.1:3111/mcp",
+      "headers": { "Authorization": "Bearer ${SUPABASE_ACCESS_TOKEN}" }
+    }
+  }
+}
+```
+
+The access token comes from the client's `Authorization` header on each request (Claude Code expands `${SUPABASE_ACCESS_TOKEN}` at connect time). There is no token flag and no token environment variable on the server side. Legacy clients work against this entry but do not see elicitations. You may need to restart the server in your MCP client after each change.
+
+The entry takes a PAT in the Authorization header. OAuth is deferred: it needs resource-server and authorization-server wiring that this PR does not contain, and a 401 challenge would send Claude Code into OAuth discovery against localhost (see the PR for details).
+
+Flags: `--http`, `--port` (default 3111), `--project-ref`, `--read-only`, `--features`, `--api-url`, `--content-api-url`, `--version`. Configure `--api-url` to point at a different Supabase instance (defaults to `https://api.supabase.com`).
+
+To try the HTTP entry from a PR without cloning, run the preview build published by pkg.pr.new:
+
+```bash
+npx https://pkg.pr.new/@supabase/mcp-server-supabase@<sha> --http
+```
+
+### Alternative: stdio
+
+The stdio transport is available without `--http`. Configure your MCP client to run the local build directly:
 
 ```json
 {
@@ -34,7 +68,7 @@ Configure your MCP client to run the local build. You may need to restart the se
     "supabase": {
       "command": "node",
       "args": [
-        "/path/to/supabase-mcp/packages/mcp-server-supabase/dist/transports/stdio.js",
+        "/path/to/supabase-mcp/packages/mcp-server-supabase/dist/cli.js",
         "--project-ref",
         "<your project ref>"
       ],
@@ -45,8 +79,6 @@ Configure your MCP client to run the local build. You may need to restart the se
   }
 }
 ```
-
-Optionally, configure `--api-url` to point at a different Supabase instance (defaults to `https://api.supabase.com`)
 
 ## Testing
 

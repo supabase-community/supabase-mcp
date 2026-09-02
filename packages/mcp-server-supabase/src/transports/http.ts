@@ -5,10 +5,21 @@ import {
   type SupabaseMcpServerOptions,
 } from '../server.js';
 
+export type SupabaseMcpHandlerOptions = {
+  legacy?: 'stateless' | 'reject';
+  onerror?: (error: Error) => void;
+};
+
 // Modern protocol only: created with `legacy: 'reject'`, so a client that
 // speaks just the 2025-era protocol gets an HTTP 400 instead of being served.
-export function createSupabaseMcpHandler(options: SupabaseMcpServerOptions) {
+// The local HTTP entry passes `legacy: 'stateless'` to serve those clients
+// without elicitations; hosted keeps the default.
+export function createSupabaseMcpHandler(
+  options: SupabaseMcpServerOptions,
+  handlerOptions: SupabaseMcpHandlerOptions = {}
+) {
   return createMcpHandler(() => createSupabaseMcpServer(options), {
-    legacy: 'reject',
+    legacy: handlerOptions.legacy ?? 'reject',
+    onerror: handlerOptions.onerror,
   });
 }

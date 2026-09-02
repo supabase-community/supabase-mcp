@@ -33,11 +33,7 @@ export type ServeHttpOptions = {
   contentApiUrl?: string;
 };
 
-/**
- * Local dev server shaped like the hosted endpoint. Bearer PAT in the
- * `Authorization` header, `project_ref`, `read_only`, and `features` as
- * query params, both protocol eras. Bodies are buffered.
- */
+/** Local dev server shaped like the hosted endpoint. Bodies are buffered. */
 export function serveHttp({ port, apiUrl, contentApiUrl }: ServeHttpOptions) {
   createServer(async (req, res) => {
     const url = new URL(req.url ?? '/', `http://localhost:${port}`);
@@ -68,10 +64,10 @@ export function serveHttp({ port, apiUrl, contentApiUrl }: ServeHttpOptions) {
       features: query.data.features,
       contentApiUrl,
     };
-    // Also serve 2025-era clients statelessly, like the hosted legacy leg.
-    const handler = createMcpHandler(() => createSupabaseMcpServer(options), {
-      legacy: 'stateless',
-    });
+    // Uses the SDK default `legacy: 'stateless'` so 2025-era clients are
+    // served too, unlike `createSupabaseMcpHandler` above.
+    // https://github.com/modelcontextprotocol/typescript-sdk/blob/cc4b41617ce3601b1290d67216ea0b194a3cd9ac/packages/server/src/server/createMcpHandler.ts#L146-L157
+    const handler = createMcpHandler(() => createSupabaseMcpServer(options));
     res.on('close', () => {
       handler.close().catch(console.error);
     });

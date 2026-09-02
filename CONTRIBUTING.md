@@ -34,7 +34,7 @@ Configure your MCP client to run the local build. You may need to restart the se
     "supabase": {
       "command": "node",
       "args": [
-        "/path/to/supabase-mcp/packages/mcp-server-supabase/dist/transports/stdio.js",
+        "/path/to/supabase-mcp/packages/mcp-server-supabase/dist/cli.js",
         "--project-ref",
         "<your project ref>"
       ],

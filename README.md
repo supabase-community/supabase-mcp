@@ -110,6 +110,30 @@ const tools = await mcpClient.tools({
 
 For more information, see [Schema Definition](https://ai-sdk.dev/docs/ai-sdk-core/mcp-tools#schema-definition) and [Typed Tool Outputs](https://ai-sdk.dev/docs/ai-sdk-core/mcp-tools#typed-tool-outputs) in the AI SDK docs.
 
+## Local HTTP dev server
+
+Pass `--http` to serve the current build over HTTP on `http://localhost:3100/mcp` (override with `--port`) instead of stdio. It behaves like the hosted endpoint: the PAT goes in an `Authorization: Bearer` header and `project_ref`, `read_only`, and `features` are query params, so the same client config works against both. Use it to test a build (including a `pkg.pr.new` preview) from any HTTP MCP client without running platform.
+
+Unlike the exported handler it also serves 2025-era clients statelessly, so VS Code works too. Claude Code needs `MCP_SDK_GENERATION=v2 MCP_PROTOCOL_NEGOTIATION=auto` to negotiate the current revision.
+
+```bash
+npx @supabase/mcp-server-supabase --http --api-url=https://api.supabase.green
+```
+
+```json
+{
+  "mcpServers": {
+    "supabase-local": {
+      "type": "http",
+      "url": "http://localhost:3100/mcp?project_ref=<project-ref>",
+      "headers": {
+        "Authorization": "Bearer <personal-access-token>"
+      }
+    }
+  }
+}
+```
+
 ## Self-hosting the MCP endpoint
 
 The `@supabase/mcp-server-supabase` package exports `createSupabaseMcpHandler()` to serve the tools over HTTP from your own endpoint. It accepts the same `SupabaseMcpServerOptions` as `createSupabaseMcpServer()`, most importantly `platform`.

@@ -225,7 +225,7 @@ export function getBranchingTools({
                     `Hourly rate      $${cost.amount}${costSuffix}`,
                     `30-day estimate  ~$${(cost.amount * 24 * 30).toFixed(2)} if left running`,
                     '',
-                    'Assumes continuous running. Cost recurs until deletion.',
+                    'Rates and estimates shown are standard, before plan allowances or exemptions; actual charges may be lower. Assumes continuous running. Cost recurs until deletion.',
                   ].join('\n'),
                   requestedSchema: actionOnlyElicitationSchema,
                 }),

@@ -4011,7 +4011,11 @@ describe('tools', () => {
           method: 'elicitation/create',
           params: {
             mode: 'form',
-            message: expect.stringContaining(`$${BRANCH_COST_HOURLY}/hr`),
+            message: expect.stringMatching(
+              new RegExp(
+                `\\$${BRANCH_COST_HOURLY.toString().replace('.', '\\.')}/hr[\\s\\S]*standard, before plan allowances or exemptions; actual charges may be lower`
+              )
+            ),
           },
         });
 

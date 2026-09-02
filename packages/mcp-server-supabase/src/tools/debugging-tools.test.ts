@@ -8,7 +8,7 @@ import {
 } from './debugging-tools.js';
 
 type AdvisorLint =
-  components['schemas']['V1ProjectAdvisorsResponse']['lints'][number];
+  components['schemas']['V1ProjectAdvisorsResponse_Output']['lints'][number];
 
 describe('resolveLogWindow', () => {
   test('defaults the end to now and the start to 24 hours before it', () => {

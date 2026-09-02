@@ -333,13 +333,9 @@ export function getAccountTools({
                 confirm_cost: inputRequired.elicit({
                   mode: 'form',
                   message: [
-                    `Creating this project costs $${cost.amount}${costSuffix}.`,
-                    '',
-                    `Project        ${name}`,
-                    `Organization   ${organization_id}`,
-                    `Cost           $${cost.amount}${costSuffix}`,
-                    '',
-                    'Cost recurs until the project is deleted.',
+                    `Project: $${cost.amount}${costSuffix} until deleted.`,
+                    'Billed hourly while running; paused projects are not billed. https://supabase.com/docs/guides/platform/manage-your-usage/compute',
+                    'Standard rate, before plan allowances or exemptions.',
                   ].join('\n'),
                   requestedSchema: actionOnlyElicitationSchema,
                 }),

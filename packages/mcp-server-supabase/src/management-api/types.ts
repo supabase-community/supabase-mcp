@@ -2756,9 +2756,7 @@ export interface components {
             notify_url?: string;
         };
         /** @description Any JSON-serializable value */
-        JsonValue_Output: ((string | number | boolean) | null) | components["schemas"]["JsonValue_Output"][] | {
-            [key: string]: components["schemas"]["JsonValue_Output"];
-        };
+        JsonValue_Output: unknown;
         UpdateCustomHostnameResponse_Output: {
             /** @enum {string} */
             status: "1_not_started" | "2_initiated" | "3_challenge_verified" | "4_origin_setup_completed" | "5_services_reconfigured";

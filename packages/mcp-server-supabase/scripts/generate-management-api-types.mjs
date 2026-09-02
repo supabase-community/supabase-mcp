@@ -8,7 +8,7 @@ const OUTPUT_PATH = new URL('../src/management-api/types.ts', import.meta.url);
 // rejects (TS2502). These fields are opaque blobs anyway, so `unknown` is fine.
 // More context: https://linear.app/supabase/issue/AI-985/fix-generating-mgmt-api-types
 function transform(schemaObject, options) {
-  if (options.path?.endsWith('JsonValue')) {
+  if (/JsonValue(_Output)?$/.test(options.path ?? '')) {
     return UNKNOWN;
   }
   return undefined;

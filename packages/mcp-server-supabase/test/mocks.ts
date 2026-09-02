@@ -71,9 +71,9 @@ export const contentApiMockSchema = source`
   }
 `;
 
-type Organization = components['schemas']['V1OrganizationSlugResponse'];
-type Project = components['schemas']['V1ProjectWithDatabaseResponse'];
-type Branch = components['schemas']['BranchResponse'];
+type Organization = components['schemas']['V1OrganizationSlugResponse_Output'];
+type Project = components['schemas']['V1ProjectWithDatabaseResponse_Output'];
+type Branch = components['schemas']['BranchResponse_Output'];
 
 export type Migration = {
   version: string;

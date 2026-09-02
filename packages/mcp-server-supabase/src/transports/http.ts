@@ -1,5 +1,6 @@
 import { createServer } from 'node:http';
 import { createMcpHandler } from '@modelcontextprotocol/server';
+import { z } from 'zod/v4';
 
 import { createSupabaseApiPlatform } from '../platform/api-platform.js';
 import {
@@ -15,6 +16,16 @@ export function createSupabaseMcpHandler(options: SupabaseMcpServerOptions) {
     legacy: 'reject',
   });
 }
+
+// Same query params as the hosted endpoint.
+const querySchema = z.object({
+  project_ref: z.string().optional(),
+  read_only: z.stringbool().default(false),
+  features: z
+    .string()
+    .transform((value) => parseList(value))
+    .optional(),
+});
 
 export type ServeHttpOptions = {
   port: number;
@@ -43,12 +54,18 @@ export function serveHttp({ port, apiUrl, contentApiUrl }: ServeHttpOptions) {
       return;
     }
 
-    const features = url.searchParams.get('features');
+    const query = querySchema.safeParse(Object.fromEntries(url.searchParams));
+    if (!query.success) {
+      res.writeHead(400, { 'content-type': 'application/json' });
+      res.end(JSON.stringify({ error: z.prettifyError(query.error) }));
+      return;
+    }
+
     const options: SupabaseMcpServerOptions = {
       platform: createSupabaseApiPlatform({ accessToken, apiUrl }),
-      projectId: url.searchParams.get('project_ref') ?? undefined,
-      readOnly: url.searchParams.get('read_only') === 'true',
-      features: features ? parseList(features) : undefined,
+      projectId: query.data.project_ref,
+      readOnly: query.data.read_only,
+      features: query.data.features,
       contentApiUrl,
     };
     // Also serve 2025-era clients statelessly, like the hosted legacy leg.

@@ -9,7 +9,10 @@ import { createContentApiClient } from './content-api/index.js';
 import type { SupabasePlatform } from './platform/types.js';
 import { getAccountTools } from './tools/account-tools.js';
 import { getBranchingTools } from './tools/branching-tools.js';
-import type { CostConfirmationState } from './tools/cost-confirmation.js';
+import {
+  type CostConfirmationState,
+  isFormCapable,
+} from './tools/cost-confirmation.js';
 import { getDatabaseTools } from './tools/database-operation-tools.js';
 import { getDebuggingTools } from './tools/debugging-tools.js';
 import { getDevelopmentTools } from './tools/development-tools.js';
@@ -19,6 +22,7 @@ import { getStorageTools } from './tools/storage-tools.js';
 import { writeToolSet } from './tools/tool-schemas.js';
 import type { FeatureGroup } from './types.js';
 import { parseFeatureGroups } from './util.js';
+import { z } from 'zod/v4';
 
 const { version } = packageJson;
 
@@ -166,7 +170,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
     requestState: costConfirmationCodec && {
       verify: costConfirmationCodec.verify,
     },
-    tools: async () => {
+    tools: async (ctx) => {
       const contentApiClient = await contentApiClientPromise;
       const tools: Record<string, Tool> = {};
 
@@ -253,9 +257,36 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
         }
       }
 
+      // Form-capable clients confirm cost inside the create tools, so the
+      // legacy cost tools only offer the types that still need them. With
+      // nothing left to quote they are hidden entirely.
+      if (costConfirmationCodec && ctx && isFormCapable(ctx)) {
+        const legacyCostTypes = (['project', 'branch'] as const).filter(
+          (type) => !costConfirmation?.enabledTools.includes(`create_${type}`)
+        );
+        for (const name of ['get_cost', 'confirm_cost']) {
+          const tool = tools[name];
+          if (!tool) {
+            continue;
+          }
+          tools[name] = isNonEmpty(legacyCostTypes)
+            ? {
+                ...tool,
+                parameters: tool.parameters.extend({
+                  type: z.enum(legacyCostTypes),
+                }),
+              }
+            : { ...tool, hidden: true };
+        }
+      }
+
       return tools;
     },
   });
 
   return server;
+}
+
+function isNonEmpty<T>(items: readonly T[]): items is readonly [T, ...T[]] {
+  return items.length > 0;
 }

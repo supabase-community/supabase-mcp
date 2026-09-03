@@ -181,9 +181,9 @@ const MCP_ENDPOINT = new URL('https://mcp.test');
 /**
  * Sets up an MCP client against the hosted HTTP handler (in-process, via a
  * custom `fetch`) for the `create_project`/`create_branch` cost-confirmation
- * elicitation lanes: a client pinned to the 2026-07-28 protocol whose
- * capabilities ride along on every request. Raw `StreamTransport` only speaks the 2025
- * era, so the form-capable lane - which depends on the per-request `_meta`
+ * elicitation lanes: a client pinned to the 2026-07-28 protocol. Raw
+ * `StreamTransport` only speaks the 2025 era, so the form-capable lane - which
+ * depends on the per-request `_meta`
  * envelope - needs the same in-process HTTP transport the hosted runtime
  * uses.
  */

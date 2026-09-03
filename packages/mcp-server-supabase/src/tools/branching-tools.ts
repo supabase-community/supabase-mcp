@@ -219,7 +219,7 @@ export function getBranchingTools({
                   mode: 'form',
                   message: [
                     `Preview branch: $${cost.amount}${costSuffix} until deleted (~$${(cost.amount * 24 * 30).toFixed(2)} per 30 days).`,
-                    'Auto-pauses on inactivity. https://supabase.com/docs/guides/deployment/branching#how-branching-works',
+                    'Auto-pauses on inactivity.',
                     'Standard rate, before plan allowances or exemptions.',
                   ].join('\n'),
                   requestedSchema: actionOnlyElicitationSchema,

@@ -46,7 +46,7 @@ It binds `127.0.0.1` only and prints a ready-to-paste `.mcp.json` snippet:
 }
 ```
 
-The access token comes from the client's `Authorization` header on each request (Claude Code expands `${SUPABASE_ACCESS_TOKEN}` at connect time). There is no token flag and no token environment variable on the server side. Legacy clients work against this entry but do not see elicitations. You may need to restart the server in your MCP client after each change.
+The access token comes from the client's `Authorization` header on each request (Claude Code expands `${SUPABASE_ACCESS_TOKEN}` at connect time). There is no token flag and no token environment variable on the server side. Modern form-capable clients (Claude Code with v2 negotiation) see cost confirmations for `create_project` and `create_branch` as elicitation dialogs; legacy clients keep the `get_cost` / `confirm_cost` flow. You may need to restart the server in your MCP client after each change.
 
 The entry takes a PAT in the Authorization header. OAuth is deferred: it needs resource-server and authorization-server wiring that this PR does not contain, and a 401 challenge would send Claude Code into OAuth discovery against localhost (see the PR for details).
 

@@ -1,3 +1,4 @@
+import { createHash, randomBytes } from 'node:crypto';
 import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import {
@@ -99,6 +100,9 @@ export async function startLocalHttpEntry(
     log = console.error,
   } = options;
   const allowedHostnames = localhostAllowedHostnames();
+  // Signs the cost-confirmation request state for this process; a restart
+  // invalidates in-flight elicitations, which is the intended scope.
+  const requestStateKey = randomBytes(32);
 
   const server = createServer(
     toNodeListener(async (request, parsedBody) => {
@@ -127,7 +131,21 @@ export async function startLocalHttpEntry(
         parseFeatureGroups(platform, features);
       }
       const handler = createSupabaseMcpHandler(
-        { platform, projectId, readOnly, features, contentApiUrl },
+        {
+          platform,
+          projectId,
+          readOnly,
+          features,
+          contentApiUrl,
+          costConfirmation: {
+            requestStateKey,
+            // PAT mode can serve several clients with different PATs in one
+            // process, so the principal is the bearer's hash.
+            // #404 (--oauth) switches this to a per-process principal; the token refreshes, the principal must not.
+            principal: createHash('sha256').update(accessToken).digest('hex'),
+            enabledTools: ['create_project', 'create_branch'],
+          },
+        },
         { legacy: 'stateless', onerror: console.error }
       );
       request.signal.addEventListener('abort', () => handler.close(), {
@@ -171,6 +189,6 @@ export function formatBanner(url: string) {
     '    }',
     '  }',
     '}',
-    'Legacy (2025-era) clients are served without elicitations. Requests log their era on stderr.',
+    'Modern form-capable clients see cost confirmations as elicitations; legacy (2025-era) clients keep get_cost / confirm_cost. Requests log their era on stderr.',
   ].join('\n');
 }

@@ -1,7 +1,12 @@
 import { request as httpRequest } from 'node:http';
 import {
   Client,
+  isInputRequiredResult,
   StreamableHTTPClientTransport,
+} from '@modelcontextprotocol/client';
+import type {
+  CallToolResult,
+  InputRequiredResult,
 } from '@modelcontextprotocol/client';
 import { http, HttpResponse, passthrough } from 'msw';
 import type { SetupServer } from 'msw/node';
@@ -10,8 +15,11 @@ import { afterEach, beforeEach, describe, expect, test } from 'vitest';
 import {
   ACCESS_TOKEN,
   API_URL,
+  createOrganization,
+  createProject,
   MCP_CLIENT_NAME,
   MCP_CLIENT_VERSION,
+  mockBranches,
   setupMockApis,
 } from '../../test/mocks.js';
 import {
@@ -218,5 +226,122 @@ describe('startLocalHttpEntry', () => {
     } finally {
       releaseRequest.resolve();
     }
+  });
+
+  describe('cost confirmation', () => {
+    let writable!: LocalHttpEntry;
+    let writableLogLines!: string[];
+
+    beforeEach(async () => {
+      writableLogLines = [];
+      writable = await startLocalHttpEntry({
+        port: 0,
+        apiUrl: API_URL,
+        features: ['account', 'branching'],
+        log: (line) => writableLogLines.push(line),
+      });
+      mockServer.use(
+        http.all(`${new URL(writable.url).origin}/*`, () => passthrough())
+      );
+      cleanups.push(() => writable.close());
+    });
+
+    async function connectWritable(
+      mode: 'legacy' | { pin: string },
+      capabilities: ConstructorParameters<typeof Client>[1] = {
+        capabilities: {},
+      }
+    ) {
+      const transport = new StreamableHTTPClientTransport(
+        new URL(writable.url),
+        { requestInit: { headers: AUTH_HEADERS } }
+      );
+      const client = new Client(
+        { name: MCP_CLIENT_NAME, version: MCP_CLIENT_VERSION },
+        { ...capabilities, versionNegotiation: { mode } }
+      );
+      await client.connect(transport);
+      cleanups.push(() => client.close());
+      return client;
+    }
+
+    async function createBranchingProject() {
+      const org = await createOrganization({
+        name: 'My Org',
+        plan: 'free',
+        allowed_release_channels: ['ga'],
+      });
+      const project = await createProject({
+        name: 'Project 1',
+        region: 'us-east-1',
+        organization_id: org.id,
+      });
+      project.status = 'ACTIVE_HEALTHY';
+      return project;
+    }
+
+    test('a modern form-capable client receives a create_branch cost elicitation', async () => {
+      const client = await connectWritable(
+        { pin: MODERN_PROTOCOL_VERSION },
+        {
+          capabilities: { elicitation: { form: {} } },
+          inputRequired: { autoFulfill: false },
+        }
+      );
+      const project = await createBranchingProject();
+
+      const result = (await client.request(
+        {
+          method: 'tools/call',
+          params: {
+            name: 'create_branch',
+            arguments: { project_id: project.id, name: 'feature' },
+          },
+        },
+        { allowInputRequired: true }
+      )) as CallToolResult | InputRequiredResult;
+
+      if (!isInputRequiredResult(result)) {
+        throw new Error('expected an input_required result');
+      }
+      expect(result.inputRequests?.confirm_cost).toMatchObject({
+        method: 'elicitation/create',
+        params: { mode: 'form' },
+      });
+      expect(result.requestState).toBeTruthy();
+      expect(mockBranches.size).toBe(0);
+      expect(writableLogLines.at(-1)).toBe(
+        `[mcp-http] modern ${MODERN_PROTOCOL_VERSION} client=${MCP_CLIENT_NAME}/${MCP_CLIENT_VERSION}`
+      );
+    });
+
+    test('a legacy client keeps the get_cost / confirm_cost flow', async () => {
+      const client = await connectWritable('legacy');
+      const project = await createBranchingProject();
+
+      const result = await client.callTool({
+        name: 'create_branch',
+        arguments: { project_id: project.id, name: 'feature' },
+      });
+
+      expect(result.isError).toBe(true);
+      expect(result.content).toEqual([
+        {
+          type: 'text',
+          text: JSON.stringify({
+            error: {
+              name: 'Error',
+              message:
+                'Cost confirmation ID does not match the expected cost of creating a branch.',
+            },
+          }),
+        },
+      ]);
+      expect(mockBranches.size).toBe(0);
+      // Stateless legacy serving only sees the client name on `initialize`.
+      expect(writableLogLines.at(-1)).toMatch(
+        /^\[mcp-http\] legacy client=.* \(elicitations unavailable on the legacy path\)$/
+      );
+    });
   });
 });

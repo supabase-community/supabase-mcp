@@ -1,5 +1,13 @@
-import { Client } from '@modelcontextprotocol/client';
-import type { CallToolRequestParams } from '@modelcontextprotocol/client';
+import {
+  Client,
+  isInputRequiredResult,
+  StreamableHTTPClientTransport,
+} from '@modelcontextprotocol/client';
+import type {
+  CallToolRequestParams,
+  CallToolResult,
+  InputRequiredResult,
+} from '@modelcontextprotocol/client';
 import { StreamTransport } from '@supabase/mcp-utils';
 import { codeBlock, stripIndent } from 'common-tags';
 import gqlmin from 'gqlmin';
@@ -18,16 +26,22 @@ import {
   MCP_CLIENT_NAME,
   MCP_CLIENT_VERSION,
   mockContentApiSchemaLoadCount,
+  mockProjects,
   setupMockApis,
 } from '../test/mocks.js';
 import { createSupabaseApiPlatform } from './platform/api-platform.js';
 import type { SupabasePlatform } from './platform/types.js';
 import { BRANCH_COST_HOURLY, PROJECT_COST_MONTHLY } from './pricing.js';
-import { createSupabaseMcpServer, instructions } from './server.js';
+import {
+  createSupabaseMcpServer,
+  instructions,
+  type SupabaseMcpServerOptions,
+} from './server.js';
 import {
   createToolSchemas,
   supabaseMcpToolSchemas,
 } from './tools/tool-schemas.js';
+import { createSupabaseMcpHandler } from './transports/http.js';
 
 let mockServer: SetupServer | undefined;
 
@@ -45,13 +59,20 @@ type SetupOptions = {
   platform?: SupabasePlatform;
   readOnly?: boolean;
   features?: string[];
+  costConfirmation?: SupabaseMcpServerOptions['costConfirmation'];
 };
 
 /**
  * Sets up an MCP client and server for testing.
  */
 async function setup(options: SetupOptions = {}) {
-  const { accessToken = ACCESS_TOKEN, projectId, readOnly, features } = options;
+  const {
+    accessToken = ACCESS_TOKEN,
+    projectId,
+    readOnly,
+    features,
+    costConfirmation,
+  } = options;
   const clientTransport = new StreamTransport();
   const serverTransport = new StreamTransport();
 
@@ -80,6 +101,7 @@ async function setup(options: SetupOptions = {}) {
     projectId,
     readOnly,
     features,
+    costConfirmation,
   });
 
   await server.connect(serverTransport);
@@ -117,6 +139,87 @@ async function setup(options: SetupOptions = {}) {
   }
 
   return { client, clientTransport, callTool, server, serverTransport };
+}
+
+type FormCapableSetupOptions = {
+  readOnly?: boolean;
+  /**
+   * Registers an auto-fulfilling `elicitation/create` handler that always
+   * answers with this action, driven via `client.callTool`. Omit for manual
+   * multi-round-trip control via `client.request`.
+   */
+  elicitationAction?: 'accept' | 'decline' | 'cancel';
+};
+
+const COST_CONFIRMATION: NonNullable<
+  SupabaseMcpServerOptions['costConfirmation']
+> = {
+  requestStateKey: 'a'.repeat(32),
+  principal: 'test-user',
+  enabledTools: ['create_project'],
+};
+
+// https://blog.modelcontextprotocol.io/posts/2026-07-28-release-candidate/
+const MODERN_PROTOCOL_VERSION = '2026-07-28';
+const MCP_ENDPOINT = new URL('https://mcp.test');
+
+/**
+ * Sets up an MCP client against the hosted HTTP handler (in-process, via a
+ * custom `fetch`) for the `create_project` cost-confirmation elicitation
+ * lane: a client pinned to the 2026-07-28 protocol, declaring per-request
+ * form capability. Raw `StreamTransport` only speaks the 2025 era, so the
+ * form-capable lane - which depends on the per-request `_meta` envelope -
+ * needs the same in-process HTTP transport the hosted runtime uses.
+ */
+async function setupFormCapable(options: FormCapableSetupOptions = {}) {
+  const { readOnly, elicitationAction } = options;
+
+  const platform = createSupabaseApiPlatform({
+    accessToken: ACCESS_TOKEN,
+    apiUrl: API_URL,
+  });
+
+  // Modern per-request serving never calls `onInitialize` (no `initialize`
+  // handshake on the 2026-07-28 wire), so the platform's management API
+  // client would otherwise keep its default User-Agent. Initialize it
+  // explicitly with the same clientInfo the test client below declares.
+  await platform.init?.({
+    clientInfo: { name: MCP_CLIENT_NAME, version: MCP_CLIENT_VERSION },
+    clientCapabilities: { elicitation: { form: {} } },
+  });
+
+  const handler = createSupabaseMcpHandler({
+    platform,
+    readOnly,
+    costConfirmation: COST_CONFIRMATION,
+  });
+
+  const transport = new StreamableHTTPClientTransport(MCP_ENDPOINT, {
+    fetch: (url, init) => handler.fetch(new Request(url, init)),
+  });
+
+  const client = new Client(
+    { name: MCP_CLIENT_NAME, version: MCP_CLIENT_VERSION },
+    {
+      capabilities: { elicitation: { form: {} } },
+      versionNegotiation: { mode: { pin: MODERN_PROTOCOL_VERSION } },
+      ...(elicitationAction === undefined && {
+        inputRequired: { autoFulfill: false },
+      }),
+    }
+  );
+
+  if (elicitationAction !== undefined) {
+    client.setRequestHandler('elicitation/create', async () =>
+      elicitationAction === 'accept'
+        ? { action: 'accept' as const, content: {} }
+        : { action: elicitationAction }
+    );
+  }
+
+  await client.connect(transport);
+
+  return { client };
 }
 
 describe('init', () => {
@@ -495,6 +598,339 @@ describe('tools', () => {
     await expect(createProjectPromise).rejects.toThrow(
       'User must confirm understanding of costs before creating a project.'
     );
+  });
+
+  describe('create_project cost confirmation via elicitation', () => {
+    async function createOrganizationWithBillableNextProject() {
+      const org = await createOrganization({
+        name: 'Paid Org',
+        plan: 'pro',
+        allowed_release_channels: ['ga'],
+      });
+      const existingProject = await createProject({
+        name: 'Existing Project',
+        region: 'us-east-1',
+        organization_id: org.id,
+      });
+      existingProject.status = 'ACTIVE_HEALTHY';
+
+      return { org, existingProject };
+    }
+
+    test('create_project requires confirm_cost_id when cost confirmation is not configured', async () => {
+      const { client } = await setup();
+
+      const { tools } = await client.listTools();
+      const createProjectTool = tools.find(
+        (tool) => tool.name === 'create_project'
+      );
+
+      expect(createProjectTool?.inputSchema.required).toContain(
+        'confirm_cost_id'
+      );
+    });
+
+    test('create_project advertises confirm_cost_id as optional when cost confirmation is configured', async () => {
+      const { client } = await setup({
+        costConfirmation: COST_CONFIRMATION,
+      });
+
+      const { tools } = await client.listTools();
+      const createProjectTool = tools.find(
+        (tool) => tool.name === 'create_project'
+      );
+
+      expect(createProjectTool?.inputSchema.required).not.toContain(
+        'confirm_cost_id'
+      );
+    });
+
+    test('capability-free client still succeeds via get_cost -> confirm_cost -> create_project', async () => {
+      const { callTool } = await setup({
+        costConfirmation: COST_CONFIRMATION,
+      });
+
+      const freeOrg = await createOrganization({
+        name: 'Free Org',
+        plan: 'free',
+        allowed_release_channels: ['ga'],
+      });
+
+      const confirm_cost_id_result = await callTool({
+        name: 'confirm_cost',
+        arguments: { type: 'project', recurrence: 'monthly', amount: 0 },
+      });
+
+      const result = await callTool({
+        name: 'create_project',
+        arguments: {
+          name: 'New Project',
+          region: 'us-east-1',
+          organization_id: freeOrg.id,
+          confirm_cost_id: confirm_cost_id_result.confirmation_id,
+        },
+      });
+
+      expect(result).toMatchObject({
+        name: 'New Project',
+        region: 'us-east-1',
+        organization_id: freeOrg.id,
+      });
+      expect(mockProjects.size).toBe(1);
+    });
+
+    test('form-capable client: $0 creates without elicitation', async () => {
+      const { client } = await setupFormCapable();
+
+      const freeOrg = await createOrganization({
+        name: 'Free Org',
+        plan: 'free',
+        allowed_release_channels: ['ga'],
+      });
+
+      const result = (await client.request(
+        {
+          method: 'tools/call',
+          params: {
+            name: 'create_project',
+            arguments: {
+              name: 'New Project',
+              region: 'us-east-1',
+              organization_id: freeOrg.id,
+            },
+          },
+        },
+        { allowInputRequired: true }
+      )) as CallToolResult | InputRequiredResult;
+
+      expect(isInputRequiredResult(result)).toBe(false);
+      if (isInputRequiredResult(result)) {
+        throw new Error('expected a CallToolResult');
+      }
+      expect(result.isError).toBeFalsy();
+      expect(mockProjects.size).toBe(1);
+    });
+
+    test('form-capable client: accept creates the project exactly once', async () => {
+      const { client } = await setupFormCapable({
+        elicitationAction: 'accept',
+      });
+      const { org } = await createOrganizationWithBillableNextProject();
+
+      const result = await client.callTool({
+        name: 'create_project',
+        arguments: {
+          name: 'New Project',
+          region: 'us-east-1',
+          organization_id: org.id,
+        },
+      });
+
+      expect(result.isError).toBeFalsy();
+      const [content] = result.content;
+      if (content?.type !== 'text') {
+        throw new Error('expected text content');
+      }
+      const project = JSON.parse(content.text);
+      expect(project).toMatchObject({
+        name: 'New Project',
+        region: 'us-east-1',
+        organization_id: org.id,
+      });
+      expect(mockProjects.size).toBe(2);
+    });
+
+    test('form-capable client: decline does not create a project', async () => {
+      const { client } = await setupFormCapable({
+        elicitationAction: 'decline',
+      });
+      const { org } = await createOrganizationWithBillableNextProject();
+
+      const result = await client.callTool({
+        name: 'create_project',
+        arguments: {
+          name: 'New Project',
+          region: 'us-east-1',
+          organization_id: org.id,
+        },
+      });
+
+      expect(result.isError).toBeFalsy();
+      expect(result.structuredContent).toEqual({ status: 'declined' });
+      expect(mockProjects.size).toBe(1);
+    });
+
+    test('form-capable client: cancel does not create a project', async () => {
+      const { client } = await setupFormCapable({
+        elicitationAction: 'cancel',
+      });
+      const { org } = await createOrganizationWithBillableNextProject();
+
+      const result = await client.callTool({
+        name: 'create_project',
+        arguments: {
+          name: 'New Project',
+          region: 'us-east-1',
+          organization_id: org.id,
+        },
+      });
+
+      expect(result.isError).toBeFalsy();
+      expect(result.structuredContent).toEqual({ status: 'cancelled' });
+      expect(mockProjects.size).toBe(1);
+    });
+
+    test('rejects a retry whose arguments changed since the state was minted', async () => {
+      const { client } = await setupFormCapable();
+      const { org } = await createOrganizationWithBillableNextProject();
+      const otherOrg = await createOrganization({
+        name: 'Other Org',
+        plan: 'free',
+        allowed_release_channels: ['ga'],
+      });
+
+      const first = (await client.request(
+        {
+          method: 'tools/call',
+          params: {
+            name: 'create_project',
+            arguments: {
+              name: 'New Project',
+              region: 'us-east-1',
+              organization_id: org.id,
+            },
+          },
+        },
+        { allowInputRequired: true }
+      )) as CallToolResult | InputRequiredResult;
+
+      if (!isInputRequiredResult(first)) {
+        throw new Error('expected an input_required result');
+      }
+
+      const second = (await client.request(
+        {
+          method: 'tools/call',
+          params: {
+            name: 'create_project',
+            arguments: {
+              name: 'New Project',
+              region: 'us-east-1',
+              organization_id: otherOrg.id,
+            },
+            inputResponses: {
+              confirm_cost: { action: 'accept', content: {} },
+            },
+            requestState: first.requestState,
+          },
+        },
+        { allowInputRequired: true }
+      )) as CallToolResult | InputRequiredResult;
+
+      if (isInputRequiredResult(second)) {
+        throw new Error('expected a CallToolResult');
+      }
+
+      expect(second.isError).toBe(true);
+      expect(second.structuredContent).toEqual({ status: 'error' });
+      expect(mockProjects.size).toBe(1);
+    });
+
+    test('creates without re-prompting when the quoted cost drops to zero before confirmation', async () => {
+      const { client } = await setupFormCapable();
+      const { org, existingProject } =
+        await createOrganizationWithBillableNextProject();
+
+      const args = {
+        name: 'New Project',
+        region: 'us-east-1',
+        organization_id: org.id,
+      };
+
+      const first = (await client.request(
+        {
+          method: 'tools/call',
+          params: { name: 'create_project', arguments: args },
+        },
+        { allowInputRequired: true }
+      )) as CallToolResult | InputRequiredResult;
+
+      if (!isInputRequiredResult(first)) {
+        throw new Error('expected an input_required result');
+      }
+
+      existingProject.status = 'INACTIVE';
+
+      const second = (await client.request(
+        {
+          method: 'tools/call',
+          params: {
+            name: 'create_project',
+            arguments: args,
+            inputResponses: {
+              confirm_cost: { action: 'accept', content: {} },
+            },
+            requestState: first.requestState,
+          },
+        },
+        { allowInputRequired: true }
+      )) as CallToolResult | InputRequiredResult;
+
+      expect(isInputRequiredResult(second)).toBe(false);
+      if (isInputRequiredResult(second)) {
+        throw new Error('expected a CallToolResult');
+      }
+      expect(second.isError).toBeFalsy();
+      expect(mockProjects.size).toBe(2);
+    });
+
+    test('a decline is honored even when the quoted cost changed since the state was minted', async () => {
+      const { client } = await setupFormCapable();
+      const { org, existingProject } =
+        await createOrganizationWithBillableNextProject();
+
+      const args = {
+        name: 'New Project',
+        region: 'us-east-1',
+        organization_id: org.id,
+      };
+
+      const first = (await client.request(
+        {
+          method: 'tools/call',
+          params: { name: 'create_project', arguments: args },
+        },
+        { allowInputRequired: true }
+      )) as CallToolResult | InputRequiredResult;
+
+      if (!isInputRequiredResult(first)) {
+        throw new Error('expected an input_required result');
+      }
+
+      existingProject.status = 'INACTIVE';
+
+      const second = (await client.request(
+        {
+          method: 'tools/call',
+          params: {
+            name: 'create_project',
+            arguments: args,
+            inputResponses: {
+              confirm_cost: { action: 'decline' },
+            },
+            requestState: first.requestState,
+          },
+        },
+        { allowInputRequired: true }
+      )) as CallToolResult | InputRequiredResult;
+
+      if (isInputRequiredResult(second)) {
+        throw new Error('expected a CallToolResult');
+      }
+
+      expect(second.structuredContent).toEqual({ status: 'declined' });
+      expect(mockProjects.size).toBe(1);
+    });
   });
 
   test('pause project', async () => {

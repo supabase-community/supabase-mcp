@@ -257,12 +257,28 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
         }
       }
 
-      // Form-capable clients confirm cost inside the create tools, so the
-      // legacy cost tools only offer the types that still need them. With
-      // nothing left to quote they are hidden entirely.
-      if (costConfirmationCodec && ctx && isFormCapable(ctx)) {
+      // Form-capable clients confirm cost inside the create tools, so those
+      // drop `confirm_cost_id` and the legacy cost tools only offer the types
+      // that still need them. With nothing left to quote they are hidden
+      // entirely.
+      if (
+        costConfirmationCodec &&
+        costConfirmation &&
+        ctx &&
+        isFormCapable(ctx)
+      ) {
+        for (const name of costConfirmation.enabledTools) {
+          const tool = tools[name];
+          if (tool) {
+            tools[name] = {
+              ...tool,
+              parameters: tool.parameters.omit({ confirm_cost_id: true }),
+            };
+          }
+        }
+
         const legacyCostTypes = (['project', 'branch'] as const).filter(
-          (type) => !costConfirmation?.enabledTools.includes(`create_${type}`)
+          (type) => !costConfirmation.enabledTools.includes(`create_${type}`)
         );
         for (const name of ['get_cost', 'confirm_cost']) {
           const tool = tools[name];

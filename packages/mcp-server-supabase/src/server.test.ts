@@ -682,6 +682,36 @@ describe('tools', () => {
       expect(names).toContain('create_project');
     });
 
+    test('omits confirm_cost_id from create_project for a form-capable client', async () => {
+      const { client } = await setupModern({
+        clientCapabilities: FORM_CAPABLE,
+      });
+
+      const { tools } = await client.listTools();
+      const createProjectTool = tools.find(
+        (tool) => tool.name === 'create_project'
+      );
+
+      expect(createProjectTool?.inputSchema.properties).not.toHaveProperty(
+        'confirm_cost_id'
+      );
+    });
+
+    test('omits confirm_cost_id from create_branch for a form-capable client', async () => {
+      const { client } = await setupModern({
+        clientCapabilities: FORM_CAPABLE,
+      });
+
+      const { tools } = await client.listTools();
+      const createBranchTool = tools.find(
+        (tool) => tool.name === 'create_branch'
+      );
+
+      expect(createBranchTool?.inputSchema.properties).not.toHaveProperty(
+        'confirm_cost_id'
+      );
+    });
+
     test('narrows cost tools to branch while create_branch still needs confirm_cost_id', async () => {
       const { client } = await setupModern({
         clientCapabilities: FORM_CAPABLE,
@@ -4161,7 +4191,7 @@ describe('tools', () => {
       }
     });
 
-    test('form-capable client: a supplied confirm_cost_id cannot bypass the form', async () => {
+    test('form-capable client: a supplied confirm_cost_id is rejected', async () => {
       const { client } = await setupModern({
         clientCapabilities: FORM_CAPABLE,
       });
@@ -4179,8 +4209,8 @@ describe('tools', () => {
       });
       project.status = 'ACTIVE_HEALTHY';
 
-      // The correct legacy hash - even a valid confirmation ID must not
-      // let a form-capable client skip straight to creation.
+      // The correct legacy hash. The field is not part of this client's
+      // schema, so even a valid confirmation ID must not reach creation.
       const legacyConfirmCostId = await hashObject(getBranchCost());
 
       const result = (await client.request(
@@ -4198,9 +4228,10 @@ describe('tools', () => {
         { allowInputRequired: true }
       )) as CallToolResult | InputRequiredResult;
 
-      if (!isInputRequiredResult(result)) {
-        throw new Error('expected an input_required result');
+      if (isInputRequiredResult(result)) {
+        throw new Error('expected a tool error, not an input_required result');
       }
+      expect(result.isError).toBe(true);
       expect(mockBranches.size).toBe(0);
     });
 

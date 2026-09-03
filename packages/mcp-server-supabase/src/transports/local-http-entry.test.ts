@@ -159,6 +159,16 @@ describe('startLocalHttpEntry', () => {
   test('rejects a foreign Host header and accepts loopback hosts', async () => {
     const { port } = new URL(entry.url);
     // node:http, because fetch forbids overriding the Host header.
+    const body = JSON.stringify({
+      jsonrpc: '2.0',
+      id: 1,
+      method: 'initialize',
+      params: {
+        protocolVersion: '2025-06-18',
+        capabilities: {},
+        clientInfo: { name: 'host-probe', version: '1.0.0' },
+      },
+    });
     const probe = (host: string) =>
       new Promise<{ status: number; body: string }>((resolve, reject) => {
         const req = httpRequest(
@@ -166,7 +176,13 @@ describe('startLocalHttpEntry', () => {
             host: '127.0.0.1',
             port,
             path: '/mcp',
-            headers: { ...AUTH_HEADERS, host },
+            method: 'POST',
+            headers: {
+              ...AUTH_HEADERS,
+              accept: 'application/json, text/event-stream',
+              'content-type': 'application/json',
+              host,
+            },
           },
           (res) => {
             let body = '';
@@ -176,7 +192,7 @@ describe('startLocalHttpEntry', () => {
           }
         );
         req.on('error', reject);
-        req.end();
+        req.end(body);
       });
 
     const rejected = await probe('evil.example');
@@ -191,10 +207,16 @@ describe('startLocalHttpEntry', () => {
 
     for (const host of [`127.0.0.1:${port}`, `localhost:${port}`]) {
       const response = await probe(host);
-      // Past host validation, path, and auth: the SDK answers a bare GET.
-      expect(response.status).not.toBe(403);
-      expect(response.status).not.toBe(401);
-      expect(response.status).not.toBe(404);
+      expect(response.status).toBe(200);
+      const dataLine = response.body
+        .split('\n')
+        .find((line) => line.startsWith('data: '));
+      if (!dataLine) throw new Error('expected an SSE data line');
+      expect(JSON.parse(dataLine.slice('data: '.length))).toMatchObject({
+        jsonrpc: '2.0',
+        id: 1,
+        result: { protocolVersion: expect.any(String) },
+      });
     }
   });
 

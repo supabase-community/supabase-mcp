@@ -87,6 +87,34 @@ describe('toNodeListener', () => {
     ]);
   });
 
+  test('rejects request bodies larger than 4 MiB before calling the handler', async () => {
+    let handled = false;
+    const { origin } = await listen(async () => {
+      handled = true;
+      return new Response();
+    });
+
+    const response = await new Promise<{ status: number; body: string }>(
+      (resolve, reject) => {
+        const req = httpRequest(origin, { method: 'POST' }, (res) => {
+          let body = '';
+          res.setEncoding('utf8');
+          res.on('data', (chunk) => (body += chunk));
+          res.on('end', () => resolve({ status: res.statusCode!, body }));
+        });
+        req.on('error', reject);
+        req.write(Buffer.alloc(4 * 1024 * 1024 + 1));
+        req.end(Buffer.alloc(1024 * 1024));
+      }
+    );
+
+    expect(response.status).toBe(413);
+    expect(JSON.parse(response.body)).toEqual({
+      error: 'payload too large',
+    });
+    expect(handled).toBe(false);
+  });
+
   test('aborts the signal when the client drops mid-request and keeps serving', async () => {
     const handling = deferred();
     const release = deferred();

@@ -29,7 +29,7 @@ pnpm dev
 Then start the server with `--http`, which serves the build the same way `mcp.supabase.com` does:
 
 ```bash
-node packages/mcp-server-supabase/dist/cli.js --http --project-ref <your project ref>
+node dist/cli.js --http --project-ref <your project ref>
 ```
 
 It binds `127.0.0.1` only and prints a ready-to-paste `.mcp.json` snippet:

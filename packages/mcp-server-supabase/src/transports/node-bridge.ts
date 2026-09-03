@@ -1,5 +1,7 @@
 import type { RequestListener } from 'node:http';
 
+const MAX_REQUEST_BODY_BYTES = 4 * 1024 * 1024;
+
 // Bridge from the SDK's fetch-shaped handler to node:http. Bodies are buffered
 // on both sides on purpose: under `legacy: 'stateless'` every response is
 // request-scoped, so a workstation entry gains nothing from streaming, and
@@ -24,7 +26,23 @@ export function toNodeListener(handle: FetchHandler): RequestListener {
   return async (req, res) => {
     try {
       const chunks: Buffer[] = [];
-      for await (const chunk of req) chunks.push(chunk as Buffer);
+      let bodyBytes = 0;
+      let bodyTooLarge = false;
+      for await (const chunk of req.iterator({ destroyOnReturn: false })) {
+        const buffer = chunk as Buffer;
+        bodyBytes += buffer.length;
+        if (bodyBytes > MAX_REQUEST_BODY_BYTES) {
+          bodyTooLarge = true;
+          break;
+        }
+        chunks.push(buffer);
+      }
+      if (bodyTooLarge) {
+        req.resume();
+        res.writeHead(413, { 'content-type': 'application/json' });
+        res.end(JSON.stringify({ error: 'payload too large' }));
+        return;
+      }
       const body = chunks.length > 0 ? Buffer.concat(chunks) : undefined;
 
       const headers = new Headers();

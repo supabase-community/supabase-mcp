@@ -9,7 +9,7 @@ import { createContentApiClient } from './content-api/index.js';
 import type { SupabasePlatform } from './platform/types.js';
 import { getAccountTools } from './tools/account-tools.js';
 import { getBranchingTools } from './tools/branching-tools.js';
-import type { CostConfirmationState } from './tools/cost-confirmation.js';
+import type { ConfirmationState } from './tools/confirmation.js';
 import { getDatabaseTools } from './tools/database-operation-tools.js';
 import { getDebuggingTools } from './tools/debugging-tools.js';
 import { getDevelopmentTools } from './tools/development-tools.js';
@@ -58,20 +58,19 @@ export type SupabaseMcpServerOptions = {
   onToolCall?: ToolCallCallback;
 
   /**
-   * Enables cost confirmation via elicitation for clients that declare
-   * per-request form-elicitation capability. Clients without that
-   * capability keep using `get_cost` -> `confirm_cost` -> the relevant
-   * project or branch `confirm_cost_id` flow (`create_project` or
-   * `create_branch`).
+   * Enables confirmation elicitations for clients that declare per-request
+   * form-elicitation capability. Clients without that capability keep using
+   * `get_cost` -> `confirm_cost` -> the relevant project or branch
+   * `confirm_cost_id` flow (`create_project` or `create_branch`).
    */
-  costConfirmation?: {
+  confirmation?: {
     /** HMAC key for the `requestState` codec. MUST be at least 32 bytes. */
     requestStateKey: string | Uint8Array;
     /** The authenticated principal `requestState` is bound to. */
     principal: string;
     /** How long a minted `requestState` stays valid, in seconds. */
     ttlSeconds?: number;
-    /** Tools that accept a cost-confirmation elicitation. */
+    /** Tools that accept a confirmation elicitation. */
     enabledTools: readonly ('create_project' | 'create_branch')[];
   };
 };
@@ -116,7 +115,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
     features,
     contentApiUrl = 'https://supabase.com/docs/api/graphql',
     onToolCall,
-    costConfirmation,
+    confirmation,
   } = options;
 
   const contentApiClientPromise = createContentApiClient(contentApiUrl, {
@@ -136,11 +135,11 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
     features ?? availableDefaultFeatures
   );
 
-  const costConfirmationCodec = costConfirmation?.enabledTools.length
-    ? createRequestStateCodec<CostConfirmationState>({
-        key: costConfirmation.requestStateKey,
-        ttlSeconds: costConfirmation.ttlSeconds,
-        bind: (ctx) => `${ctx.mcpReq.method}:${costConfirmation.principal}`,
+  const confirmationCodec = confirmation?.enabledTools.length
+    ? createRequestStateCodec<ConfirmationState>({
+        key: confirmation.requestStateKey,
+        ttlSeconds: confirmation.ttlSeconds,
+        bind: (ctx) => `${ctx.mcpReq.method}:${confirmation.principal}`,
       })
     : undefined;
 
@@ -163,8 +162,8 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       ]);
     },
     onToolCall,
-    requestState: costConfirmationCodec && {
-      verify: costConfirmationCodec.verify,
+    requestState: confirmationCodec && {
+      verify: confirmationCodec.verify,
     },
     tools: async () => {
       const contentApiClient = await contentApiClientPromise;
@@ -190,10 +189,10 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
           getAccountTools({
             account,
             readOnly,
-            costConfirmation:
-              costConfirmationCodec &&
-              costConfirmation?.enabledTools.includes('create_project')
-                ? { codec: costConfirmationCodec }
+            confirmation:
+              confirmationCodec &&
+              confirmation?.enabledTools.includes('create_project')
+                ? { codec: confirmationCodec }
                 : undefined,
           })
         );
@@ -232,10 +231,10 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
             branching,
             projectId,
             readOnly,
-            costConfirmation:
-              costConfirmationCodec &&
-              costConfirmation?.enabledTools.includes('create_branch')
-                ? { codec: costConfirmationCodec }
+            confirmation:
+              confirmationCodec &&
+              confirmation?.enabledTools.includes('create_branch')
+                ? { codec: confirmationCodec }
                 : undefined,
           })
         );

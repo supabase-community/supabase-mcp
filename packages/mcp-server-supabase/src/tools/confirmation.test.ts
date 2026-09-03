@@ -5,7 +5,7 @@ import {
 } from '@modelcontextprotocol/server';
 import { describe, expect, test } from 'vitest';
 
-import { isFormCapable } from './cost-confirmation.js';
+import { isFormCapable } from './confirmation.js';
 
 // Minimal ServerContext stub: only the envelope slice isFormCapable reads.
 function makeCtx(envelope: Record<string, unknown>): ServerContext {

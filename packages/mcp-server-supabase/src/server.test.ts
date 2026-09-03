@@ -66,7 +66,7 @@ type SetupOptions = {
   platform?: SupabasePlatform;
   readOnly?: boolean;
   features?: string[];
-  costConfirmation?: SupabaseMcpServerOptions['costConfirmation'];
+  confirmation?: SupabaseMcpServerOptions['confirmation'];
 };
 
 /**
@@ -78,7 +78,7 @@ async function setup(options: SetupOptions = {}) {
     projectId,
     readOnly,
     features,
-    costConfirmation,
+    confirmation,
   } = options;
   const clientTransport = new StreamTransport();
   const serverTransport = new StreamTransport();
@@ -108,7 +108,7 @@ async function setup(options: SetupOptions = {}) {
     projectId,
     readOnly,
     features,
-    costConfirmation,
+    confirmation,
   });
 
   await server.connect(serverTransport);
@@ -160,7 +160,7 @@ type FormCapableSetupOptions = {
 };
 
 const COST_CONFIRMATION: NonNullable<
-  SupabaseMcpServerOptions['costConfirmation']
+  SupabaseMcpServerOptions['confirmation']
 > = {
   requestStateKey: 'a'.repeat(32),
   principal: 'test-user',
@@ -201,7 +201,7 @@ async function setupFormCapable(options: FormCapableSetupOptions = {}) {
     platform,
     projectId,
     readOnly,
-    costConfirmation: COST_CONFIRMATION,
+    confirmation: COST_CONFIRMATION,
   });
 
   const transport = new StreamableHTTPClientTransport(MCP_ENDPOINT, {
@@ -642,7 +642,7 @@ describe('tools', () => {
 
     test('create_project advertises confirm_cost_id as optional when cost confirmation is configured', async () => {
       const { client } = await setup({
-        costConfirmation: COST_CONFIRMATION,
+        confirmation: COST_CONFIRMATION,
       });
 
       const { tools } = await client.listTools();
@@ -657,7 +657,7 @@ describe('tools', () => {
 
     test('capability-free client still succeeds via get_cost -> confirm_cost -> create_project', async () => {
       const { callTool } = await setup({
-        costConfirmation: COST_CONFIRMATION,
+        confirmation: COST_CONFIRMATION,
       });
 
       const freeOrg = await createOrganization({
@@ -3760,7 +3760,7 @@ describe('tools', () => {
     test('create_branch advertises confirm_cost_id as optional when cost confirmation is configured', async () => {
       const { client } = await setup({
         features: ['branching'],
-        costConfirmation: COST_CONFIRMATION,
+        confirmation: COST_CONFIRMATION,
       });
 
       const { tools } = await client.listTools();
@@ -3776,7 +3776,7 @@ describe('tools', () => {
     test('capability-free client still succeeds via get_cost -> confirm_cost -> create_branch', async () => {
       const { callTool } = await setup({
         features: ['account', 'branching'],
-        costConfirmation: COST_CONFIRMATION,
+        confirmation: COST_CONFIRMATION,
       });
 
       const org = await createOrganization({

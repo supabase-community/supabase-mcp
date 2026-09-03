@@ -4202,6 +4202,134 @@ describe('tools', () => {
         )
       ).toHaveLength(1);
     });
+
+    test('rejects a requestState minted by create_project', async () => {
+      const { client } = await setupFormCapable();
+
+      // create_project only triggers cost confirmation for a paid org's
+      // additional projects, so set up a pro org with one existing project.
+      const org = await createOrganization({
+        name: 'Paid Org',
+        plan: 'pro',
+        allowed_release_channels: ['ga'],
+      });
+      const existingProject = await createProject({
+        name: 'Existing Project',
+        region: 'us-east-1',
+        organization_id: org.id,
+      });
+      existingProject.status = 'ACTIVE_HEALTHY';
+
+      const projectFirst = (await client.request(
+        {
+          method: 'tools/call',
+          params: {
+            name: 'create_project',
+            arguments: {
+              organization_id: org.id,
+              name: 'My Project',
+              region: 'us-east-1',
+            },
+          },
+        },
+        { allowInputRequired: true }
+      )) as CallToolResult | InputRequiredResult;
+
+      if (!isInputRequiredResult(projectFirst)) {
+        throw new Error(
+          'expected an input_required result from create_project'
+        );
+      }
+
+      const result = (await client.request(
+        {
+          method: 'tools/call',
+          params: {
+            name: 'create_branch',
+            arguments: { project_id: existingProject.id, name: 'test-branch' },
+            inputResponses: {
+              confirm_cost: { action: 'accept', content: {} },
+            },
+            requestState: projectFirst.requestState,
+          },
+        },
+        { allowInputRequired: true }
+      )) as CallToolResult | InputRequiredResult;
+
+      if (isInputRequiredResult(result)) {
+        throw new Error('expected a CallToolResult');
+      }
+
+      expect(result.isError).toBe(true);
+      expect(result.structuredContent).toEqual({ status: 'error' });
+      expect(
+        result.content.some(
+          (c) =>
+            c.type === 'text' &&
+            c.text === 'Request state was not issued for create_branch.'
+        )
+      ).toBe(true);
+      expect(mockBranches.size).toBe(0);
+    });
+
+    test('rejects a tampered requestState before the handler runs', async () => {
+      const { client } = await setupFormCapable();
+
+      const org = await createOrganization({
+        name: 'My Org',
+        plan: 'free',
+        allowed_release_channels: ['ga'],
+      });
+      const project = await createProject({
+        name: 'Project 1',
+        region: 'us-east-1',
+        organization_id: org.id,
+      });
+      project.status = 'ACTIVE_HEALTHY';
+
+      const first = (await client.request(
+        {
+          method: 'tools/call',
+          params: {
+            name: 'create_branch',
+            arguments: { project_id: project.id, name: 'test-branch' },
+          },
+        },
+        { allowInputRequired: true }
+      )) as CallToolResult | InputRequiredResult;
+
+      if (!isInputRequiredResult(first)) {
+        throw new Error('expected an input_required result');
+      }
+
+      // Flip the last character to tamper the HMAC signature; the framework
+      // rejects it before the handler runs (ProtocolError -32602).
+      const originalState = first.requestState as string;
+      const lastChar = originalState.slice(-1);
+      const tamperedState =
+        originalState.slice(0, -1) + (lastChar === 'a' ? 'b' : 'a');
+
+      await expect(
+        client.request(
+          {
+            method: 'tools/call',
+            params: {
+              name: 'create_branch',
+              arguments: { project_id: project.id, name: 'test-branch' },
+              inputResponses: {
+                confirm_cost: { action: 'accept', content: {} },
+              },
+              requestState: tamperedState,
+            },
+          },
+          { allowInputRequired: true }
+        )
+      ).rejects.toMatchObject({
+        code: -32602,
+        message: 'Invalid or expired requestState',
+      });
+      expect(mockBranches.size).toBe(0);
+    });
   });
 
   test('delete branch', async () => {

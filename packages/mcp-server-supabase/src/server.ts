@@ -59,9 +59,10 @@ export type SupabaseMcpServerOptions = {
 
   /**
    * Enables confirmation elicitations for clients that declare per-request
-   * form-elicitation capability. Clients without that capability keep using
-   * `get_cost` -> `confirm_cost` -> the relevant project or branch
-   * `confirm_cost_id` flow (`create_project` or `create_branch`).
+   * form-elicitation capability. Cost confirmation applies to `create_project`
+   * and `create_branch`. Destructive SQL confirmation applies to `execute_sql`
+   * and `apply_migration`. Clients without that capability keep today's SQL
+   * tool behavior and use the existing cost-confirmation flow.
    */
   confirmation?: {
     /** HMAC key for the `requestState` codec. MUST be at least 32 bytes. */
@@ -71,7 +72,12 @@ export type SupabaseMcpServerOptions = {
     /** How long a minted `requestState` stays valid, in seconds. */
     ttlSeconds?: number;
     /** Tools that accept a confirmation elicitation. */
-    enabledTools: readonly ('create_project' | 'create_branch')[];
+    enabledTools: readonly (
+      | 'create_project'
+      | 'create_branch'
+      | 'execute_sql'
+      | 'apply_migration'
+    )[];
   };
 };
 
@@ -205,6 +211,18 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
             database,
             projectId,
             readOnly,
+            confirmation:
+              confirmationCodec &&
+              (confirmation?.enabledTools.includes('execute_sql') ||
+                confirmation?.enabledTools.includes('apply_migration'))
+                ? {
+                    codec: confirmationCodec,
+                    enabledTools: confirmation.enabledTools.filter(
+                      (tool): tool is 'execute_sql' | 'apply_migration' =>
+                        tool === 'execute_sql' || tool === 'apply_migration'
+                    ),
+                  }
+                : undefined,
           })
         );
       }

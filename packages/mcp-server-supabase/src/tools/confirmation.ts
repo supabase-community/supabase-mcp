@@ -67,16 +67,46 @@ export const branchCostStateSchema = z.object({
   }),
 }) satisfies z.ZodType<BranchCostState>;
 
-/**
- * Signed `requestState` payload for any cost-confirmation elicitation this
- * server issues, discriminated by `tool`.
- */
+export type ExecuteSqlState = {
+  tool: 'execute_sql';
+  project_id: string;
+  queryHash: string;
+};
+
+export type ApplyMigrationState = {
+  tool: 'apply_migration';
+  project_id: string;
+  name: string;
+  queryHash: string;
+};
+
+export type DestructiveSqlState = ExecuteSqlState | ApplyMigrationState;
 export type CostConfirmationState = ProjectCostState | BranchCostState;
-export type ConfirmationState = CostConfirmationState;
+
+/**
+ * Signed `requestState` payload for any confirmation elicitation this server
+ * issues, discriminated by `tool`.
+ */
+export type ConfirmationState = CostConfirmationState | DestructiveSqlState;
+
+export const executeSqlStateSchema = z.object({
+  tool: z.literal('execute_sql'),
+  project_id: z.string(),
+  queryHash: z.string(),
+}) satisfies z.ZodType<ExecuteSqlState>;
+
+export const applyMigrationStateSchema = z.object({
+  tool: z.literal('apply_migration'),
+  project_id: z.string(),
+  name: z.string(),
+  queryHash: z.string(),
+}) satisfies z.ZodType<ApplyMigrationState>;
 
 export const confirmationStateSchema = z.discriminatedUnion('tool', [
   projectCostStateSchema,
   branchCostStateSchema,
+  executeSqlStateSchema,
+  applyMigrationStateSchema,
 ]);
 
 export type CheckConfirmationStateResult =

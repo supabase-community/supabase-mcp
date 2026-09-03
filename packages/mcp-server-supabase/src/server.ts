@@ -267,9 +267,13 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
         ctx &&
         isFormCapable(ctx)
       ) {
-        for (const name of costConfirmation.enabledTools) {
+        const legacyCostTypes: ('project' | 'branch')[] = [];
+        for (const type of ['project', 'branch'] as const) {
+          const name = `create_${type}` as const;
           const tool = tools[name];
-          if (tool) {
+          if (!costConfirmation.enabledTools.includes(name)) {
+            legacyCostTypes.push(type);
+          } else if (tool) {
             tools[name] = {
               ...tool,
               parameters: tool.parameters.omit({ confirm_cost_id: true }),
@@ -277,9 +281,6 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
           }
         }
 
-        const legacyCostTypes = (['project', 'branch'] as const).filter(
-          (type) => !costConfirmation.enabledTools.includes(`create_${type}`)
-        );
         for (const name of ['get_cost', 'confirm_cost']) {
           const tool = tools[name];
           if (!tool) {

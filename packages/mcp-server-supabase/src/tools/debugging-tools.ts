@@ -35,7 +35,9 @@ const getLogsInputSchema = z.object({
 });
 
 const getLogsOutputSchema = z.object({
-  result: z.unknown(),
+  result: z
+    .string()
+    .describe('Logs as JSON wrapped in an untrusted-data boundary'),
 });
 
 function buildQueryLogsInputSchema(sqlDescription: string) {
@@ -114,7 +116,9 @@ const queryLogsByDialect = {
 >;
 
 const queryLogsOutputSchema = z.object({
-  result: z.unknown(),
+  result: z
+    .string()
+    .describe('Logs as JSON wrapped in an untrusted-data boundary'),
 });
 
 const getAdvisorsInputSchema = z.object({
@@ -307,6 +311,7 @@ export function getDebuggingTools({
       // available; keep get_logs callable for platforms/clients without it.
       hidden: Boolean(queryLogs),
       inject: { project_id },
+      textContent: ({ result }) => result,
       execute: async ({
         project_id,
         service,
@@ -328,6 +333,7 @@ export function getDebuggingTools({
         description: queryLogsByDialect[logsDialect].description,
         parameters: queryLogsByDialect[logsDialect].parameters,
         inject: { project_id },
+        textContent: ({ result }) => result,
         execute: async ({
           project_id,
           sql,

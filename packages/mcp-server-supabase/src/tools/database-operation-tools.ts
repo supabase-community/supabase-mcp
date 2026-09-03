@@ -109,7 +109,9 @@ const executeSqlInputSchema = z.object({
 });
 
 const executeSqlOutputSchema = z.object({
-  result: z.string(),
+  result: z
+    .string()
+    .describe('Query results as JSON wrapped in an untrusted-data boundary'),
 });
 
 export const databaseToolDefs = {
@@ -370,6 +372,7 @@ export function getDatabaseTools({
         readOnlyHint: readOnly ?? false,
       },
       inject: { project_id },
+      textContent: ({ result }) => result,
       execute: async ({ query, project_id }) => {
         const result = await database.executeSql(project_id, {
           query,

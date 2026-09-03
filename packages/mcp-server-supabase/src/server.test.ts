@@ -1,7 +1,7 @@
 import { Client } from '@modelcontextprotocol/client';
 import type { CallToolRequestParams } from '@modelcontextprotocol/client';
 import { StreamTransport } from '@supabase/mcp-utils';
-import { codeBlock, stripIndent } from 'common-tags';
+import { codeBlock, source, stripIndent } from 'common-tags';
 import gqlmin from 'gqlmin';
 import { http, HttpResponse } from 'msw';
 import type { SetupServer } from 'msw/node';
@@ -107,13 +107,18 @@ async function setup(options: SetupOptions = {}) {
       throw new Error('tool result content is empty');
     }
 
-    const result = JSON.parse(textContent.text);
-
     if (output.isError) {
+      const result = JSON.parse(textContent.text);
       throw new Error(result.error.message);
     }
 
-    return result;
+    // Tools with a string output schema return plain text; everything else
+    // returns JSON.
+    try {
+      return JSON.parse(textContent.text);
+    } catch {
+      return textContent.text;
+    }
   }
 
   return { client, clientTransport, callTool, server, serverTransport };
@@ -848,14 +853,10 @@ describe('tools', () => {
       },
     });
 
-    expect(result.result).toContain('untrusted user data');
-    expect(result.result).toMatch(
-      /<untrusted-data-\w{8}-\w{4}-\w{4}-\w{4}-\w{12}>/
-    );
-    expect(result.result).toContain(JSON.stringify([{ sum: 2 }]));
-    expect(result.result).toMatch(
-      /<\/untrusted-data-\w{8}-\w{4}-\w{4}-\w{4}-\w{12}>/
-    );
+    expect(result).toContain('untrusted user data');
+    expect(result).toMatch(/<untrusted-data-\w{8}-\w{4}-\w{4}-\w{4}-\w{12}>/);
+    expect(result).toContain(JSON.stringify([{ sum: 2 }]));
+    expect(result).toMatch(/<\/untrusted-data-\w{8}-\w{4}-\w{4}-\w{4}-\w{12}>/);
   });
 
   test('can run read queries in read-only mode', async () => {
@@ -884,14 +885,111 @@ describe('tools', () => {
       },
     });
 
-    expect(result.result).toContain('untrusted user data');
-    expect(result.result).toMatch(
-      /<untrusted-data-\w{8}-\w{4}-\w{4}-\w{4}-\w{12}>/
-    );
-    expect(result.result).toContain(JSON.stringify([{ sum: 2 }]));
-    expect(result.result).toMatch(
-      /<\/untrusted-data-\w{8}-\w{4}-\w{4}-\w{4}-\w{12}>/
-    );
+    expect(result).toContain('untrusted user data');
+    expect(result).toMatch(/<untrusted-data-\w{8}-\w{4}-\w{4}-\w{4}-\w{12}>/);
+    expect(result).toContain(JSON.stringify([{ sum: 2 }]));
+    expect(result).toMatch(/<\/untrusted-data-\w{8}-\w{4}-\w{4}-\w{4}-\w{12}>/);
+  });
+
+  test('execute_sql encodes results exactly once (backslash round-trip)', async () => {
+    const { client, callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    // Function body compares against a literal backslash via an E-string,
+    // reproducing https://github.com/supabase/mcp/issues/311
+    const functionQuery = source`
+      create or replace function public.encrypt_token()
+      returns text
+      language plpgsql
+      as $function$
+      begin
+        if left('abc', 1) != E'\\\\' then
+          return 'not backslash';
+        end if;
+        return 'backslash';
+      end;
+      $function$
+    `;
+
+    await callTool({
+      name: 'execute_sql',
+      arguments: {
+        project_id: project.id,
+        query: functionQuery,
+      },
+    });
+
+    const readDefinition = async () => {
+      const output = await client.callTool({
+        name: 'execute_sql',
+        arguments: {
+          project_id: project.id,
+          query:
+            "select pg_get_functiondef(oid) as def from pg_proc where proname = 'encrypt_token'",
+        },
+      });
+
+      const result = CallToolResultSchema.parse(output);
+      const [textContent] = result.content;
+
+      if (!textContent || textContent.type !== 'text') {
+        throw new Error('expected text content');
+      }
+
+      // Extract the JSON payload between the (randomly named) boundaries
+      const embedded = textContent.text.match(
+        /<untrusted-data-[\w-]+>\n(.*)\n<\/untrusted-data-[\w-]+>/s
+      )?.[1];
+
+      if (embedded === undefined) {
+        throw new Error('expected untrusted-data boundary in text content');
+      }
+
+      return {
+        text: textContent.text,
+        embedded,
+        structuredContent: result.structuredContent,
+      };
+    };
+
+    const { text, embedded, structuredContent } = await readDefinition();
+
+    // The E-string's two backslashes must appear JSON-encoded exactly once
+    // (4 backslashes in the text), not twice (8 backslashes)
+    expect(text).toContain(String.raw`E'\\\\'`);
+    expect(text).not.toContain(String.raw`E'\\\\\\\\'`);
+
+    // The full output is still available as structured content for typed clients
+    expect(structuredContent).toEqual({ result: text });
+
+    // A single JSON decode restores the original definition
+    const [row] = JSON.parse(embedded);
+    expect(row.def).toContain(String.raw`E'\\'`);
+
+    // Round-trip: re-creating the function from the returned definition
+    // must produce an identical function body
+    await callTool({
+      name: 'execute_sql',
+      arguments: {
+        project_id: project.id,
+        query: row.def,
+      },
+    });
+
+    const { embedded: roundTrippedEmbedded } = await readDefinition();
+    expect(roundTrippedEmbedded).toBe(embedded);
   });
 
   test('cannot run write queries in read-only mode', async () => {
@@ -1994,7 +2092,7 @@ describe('tools', () => {
     ] as const;
 
     for (const service of services) {
-      const { result } = await callTool({
+      const result = await callTool({
         name: 'get_logs',
         arguments: {
           project_id: project.id,
@@ -2040,7 +2138,7 @@ describe('tools', () => {
     const isoTimestampStart = '2024-02-01T10:00:00.000Z';
     const isoTimestampEnd = '2024-02-01T11:00:00.000Z';
 
-    const { result } = await callTool({
+    const result = await callTool({
       name: 'get_logs',
       arguments: {
         project_id: project.id,
@@ -2058,6 +2156,56 @@ describe('tools', () => {
     expect(capturedSearchParams[0]?.get('iso_timestamp_end')).toBe(
       isoTimestampEnd
     );
+  });
+
+  test('get_logs encodes results exactly once and returns structured content', async () => {
+    const { client } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const logs = [{ event_message: String.raw`error reading C:\temp\file` }];
+
+    mockServer?.use(
+      http.get<{ projectId: string }>(
+        `${API_URL}/v1/projects/:projectId/analytics/endpoints/logs`,
+        () => HttpResponse.json(logs)
+      )
+    );
+
+    const output = await client.callTool({
+      name: 'get_logs',
+      arguments: {
+        project_id: project.id,
+        service: 'api',
+      },
+    });
+
+    const result = CallToolResultSchema.parse(output);
+    const [textContent] = result.content;
+
+    if (!textContent || textContent.type !== 'text') {
+      throw new Error('expected text content');
+    }
+
+    // The single backslashes in the log message must appear JSON-encoded
+    // exactly once (2 backslashes in the text), not twice (4 backslashes)
+    expect(textContent.text).toContain(JSON.stringify(logs));
+    expect(textContent.text).toContain(String.raw`C:\\temp\\file`);
+    expect(textContent.text).not.toContain(String.raw`C:\\\\temp\\\\file`);
+
+    // The full output is still available as structured content for typed clients
+    expect(result.structuredContent).toEqual({ result: textContent.text });
   });
 
   test('query logs forwards custom sql and defaults the timestamp window', async () => {
@@ -2094,7 +2242,7 @@ describe('tools', () => {
       "select id, timestamp, event_message from logs where source = 'postgres_logs' order by timestamp desc limit 10";
 
     const before = Date.now();
-    const { result } = await callTool({
+    const result = await callTool({
       name: 'query_logs',
       arguments: {
         project_id: project.id,
@@ -2311,6 +2459,56 @@ describe('tools', () => {
         },
       })
     ).rejects.toThrow(/too_small|at least 1 character/);
+  });
+
+  test('query_logs encodes results exactly once and returns structured content', async () => {
+    const { client } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const logs = [{ event_message: String.raw`error reading C:\temp\file` }];
+
+    mockServer?.use(
+      http.get<{ projectId: string }>(
+        `${API_URL}/v1/projects/:projectId/analytics/endpoints/logs`,
+        () => HttpResponse.json(logs)
+      )
+    );
+
+    const output = await client.callTool({
+      name: 'query_logs',
+      arguments: {
+        project_id: project.id,
+        sql: 'select event_message from logs limit 1',
+      },
+    });
+
+    const result = CallToolResultSchema.parse(output);
+    const [textContent] = result.content;
+
+    if (!textContent || textContent.type !== 'text') {
+      throw new Error('expected text content');
+    }
+
+    // The single backslashes in the log message must appear JSON-encoded
+    // exactly once (2 backslashes in the text), not twice (4 backslashes)
+    expect(textContent.text).toContain(JSON.stringify(logs));
+    expect(textContent.text).toContain(String.raw`C:\\temp\\file`);
+    expect(textContent.text).not.toContain(String.raw`C:\\\\temp\\\\file`);
+
+    // The full output is still available as structured content for typed clients
+    expect(result.structuredContent).toEqual({ result: textContent.text });
   });
 
   test('get security advisors', async () => {
@@ -4120,7 +4318,7 @@ describe('feature groups', () => {
     });
     project.status = 'ACTIVE_HEALTHY';
 
-    const { result } = await callTool({
+    const result = await callTool({
       name: 'get_logs',
       arguments: {
         project_id: project.id,

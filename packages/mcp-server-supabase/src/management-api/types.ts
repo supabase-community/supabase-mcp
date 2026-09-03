@@ -2770,7 +2770,7 @@ export interface components {
                     hostname: string;
                     ssl: {
                         status: string;
-                        validation_records: {
+                        validation_records?: {
                             txt_name: string;
                             txt_value: string;
                         }[];
@@ -2778,7 +2778,7 @@ export interface components {
                             message: string;
                         }[];
                     };
-                    ownership_verification: {
+                    ownership_verification?: {
                         type: string;
                         name: string;
                         value: string;
@@ -6903,7 +6903,7 @@ export interface operations {
                         /** @constant */
                         state: "unavailable";
                         /** @enum {string} */
-                        unavailableReason: "postgres_upgrade_required" | "ssl_enforcement_required" | "temporarily_unavailable";
+                        unavailableReason: "platform_unsupported" | "postgres_upgrade_required" | "ssl_enforcement_required" | "temporarily_unavailable";
                     };
                 };
             };
@@ -6966,7 +6966,7 @@ export interface operations {
                         /** @constant */
                         state: "unavailable";
                         /** @enum {string} */
-                        unavailableReason: "postgres_upgrade_required" | "ssl_enforcement_required" | "temporarily_unavailable";
+                        unavailableReason: "platform_unsupported" | "postgres_upgrade_required" | "ssl_enforcement_required" | "temporarily_unavailable";
                     };
                 };
             };
@@ -11613,7 +11613,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["FunctionResponse_Output"];
+                    "application/json": components["schemas"]["FunctionSlugResponse_Output"];
                 };
             };
             /** @description Unauthorized */

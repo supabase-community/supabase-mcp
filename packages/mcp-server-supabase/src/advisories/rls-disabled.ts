@@ -34,6 +34,26 @@ const SYSTEM_SCHEMAS = new Set([
 ]);
 
 /**
+ * Quotes a Postgres identifier, doubling any embedded double quotes.
+ */
+function quoteIdentifier(identifier: string): string {
+  return `"${identifier.replace(/"/g, '""')}"`;
+}
+
+/**
+ * Quotes a `schema.table` name for safe use in generated SQL, quoting the
+ * schema and table portions independently.
+ */
+function quoteQualifiedName(name: string): string {
+  const dotIndex = name.indexOf('.');
+  if (dotIndex === -1) return quoteIdentifier(name);
+
+  const schema = name.slice(0, dotIndex);
+  const table = name.slice(dotIndex + 1);
+  return `${quoteIdentifier(schema)}.${quoteIdentifier(table)}`;
+}
+
+/**
  * Builds an RLS advisory when any user-schema tables have RLS disabled.
  *
  * Expects table names in `schema.table` format (as returned by `list_tables`).
@@ -50,7 +70,10 @@ export function buildRlsDisabledAdvisory(
   if (unprotected.length === 0) return null;
 
   const sqlStatements = unprotected
-    .map((t) => `ALTER TABLE ${t.name} ENABLE ROW LEVEL SECURITY;`)
+    .map(
+      (t) =>
+        `ALTER TABLE ${quoteQualifiedName(t.name)} ENABLE ROW LEVEL SECURITY;`
+    )
     .join('\n');
 
   return {

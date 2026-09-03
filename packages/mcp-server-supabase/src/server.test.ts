@@ -1490,7 +1490,8 @@ describe('tools', () => {
         level: 'critical',
         title: 'Row Level Security is disabled',
         message: expect.stringContaining('public.test'),
-        remediation_sql: 'ALTER TABLE public.test ENABLE ROW LEVEL SECURITY;',
+        remediation_sql:
+          'ALTER TABLE "public"."test" ENABLE ROW LEVEL SECURITY;',
         doc_url: expect.stringContaining('row-level-security'),
       },
     });

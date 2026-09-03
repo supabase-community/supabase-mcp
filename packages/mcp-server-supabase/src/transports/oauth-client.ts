@@ -1,6 +1,13 @@
 import { spawn } from 'node:child_process';
 import { createHash, randomBytes } from 'node:crypto';
-import { chmod, mkdir, readFile, writeFile } from 'node:fs/promises';
+import {
+  chmod,
+  mkdir,
+  readFile,
+  rename,
+  rm,
+  writeFile,
+} from 'node:fs/promises';
 import { createServer } from 'node:http';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
@@ -91,10 +98,22 @@ export function createFileStore(
   }
 
   async function writeAll(entries: FileShape) {
-    await mkdir(dirname(path), { recursive: true, mode: 0o700 });
-    await writeFile(path, JSON.stringify(entries, null, 2), { mode: 0o600 });
-    // `mode` only applies when the file is created; keep an existing file tight.
-    await chmod(path, 0o600);
+    const directory = dirname(path);
+    await mkdir(directory, { recursive: true, mode: 0o700 });
+    await chmod(directory, 0o700);
+
+    const temporaryPath = `${path}.${process.pid}.${randomBytes(8).toString('hex')}.tmp`;
+    try {
+      await writeFile(temporaryPath, JSON.stringify(entries, null, 2), {
+        flag: 'wx',
+        mode: 0o600,
+      });
+      await chmod(temporaryPath, 0o600);
+      await rename(temporaryPath, path);
+      await chmod(path, 0o600);
+    } finally {
+      await rm(temporaryPath, { force: true }).catch(() => undefined);
+    }
   }
 
   return {
@@ -115,8 +134,29 @@ export function createFileStore(
   };
 }
 
+const LOOPBACK_OAUTH_HOSTS: Record<string, true> = {
+  '127.0.0.1': true,
+  localhost: true,
+  '[::1]': true,
+};
+
+function assertSecureOAuthUrl(value: string, label: string) {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    throw new Error(`${label} is not a valid URL: ${value}`);
+  }
+  const secure =
+    url.protocol === 'https:' ||
+    (url.protocol === 'http:' && LOOPBACK_OAUTH_HOSTS[url.hostname] === true);
+  if (!secure) {
+    throw new Error(`${label} must use HTTPS outside loopback: ${value}`);
+  }
+}
+
 const metadataSchema = z.looseObject({
-  issuer: z.string(),
+  issuer: z.url(),
   authorization_endpoint: z.url(),
   token_endpoint: z.url(),
   registration_endpoint: z.url().optional(),
@@ -144,6 +184,7 @@ export async function fetchAuthorizationServerMetadata(
   issuer: string,
   fetchFn: FetchFn = fetch
 ): Promise<AuthorizationServerMetadata> {
+  assertSecureOAuthUrl(issuer, 'authorization server issuer');
   const url = `${trimSlash(issuer)}/.well-known/oauth-authorization-server`;
   let response: Response;
   try {
@@ -166,6 +207,18 @@ export async function fetchAuthorizationServerMetadata(
     );
   }
   const metadata = parsed.data;
+  assertSecureOAuthUrl(metadata.issuer, 'authorization server issuer');
+  assertSecureOAuthUrl(
+    metadata.authorization_endpoint,
+    'authorization endpoint'
+  );
+  assertSecureOAuthUrl(metadata.token_endpoint, 'token endpoint');
+  if (metadata.registration_endpoint) {
+    assertSecureOAuthUrl(
+      metadata.registration_endpoint,
+      'registration endpoint'
+    );
+  }
   if (trimSlash(metadata.issuer) !== trimSlash(issuer)) {
     throw new Error(
       `authorization server metadata issuer mismatch: requested ${issuer}, got ${metadata.issuer}`
@@ -327,7 +380,7 @@ export function defaultOpenBrowser(url: string) {
     process.platform === 'darwin'
       ? ['open', [url]]
       : process.platform === 'win32'
-        ? ['cmd', ['/c', 'start', '', url]]
+        ? ['rundll32.exe', ['url.dll,FileProtocolHandler', url]]
         : ['xdg-open', [url]];
   try {
     const child = spawn(command, args, { detached: true, stdio: 'ignore' });
@@ -362,6 +415,27 @@ export async function login(options: LoginOptions): Promise<TokenSource> {
 
   const metadata = await fetchAuthorizationServerMetadata(issuer, fetchFn);
   let client = await store.load(key);
+  if (client && (client.access_token || client.refresh_token)) {
+    const storedSource = createTokenSource({
+      tokenEndpoint: metadata.token_endpoint,
+      store,
+      key,
+      client,
+      fetchFn,
+    });
+    try {
+      await storedSource.accessToken();
+      return storedSource;
+    } catch {
+      // A revoked or otherwise unusable stored session must not require the
+      // user to find and delete the store before signing in again. Clear the
+      // stale tokens before the authorization-code response is merged.
+      client = {
+        client_id: client.client_id,
+        client_secret: client.client_secret,
+      };
+    }
+  }
   if (!client) {
     client = await register(metadata, redirect, fetchFn);
     await store.save(key, client);

@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdtemp, readFile, stat } from 'node:fs/promises';
+import { mkdir, mkdtemp, readFile, stat } from 'node:fs/promises';
 import { createServer } from 'node:net';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -137,6 +137,7 @@ describe('login', () => {
     const root = await mkdtemp(join(tmpdir(), 'mcp-oauth-'));
     const dir = join(root, '.supabase');
     const path = join(dir, 'mcp-oauth.json');
+    await mkdir(dir, { mode: 0o755 });
     const browser = fakeBrowser();
 
     const source = await loginWith(createFileStore(path), browser);
@@ -186,13 +187,50 @@ describe('login', () => {
     });
   });
 
-  test('reuses the stored client instead of registering again', async () => {
+  test('resumes a stored session without opening the browser again', async () => {
     const store = createMemoryStore();
     await loginWith(store);
-    await loginWith(store);
+    const browser = fakeBrowser();
 
+    const source = await loginWith(store, browser);
+
+    await expect(source.accessToken()).resolves.toBe('access-1');
     expect(registerRequests).toHaveLength(1);
-    expect(tokenRequests).toHaveLength(2);
+    expect(tokenRequests).toHaveLength(1);
+    expect(browser.authorizeUrls).toHaveLength(0);
+  });
+
+  test('falls back to interactive login when a stored refresh token fails', async () => {
+    const store = createMemoryStore();
+    await loginWith(store);
+    expireCurrentToken();
+    mockServer.use(
+      http.post(`${ISSUER}/v1/oauth/token`, async ({ request }) => {
+        const form = new URLSearchParams(await request.text());
+        tokenRequests.push(form);
+        if (form.get('grant_type') === 'refresh_token') {
+          return new HttpResponse('revoked', { status: 400 });
+        }
+        return HttpResponse.json({
+          access_token: 'replacement-access',
+          expires_in: EXPIRES_IN,
+          token_type: 'bearer',
+        });
+      })
+    );
+    const browser = fakeBrowser();
+
+    const source = await loginWith(store, browser);
+
+    await expect(source.accessToken()).resolves.toBe('replacement-access');
+    expect(tokenRequests.map((form) => form.get('grant_type'))).toEqual([
+      'authorization_code',
+      'refresh_token',
+      'authorization_code',
+    ]);
+    expect(browser.authorizeUrls).toHaveLength(1);
+    const stored = await store.load(`${ISSUER} ${redirectUri(callbackPort)}`);
+    expect(stored?.refresh_token).toBeUndefined();
   });
 
   test('rejects a callback whose state does not match', async () => {
@@ -226,6 +264,33 @@ describe('login', () => {
     await expect(fetchAuthorizationServerMetadata(ISSUER)).rejects.toThrow(
       /issuer mismatch/
     );
+  });
+
+  test('requires HTTPS for non-loopback OAuth endpoints', async () => {
+    mockServer.use(
+      http.get(WELL_KNOWN, () =>
+        HttpResponse.json({
+          ...metadata(ISSUER),
+          token_endpoint: 'http://tokens.example.test/v1/oauth/token',
+        })
+      )
+    );
+    await expect(fetchAuthorizationServerMetadata(ISSUER)).rejects.toThrow(
+      /token endpoint must use HTTPS/
+    );
+    await expect(
+      fetchAuthorizationServerMetadata('http://as.example.test')
+    ).rejects.toThrow(/authorization server issuer must use HTTPS/);
+
+    const loopbackIssuer = 'http://127.0.0.1:49999';
+    mockServer.use(
+      http.get(`${loopbackIssuer}/.well-known/oauth-authorization-server`, () =>
+        HttpResponse.json(metadata(loopbackIssuer))
+      )
+    );
+    await expect(
+      fetchAuthorizationServerMetadata(loopbackIssuer)
+    ).resolves.toMatchObject({ issuer: loopbackIssuer });
   });
 });
 

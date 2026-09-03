@@ -104,9 +104,9 @@ async function main() {
   const oauthIssuer = () =>
     new URL(apiUrl ?? 'https://api.supabase.com').origin;
 
-  const parsePort = (flag: string, value: string) => {
+  const parsePort = (flag: string, value: string, minimum = 0) => {
     const port = Number(value);
-    if (!Number.isInteger(port) || port < 0 || port > 65535) {
+    if (!Number.isInteger(port) || port < minimum || port > 65535) {
       console.error(`Invalid ${flag} value: ${value}`);
       process.exit(1);
     }
@@ -115,7 +115,7 @@ async function main() {
 
   if (doLogout) {
     const issuer = oauthIssuer();
-    const callbackPort = parsePort('--oauth-callback-port', cliCallbackPort);
+    const callbackPort = parsePort('--oauth-callback-port', cliCallbackPort, 1);
     const removed = await logout({
       issuer,
       callbackPort,
@@ -154,7 +154,7 @@ async function main() {
       }
       const tokenSource = await login({
         issuer: oauthIssuer(),
-        callbackPort: parsePort('--oauth-callback-port', cliCallbackPort),
+        callbackPort: parsePort('--oauth-callback-port', cliCallbackPort, 1),
         store: oauthStore === 'file' ? createFileStore() : createMemoryStore(),
       });
       accessToken = tokenSource.accessToken;

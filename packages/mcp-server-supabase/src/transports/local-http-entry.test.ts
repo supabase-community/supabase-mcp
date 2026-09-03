@@ -318,16 +318,12 @@ describe('startLocalHttpEntry', () => {
     });
   });
 
-  test('OAuth mode serves a client that sends no Authorization header', async () => {
-    const tokenCalls: number[] = [];
+  test('OAuth mode attaches its token to Management API calls', async () => {
     const oauthEntry = await startLocalHttpEntry({
       port: 0,
       apiUrl: API_URL,
       readOnly: true,
-      accessToken: async () => {
-        tokenCalls.push(Date.now());
-        return ACCESS_TOKEN;
-      },
+      accessToken: async () => ACCESS_TOKEN,
       log: () => {},
     });
     cleanups.push(() => oauthEntry.close());
@@ -337,6 +333,13 @@ describe('startLocalHttpEntry', () => {
 
     const transport = new StreamableHTTPClientTransport(
       new URL(oauthEntry.url)
+    );
+    let managementAuthorization: string | null = null;
+    mockServer.use(
+      http.get(`${API_URL}/v1/projects`, ({ request }) => {
+        managementAuthorization = request.headers.get('authorization');
+        return HttpResponse.json([]);
+      })
     );
     const client = new Client(
       { name: MCP_CLIENT_NAME, version: MCP_CLIENT_VERSION },
@@ -348,9 +351,15 @@ describe('startLocalHttpEntry', () => {
     await client.connect(transport);
     cleanups.push(() => client.close());
 
-    const { tools } = await client.listTools();
-    expect(tools.map((tool) => tool.name)).toContain('list_projects');
-    expect(tokenCalls.length).toBeGreaterThan(0);
+    const result = await client.callTool({
+      name: 'list_projects',
+      arguments: {},
+    });
+    expect(result.isError).not.toBe(true);
+    expect(result.content).toEqual([
+      { type: 'text', text: JSON.stringify({ projects: [] }) },
+    ]);
+    expect(managementAuthorization).toBe(`Bearer ${ACCESS_TOKEN}`);
   });
 
   test('close releases an in-flight request', async () => {

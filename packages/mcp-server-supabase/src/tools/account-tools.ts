@@ -334,7 +334,7 @@ export function getAccountTools({
                   mode: 'form',
                   message: [
                     `Project: $${cost.amount}${costSuffix} until deleted.`,
-                    'Billed hourly while running; paused projects are not billed. https://supabase.com/docs/guides/platform/manage-your-usage/compute',
+                    'Billed hourly while running; paused projects are not billed.',
                     'Standard rate, before plan allowances or exemptions.',
                   ].join('\n'),
                   requestedSchema: actionOnlyElicitationSchema,

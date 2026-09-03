@@ -9,6 +9,13 @@ import {
   formatBanner,
   startLocalHttpEntry,
 } from './transports/local-http-entry.js';
+import {
+  createFileStore,
+  createMemoryStore,
+  DEFAULT_OAUTH_STORE_PATH,
+  login,
+  logout,
+} from './transports/oauth-client.js';
 import { parseList } from './transports/util.js';
 import { parseFeatureGroups } from './util.js';
 
@@ -26,6 +33,10 @@ async function main() {
       ['features']: cliFeatures,
       ['http']: http,
       ['port']: cliPort,
+      ['oauth']: oauth,
+      ['oauth-store']: oauthStore,
+      ['oauth-callback-port']: cliCallbackPort,
+      ['logout']: doLogout,
     },
   } = parseArgs({
     options: {
@@ -59,6 +70,22 @@ async function main() {
         type: 'string',
         default: '3111',
       },
+      ['oauth']: {
+        type: 'boolean',
+        default: false,
+      },
+      ['oauth-store']: {
+        type: 'string',
+        default: 'memory',
+      },
+      ['oauth-callback-port']: {
+        type: 'string',
+        default: '3112',
+      },
+      ['logout']: {
+        type: 'boolean',
+        default: false,
+      },
     },
   });
 
@@ -72,6 +99,41 @@ async function main() {
   const contentApiUrl =
     cliContentApiUrl ?? process.env.SUPABASE_CONTENT_API_URL;
 
+  // The AS issuer is the Management API origin: `https://api.supabase.com`
+  // (prod) or `https://api.supabase.green` (staging) via `--api-url`.
+  const oauthIssuer = () =>
+    new URL(apiUrl ?? 'https://api.supabase.com').origin;
+
+  const parsePort = (flag: string, value: string) => {
+    const port = Number(value);
+    if (!Number.isInteger(port) || port < 0 || port > 65535) {
+      console.error(`Invalid ${flag} value: ${value}`);
+      process.exit(1);
+    }
+    return port;
+  };
+
+  if (doLogout) {
+    const issuer = oauthIssuer();
+    const callbackPort = parsePort('--oauth-callback-port', cliCallbackPort);
+    const removed = await logout({
+      issuer,
+      callbackPort,
+      store: createFileStore(),
+    });
+    console.log(
+      removed
+        ? `Signed out of ${issuer}; session removed from ${DEFAULT_OAUTH_STORE_PATH}`
+        : `No stored OAuth session for ${issuer} in ${DEFAULT_OAUTH_STORE_PATH}`
+    );
+    process.exit(0);
+  }
+
+  if (oauth && !http) {
+    console.error('--oauth requires --http');
+    process.exit(1);
+  }
+
   if (http) {
     if (cliAccessToken !== undefined) {
       console.error(
@@ -80,10 +142,22 @@ async function main() {
       process.exit(1);
     }
 
-    const port = Number(cliPort);
-    if (!Number.isInteger(port) || port < 0 || port > 65535) {
-      console.error(`Invalid --port value: ${cliPort}`);
-      process.exit(1);
+    const port = parsePort('--port', cliPort);
+
+    let accessToken: (() => Promise<string>) | undefined;
+    if (oauth) {
+      if (oauthStore !== 'memory' && oauthStore !== 'file') {
+        console.error(
+          `Invalid --oauth-store value: ${oauthStore} (expected memory or file)`
+        );
+        process.exit(1);
+      }
+      const tokenSource = await login({
+        issuer: oauthIssuer(),
+        callbackPort: parsePort('--oauth-callback-port', cliCallbackPort),
+        store: oauthStore === 'file' ? createFileStore() : createMemoryStore(),
+      });
+      accessToken = tokenSource.accessToken;
     }
 
     const entry = await startLocalHttpEntry({
@@ -93,9 +167,10 @@ async function main() {
       apiUrl,
       contentApiUrl,
       features,
+      accessToken,
     });
 
-    console.log(formatBanner(entry.url));
+    console.log(formatBanner(entry.url, { oauth }));
 
     const shutdown = () => {
       entry.close().then(

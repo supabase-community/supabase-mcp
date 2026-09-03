@@ -12,6 +12,7 @@ import {
   isJsonContentType,
   isLegacyRequest,
   localhostAllowedHostnames,
+  originValidationResponse,
   PROTOCOL_VERSION_META_KEY,
 } from '@modelcontextprotocol/server';
 
@@ -26,6 +27,11 @@ export type LocalHttpEntryOptions = {
   apiUrl?: string;
   contentApiUrl?: string;
   features?: string[];
+  /**
+   * OAuth mode: the token for every request comes from here and the client
+   * sends no Authorization header. Absent: the client sends a PAT per request.
+   */
+  accessToken?: () => Promise<string>;
   /** Destination for the per-request era line. Defaults to `console.error`. */
   log?: (line: string) => void;
 };
@@ -140,27 +146,34 @@ export async function startLocalHttpEntry(
     apiUrl,
     contentApiUrl,
     features,
+    accessToken: tokenSource,
     log = console.error,
   } = options;
   const allowedHostnames = localhostAllowedHostnames();
   // Signs the cost-confirmation request state for this process; a restart
   // invalidates in-flight elicitations, which is the intended scope.
   const requestStateKey = randomBytes(32);
+  // OAuth mode has one signed-in identity per process and the HMAC key above
+  // is already per-process, so a stable process-scoped random value gives the
+  // same replay protection without changing on token refresh.
+  const processPrincipal = randomBytes(16).toString('hex');
 
   const listener = toNodeHandler(
     {
       fetch: async (request, { parsedBody } = {}) => {
-        const rejected = hostHeaderValidationResponse(
-          request,
-          allowedHostnames
-        );
+        const rejected =
+          hostHeaderValidationResponse(request, allowedHostnames) ??
+          // No browser origin is ever legitimate here; a missing Origin passes.
+          originValidationResponse(request, []);
         if (rejected) return rejected;
 
         if (new URL(request.url).pathname !== LOCAL_HTTP_PATH) {
           return Response.json({ error: 'not found' }, { status: 404 });
         }
 
-        const accessToken = bearerToken(request);
+        const accessToken = tokenSource
+          ? await tokenSource()
+          : bearerToken(request);
         if (!accessToken) {
           return Response.json(
             { error: 'missing bearer token' },
@@ -190,9 +203,11 @@ export async function startLocalHttpEntry(
             costConfirmation: {
               requestStateKey,
               // PAT mode can serve several clients with different PATs in one
-              // process, so the principal is the bearer's hash.
-              // #404 (--oauth) switches this to a per-process principal; the token refreshes, the principal must not.
-              principal: createHash('sha256').update(accessToken).digest('hex'),
+              // process, so the principal is the bearer's hash. OAuth mode uses
+              // the per-process principal: the token refreshes, the principal must not.
+              principal: tokenSource
+                ? processPrincipal
+                : createHash('sha256').update(accessToken).digest('hex'),
               enabledTools: ['create_project', 'create_branch'],
             },
           },
@@ -245,10 +260,18 @@ export async function startLocalHttpEntry(
   };
 }
 
-export function formatBanner(url: string) {
-  return `Supabase MCP server (--http) listening on ${url}
-
-Add to .mcp.json (Claude Code expands \${SUPABASE_ACCESS_TOKEN} at connect time):
+export function formatBanner(url: string, options: { oauth: boolean }) {
+  const config = options.oauth
+    ? `Signed in with Supabase OAuth; no token in the client config. Add to .mcp.json:
+{
+  "mcpServers": {
+    "supabase-local": {
+      "type": "http",
+      "url": "${url}"
+    }
+  }
+}`
+    : `Add to .mcp.json (Claude Code expands \${SUPABASE_ACCESS_TOKEN} at connect time):
 {
   "mcpServers": {
     "supabase-local": {
@@ -257,6 +280,9 @@ Add to .mcp.json (Claude Code expands \${SUPABASE_ACCESS_TOKEN} at connect time)
       "headers": { "Authorization": "Bearer \${SUPABASE_ACCESS_TOKEN}" }
     }
   }
-}
+}`;
+  return `Supabase MCP server (--http) listening on ${url}
+
+${config}
 Modern form-capable clients see cost confirmations as elicitations; legacy (2025-era) clients keep get_cost / confirm_cost. Requests log their era on stderr.`;
 }

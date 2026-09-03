@@ -300,6 +300,59 @@ describe('startLocalHttpEntry', () => {
     expect(response.status).toBe(401);
   });
 
+  test('rejects a browser Origin with 403 before auth or routing', async () => {
+    const response = await fetch(entry.url, {
+      method: 'POST',
+      headers: {
+        ...AUTH_HEADERS,
+        'content-type': 'application/json',
+        origin: 'https://evil.example',
+      },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
+    });
+
+    expect(response.status).toBe(403);
+    await expect(response.json()).resolves.toMatchObject({
+      jsonrpc: '2.0',
+      error: { code: -32000 },
+    });
+  });
+
+  test('OAuth mode serves a client that sends no Authorization header', async () => {
+    const tokenCalls: number[] = [];
+    const oauthEntry = await startLocalHttpEntry({
+      port: 0,
+      apiUrl: API_URL,
+      readOnly: true,
+      accessToken: async () => {
+        tokenCalls.push(Date.now());
+        return ACCESS_TOKEN;
+      },
+      log: () => {},
+    });
+    cleanups.push(() => oauthEntry.close());
+    mockServer.use(
+      http.all(`${new URL(oauthEntry.url).origin}/*`, () => passthrough())
+    );
+
+    const transport = new StreamableHTTPClientTransport(
+      new URL(oauthEntry.url)
+    );
+    const client = new Client(
+      { name: MCP_CLIENT_NAME, version: MCP_CLIENT_VERSION },
+      {
+        capabilities: {},
+        versionNegotiation: { mode: { pin: MODERN_PROTOCOL_VERSION } },
+      }
+    );
+    await client.connect(transport);
+    cleanups.push(() => client.close());
+
+    const { tools } = await client.listTools();
+    expect(tools.map((tool) => tool.name)).toContain('list_projects');
+    expect(tokenCalls.length).toBeGreaterThan(0);
+  });
+
   test('close releases an in-flight request', async () => {
     const requestStarted = deferred();
     const releaseRequest = deferred();

@@ -26,13 +26,28 @@ cd packages/mcp-server-supabase
 pnpm dev
 ```
 
-Then start the server with `--http`, which serves the build the same way `mcp.supabase.com` does:
+Then start the server with `--http --oauth`, which serves the build the same way `mcp.supabase.com` does and signs you in with Supabase OAuth in the browser:
 
 ```bash
-node dist/cli.js --http --project-ref <your project ref>
+node dist/cli.js --http --oauth --project-ref <your project ref>
 ```
 
-It binds `127.0.0.1` only and prints a ready-to-paste `.mcp.json` snippet:
+It binds `127.0.0.1` only and prints a ready-to-paste `.mcp.json` snippet with no token in it:
+
+```json
+{
+  "mcpServers": {
+    "supabase-local": {
+      "type": "http",
+      "url": "http://127.0.0.1:3111/mcp"
+    }
+  }
+}
+```
+
+The entry acts as an OAuth client to the Supabase authorization server (the same way MCP Inspector does) and attaches the resulting token to every Management API call itself. Add `--api-url https://api.supabase.green` to sign in against staging. The session lives in memory by default, so each start signs in again; `--oauth-store file` persists it in `~/.supabase/mcp-oauth.json` (mode 0600, one running process per file) and `--logout` revokes the tokens and deletes it. `get_storage_config` and `update_storage_config` are unavailable under OAuth (platform limitation; the hosted server has the same). Any local client that can reach `127.0.0.1:<port>` gets the signed-in user's Management API scopes; the entry checks Host and Origin, so browsers cannot, but other local processes can.
+
+Alternatively, run `--http` without `--oauth` and let the client send a PAT per request:
 
 ```json
 {
@@ -46,16 +61,14 @@ It binds `127.0.0.1` only and prints a ready-to-paste `.mcp.json` snippet:
 }
 ```
 
-The access token comes from the client's `Authorization` header on each request (Claude Code expands `${SUPABASE_ACCESS_TOKEN}` at connect time). There is no token flag and no token environment variable on the server side. Modern form-capable clients (Claude Code with v2 negotiation) see cost confirmations for `create_project` and `create_branch` as elicitation dialogs; legacy clients keep the `get_cost` / `confirm_cost` flow. You may need to restart the server in your MCP client after each change.
+In PAT mode the access token comes from the client's `Authorization` header on each request (Claude Code expands `${SUPABASE_ACCESS_TOKEN}` at connect time). There is no token flag and no token environment variable on the server side. In both modes modern form-capable clients (Claude Code with v2 negotiation) see cost confirmations for `create_project` and `create_branch` as elicitation dialogs; legacy clients keep the `get_cost` / `confirm_cost` flow. You may need to restart the server in your MCP client after each change.
 
-The entry takes a PAT in the Authorization header. OAuth is deferred: it needs resource-server and authorization-server wiring that this PR does not contain, and a 401 challenge would send Claude Code into OAuth discovery against localhost (see the PR for details).
-
-Flags: `--http`, `--port` (default 3111), `--project-ref`, `--read-only`, `--features`, `--api-url`, `--content-api-url`, `--version`. Configure `--api-url` to point at a different Supabase instance (defaults to `https://api.supabase.com`).
+Flags: `--http`, `--port` (default 3111), `--oauth`, `--oauth-store` (`memory` or `file`, default `memory`), `--oauth-callback-port` (default 3112), `--logout`, `--project-ref`, `--read-only`, `--features`, `--api-url`, `--content-api-url`, `--version`. Configure `--api-url` to point at a different Supabase instance (defaults to `https://api.supabase.com`).
 
 To try the HTTP entry from a PR without cloning, run the preview build published by pkg.pr.new:
 
 ```bash
-npx https://pkg.pr.new/@supabase/mcp-server-supabase@<sha> --http
+npx https://pkg.pr.new/@supabase/mcp-server-supabase@<sha> --http --oauth
 ```
 
 ### Alternative: stdio

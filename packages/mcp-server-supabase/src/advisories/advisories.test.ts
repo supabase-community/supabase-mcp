@@ -21,8 +21,8 @@ describe('buildRlsDisabledAdvisory', () => {
     expect(advisory!.message).not.toContain('public.posts');
     expect(advisory!.message).toContain('2 table(s)');
     expect(advisory!.remediation_sql).toBe(
-      'ALTER TABLE public.users ENABLE ROW LEVEL SECURITY;\n' +
-        'ALTER TABLE public.comments ENABLE ROW LEVEL SECURITY;'
+      'ALTER TABLE "public"."users" ENABLE ROW LEVEL SECURITY;\n' +
+        'ALTER TABLE "public"."comments" ENABLE ROW LEVEL SECURITY;'
     );
     expect(advisory!.doc_url).toContain('row-level-security');
   });
@@ -66,7 +66,7 @@ describe('buildRlsDisabledAdvisory', () => {
     expect(advisory!.message).toContain('public.profiles');
     expect(advisory!.message).not.toContain('auth.users');
     expect(advisory!.remediation_sql).toBe(
-      'ALTER TABLE public.profiles ENABLE ROW LEVEL SECURITY;'
+      'ALTER TABLE "public"."profiles" ENABLE ROW LEVEL SECURITY;'
     );
   });
 
@@ -81,6 +81,19 @@ describe('buildRlsDisabledAdvisory', () => {
     expect(advisory).not.toBeNull();
     expect(advisory!.message).toContain('myapp.orders');
     expect(advisory!.message).toContain('api.products');
+  });
+
+  test('quotes identifiers containing special characters in remediation SQL', () => {
+    const tables = [
+      { name: 'public.foo"; DROP TABLE bar; --', rls_enabled: false },
+    ];
+
+    const advisory = buildRlsDisabledAdvisory(tables);
+
+    expect(advisory).not.toBeNull();
+    expect(advisory!.remediation_sql).toBe(
+      'ALTER TABLE "public"."foo""; DROP TABLE bar; --" ENABLE ROW LEVEL SECURITY;'
+    );
   });
 });
 

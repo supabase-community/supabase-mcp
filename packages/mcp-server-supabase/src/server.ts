@@ -60,8 +60,9 @@ export type SupabaseMcpServerOptions = {
   /**
    * Enables cost confirmation via elicitation for clients that declare
    * per-request form-elicitation capability. Clients without that
-   * capability keep using `get_cost` -> `confirm_cost` ->
-   * `create_project(confirm_cost_id)`.
+   * capability keep using `get_cost` -> `confirm_cost` -> the relevant
+   * project or branch `confirm_cost_id` flow (`create_project` or
+   * `create_branch`).
    */
   costConfirmation?: {
     /** HMAC key for the `requestState` codec. MUST be at least 32 bytes. */
@@ -71,7 +72,7 @@ export type SupabaseMcpServerOptions = {
     /** How long a minted `requestState` stays valid, in seconds. */
     ttlSeconds?: number;
     /** Tools that accept a cost-confirmation elicitation. */
-    enabledTools: readonly 'create_project'[];
+    enabledTools: readonly ('create_project' | 'create_branch')[];
   };
 };
 
@@ -135,9 +136,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
     features ?? availableDefaultFeatures
   );
 
-  const costConfirmationCodec = costConfirmation?.enabledTools.includes(
-    'create_project'
-  )
+  const costConfirmationCodec = costConfirmation?.enabledTools.length
     ? createRequestStateCodec<CostConfirmationState>({
         key: costConfirmation.requestStateKey,
         ttlSeconds: costConfirmation.ttlSeconds,
@@ -191,9 +190,11 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
           getAccountTools({
             account,
             readOnly,
-            costConfirmation: costConfirmationCodec && {
-              codec: costConfirmationCodec,
-            },
+            costConfirmation:
+              costConfirmationCodec &&
+              costConfirmation?.enabledTools.includes('create_project')
+                ? { codec: costConfirmationCodec }
+                : undefined,
           })
         );
       }
@@ -227,7 +228,16 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
       if (branching && enabledFeatures.has('branching')) {
         Object.assign(
           tools,
-          getBranchingTools({ branching, projectId, readOnly })
+          getBranchingTools({
+            branching,
+            projectId,
+            readOnly,
+            costConfirmation:
+              costConfirmationCodec &&
+              costConfirmation?.enabledTools.includes('create_branch')
+                ? { codec: costConfirmationCodec }
+                : undefined,
+          })
         );
       }
 

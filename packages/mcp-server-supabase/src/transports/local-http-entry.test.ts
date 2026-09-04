@@ -117,12 +117,12 @@ describe('startLocalHttpEntry', () => {
 
     expect(logLines).toContainEqual(
       expect.stringMatching(
-        /^2025-\d\d-\d\d  initialize\s+test-client\/1\.0\.0$/
+        /^initialize\s+test-client\/1\.0\.0\s+\(2025-\d\d-\d\d\)$/
       )
     );
     const client = `${MCP_CLIENT_NAME}/${MCP_CLIENT_VERSION}`;
     expect(logLines).toContain(
-      `${MODERN_PROTOCOL_VERSION}  ${'tools/list'.padEnd(28)}  ${client}`
+      `${'tools/list'.padEnd(28)}  ${client.padEnd(24)}  (${MODERN_PROTOCOL_VERSION})`
     );
     expect(logLines.every((line) => !line.includes(ACCESS_TOKEN))).toBe(true);
   });
@@ -182,7 +182,7 @@ describe('startLocalHttpEntry', () => {
     });
     expect(mockBranches.size).toBe(0);
     expect(logLines.at(-1)).toBe(
-      `${MODERN_PROTOCOL_VERSION}  ${'tools/call create_branch'.padEnd(28)}  ${MCP_CLIENT_NAME}/${MCP_CLIENT_VERSION}`
+      `${'tools/call create_branch'.padEnd(28)}  ${`${MCP_CLIENT_NAME}/${MCP_CLIENT_VERSION}`.padEnd(24)}  (${MODERN_PROTOCOL_VERSION})`
     );
   });
 });

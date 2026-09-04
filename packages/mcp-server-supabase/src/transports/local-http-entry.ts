@@ -37,7 +37,7 @@ const querySchema = z.object({
     .optional(),
 });
 
-/** e.g. `2026-07-28  tools/call create_branch  claude-code/2.1.260` */
+/** e.g. `tools/call create_branch  claude-code/2.1.260  (2026-07-28)` */
 export function describeRequest(body: unknown): string {
   const messages: unknown[] = Array.isArray(body) ? body : [body];
   let client: Implementation | undefined;
@@ -58,12 +58,13 @@ export function describeRequest(body: unknown): string {
       protocolVersion ??= message.params.protocolVersion;
     }
   }
+  const name = client
+    ? [client.name, client.version].filter(Boolean).join('/')
+    : 'unknown';
   return [
-    (protocolVersion ?? 'legacy').padEnd(10),
     (method ?? 'unknown').padEnd(28),
-    client
-      ? [client.name, client.version].filter(Boolean).join('/')
-      : 'unknown',
+    name.padEnd(24),
+    `(${protocolVersion ?? 'legacy'})`,
   ].join('  ');
 }
 
@@ -71,7 +72,8 @@ export async function startLocalHttpEntry({
   port,
   apiUrl,
   contentApiUrl,
-  log = console.error,
+  log = (line) =>
+    console.error(`[${new Date().toLocaleTimeString('en-GB')}] ${line}`),
 }: LocalHttpEntryOptions) {
   const requestStateKey = randomBytes(32);
   const allowedHostnames = localhostAllowedHostnames();

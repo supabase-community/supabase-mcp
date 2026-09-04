@@ -47,6 +47,10 @@ It binds `127.0.0.1` only and prints a ready-to-paste `.mcp.json` snippet with n
 
 The entry acts as an OAuth client to the Supabase authorization server (the same way MCP Inspector does) and attaches the resulting token to every Management API call itself. Add `--api-url https://api.supabase.green` to sign in against staging. The session lives in memory by default, so each start signs in again; `--oauth-store file` persists it in `~/.supabase/mcp-oauth.json` (mode 0600, one running process per file) and `--logout` revokes the tokens and deletes it. `get_storage_config` and `update_storage_config` are unavailable under OAuth (platform limitation; the hosted server has the same). Any local client that can reach `127.0.0.1:<port>` gets the signed-in user's Management API scopes; the entry checks Host and Origin, so browsers cannot, but other local processes can.
 
+Set `SUPABASE_MCP_NO_BROWSER=1` to print the sign-in URL instead of opening a browser (for headless or remote sessions).
+
+The OAuth protocol core (metadata discovery, dynamic client registration, PKCE, the code exchange and refresh) is [oauth4webapi](https://github.com/panva/oauth4webapi); this repo keeps the policy around it: the token stores, the loopback callback server, the single-flight refresh, the loopback-only HTTP rule, the S256 check and revocation.
+
 Alternatively, run `--http` without `--oauth` and let the client send a PAT per request:
 
 ```json

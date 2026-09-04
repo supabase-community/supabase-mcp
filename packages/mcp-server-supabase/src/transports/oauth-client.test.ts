@@ -63,12 +63,15 @@ beforeEach(async () => {
     http.get(WELL_KNOWN, () => HttpResponse.json(metadata(ISSUER))),
     http.post(`${ISSUER}/platform/oauth/apps/register`, async ({ request }) => {
       registerRequests.push(await request.json());
-      return HttpResponse.json({
-        client_id: 'client-1',
-        client_secret: 'secret-1',
-        client_secret_expires_at: 0,
-        redirect_uris: [redirectUri(callbackPort)],
-      });
+      return HttpResponse.json(
+        {
+          client_id: 'client-1',
+          client_secret: 'secret-1',
+          client_secret_expires_at: 0,
+          redirect_uris: [redirectUri(callbackPort)],
+        },
+        { status: 201 }
+      );
     }),
     http.post(`${ISSUER}/v1/oauth/token`, async ({ request }) => {
       tokenRequests.push(new URLSearchParams(await request.text()));
@@ -77,7 +80,7 @@ beforeEach(async () => {
         access_token: `access-${issued}`,
         refresh_token: `refresh-${issued}`,
         expires_in: EXPIRES_IN,
-        token_type: 'bearer',
+        token_type: 'Bearer',
       });
     }),
     http.post(`${ISSUER}/v1/oauth/revoke`, async ({ request }) => {
@@ -214,7 +217,7 @@ describe('login', () => {
         return HttpResponse.json({
           access_token: 'replacement-access',
           expires_in: EXPIRES_IN,
-          token_type: 'bearer',
+          token_type: 'Bearer',
         });
       })
     );
@@ -256,13 +259,15 @@ describe('login', () => {
       /S256/
     );
 
+    // The issuer comparison is oauth4webapi's; we rewrap its message under our
+    // discovery step so the CLI still prints one line.
     mockServer.use(
       http.get(WELL_KNOWN, () =>
         HttpResponse.json(metadata('https://other.test'))
       )
     );
     await expect(fetchAuthorizationServerMetadata(ISSUER)).rejects.toThrow(
-      /issuer mismatch/
+      /could not fetch authorization server metadata for https:\/\/as\.test: "response" body "issuer" property does not match the expected value/
     );
   });
 

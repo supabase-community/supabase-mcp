@@ -1,5 +1,5 @@
 import { spawn } from 'node:child_process';
-import { createHash, randomBytes } from 'node:crypto';
+import { randomBytes } from 'node:crypto';
 import {
   chmod,
   mkdir,
@@ -11,14 +11,15 @@ import {
 import { createServer } from 'node:http';
 import { homedir } from 'node:os';
 import { dirname, join } from 'node:path';
-import { z } from 'zod/v4';
+import * as oauth from 'oauth4webapi';
 
 // The `--http --oauth` entry acts as an OAuth client to the Supabase
-// authorization server, the same way MCP Inspector does. The client is
-// hand-written on purpose: the whole flow is four fetches (metadata, dynamic
-// registration, token, refresh) plus one loopback callback, and reusing the
-// SDK's client-side auth would promote `@modelcontextprotocol/client` to a
-// runtime dependency of the server package.
+// authorization server, the same way MCP Inspector does. oauth4webapi handles
+// the protocol core (discovery, dynamic registration, PKCE, code exchange,
+// refresh); reusing the SDK's client-side auth instead would promote
+// `@modelcontextprotocol/client` to a runtime dependency of the server package.
+// Policy stays here: token stores, the loopback callback server, single-flight
+// refresh, the loopback-only HTTP rule, the S256 check and revocation.
 //
 // The authorize request carries no `resource` parameter: the platform AS only
 // accepts the hosted MCP URL there and rejects anything else, and the token it
@@ -62,10 +63,6 @@ const EXPIRY_SLACK_MS = 60 * 1000;
 
 export function redirectUri(callbackPort: number) {
   return `http://127.0.0.1:${callbackPort}${CALLBACK_PATH}`;
-}
-
-function storeKey(issuer: string, redirect: string) {
-  return `${issuer} ${redirect}`;
 }
 
 export function createMemoryStore(): OAuthStore {
@@ -155,58 +152,62 @@ function assertSecureOAuthUrl(value: string, label: string) {
   }
 }
 
-const metadataSchema = z.looseObject({
-  issuer: z.url(),
-  authorization_endpoint: z.url(),
-  token_endpoint: z.url(),
-  registration_endpoint: z.url().optional(),
-  code_challenge_methods_supported: z.array(z.string()).optional(),
-});
+/** oauth4webapi refuses plain HTTP unless told otherwise; only a loopback issuer earns that. */
+function requestOptions(issuer: string, fetchFn: FetchFn) {
+  const loopback = LOOPBACK_OAUTH_HOSTS[new URL(issuer).hostname] === true;
+  return {
+    [oauth.customFetch]: fetchFn,
+    ...(loopback ? { [oauth.allowInsecureRequests]: true } : {}),
+  };
+}
 
-export type AuthorizationServerMetadata = z.infer<typeof metadataSchema>;
+/** Flattens oauth4webapi's error classes into the one-line messages this entry prints. */
+function describeError(error: unknown) {
+  if (error instanceof oauth.ResponseBodyError) {
+    return `HTTP ${error.status}: ${error.error}${error.error_description ? `: ${error.error_description}` : ''}`;
+  }
+  if (error instanceof oauth.AuthorizationResponseError) {
+    return `${error.error}${error.error_description ? `: ${error.error_description}` : ''}`;
+  }
+  if (
+    error instanceof oauth.OperationProcessingError &&
+    error.cause instanceof Response
+  ) {
+    return `${error.message} (HTTP ${error.cause.status})`;
+  }
+  return (error as Error).message;
+}
 
-const registrationSchema = z.looseObject({
-  client_id: z.string(),
-  client_secret: z.string(),
-});
-
-const tokenSchema = z.looseObject({
-  access_token: z.string(),
-  refresh_token: z.string().optional(),
-  expires_in: z.number().optional(),
-});
-
-function trimSlash(value: string) {
-  return value.replace(/\/+$/, '');
+/** Runs one protocol step and rewraps whatever the library throws under our step name. */
+async function step<T>(name: string, run: () => Promise<T>): Promise<T> {
+  try {
+    return await run();
+  } catch (error) {
+    throw new Error(`${name}: ${describeError(error)}`, { cause: error });
+  }
 }
 
 export async function fetchAuthorizationServerMetadata(
   issuer: string,
   fetchFn: FetchFn = fetch
-): Promise<AuthorizationServerMetadata> {
+): Promise<oauth.AuthorizationServer> {
   assertSecureOAuthUrl(issuer, 'authorization server issuer');
-  const url = `${trimSlash(issuer)}/.well-known/oauth-authorization-server`;
-  let response: Response;
-  try {
-    response = await fetchFn(url, { headers: { accept: 'application/json' } });
-  } catch (error) {
+  const issuerUrl = new URL(issuer);
+  const metadata = await step(
+    `could not fetch authorization server metadata for ${issuer}`,
+    async () => {
+      const response = await oauth.discoveryRequest(issuerUrl, {
+        algorithm: 'oauth2',
+        ...requestOptions(issuer, fetchFn),
+      });
+      return oauth.processDiscoveryResponse(issuerUrl, response);
+    }
+  );
+  if (!metadata.authorization_endpoint || !metadata.token_endpoint) {
     throw new Error(
-      `could not fetch authorization server metadata from ${url}: ${(error as Error).message}`,
-      { cause: error }
+      `authorization server metadata for ${issuer} is malformed: missing authorization_endpoint or token_endpoint`
     );
   }
-  if (!response.ok) {
-    throw new Error(
-      `could not fetch authorization server metadata from ${url}: HTTP ${response.status}`
-    );
-  }
-  const parsed = metadataSchema.safeParse(await response.json());
-  if (!parsed.success) {
-    throw new Error(
-      `authorization server metadata at ${url} is malformed: ${parsed.error.message}`
-    );
-  }
-  const metadata = parsed.data;
   assertSecureOAuthUrl(metadata.issuer, 'authorization server issuer');
   assertSecureOAuthUrl(
     metadata.authorization_endpoint,
@@ -219,11 +220,6 @@ export async function fetchAuthorizationServerMetadata(
       'registration endpoint'
     );
   }
-  if (trimSlash(metadata.issuer) !== trimSlash(issuer)) {
-    throw new Error(
-      `authorization server metadata issuer mismatch: requested ${issuer}, got ${metadata.issuer}`
-    );
-  }
   if (!metadata.code_challenge_methods_supported?.includes('S256')) {
     throw new Error(
       `authorization server ${issuer} does not support PKCE S256, which this client requires`
@@ -232,90 +228,48 @@ export async function fetchAuthorizationServerMetadata(
   return metadata;
 }
 
-async function postForm(
-  fetchFn: FetchFn,
-  url: string,
-  form: Record<string, string>
-) {
-  return fetchFn(url, {
-    method: 'POST',
-    headers: {
-      'content-type': 'application/x-www-form-urlencoded',
-      accept: 'application/json',
-    },
-    body: new URLSearchParams(form).toString(),
-  });
-}
-
-async function describeFailure(response: Response) {
-  const text = await response.text().catch(() => '');
-  return `HTTP ${response.status}${text ? `: ${text.slice(0, 200)}` : ''}`;
-}
-
 async function register(
-  metadata: AuthorizationServerMetadata,
+  as: oauth.AuthorizationServer,
   redirect: string,
   fetchFn: FetchFn
 ): Promise<StoredClient> {
-  if (!metadata.registration_endpoint) {
+  if (!as.registration_endpoint) {
     throw new Error(
-      `authorization server ${metadata.issuer} does not advertise a registration endpoint`
+      `authorization server ${as.issuer} does not advertise a registration endpoint`
     );
   }
-  const response = await fetchFn(metadata.registration_endpoint, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json', accept: 'application/json' },
-    body: JSON.stringify({
-      client_name: CLIENT_NAME,
-      redirect_uris: [redirect],
-      grant_types: ['authorization_code', 'refresh_token'],
-      response_types: ['code'],
-      token_endpoint_auth_method: 'client_secret_post',
-    }),
-  });
-  if (!response.ok) {
+  const { client_id, client_secret } = await step(
+    'client registration failed',
+    async () => {
+      const response = await oauth.dynamicClientRegistrationRequest(
+        as,
+        {
+          client_name: CLIENT_NAME,
+          redirect_uris: [redirect],
+          grant_types: ['authorization_code', 'refresh_token'],
+          response_types: ['code'],
+          token_endpoint_auth_method: 'client_secret_post',
+        },
+        requestOptions(as.issuer, fetchFn)
+      );
+      return oauth.processDynamicClientRegistrationResponse(response);
+    }
+  );
+  if (typeof client_secret !== 'string' || client_secret.length === 0) {
     throw new Error(
-      `client registration failed: ${await describeFailure(response)}`
+      'client registration response is malformed: no client_secret was issued'
     );
   }
-  const parsed = registrationSchema.safeParse(await response.json());
-  if (!parsed.success) {
-    throw new Error(
-      `client registration response is malformed: ${parsed.error.message}`
-    );
-  }
-  return {
-    client_id: parsed.data.client_id,
-    client_secret: parsed.data.client_secret,
-  };
+  return { client_id, client_secret };
 }
 
-async function exchange(
-  tokenEndpoint: string,
-  form: Record<string, string>,
-  fetchFn: FetchFn,
-  what: string
+/** Listens for the browser redirect; `ready` settles once the port is bound, `params` once the user returns. */
+function startCallbackServer(
+  callbackPort: number,
+  validate: (url: URL) => URLSearchParams
 ) {
-  const response = await postForm(fetchFn, tokenEndpoint, form);
-  if (!response.ok) {
-    throw new Error(`${what} failed: ${await describeFailure(response)}`);
-  }
-  const parsed = tokenSchema.safeParse(await response.json());
-  if (!parsed.success) {
-    throw new Error(`${what} response is malformed: ${parsed.error.message}`);
-  }
-  return parsed.data;
-}
-
-/** Listens for the browser redirect; `ready` settles once the port is bound, `code` once the user returns. */
-function startCallbackServer(callbackPort: number, expectedState: string) {
-  let ready!: () => void;
-  let listenFailed!: (error: Error) => void;
-  const readyPromise = new Promise<void>((resolve, reject) => {
-    ready = resolve;
-    listenFailed = reject;
-  });
-  const code = new Promise<string>((resolve, reject) => {
+  let ready!: Promise<void>;
+  const params = new Promise<URLSearchParams>((resolve, reject) => {
     const server = createServer((req, res) => {
       const url = new URL(req.url ?? '/', `http://127.0.0.1:${callbackPort}`);
       if (req.method !== 'GET' || url.pathname !== CALLBACK_PATH) {
@@ -323,26 +277,23 @@ function startCallbackServer(callbackPort: number, expectedState: string) {
         res.end('not found');
         return;
       }
-      const state = url.searchParams.get('state');
-      const code = url.searchParams.get('code');
-      const error = url.searchParams.get('error');
       const fail = (message: string) => {
         res.writeHead(400, { 'content-type': 'text/plain' });
         res.end(message);
         finish(() => reject(new Error(`OAuth login failed: ${message}`)));
       };
-      if (state !== expectedState) return fail('state mismatch');
-      if (error) {
-        return fail(
-          `${error}${url.searchParams.get('error_description') ? `: ${url.searchParams.get('error_description')}` : ''}`
-        );
+      let validated: URLSearchParams;
+      try {
+        validated = validate(url);
+      } catch (error) {
+        return fail(describeError(error));
       }
-      if (!code) return fail('missing code');
+      if (!validated.has('code')) return fail('missing code');
       res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
       res.end(
         '<!doctype html><title>Signed in</title><p>Signed in to Supabase. You can close this tab.</p>'
       );
-      finish(() => resolve(code));
+      finish(() => resolve(validated));
     });
 
     const timer = setTimeout(() => {
@@ -358,18 +309,23 @@ function startCallbackServer(callbackPort: number, expectedState: string) {
       settle();
     }
 
-    server.once('error', (error) => {
+    ready = new Promise<void>((bound, failed) => {
+      server.once('error', failed);
+      server.listen(callbackPort, '127.0.0.1', () => {
+        server.off('error', failed);
+        bound();
+      });
+    }).catch((error: Error) => {
       clearTimeout(timer);
       const wrapped = new Error(
         `could not listen on ${redirectUri(callbackPort)} for the OAuth callback: ${error.message}`,
         { cause: error }
       );
-      listenFailed(wrapped);
       reject(wrapped);
+      throw wrapped;
     });
-    server.listen(callbackPort, '127.0.0.1', ready);
   });
-  return { ready: readyPromise, code };
+  return { ready, params };
 }
 
 export function defaultOpenBrowser(url: string) {
@@ -413,11 +369,11 @@ export async function login(options: LoginOptions): Promise<TokenSource> {
   const redirect = redirectUri(callbackPort);
   const key = `${issuer} ${redirect}`;
 
-  const metadata = await fetchAuthorizationServerMetadata(issuer, fetchFn);
+  const as = await fetchAuthorizationServerMetadata(issuer, fetchFn);
   let client = await store.load(key);
   if (client && (client.access_token || client.refresh_token)) {
     const storedSource = createTokenSource({
-      tokenEndpoint: metadata.token_endpoint,
+      authorizationServer: as,
       store,
       key,
       client,
@@ -437,22 +393,31 @@ export async function login(options: LoginOptions): Promise<TokenSource> {
     }
   }
   if (!client) {
-    client = await register(metadata, redirect, fetchFn);
+    client = await register(as, redirect, fetchFn);
     await store.save(key, client);
   }
 
-  const verifier = randomBytes(32).toString('base64url');
-  const challenge = createHash('sha256').update(verifier).digest('base64url');
-  const state = randomBytes(16).toString('base64url');
+  const verifier = oauth.generateRandomCodeVerifier();
+  const challenge = await oauth.calculatePKCECodeChallenge(verifier);
+  const state = oauth.generateRandomState();
+  const asClient: oauth.Client = { client_id: client.client_id };
 
-  const callback = startCallbackServer(callbackPort, state);
+  const callback = startCallbackServer(callbackPort, (url) => {
+    // The library's message for a bad state names the parameter; ours stays
+    // the plain "state mismatch" the browser tab shows.
+    if (url.searchParams.get('state') !== state) {
+      throw new Error('state mismatch');
+    }
+    return oauth.validateAuthResponse(as, asClient, url, state);
+  });
   // The callback may settle while we are still awaiting the browser opener;
   // a handler now keeps an early rejection from surfacing as unhandled.
-  callback.code.catch(() => undefined);
+  callback.params.catch(() => undefined);
   // A busy port must fail here, before the user is sent to the browser.
   await callback.ready;
 
-  const authorizeUrl = new URL(metadata.authorization_endpoint);
+  // `as.authorization_endpoint` was asserted present during discovery.
+  const authorizeUrl = new URL(as.authorization_endpoint!);
   authorizeUrl.search = new URLSearchParams({
     response_type: 'code',
     client_id: client.client_id,
@@ -465,25 +430,25 @@ export async function login(options: LoginOptions): Promise<TokenSource> {
   log(`Sign in to Supabase in your browser:\n${authorizeUrl}`);
   await openBrowser(authorizeUrl.toString());
 
-  const code = await callback.code;
-  const tokens = await exchange(
-    metadata.token_endpoint,
-    {
-      grant_type: 'authorization_code',
-      code,
-      code_verifier: verifier,
-      redirect_uri: redirect,
-      client_id: client.client_id,
-      client_secret: client.client_secret,
-    },
-    fetchFn,
-    'token exchange'
-  );
+  const callbackParams = await callback.params;
+  const clientAuth = oauth.ClientSecretPost(client.client_secret);
+  const tokens = await step('token exchange failed', async () => {
+    const response = await oauth.authorizationCodeGrantRequest(
+      as,
+      asClient,
+      clientAuth,
+      callbackParams,
+      redirect,
+      verifier,
+      requestOptions(issuer, fetchFn)
+    );
+    return oauth.processAuthorizationCodeResponse(as, asClient, response);
+  });
   client = withTokens(client, tokens);
   await store.save(key, client);
 
   return createTokenSource({
-    tokenEndpoint: metadata.token_endpoint,
+    authorizationServer: as,
     store,
     key,
     client,
@@ -493,7 +458,7 @@ export async function login(options: LoginOptions): Promise<TokenSource> {
 
 function withTokens(
   client: StoredClient,
-  tokens: z.infer<typeof tokenSchema>
+  tokens: oauth.TokenEndpointResponse
 ): StoredClient {
   return {
     client_id: client.client_id,
@@ -508,7 +473,7 @@ function withTokens(
 }
 
 export type TokenSourceOptions = {
-  tokenEndpoint: string;
+  authorizationServer: oauth.AuthorizationServer;
   store: OAuthStore;
   key: string;
   client: StoredClient;
@@ -516,7 +481,7 @@ export type TokenSourceOptions = {
 };
 
 export function createTokenSource(options: TokenSourceOptions): TokenSource {
-  const { tokenEndpoint, store, key, fetchFn = fetch } = options;
+  const { authorizationServer: as, store, key, fetchFn = fetch } = options;
   let client = options.client;
   // MCP clients send `initialize` and `tools/list` concurrently and the refresh
   // token is single-use, so concurrent callers share one in-flight refresh.
@@ -526,17 +491,18 @@ export function createTokenSource(options: TokenSourceOptions): TokenSource {
     if (!client.refresh_token) {
       throw new Error('OAuth session expired; restart with --http --oauth');
     }
-    const tokens = await exchange(
-      tokenEndpoint,
-      {
-        grant_type: 'refresh_token',
-        refresh_token: client.refresh_token,
-        client_id: client.client_id,
-        client_secret: client.client_secret,
-      },
-      fetchFn,
-      'token refresh'
-    );
+    const asClient: oauth.Client = { client_id: client.client_id };
+    const refreshToken = client.refresh_token;
+    const tokens = await step('token refresh failed', async () => {
+      const response = await oauth.refreshTokenGrantRequest(
+        as,
+        asClient,
+        oauth.ClientSecretPost(client.client_secret),
+        refreshToken,
+        requestOptions(as.issuer, fetchFn)
+      );
+      return oauth.processRefreshTokenResponse(as, asClient, response);
+    });
     client = withTokens(client, tokens);
     await store.save(key, client);
     return tokens.access_token;
@@ -569,17 +535,24 @@ export type LogoutOptions = {
 /** Revokes both tokens (best effort) and forgets the client. Returns false when nothing was stored. */
 export async function logout(options: LogoutOptions): Promise<boolean> {
   const { issuer, callbackPort, store, fetchFn = fetch } = options;
-  const key = storeKey(issuer, redirectUri(callbackPort));
+  const key = `${issuer} ${redirectUri(callbackPort)}`;
   const client = await store.load(key);
   if (!client) return false;
 
-  const revokeEndpoint = `${trimSlash(issuer)}/v1/oauth/revoke`;
+  const revokeEndpoint = `${issuer.replace(/\/+$/, '')}/v1/oauth/revoke`;
   for (const token of [client.access_token, client.refresh_token]) {
     if (!token) continue;
-    await postForm(fetchFn, revokeEndpoint, {
-      token,
-      client_id: client.client_id,
-      client_secret: client.client_secret,
+    await fetchFn(revokeEndpoint, {
+      method: 'POST',
+      headers: {
+        'content-type': 'application/x-www-form-urlencoded',
+        accept: 'application/json',
+      },
+      body: new URLSearchParams({
+        token,
+        client_id: client.client_id,
+        client_secret: client.client_secret,
+      }).toString(),
     }).catch(() => undefined);
   }
   await store.delete(key);

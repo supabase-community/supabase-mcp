@@ -24,6 +24,9 @@ catalogs:
     ai:
       specifier: ^6.0.100
       version: 6.0.100
+    oauth4webapi:
+      specifier: ^3.5.3
+      version: 3.8.7
     zod:
       specifier: ^3.25.0 || ^4.0.0
       version: 4.2.1
@@ -105,6 +108,9 @@ importers:
       graphql:
         specifier: ^16.11.0
         version: 16.11.0
+      oauth4webapi:
+        specifier: 'catalog:'
+        version: 3.8.7
       openapi-fetch:
         specifier: ^0.13.5
         version: 0.13.8
@@ -1472,6 +1478,9 @@ packages:
   npm-normalize-package-bin@4.0.0:
     resolution: {integrity: sha512-TZKxPvItzai9kN9H/TkmCtx/ZN/hvr3vUycjlfmH0ootY9yFBzNOpiXAdIn1Iteqsvk4lQn6B5PTrt+n6h8k/w==}
     engines: {node: ^18.17.0 || >=20.5.0}
+
+  oauth4webapi@3.8.7:
+    resolution: {integrity: sha512-4RxcKxXjuItDFZ20RRPf4YTw3kpeXJyCgJFxVzJ068A7PNJ18st2Dg90tlC1LkSDS0GecroagCLHYEIVUhCAkw==}
 
   object-assign@4.1.1:
     resolution: {integrity: sha512-rJgTQnkUnH1sFw8yT6VSU3zD3sWmu6sZhIseY8VX+GRu3P6F7Fu+JNDoXfklElbLJSnc3FUQHVe4cU5hj+BcUg==}
@@ -3066,6 +3075,8 @@ snapshots:
       formdata-polyfill: 4.0.10
 
   npm-normalize-package-bin@4.0.0: {}
+
+  oauth4webapi@3.8.7: {}
 
   object-assign@4.1.1: {}
 

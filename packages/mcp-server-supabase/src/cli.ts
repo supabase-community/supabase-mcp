@@ -70,41 +70,18 @@ async function main() {
     cliContentApiUrl ?? process.env.SUPABASE_CONTENT_API_URL;
 
   if (http) {
-    if (cliAccessToken !== undefined) {
+    if (cliAccessToken || projectId || readOnly || cliFeatures) {
       console.error(
-        '--access-token is not used with --http: the client sends the PAT per request in the Authorization header'
+        '--http takes the token and project_ref, read_only, features from the client, not flags'
       );
       process.exit(1);
     }
-
-    if (projectId !== undefined || readOnly || cliFeatures !== undefined) {
-      console.error(
-        'With --http, pass project_ref, read_only and features as query params on the client URL'
-      );
-      process.exit(1);
-    }
-
-    const port = Number(cliPort);
-    if (!Number.isInteger(port) || port < 0 || port > 65535) {
-      console.error(`Invalid --port value: ${cliPort}`);
-      process.exit(1);
-    }
-
-    const entry = await startLocalHttpEntry({ port, apiUrl, contentApiUrl });
-
+    const entry = await startLocalHttpEntry({
+      port: Number(cliPort),
+      apiUrl,
+      contentApiUrl,
+    });
     console.error(`Supabase MCP server listening on ${entry.url}`);
-
-    const shutdown = () => {
-      entry.close().then(
-        () => process.exit(0),
-        (error) => {
-          console.error(error);
-          process.exit(1);
-        }
-      );
-    };
-    process.once('SIGINT', shutdown);
-    process.once('SIGTERM', shutdown);
     return;
   }
 
@@ -126,23 +103,20 @@ async function main() {
     parseFeatureGroups(platform, features);
   }
 
-  const options = {
-    platform,
-    projectId,
-    readOnly,
-    features,
-    contentApiUrl,
-  };
-
   // `serveStdio` reports transport startup and out-of-band wire errors only
   // through `onerror`, and swallows them otherwise, so this keeps the stderr
   // output the previous awaited `server.connect()` got from `main().catch`.
-  serveStdio(() => createSupabaseMcpServer(options), {
-    onerror: console.error,
-  });
+  serveStdio(
+    () =>
+      createSupabaseMcpServer({
+        platform,
+        projectId,
+        readOnly,
+        features,
+        contentApiUrl,
+      }),
+    { onerror: console.error }
+  );
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+main().catch(console.error);

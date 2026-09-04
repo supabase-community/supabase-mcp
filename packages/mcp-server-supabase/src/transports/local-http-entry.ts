@@ -1,15 +1,10 @@
 import { createHash, randomBytes } from 'node:crypto';
-import {
-  createServer,
-  type IncomingMessage,
-  type ServerResponse,
-} from 'node:http';
+import { createServer } from 'node:http';
 import type { AddressInfo } from 'node:net';
 import { toNodeHandler } from '@modelcontextprotocol/node';
 import {
   CLIENT_INFO_META_KEY,
   hostHeaderValidationResponse,
-  isJsonContentType,
   localhostAllowedHostnames,
   PROTOCOL_VERSION_META_KEY,
 } from '@modelcontextprotocol/server';
@@ -44,51 +39,6 @@ export type LocalHttpEntry = {
 
 export const LOCAL_HTTP_HOST = '127.0.0.1';
 export const LOCAL_HTTP_PATH = '/mcp';
-
-const MAX_REQUEST_BODY_BYTES = 4 * 1024 * 1024;
-
-// The body cap is entry-owned: the SDK's `toWebRequest` collects a request body
-// unbounded when no `parsedBody` is passed (@modelcontextprotocol/node
-// dist/index.mjs:350-355), so the entry reads and caps the stream first.
-async function readJsonBody(
-  req: IncomingMessage,
-  res: ServerResponse
-): Promise<{ handled: true } | { handled: false; parsedBody: unknown }> {
-  const chunks: Buffer[] = [];
-  let bodyBytes = 0;
-  for await (const chunk of req.iterator({ destroyOnReturn: false })) {
-    const buffer = chunk as Buffer;
-    bodyBytes += buffer.length;
-    if (bodyBytes > MAX_REQUEST_BODY_BYTES) {
-      req.resume();
-      res.writeHead(413, { 'content-type': 'application/json' });
-      res.end(JSON.stringify({ error: 'payload too large' }));
-      return { handled: true };
-    }
-    chunks.push(buffer);
-  }
-  // Empty and non-JSON bodies pass through unparsed; the SDK answers 415 for a
-  // non-JSON content-type before it reads any body.
-  if (chunks.length === 0 || !isJsonContentType(req.headers['content-type'])) {
-    return { handled: false, parsedBody: undefined };
-  }
-  try {
-    return {
-      handled: false,
-      parsedBody: JSON.parse(Buffer.concat(chunks).toString()),
-    };
-  } catch {
-    res.writeHead(400, { 'content-type': 'application/json' });
-    res.end(
-      JSON.stringify({
-        jsonrpc: '2.0',
-        error: { code: -32700, message: 'Parse error' },
-        id: null,
-      })
-    );
-    return { handled: true };
-  }
-}
 
 function bearerToken(request: Request): string | undefined {
   const header = request.headers.get('authorization');
@@ -196,7 +146,13 @@ export async function startLocalHttpEntry(
           features,
         } = query.data;
 
-        log(describeRequest(parsedBody));
+        const body =
+          parsedBody ??
+          (await request
+            .clone()
+            .json()
+            .catch(() => undefined));
+        log(describeRequest(body));
 
         const platform = createSupabaseApiPlatform({ accessToken, apiUrl });
         if (features) {
@@ -229,23 +185,7 @@ export async function startLocalHttpEntry(
     { onerror: console.error }
   );
 
-  const server = createServer(async (req, res) => {
-    try {
-      const body = await readJsonBody(req, res);
-      if (body.handled) return;
-      await listener(req, res, body.parsedBody);
-    } catch (error) {
-      // A client dropping mid-upload rejects the body read outside the SDK's
-      // error handling; without this the process dies on the rejection.
-      console.error(error);
-      if (!res.headersSent) {
-        res.writeHead(500, { 'content-type': 'application/json' });
-        res.end(JSON.stringify({ error: 'internal error' }));
-      } else {
-        res.destroy();
-      }
-    }
-  });
+  const server = createServer(listener);
 
   await new Promise<void>((resolve, reject) => {
     server.once('error', reject);

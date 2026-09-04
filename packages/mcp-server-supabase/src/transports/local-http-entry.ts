@@ -73,7 +73,6 @@ export async function startLocalHttpEntry({
   contentApiUrl,
   log = console.error,
 }: LocalHttpEntryOptions) {
-  // Restarting the process invalidates in-flight elicitations on purpose.
   const requestStateKey = randomBytes(32);
   const allowedHostnames = localhostAllowedHostnames();
 

@@ -70,12 +70,6 @@ async function main() {
     cliContentApiUrl ?? process.env.SUPABASE_CONTENT_API_URL;
 
   if (http) {
-    if (cliAccessToken || projectId || readOnly || cliFeatures) {
-      console.error(
-        '--http takes the token and project_ref, read_only, features from the client, not flags'
-      );
-      process.exit(1);
-    }
     const entry = await startLocalHttpEntry({
       port: Number(cliPort),
       apiUrl,

@@ -25,7 +25,7 @@ export type LocalHttpEntryOptions = {
   port: number;
   apiUrl?: string;
   contentApiUrl?: string;
-  /** OAuth mode. The token for every request comes from here instead of the client's Authorization header. */
+  /** OAuth mode. Supplies the token for every request. */
   accessToken?: () => Promise<string>;
   log?: (line: string) => void;
 };
@@ -80,7 +80,7 @@ export async function startLocalHttpEntry({
     console.error(`[${new Date().toLocaleTimeString('en-GB')}] ${line}`),
 }: LocalHttpEntryOptions) {
   const requestStateKey = randomBytes(32);
-  // OAuth tokens refresh, so the principal can't be their hash. One process has one signed-in identity.
+  // OAuth tokens refresh, so the principal is a per-process value instead of a token hash.
   const processPrincipal = randomBytes(16).toString('hex');
   const allowedHostnames = localhostAllowedHostnames();
 

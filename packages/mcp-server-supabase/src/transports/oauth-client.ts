@@ -92,7 +92,7 @@ async function waitForCode() {
   return String(code);
 }
 
-/** Signs in (or resumes a stored session) and returns a token getter that refreshes on expiry. */
+/** Signs in if needed and returns a token getter that refreshes on expiry. */
 export async function login(serverUrl: string) {
   if ((await auth(provider, { serverUrl })) === 'REDIRECT') {
     await auth(provider, { serverUrl, authorizationCode: await waitForCode() });

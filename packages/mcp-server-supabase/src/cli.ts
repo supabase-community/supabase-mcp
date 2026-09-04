@@ -5,10 +5,7 @@ import { serveStdio } from '@modelcontextprotocol/server/stdio';
 import packageJson from '../package.json' with { type: 'json' };
 import { createSupabaseApiPlatform } from './platform/api-platform.js';
 import { createSupabaseMcpServer } from './server.js';
-import {
-  formatBanner,
-  startLocalHttpEntry,
-} from './transports/local-http-entry.js';
+import { startLocalHttpEntry } from './transports/local-http-entry.js';
 import { parseList } from './transports/util.js';
 import { parseFeatureGroups } from './util.js';
 
@@ -80,22 +77,22 @@ async function main() {
       process.exit(1);
     }
 
+    if (projectId !== undefined || readOnly || cliFeatures !== undefined) {
+      console.error(
+        'With --http, pass project_ref, read_only and features as query params on the client URL'
+      );
+      process.exit(1);
+    }
+
     const port = Number(cliPort);
     if (!Number.isInteger(port) || port < 0 || port > 65535) {
       console.error(`Invalid --port value: ${cliPort}`);
       process.exit(1);
     }
 
-    const entry = await startLocalHttpEntry({
-      port,
-      projectId,
-      readOnly,
-      apiUrl,
-      contentApiUrl,
-      features,
-    });
+    const entry = await startLocalHttpEntry({ port, apiUrl, contentApiUrl });
 
-    console.log(formatBanner(entry.url));
+    console.error(`Supabase MCP server listening on ${entry.url}`);
 
     const shutdown = () => {
       entry.close().then(

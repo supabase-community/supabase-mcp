@@ -10,25 +10,32 @@ import {
   CLIENT_INFO_META_KEY,
   hostHeaderValidationResponse,
   isJsonContentType,
-  isLegacyRequest,
   localhostAllowedHostnames,
   PROTOCOL_VERSION_META_KEY,
 } from '@modelcontextprotocol/server';
+import { z } from 'zod/v4';
 
 import { createSupabaseApiPlatform } from '../platform/api-platform.js';
 import { parseFeatureGroups } from '../util.js';
 import { createSupabaseMcpHandler } from './http.js';
+import { parseList } from './util.js';
 
 export type LocalHttpEntryOptions = {
   port: number;
-  projectId?: string;
-  readOnly?: boolean;
   apiUrl?: string;
   contentApiUrl?: string;
-  features?: string[];
-  /** Destination for the per-request era line. Defaults to `console.error`. */
   log?: (line: string) => void;
 };
+
+// https://supabase.com/docs/guides/ai-tools/mcp#configuration-options
+const querySchema = z.object({
+  project_ref: z.string().optional(),
+  read_only: z.stringbool().default(false),
+  features: z
+    .string()
+    .transform((value) => parseList(value))
+    .optional(),
+});
 
 export type LocalHttpEntry = {
   url: string;
@@ -98,6 +105,8 @@ type Envelope = {
   params?: {
     _meta?: Record<string, unknown>;
     clientInfo?: unknown;
+    protocolVersion?: unknown;
+    name?: unknown;
   };
 };
 
@@ -108,40 +117,43 @@ function implementationName(value: unknown): string | undefined {
   return typeof version === 'string' ? `${name}/${version}` : name;
 }
 
-/** Client name from the modern envelope's `_meta`, else from a legacy `initialize`, else `unknown`. */
-export function describeClient(parsedBody: unknown): {
-  client: string;
-  protocolVersion?: string;
-} {
+/** e.g. `2026-07-28  tools/call create_branch  claude-code/2.1.260` */
+export function describeRequest(parsedBody: unknown): string {
   const messages = Array.isArray(parsedBody) ? parsedBody : [parsedBody];
   let client: string | undefined;
+  let method: string | undefined;
   let protocolVersion: string | undefined;
   for (const message of messages as Envelope[]) {
     if (typeof message !== 'object' || message === null) continue;
-    const meta = message.params?._meta;
-    client ??= implementationName(meta?.[CLIENT_INFO_META_KEY]);
-    if (typeof meta?.[PROTOCOL_VERSION_META_KEY] === 'string') {
-      protocolVersion ??= meta[PROTOCOL_VERSION_META_KEY] as string;
+    const { params } = message;
+    if (typeof message.method === 'string') {
+      method ??= message.method;
+      if (message.method === 'tools/call' && typeof params?.name === 'string') {
+        method = `${message.method} ${params.name}`;
+      }
+    }
+    client ??= implementationName(params?._meta?.[CLIENT_INFO_META_KEY]);
+    if (typeof params?._meta?.[PROTOCOL_VERSION_META_KEY] === 'string') {
+      protocolVersion ??= params._meta[PROTOCOL_VERSION_META_KEY] as string;
     }
     if (message.method === 'initialize') {
-      client ??= implementationName(message.params?.clientInfo);
+      client ??= implementationName(params?.clientInfo);
+      if (typeof params?.protocolVersion === 'string') {
+        protocolVersion ??= params.protocolVersion;
+      }
     }
   }
-  return { client: client ?? 'unknown', protocolVersion };
+  return [
+    (protocolVersion ?? 'legacy').padEnd(10),
+    (method ?? 'unknown').padEnd(28),
+    client ?? 'unknown',
+  ].join('  ');
 }
 
 export async function startLocalHttpEntry(
   options: LocalHttpEntryOptions
 ): Promise<LocalHttpEntry> {
-  const {
-    port,
-    projectId,
-    readOnly,
-    apiUrl,
-    contentApiUrl,
-    features,
-    log = console.error,
-  } = options;
+  const { port, apiUrl, contentApiUrl, log = console.error } = options;
   const allowedHostnames = localhostAllowedHostnames();
   // Signs the cost-confirmation request state for this process; a restart
   // invalidates in-flight elicitations, which is the intended scope.
@@ -156,7 +168,8 @@ export async function startLocalHttpEntry(
         );
         if (rejected) return rejected;
 
-        if (new URL(request.url).pathname !== LOCAL_HTTP_PATH) {
+        const url = new URL(request.url);
+        if (url.pathname !== LOCAL_HTTP_PATH) {
           return Response.json({ error: 'not found' }, { status: 404 });
         }
 
@@ -168,13 +181,22 @@ export async function startLocalHttpEntry(
           );
         }
 
-        const legacy = await isLegacyRequest(request, parsedBody);
-        const { client, protocolVersion } = describeClient(parsedBody);
-        log(
-          legacy
-            ? `[mcp-http] legacy client=${client} (elicitations unavailable on the legacy path)`
-            : `[mcp-http] modern ${protocolVersion ?? 'unknown'} client=${client}`
+        const query = querySchema.safeParse(
+          Object.fromEntries(url.searchParams)
         );
+        if (!query.success) {
+          return Response.json(
+            { error: z.prettifyError(query.error) },
+            { status: 400 }
+          );
+        }
+        const {
+          project_ref: projectId,
+          read_only: readOnly,
+          features,
+        } = query.data;
+
+        log(describeRequest(parsedBody));
 
         const platform = createSupabaseApiPlatform({ accessToken, apiUrl });
         if (features) {
@@ -243,20 +265,4 @@ export async function startLocalHttpEntry(
         server.closeAllConnections();
       }),
   };
-}
-
-export function formatBanner(url: string) {
-  return `Supabase MCP server (--http) listening on ${url}
-
-Add to .mcp.json (Claude Code expands \${SUPABASE_ACCESS_TOKEN} at connect time):
-{
-  "mcpServers": {
-    "supabase-local": {
-      "type": "http",
-      "url": "${url}",
-      "headers": { "Authorization": "Bearer \${SUPABASE_ACCESS_TOKEN}" }
-    }
-  }
-}
-Modern form-capable clients see cost confirmations as elicitations; legacy (2025-era) clients keep get_cost / confirm_cost. Requests log their era on stderr.`;
 }

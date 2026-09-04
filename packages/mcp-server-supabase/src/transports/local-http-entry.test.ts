@@ -43,7 +43,6 @@ beforeEach(async () => {
   entry = await startLocalHttpEntry({
     port: 0,
     apiUrl: API_URL,
-    readOnly: true,
     log: (line) => logLines.push(line),
   });
   // msw intercepts every fetch in-process; let traffic to the entry hit the real socket.
@@ -64,9 +63,10 @@ afterEach(async () => {
 });
 
 async function connect(mode: 'legacy' | { pin: string }) {
-  const transport = new StreamableHTTPClientTransport(new URL(entry.url), {
-    requestInit: { headers: AUTH_HEADERS },
-  });
+  const transport = new StreamableHTTPClientTransport(
+    new URL(`${entry.url}?read_only=true`),
+    { requestInit: { headers: AUTH_HEADERS } }
+  );
   const client = new Client(
     { name: MCP_CLIENT_NAME, version: MCP_CLIENT_VERSION },
     { capabilities: {}, versionNegotiation: { mode } }
@@ -118,18 +118,20 @@ describe('startLocalHttpEntry', () => {
     expect(tools.map((tool) => tool.name)).toContain('list_projects');
   });
 
-  test('logs one era line per request with the client name', async () => {
+  test('logs one line per request', async () => {
     const legacy = await connect('legacy');
     await legacy.listTools();
     const modern = await connect({ pin: MODERN_PROTOCOL_VERSION });
     await modern.listTools();
 
     const client = `${MCP_CLIENT_NAME}/${MCP_CLIENT_VERSION}`;
-    expect(logLines).toContain(
-      `[mcp-http] legacy client=${client} (elicitations unavailable on the legacy path)`
+    expect(logLines).toContainEqual(
+      expect.stringMatching(
+        /^2025-\d\d-\d\d  initialize\s+test-client\/1\.0\.0$/
+      )
     );
     expect(logLines).toContain(
-      `[mcp-http] modern ${MODERN_PROTOCOL_VERSION} client=${client}`
+      `${MODERN_PROTOCOL_VERSION}  ${'tools/list'.padEnd(28)}  ${client}`
     );
     expect(logLines.every((line) => !line.includes(ACCESS_TOKEN))).toBe(true);
   });
@@ -339,7 +341,6 @@ describe('startLocalHttpEntry', () => {
       writable = await startLocalHttpEntry({
         port: 0,
         apiUrl: API_URL,
-        features: ['account', 'branching'],
         log: (line) => writableLogLines.push(line),
       });
       mockServer.use(
@@ -355,7 +356,7 @@ describe('startLocalHttpEntry', () => {
       }
     ) {
       const transport = new StreamableHTTPClientTransport(
-        new URL(writable.url),
+        new URL(`${writable.url}?features=account,branching`),
         { requestInit: { headers: AUTH_HEADERS } }
       );
       const client = new Client(
@@ -413,7 +414,7 @@ describe('startLocalHttpEntry', () => {
       expect(result.requestState).toBeTruthy();
       expect(mockBranches.size).toBe(0);
       expect(writableLogLines.at(-1)).toBe(
-        `[mcp-http] modern ${MODERN_PROTOCOL_VERSION} client=${MCP_CLIENT_NAME}/${MCP_CLIENT_VERSION}`
+        `${MODERN_PROTOCOL_VERSION}  ${'tools/call create_branch'.padEnd(28)}  ${MCP_CLIENT_NAME}/${MCP_CLIENT_VERSION}`
       );
     });
 
@@ -442,7 +443,7 @@ describe('startLocalHttpEntry', () => {
       expect(mockBranches.size).toBe(0);
       // Stateless legacy serving only sees the client name on `initialize`.
       expect(writableLogLines.at(-1)).toMatch(
-        /^\[mcp-http\] legacy client=.* \(elicitations unavailable on the legacy path\)$/
+        /^legacy {6}tools\/call create_branch\s+unknown$/
       );
     });
   });

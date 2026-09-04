@@ -19,38 +19,33 @@ mise install
 pnpm install
 ```
 
-To build the MCP server and watch for file changes:
+To run the MCP server locally over HTTP:
 
 ```bash
-cd packages/mcp-server-supabase
-pnpm dev
+pnpm dev:http
 ```
 
-Then start the server with `--http`, which serves the build the same way `mcp.supabase.com` does:
+Rebuilds and restarts on save. Flags pass through, e.g. `pnpm dev:http --api-url https://api.supabase.green`.
 
-```bash
-node dist/cli.js --http --project-ref <your project ref>
-```
-
-It binds `127.0.0.1` only and prints a ready-to-paste `.mcp.json` snippet:
+Example client config:
 
 ```json
 {
   "mcpServers": {
     "supabase-local": {
       "type": "http",
-      "url": "http://127.0.0.1:3111/mcp",
+      "url": "http://127.0.0.1:3111/mcp?project_ref=<your project ref>",
       "headers": { "Authorization": "Bearer ${SUPABASE_ACCESS_TOKEN}" }
     }
   }
 }
 ```
 
-The access token comes from the client's `Authorization` header on each request (Claude Code expands `${SUPABASE_ACCESS_TOKEN}` at connect time). There is no token flag and no token environment variable on the server side. Modern form-capable clients (Claude Code with v2 negotiation) see cost confirmations for `create_project` and `create_branch` as elicitation dialogs; legacy clients keep the `get_cost` / `confirm_cost` flow. You may need to restart the server in your MCP client after each change.
+The dev server supports the same [query params as the hosted endpoint](https://supabase.com/docs/guides/ai-tools/mcp#configuration-options). The access token comes from the client's `Authorization` header on each request (Claude Code expands `${SUPABASE_ACCESS_TOKEN}` at connect time). There is no token flag and no token environment variable on the server side. Modern form-capable clients (Claude Code with v2 negotiation) see cost confirmations for `create_project` and `create_branch` as elicitation dialogs; legacy clients keep the `get_cost` / `confirm_cost` flow. You may need to restart the server in your MCP client after each change.
 
 The entry takes a PAT in the Authorization header. OAuth is deferred: it needs resource-server and authorization-server wiring that this PR does not contain, and a 401 challenge would send Claude Code into OAuth discovery against localhost (see the PR for details).
 
-Flags: `--http`, `--port` (default 3111), `--project-ref`, `--read-only`, `--features`, `--api-url`, `--content-api-url`, `--version`. Configure `--api-url` to point at a different Supabase instance (defaults to `https://api.supabase.com`).
+Flags: `--http`, `--port` (default 3111), `--api-url`, `--content-api-url`, `--version`. Configure `--api-url` to point at a different Supabase instance (defaults to `https://api.supabase.com`).
 
 To try the HTTP entry from a PR without cloning, run the preview build published by pkg.pr.new:
 

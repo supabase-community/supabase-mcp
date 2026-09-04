@@ -19,60 +19,38 @@ mise install
 pnpm install
 ```
 
-To build the MCP server and watch for file changes:
+To run the MCP server locally over HTTP:
 
 ```bash
-cd packages/mcp-server-supabase
-pnpm dev
+pnpm dev:http
 ```
 
-Then start the server with `--http --oauth`, which serves the build the same way `mcp.supabase.com` does and signs you in with Supabase OAuth in the browser:
+Rebuilds and restarts on save. Flags pass through, e.g. `pnpm dev:http --api-url https://api.supabase.green`.
 
-```bash
-node dist/cli.js --http --oauth --project-ref <your project ref>
-```
-
-It binds `127.0.0.1` only and prints a ready-to-paste `.mcp.json` snippet with no token in it:
+Example client config:
 
 ```json
 {
   "mcpServers": {
     "supabase-local": {
       "type": "http",
-      "url": "http://127.0.0.1:3111/mcp"
-    }
-  }
-}
-```
-
-The entry acts as an OAuth client to the Supabase authorization server (the same way MCP Inspector does) and attaches the resulting token to every Management API call itself. Add `--api-url https://api.supabase.green` to sign in against staging. The session lives in memory by default, so each start signs in again; `--oauth-store file` persists it in `~/.supabase/mcp-oauth.json` (mode 0600, one running process per file) and `--logout` revokes the tokens and deletes it. `get_storage_config` and `update_storage_config` are unavailable under OAuth (platform limitation; the hosted server has the same). Any local client that can reach `127.0.0.1:<port>` gets the signed-in user's Management API scopes; the entry checks Host and Origin, so browsers cannot, but other local processes can.
-
-Set `SUPABASE_MCP_NO_BROWSER=1` to print the sign-in URL instead of opening a browser (for headless or remote sessions).
-
-The OAuth protocol core (metadata discovery, dynamic client registration, PKCE, the code exchange and refresh) is [oauth4webapi](https://github.com/panva/oauth4webapi); this repo keeps the policy around it: the token stores, the loopback callback server, the single-flight refresh, the loopback-only HTTP rule, the S256 check and revocation.
-
-Alternatively, run `--http` without `--oauth` and let the client send a PAT per request:
-
-```json
-{
-  "mcpServers": {
-    "supabase-local": {
-      "type": "http",
-      "url": "http://127.0.0.1:3111/mcp",
+      "url": "http://127.0.0.1:3111/mcp?project_ref=<your project ref>",
       "headers": { "Authorization": "Bearer ${SUPABASE_ACCESS_TOKEN}" }
     }
   }
 }
 ```
 
-In PAT mode the access token comes from the client's `Authorization` header on each request (Claude Code expands `${SUPABASE_ACCESS_TOKEN}` at connect time). There is no token flag and no token environment variable on the server side. In both modes modern form-capable clients (Claude Code with v2 negotiation) see cost confirmations for `create_project` and `create_branch` as elicitation dialogs; legacy clients keep the `get_cost` / `confirm_cost` flow. You may need to restart the server in your MCP client after each change.
+The dev server supports the same [query params as the hosted endpoint](https://supabase.com/docs/guides/ai-tools/mcp#configuration-options). The access token comes from the client's `Authorization` header on each request. Restart the server in your MCP client after each change.
 
-Flags: `--http`, `--port` (default 3111), `--oauth`, `--oauth-store` (`memory` or `file`, default `memory`), `--oauth-callback-port` (default 3112), `--logout`, `--project-ref`, `--read-only`, `--features`, `--api-url`, `--content-api-url`, `--version`. Configure `--api-url` to point at a different Supabase instance (defaults to `https://api.supabase.com`).
+Add `--oauth` to sign in with Supabase OAuth in the browser instead. The server then attaches the token to every request itself and the client config needs no `headers`. The session lives in memory by default; `--oauth-store file` persists it in `~/.supabase/mcp-oauth.json` and `--logout` revokes it. Set `SUPABASE_MCP_NO_BROWSER=1` to print the sign-in URL instead of opening a browser.
+
+Flags: `--http`, `--port` (default 3111), `--oauth`, `--oauth-store` (`memory` or `file`), `--oauth-callback-port` (default 3112), `--logout`, `--api-url`, `--content-api-url`, `--version`.
 
 To try the HTTP entry from a PR without cloning, run the preview build published by pkg.pr.new:
 
 ```bash
-npx https://pkg.pr.new/@supabase/mcp-server-supabase@<sha> --http --oauth
+npx https://pkg.pr.new/@supabase/mcp-server-supabase@<sha> --http
 ```
 
 ### Alternative: stdio

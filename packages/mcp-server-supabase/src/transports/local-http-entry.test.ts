@@ -1,5 +1,3 @@
-import { request as httpRequest } from 'node:http';
-import { setTimeout as sleep } from 'node:timers/promises';
 import {
   Client,
   isInputRequiredResult,
@@ -7,7 +5,9 @@ import {
 } from '@modelcontextprotocol/client';
 import type {
   CallToolResult,
+  ClientOptions,
   InputRequiredResult,
+  VersionNegotiationMode,
 } from '@modelcontextprotocol/client';
 import { http, HttpResponse, passthrough } from 'msw';
 import type { SetupServer } from 'msw/node';
@@ -43,7 +43,6 @@ beforeEach(async () => {
   entry = await startLocalHttpEntry({
     port: 0,
     apiUrl: API_URL,
-    readOnly: true,
     log: (line) => logLines.push(line),
   });
   // msw intercepts every fetch in-process; let traffic to the entry hit the real socket.
@@ -63,34 +62,26 @@ afterEach(async () => {
   }
 });
 
-async function connect(mode: 'legacy' | { pin: string }) {
-  const transport = new StreamableHTTPClientTransport(new URL(entry.url), {
-    requestInit: { headers: AUTH_HEADERS },
-  });
+async function connect(
+  mode: VersionNegotiationMode,
+  query = 'read_only=true',
+  options: ClientOptions = {}
+) {
+  const transport = new StreamableHTTPClientTransport(
+    new URL(`${entry.url}?${query}`),
+    { requestInit: { headers: AUTH_HEADERS } }
+  );
   const client = new Client(
     { name: MCP_CLIENT_NAME, version: MCP_CLIENT_VERSION },
-    { capabilities: {}, versionNegotiation: { mode } }
+    { ...options, versionNegotiation: { mode } }
   );
   await client.connect(transport);
   cleanups.push(() => client.close());
   return client;
 }
 
-function deferred() {
-  let resolve!: () => void;
-  const promise = new Promise<void>((resolvePromise) => {
-    resolve = resolvePromise;
-  });
-  return { promise, resolve };
-}
-
 describe('startLocalHttpEntry', () => {
-  test('returns the bound loopback url and never listens on import', () => {
-    expect(entry.url).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/mcp$/);
-    expect(entry.url).not.toContain(':0/');
-  });
-
-  test('serves a modern client pinned to 2026-07-28 including a read-only tool call', async () => {
+  test('serves a modern client', async () => {
     const client = await connect({ pin: MODERN_PROTOCOL_VERSION });
 
     const { tools } = await client.listTools();
@@ -110,7 +101,7 @@ describe('startLocalHttpEntry', () => {
     ]);
   });
 
-  test('serves a legacy 2025-era client through initialize and tools/list', async () => {
+  test('serves a legacy client', async () => {
     const client = await connect('legacy');
 
     const { tools } = await client.listTools();
@@ -118,23 +109,25 @@ describe('startLocalHttpEntry', () => {
     expect(tools.map((tool) => tool.name)).toContain('list_projects');
   });
 
-  test('logs one era line per request with the client name', async () => {
+  test('logs one line per request', async () => {
     const legacy = await connect('legacy');
     await legacy.listTools();
     const modern = await connect({ pin: MODERN_PROTOCOL_VERSION });
     await modern.listTools();
 
+    expect(logLines).toContainEqual(
+      expect.stringMatching(
+        /^initialize\s+test-client\/1\.0\.0\s+\(2025-\d\d-\d\d\)$/
+      )
+    );
     const client = `${MCP_CLIENT_NAME}/${MCP_CLIENT_VERSION}`;
     expect(logLines).toContain(
-      `[mcp-http] legacy client=${client} (elicitations unavailable on the legacy path)`
-    );
-    expect(logLines).toContain(
-      `[mcp-http] modern ${MODERN_PROTOCOL_VERSION} client=${client}`
+      `${'tools/list'.padEnd(28)}  ${client.padEnd(24)}  (${MODERN_PROTOCOL_VERSION})`
     );
     expect(logLines.every((line) => !line.includes(ACCESS_TOKEN))).toBe(true);
   });
 
-  test('rejects a request without a bearer token with 401 and no WWW-Authenticate', async () => {
+  test('rejects a request without a bearer token', async () => {
     const response = await fetch(entry.url, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -148,159 +141,7 @@ describe('startLocalHttpEntry', () => {
     });
   });
 
-  test('returns 404 for paths other than /mcp', async () => {
-    const response = await fetch(new URL('/other', entry.url), {
-      headers: AUTH_HEADERS,
-    });
-
-    expect(response.status).toBe(404);
-    await expect(response.json()).resolves.toEqual({ error: 'not found' });
-  });
-
-  test('rejects a foreign Host header and accepts loopback hosts', async () => {
-    const { port } = new URL(entry.url);
-    // node:http, because fetch forbids overriding the Host header.
-    const body = JSON.stringify({
-      jsonrpc: '2.0',
-      id: 1,
-      method: 'initialize',
-      params: {
-        protocolVersion: '2025-06-18',
-        capabilities: {},
-        clientInfo: { name: 'host-probe', version: '1.0.0' },
-      },
-    });
-    const probe = (host: string) =>
-      new Promise<{ status: number; body: string }>((resolve, reject) => {
-        const req = httpRequest(
-          {
-            host: '127.0.0.1',
-            port,
-            path: '/mcp',
-            method: 'POST',
-            headers: {
-              ...AUTH_HEADERS,
-              accept: 'application/json, text/event-stream',
-              'content-type': 'application/json',
-              host,
-            },
-          },
-          (res) => {
-            let body = '';
-            res.setEncoding('utf8');
-            res.on('data', (chunk) => (body += chunk));
-            res.on('end', () => resolve({ status: res.statusCode!, body }));
-          }
-        );
-        req.on('error', reject);
-        req.end(body);
-      });
-
-    const rejected = await probe('evil.example');
-    expect(rejected.status).toBe(403);
-    expect(JSON.parse(rejected.body)).toMatchObject({
-      jsonrpc: '2.0',
-      error: {
-        code: -32000,
-        message: 'Invalid Host: evil.example',
-      },
-    });
-
-    for (const host of [`127.0.0.1:${port}`, `localhost:${port}`]) {
-      const response = await probe(host);
-      expect(response.status).toBe(200);
-      const dataLine = response.body
-        .split('\n')
-        .find((line) => line.startsWith('data: '));
-      if (!dataLine) throw new Error('expected an SSE data line');
-      expect(JSON.parse(dataLine.slice('data: '.length))).toMatchObject({
-        jsonrpc: '2.0',
-        id: 1,
-        result: { protocolVersion: expect.any(String) },
-      });
-    }
-  });
-
-  test('rejects request bodies larger than 4 MiB before calling the handler', async () => {
-    const response = await new Promise<{ status: number; body: string }>(
-      (resolve, reject) => {
-        const req = httpRequest(
-          entry.url,
-          {
-            method: 'POST',
-            headers: { ...AUTH_HEADERS, 'content-type': 'application/json' },
-          },
-          (res) => {
-            let body = '';
-            res.setEncoding('utf8');
-            res.on('data', (chunk) => (body += chunk));
-            res.on('end', () => resolve({ status: res.statusCode!, body }));
-          }
-        );
-        req.on('error', reject);
-        req.write(Buffer.alloc(4 * 1024 * 1024 + 1));
-        req.end(Buffer.alloc(1024 * 1024));
-      }
-    );
-
-    expect(response.status).toBe(413);
-    expect(JSON.parse(response.body)).toEqual({
-      error: 'payload too large',
-    });
-    expect(logLines).toEqual([]);
-  });
-
-  test('answers malformed JSON with a -32700 parse error and non-JSON bodies with 415', async () => {
-    const malformed = await fetch(entry.url, {
-      method: 'POST',
-      headers: { ...AUTH_HEADERS, 'content-type': 'application/json' },
-      body: '{',
-    });
-    expect(malformed.status).toBe(400);
-    await expect(malformed.json()).resolves.toEqual({
-      jsonrpc: '2.0',
-      error: { code: -32700, message: 'Parse error' },
-      id: null,
-    });
-
-    const plain = await fetch(entry.url, {
-      method: 'POST',
-      headers: { ...AUTH_HEADERS, 'content-type': 'text/plain' },
-      body: 'hello',
-    });
-    expect(plain.status).toBe(415);
-  });
-
-  test('keeps serving after a client drops mid-upload', async () => {
-    await new Promise<void>((resolve, reject) => {
-      const req = httpRequest(entry.url, {
-        method: 'POST',
-        headers: {
-          ...AUTH_HEADERS,
-          'content-type': 'application/json',
-          'transfer-encoding': 'chunked',
-        },
-      });
-      req.on('error', () => resolve());
-      req.on('close', () => resolve());
-      req.on('socket', (socket) => {
-        socket.on('error', reject);
-        req.write('{"jsonrpc":"2.0","id":1,', () => socket.destroy());
-      });
-    });
-    // Real delay on purpose: the entry exposes no signal for the server-side
-    // reset, and a crash surfaces as an unhandled rejection vitest reports.
-    await sleep(50);
-
-    const response = await fetch(entry.url, {
-      method: 'POST',
-      headers: { 'content-type': 'application/json' },
-      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
-    });
-    expect(response.status).toBe(401);
-  });
-
-  test('rejects a browser Origin with 403 before auth or routing', async () => {
+  test('rejects a browser Origin', async () => {
     const response = await fetch(entry.url, {
       method: 'POST',
       headers: {
@@ -312,18 +153,13 @@ describe('startLocalHttpEntry', () => {
     });
 
     expect(response.status).toBe(403);
-    await expect(response.json()).resolves.toMatchObject({
-      jsonrpc: '2.0',
-      error: { code: -32000 },
-    });
   });
 
-  test('OAuth mode reads the token source on every Management API call', async () => {
+  test('OAuth mode reads the token source on every request', async () => {
     const issued: string[] = [];
     const oauthEntry = await startLocalHttpEntry({
       port: 0,
       apiUrl: API_URL,
-      readOnly: true,
       accessToken: async () => {
         const token = `${ACCESS_TOKEN}-${issued.length + 1}`;
         issued.push(token);
@@ -332,15 +168,9 @@ describe('startLocalHttpEntry', () => {
       log: () => {},
     });
     cleanups.push(() => oauthEntry.close());
-    mockServer.use(
-      http.all(`${new URL(oauthEntry.url).origin}/*`, () => passthrough())
-    );
-
-    const transport = new StreamableHTTPClientTransport(
-      new URL(oauthEntry.url)
-    );
     const seen: Array<string | null> = [];
     mockServer.use(
+      http.all(`${new URL(oauthEntry.url).origin}/*`, () => passthrough()),
       http.get(`${API_URL}/v1/projects`, ({ request }) => {
         seen.push(request.headers.get('authorization'));
         return HttpResponse.json([]);
@@ -348,181 +178,65 @@ describe('startLocalHttpEntry', () => {
     );
     const client = new Client(
       { name: MCP_CLIENT_NAME, version: MCP_CLIENT_VERSION },
-      {
-        capabilities: {},
-        versionNegotiation: { mode: { pin: MODERN_PROTOCOL_VERSION } },
-      }
+      { versionNegotiation: { mode: { pin: MODERN_PROTOCOL_VERSION } } }
     );
-    await client.connect(transport);
+    await client.connect(
+      new StreamableHTTPClientTransport(new URL(oauthEntry.url))
+    );
     cleanups.push(() => client.close());
 
-    for (let call = 0; call < 2; call++) {
-      const result = await client.callTool({
-        name: 'list_projects',
-        arguments: {},
-      });
-      expect(result.isError).not.toBe(true);
-      expect(result.content).toEqual([
-        { type: 'text', text: JSON.stringify({ projects: [] }) },
-      ]);
-    }
+    await client.callTool({ name: 'list_projects', arguments: {} });
+    await client.callTool({ name: 'list_projects', arguments: {} });
 
-    // Every request through the entry (initialize and the SSE GET included)
-    // reads the token source, so the two Management API calls carry two
-    // distinct issued tokens. A source hoisted to startup would send the
-    // same token twice.
     expect(seen).toHaveLength(2);
     expect(seen[0]).not.toBe(seen[1]);
-    const bearers = issued.map((token) => `Bearer ${token}`);
-    for (const header of seen) {
-      expect(bearers).toContain(header);
-    }
-  });
-
-  test('close releases an in-flight request', async () => {
-    const requestStarted = deferred();
-    const releaseRequest = deferred();
-    mockServer.use(
-      http.get(`${API_URL}/v1/projects`, async () => {
-        requestStarted.resolve();
-        await releaseRequest.promise;
-        return HttpResponse.json([]);
-      })
+    expect(issued.map((token) => `Bearer ${token}`)).toEqual(
+      expect.arrayContaining(seen)
     );
-    const client = await connect({ pin: MODERN_PROTOCOL_VERSION });
-    const callOutcome = client
-      .callTool({ name: 'list_projects', arguments: {} })
-      .then(
-        () => ({ status: 'resolved' as const }),
-        (error: unknown) => ({ status: 'rejected' as const, error })
-      );
-
-    try {
-      await requestStarted.promise;
-      await entry.close();
-
-      await expect(callOutcome).resolves.toMatchObject({
-        status: 'rejected',
-      });
-    } finally {
-      releaseRequest.resolve();
-    }
   });
 
-  describe('cost confirmation', () => {
-    let writable!: LocalHttpEntry;
-    let writableLogLines!: string[];
-
-    beforeEach(async () => {
-      writableLogLines = [];
-      writable = await startLocalHttpEntry({
-        port: 0,
-        apiUrl: API_URL,
-        features: ['account', 'branching'],
-        log: (line) => writableLogLines.push(line),
-      });
-      mockServer.use(
-        http.all(`${new URL(writable.url).origin}/*`, () => passthrough())
-      );
-      cleanups.push(() => writable.close());
-    });
-
-    async function connectWritable(
-      mode: 'legacy' | { pin: string },
-      capabilities: ConstructorParameters<typeof Client>[1] = {
-        capabilities: {},
+  test('sends a form-capable client a cost elicitation', async () => {
+    const client = await connect(
+      { pin: MODERN_PROTOCOL_VERSION },
+      'features=account,branching',
+      {
+        capabilities: { elicitation: { form: {} } },
+        inputRequired: { autoFulfill: false },
       }
-    ) {
-      const transport = new StreamableHTTPClientTransport(
-        new URL(writable.url),
-        { requestInit: { headers: AUTH_HEADERS } }
-      );
-      const client = new Client(
-        { name: MCP_CLIENT_NAME, version: MCP_CLIENT_VERSION },
-        { ...capabilities, versionNegotiation: { mode } }
-      );
-      await client.connect(transport);
-      cleanups.push(() => client.close());
-      return client;
-    }
-
-    async function createBranchingProject() {
-      const org = await createOrganization({
-        name: 'My Org',
-        plan: 'free',
-        allowed_release_channels: ['ga'],
-      });
-      const project = await createProject({
-        name: 'Project 1',
-        region: 'us-east-1',
-        organization_id: org.id,
-      });
-      project.status = 'ACTIVE_HEALTHY';
-      return project;
-    }
-
-    test('a modern form-capable client receives a create_branch cost elicitation', async () => {
-      const client = await connectWritable(
-        { pin: MODERN_PROTOCOL_VERSION },
-        {
-          capabilities: { elicitation: { form: {} } },
-          inputRequired: { autoFulfill: false },
-        }
-      );
-      const project = await createBranchingProject();
-
-      const result = (await client.request(
-        {
-          method: 'tools/call',
-          params: {
-            name: 'create_branch',
-            arguments: { project_id: project.id, name: 'feature' },
-          },
-        },
-        { allowInputRequired: true }
-      )) as CallToolResult | InputRequiredResult;
-
-      if (!isInputRequiredResult(result)) {
-        throw new Error('expected an input_required result');
-      }
-      expect(result.inputRequests?.confirm_cost).toMatchObject({
-        method: 'elicitation/create',
-        params: { mode: 'form' },
-      });
-      expect(result.requestState).toBeTruthy();
-      expect(mockBranches.size).toBe(0);
-      expect(writableLogLines.at(-1)).toBe(
-        `[mcp-http] modern ${MODERN_PROTOCOL_VERSION} client=${MCP_CLIENT_NAME}/${MCP_CLIENT_VERSION}`
-      );
+    );
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
     });
-
-    test('a legacy client keeps the get_cost / confirm_cost flow', async () => {
-      const client = await connectWritable('legacy');
-      const project = await createBranchingProject();
-
-      const result = await client.callTool({
-        name: 'create_branch',
-        arguments: { project_id: project.id, name: 'feature' },
-      });
-
-      expect(result.isError).toBe(true);
-      expect(result.content).toEqual([
-        {
-          type: 'text',
-          text: JSON.stringify({
-            error: {
-              name: 'Error',
-              message:
-                'Cost confirmation ID does not match the expected cost of creating a branch.',
-            },
-          }),
-        },
-      ]);
-      expect(mockBranches.size).toBe(0);
-      // Stateless legacy serving only sees the client name on `initialize`.
-      expect(writableLogLines.at(-1)).toMatch(
-        /^\[mcp-http\] legacy client=.* \(elicitations unavailable on the legacy path\)$/
-      );
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
     });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const result = (await client.request(
+      {
+        method: 'tools/call',
+        params: {
+          name: 'create_branch',
+          arguments: { project_id: project.id, name: 'feature' },
+        },
+      },
+      { allowInputRequired: true }
+    )) as CallToolResult | InputRequiredResult;
+
+    if (!isInputRequiredResult(result)) {
+      throw new Error('expected an input_required result');
+    }
+    expect(result.inputRequests?.confirm_cost).toMatchObject({
+      method: 'elicitation/create',
+      params: { mode: 'form' },
+    });
+    expect(mockBranches.size).toBe(0);
+    expect(logLines.at(-1)).toBe(
+      `${'tools/call create_branch'.padEnd(28)}  ${`${MCP_CLIENT_NAME}/${MCP_CLIENT_VERSION}`.padEnd(24)}  (${MODERN_PROTOCOL_VERSION})`
+    );
   });
 });

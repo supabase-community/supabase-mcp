@@ -5,10 +5,7 @@ import { serveStdio } from '@modelcontextprotocol/server/stdio';
 import packageJson from '../package.json' with { type: 'json' };
 import { createSupabaseApiPlatform } from './platform/api-platform.js';
 import { createSupabaseMcpServer } from './server.js';
-import {
-  formatBanner,
-  startLocalHttpEntry,
-} from './transports/local-http-entry.js';
+import { startLocalHttpEntry } from './transports/local-http-entry.js';
 import {
   createFileStore,
   createMemoryStore,
@@ -99,26 +96,15 @@ async function main() {
   const contentApiUrl =
     cliContentApiUrl ?? process.env.SUPABASE_CONTENT_API_URL;
 
-  // The AS issuer is the Management API origin: `https://api.supabase.com`
-  // (prod) or `https://api.supabase.green` (staging) via `--api-url`.
+  // The AS issuer is the Management API origin, so --api-url selects prod or staging.
   const oauthIssuer = () =>
     new URL(apiUrl ?? 'https://api.supabase.com').origin;
 
-  const parsePort = (flag: string, value: string, minimum = 0) => {
-    const port = Number(value);
-    if (!Number.isInteger(port) || port < minimum || port > 65535) {
-      console.error(`Invalid ${flag} value: ${value}`);
-      process.exit(1);
-    }
-    return port;
-  };
-
   if (doLogout) {
     const issuer = oauthIssuer();
-    const callbackPort = parsePort('--oauth-callback-port', cliCallbackPort, 1);
     const removed = await logout({
       issuer,
-      callbackPort,
+      callbackPort: Number(cliCallbackPort),
       store: createFileStore(),
     });
     console.log(
@@ -129,60 +115,23 @@ async function main() {
     process.exit(0);
   }
 
-  if (oauth && !http) {
-    console.error('--oauth requires --http');
-    process.exit(1);
-  }
-
   if (http) {
-    if (cliAccessToken !== undefined) {
-      console.error(
-        '--access-token is not used with --http: the client sends the PAT per request in the Authorization header'
-      );
-      process.exit(1);
-    }
-
-    const port = parsePort('--port', cliPort);
-
     let accessToken: (() => Promise<string>) | undefined;
     if (oauth) {
-      if (oauthStore !== 'memory' && oauthStore !== 'file') {
-        console.error(
-          `Invalid --oauth-store value: ${oauthStore} (expected memory or file)`
-        );
-        process.exit(1);
-      }
       const tokenSource = await login({
         issuer: oauthIssuer(),
-        callbackPort: parsePort('--oauth-callback-port', cliCallbackPort, 1),
+        callbackPort: Number(cliCallbackPort),
         store: oauthStore === 'file' ? createFileStore() : createMemoryStore(),
       });
       accessToken = tokenSource.accessToken;
     }
-
     const entry = await startLocalHttpEntry({
-      port,
-      projectId,
-      readOnly,
+      port: Number(cliPort),
       apiUrl,
       contentApiUrl,
-      features,
       accessToken,
     });
-
-    console.log(formatBanner(entry.url, { oauth }));
-
-    const shutdown = () => {
-      entry.close().then(
-        () => process.exit(0),
-        (error) => {
-          console.error(error);
-          process.exit(1);
-        }
-      );
-    };
-    process.once('SIGINT', shutdown);
-    process.once('SIGTERM', shutdown);
+    console.error(`Supabase MCP server listening on ${entry.url}`);
     return;
   }
 
@@ -204,23 +153,20 @@ async function main() {
     parseFeatureGroups(platform, features);
   }
 
-  const options = {
-    platform,
-    projectId,
-    readOnly,
-    features,
-    contentApiUrl,
-  };
-
   // `serveStdio` reports transport startup and out-of-band wire errors only
   // through `onerror`, and swallows them otherwise, so this keeps the stderr
   // output the previous awaited `server.connect()` got from `main().catch`.
-  serveStdio(() => createSupabaseMcpServer(options), {
-    onerror: console.error,
-  });
+  serveStdio(
+    () =>
+      createSupabaseMcpServer({
+        platform,
+        projectId,
+        readOnly,
+        features,
+        contentApiUrl,
+      }),
+    { onerror: console.error }
+  );
 }
 
-main().catch((error) => {
-  console.error(error);
-  process.exit(1);
-});
+main().catch(console.error);

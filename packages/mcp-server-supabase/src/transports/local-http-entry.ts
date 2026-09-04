@@ -1,288 +1,181 @@
 import { createHash, randomBytes } from 'node:crypto';
-import {
-  createServer,
-  type IncomingMessage,
-  type ServerResponse,
-} from 'node:http';
-import type { AddressInfo } from 'node:net';
+import { once } from 'node:events';
+import { createServer } from 'node:http';
 import { toNodeHandler } from '@modelcontextprotocol/node';
 import {
   CLIENT_INFO_META_KEY,
+  createMcpHandler,
   hostHeaderValidationResponse,
-  isJsonContentType,
-  isLegacyRequest,
+  type Implementation,
+  isJSONRPCNotification,
+  isJSONRPCRequest,
+  isSpecType,
   localhostAllowedHostnames,
   originValidationResponse,
   PROTOCOL_VERSION_META_KEY,
 } from '@modelcontextprotocol/server';
+import { z } from 'zod/v4';
 
 import { createSupabaseApiPlatform } from '../platform/api-platform.js';
+import { createSupabaseMcpServer } from '../server.js';
 import { parseFeatureGroups } from '../util.js';
-import { createSupabaseMcpHandler } from './http.js';
+import { parseList } from './util.js';
 
 export type LocalHttpEntryOptions = {
   port: number;
-  projectId?: string;
-  readOnly?: boolean;
   apiUrl?: string;
   contentApiUrl?: string;
-  features?: string[];
-  /**
-   * OAuth mode: the token for every request comes from here and the client
-   * sends no Authorization header. Absent: the client sends a PAT per request.
-   */
+  /** OAuth mode. The token for every request comes from here instead of the client's Authorization header. */
   accessToken?: () => Promise<string>;
-  /** Destination for the per-request era line. Defaults to `console.error`. */
   log?: (line: string) => void;
 };
 
-export type LocalHttpEntry = {
-  url: string;
-  close: () => Promise<void>;
-};
+// https://supabase.com/docs/guides/ai-tools/mcp#configuration-options
+const querySchema = z.object({
+  project_ref: z.string().optional(),
+  read_only: z.stringbool().default(false),
+  features: z
+    .string()
+    .transform((value) => parseList(value))
+    .optional(),
+});
 
-export const LOCAL_HTTP_HOST = '127.0.0.1';
-export const LOCAL_HTTP_PATH = '/mcp';
-
-const MAX_REQUEST_BODY_BYTES = 4 * 1024 * 1024;
-
-// The body cap is entry-owned: the SDK's `toWebRequest` collects a request body
-// unbounded when no `parsedBody` is passed (@modelcontextprotocol/node
-// dist/index.mjs:350-355), so the entry reads and caps the stream first.
-async function readJsonBody(
-  req: IncomingMessage,
-  res: ServerResponse
-): Promise<{ handled: true } | { handled: false; parsedBody: unknown }> {
-  const chunks: Buffer[] = [];
-  let bodyBytes = 0;
-  for await (const chunk of req.iterator({ destroyOnReturn: false })) {
-    const buffer = chunk as Buffer;
-    bodyBytes += buffer.length;
-    if (bodyBytes > MAX_REQUEST_BODY_BYTES) {
-      req.resume();
-      res.writeHead(413, { 'content-type': 'application/json' });
-      res.end(JSON.stringify({ error: 'payload too large' }));
-      return { handled: true };
-    }
-    chunks.push(buffer);
-  }
-  // Empty and non-JSON bodies pass through unparsed; the SDK answers 415 for a
-  // non-JSON content-type before it reads any body.
-  if (chunks.length === 0 || !isJsonContentType(req.headers['content-type'])) {
-    return { handled: false, parsedBody: undefined };
-  }
-  try {
-    return {
-      handled: false,
-      parsedBody: JSON.parse(Buffer.concat(chunks).toString()),
-    };
-  } catch {
-    res.writeHead(400, { 'content-type': 'application/json' });
-    res.end(
-      JSON.stringify({
-        jsonrpc: '2.0',
-        error: { code: -32700, message: 'Parse error' },
-        id: null,
-      })
-    );
-    return { handled: true };
-  }
-}
-
-function bearerToken(request: Request): string | undefined {
-  const header = request.headers.get('authorization');
-  if (!header) return undefined;
-  const [scheme, token, ...rest] = header.trim().split(/\s+/);
-  if (scheme?.toLowerCase() !== 'bearer' || !token || rest.length > 0) {
-    return undefined;
-  }
-  return token;
-}
-
-type Envelope = {
-  method?: unknown;
-  params?: {
-    _meta?: Record<string, unknown>;
-    clientInfo?: unknown;
-  };
-};
-
-function implementationName(value: unknown): string | undefined {
-  if (typeof value !== 'object' || value === null) return undefined;
-  const { name, version } = value as { name?: unknown; version?: unknown };
-  if (typeof name !== 'string') return undefined;
-  return typeof version === 'string' ? `${name}/${version}` : name;
-}
-
-/** Client name from the modern envelope's `_meta`, else from a legacy `initialize`, else `unknown`. */
-export function describeClient(parsedBody: unknown): {
-  client: string;
-  protocolVersion?: string;
-} {
-  const messages = Array.isArray(parsedBody) ? parsedBody : [parsedBody];
-  let client: string | undefined;
+/** e.g. `tools/call create_branch  claude-code/2.1.260  (2026-07-28)` */
+export function describeRequest(body: unknown): string {
+  const messages: unknown[] = Array.isArray(body) ? body : [body];
+  let client: Implementation | undefined;
+  let method: string | undefined;
   let protocolVersion: string | undefined;
-  for (const message of messages as Envelope[]) {
-    if (typeof message !== 'object' || message === null) continue;
+  for (const message of messages) {
+    if (!isJSONRPCRequest(message) && !isJSONRPCNotification(message)) continue;
+    method ??= isSpecType.CallToolRequest(message)
+      ? `${message.method} ${message.params.name}`
+      : message.method;
     const meta = message.params?._meta;
-    client ??= implementationName(meta?.[CLIENT_INFO_META_KEY]);
-    if (typeof meta?.[PROTOCOL_VERSION_META_KEY] === 'string') {
-      protocolVersion ??= meta[PROTOCOL_VERSION_META_KEY] as string;
-    }
-    if (message.method === 'initialize') {
-      client ??= implementationName(message.params?.clientInfo);
+    const metaClient = meta?.[CLIENT_INFO_META_KEY];
+    if (isSpecType.Implementation(metaClient)) client ??= metaClient;
+    const metaVersion = meta?.[PROTOCOL_VERSION_META_KEY];
+    if (typeof metaVersion === 'string') protocolVersion ??= metaVersion;
+    if (isSpecType.InitializeRequest(message)) {
+      client ??= message.params.clientInfo;
+      protocolVersion ??= message.params.protocolVersion;
     }
   }
-  return { client: client ?? 'unknown', protocolVersion };
+  const name = client
+    ? [client.name, client.version].filter(Boolean).join('/')
+    : 'unknown';
+  return [
+    (method ?? 'unknown').padEnd(28),
+    name.padEnd(24),
+    `(${protocolVersion ?? 'legacy'})`,
+  ].join('  ');
 }
 
-export async function startLocalHttpEntry(
-  options: LocalHttpEntryOptions
-): Promise<LocalHttpEntry> {
-  const {
-    port,
-    projectId,
-    readOnly,
-    apiUrl,
-    contentApiUrl,
-    features,
-    accessToken: tokenSource,
-    log = console.error,
-  } = options;
-  const allowedHostnames = localhostAllowedHostnames();
-  // Signs the cost-confirmation request state for this process; a restart
-  // invalidates in-flight elicitations, which is the intended scope.
+export async function startLocalHttpEntry({
+  port,
+  apiUrl,
+  contentApiUrl,
+  accessToken: tokenSource,
+  log = (line) =>
+    console.error(`[${new Date().toLocaleTimeString('en-GB')}] ${line}`),
+}: LocalHttpEntryOptions) {
   const requestStateKey = randomBytes(32);
-  // OAuth mode has one signed-in identity per process and the HMAC key above
-  // is already per-process, so a stable process-scoped random value gives the
-  // same replay protection without changing on token refresh.
+  // OAuth tokens refresh, so the principal can't be their hash. One process has one signed-in identity.
   const processPrincipal = randomBytes(16).toString('hex');
+  const allowedHostnames = localhostAllowedHostnames();
 
-  const listener = toNodeHandler(
-    {
-      fetch: async (request, { parsedBody } = {}) => {
-        const rejected =
-          hostHeaderValidationResponse(request, allowedHostnames) ??
-          // No browser origin is ever legitimate here; a missing Origin passes.
-          originValidationResponse(request, []);
-        if (rejected) return rejected;
+  const server = createServer(
+    toNodeHandler(
+      {
+        fetch: async (request) => {
+          const rejected =
+            hostHeaderValidationResponse(request, allowedHostnames) ??
+            originValidationResponse(request, []);
+          if (rejected) return rejected;
 
-        if (new URL(request.url).pathname !== LOCAL_HTTP_PATH) {
-          return Response.json({ error: 'not found' }, { status: 404 });
-        }
+          const accessToken = tokenSource
+            ? await tokenSource()
+            : request.headers
+                .get('authorization')
+                ?.match(/^Bearer (.+)$/i)?.[1];
+          if (!accessToken) {
+            return Response.json(
+              { error: 'missing bearer token' },
+              { status: 401 }
+            );
+          }
 
-        const accessToken = tokenSource
-          ? await tokenSource()
-          : bearerToken(request);
-        if (!accessToken) {
-          return Response.json(
-            { error: 'missing bearer token' },
-            { status: 401 }
+          const url = new URL(request.url);
+          const query = querySchema.safeParse(
+            Object.fromEntries(url.searchParams)
           );
-        }
-
-        const legacy = await isLegacyRequest(request, parsedBody);
-        const { client, protocolVersion } = describeClient(parsedBody);
-        log(
-          legacy
-            ? `[mcp-http] legacy client=${client} (elicitations unavailable on the legacy path)`
-            : `[mcp-http] modern ${protocolVersion ?? 'unknown'} client=${client}`
-        );
-
-        const platform = createSupabaseApiPlatform({ accessToken, apiUrl });
-        if (features) {
-          parseFeatureGroups(platform, features);
-        }
-        const handler = createSupabaseMcpHandler(
-          {
-            platform,
-            projectId,
-            readOnly,
+          if (!query.success) {
+            return Response.json(
+              { error: z.prettifyError(query.error) },
+              { status: 400 }
+            );
+          }
+          const {
+            project_ref: projectId,
+            read_only: readOnly,
             features,
-            contentApiUrl,
-            costConfirmation: {
-              requestStateKey,
-              // PAT mode can serve several clients with different PATs in one
-              // process, so the principal is the bearer's hash. OAuth mode uses
-              // the per-process principal: the token refreshes, the principal must not.
-              principal: tokenSource
-                ? processPrincipal
-                : createHash('sha256').update(accessToken).digest('hex'),
-              enabledTools: ['create_project', 'create_branch'],
-            },
-          },
-          { legacy: 'stateless', onerror: console.error }
-        );
-        request.signal.addEventListener('abort', () => handler.close(), {
-          once: true,
-        });
-        return handler.fetch(request, { parsedBody });
+          } = query.data;
+
+          log(
+            describeRequest(
+              await request
+                .clone()
+                .json()
+                .catch(() => undefined)
+            )
+          );
+
+          const platform = createSupabaseApiPlatform({ accessToken, apiUrl });
+          if (features) parseFeatureGroups(platform, features);
+          const handler = createMcpHandler(
+            () =>
+              createSupabaseMcpServer({
+                platform,
+                projectId,
+                readOnly,
+                features,
+                contentApiUrl,
+                costConfirmation: {
+                  requestStateKey,
+                  // One process can serve several PATs, so the principal is the token's hash.
+                  principal: tokenSource
+                    ? processPrincipal
+                    : createHash('sha256').update(accessToken).digest('hex'),
+                  enabledTools: ['create_project', 'create_branch'],
+                },
+              }),
+            { legacy: 'stateless', onerror: console.error }
+          );
+          request.signal.addEventListener('abort', () => handler.close(), {
+            once: true,
+          });
+          return handler.fetch(request);
+        },
       },
-    },
-    { onerror: console.error }
+      { onerror: console.error }
+    )
   );
 
-  const server = createServer(async (req, res) => {
-    try {
-      const body = await readJsonBody(req, res);
-      if (body.handled) return;
-      await listener(req, res, body.parsedBody);
-    } catch (error) {
-      // A client dropping mid-upload rejects the body read outside the SDK's
-      // error handling; without this the process dies on the rejection.
-      console.error(error);
-      if (!res.headersSent) {
-        res.writeHead(500, { 'content-type': 'application/json' });
-        res.end(JSON.stringify({ error: 'internal error' }));
-      } else {
-        res.destroy();
-      }
-    }
-  });
+  server.listen(port, '127.0.0.1');
+  await once(server, 'listening');
+  const address = server.address();
+  if (!address || typeof address === 'string') {
+    throw new Error('expected a TCP address');
+  }
 
-  await new Promise<void>((resolve, reject) => {
-    server.once('error', reject);
-    server.listen(port, LOCAL_HTTP_HOST, () => {
-      server.off('error', reject);
-      resolve();
-    });
-  });
-
-  const { port: boundPort } = server.address() as AddressInfo;
   return {
-    url: `http://${LOCAL_HTTP_HOST}:${boundPort}${LOCAL_HTTP_PATH}`,
-    close: () =>
-      new Promise<void>((resolve, reject) => {
-        if (!server.listening) return resolve();
-        server.close((error) => (error ? reject(error) : resolve()));
-        server.closeAllConnections();
-      }),
+    url: `http://127.0.0.1:${address.port}/mcp`,
+    close: async () => {
+      server.close();
+      server.closeAllConnections();
+      await once(server, 'close');
+    },
   };
 }
 
-export function formatBanner(url: string, options: { oauth: boolean }) {
-  const config = options.oauth
-    ? `Signed in with Supabase OAuth; no token in the client config. Add to .mcp.json:
-{
-  "mcpServers": {
-    "supabase-local": {
-      "type": "http",
-      "url": "${url}"
-    }
-  }
-}`
-    : `Add to .mcp.json (Claude Code expands \${SUPABASE_ACCESS_TOKEN} at connect time):
-{
-  "mcpServers": {
-    "supabase-local": {
-      "type": "http",
-      "url": "${url}",
-      "headers": { "Authorization": "Bearer \${SUPABASE_ACCESS_TOKEN}" }
-    }
-  }
-}`;
-  return `Supabase MCP server (--http) listening on ${url}
-
-${config}
-Modern form-capable clients see cost confirmations as elicitations; legacy (2025-era) clients keep get_cost / confirm_cost. Requests log their era on stderr.`;
-}
+export type LocalHttpEntry = Awaited<ReturnType<typeof startLocalHttpEntry>>;

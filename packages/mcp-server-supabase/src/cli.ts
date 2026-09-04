@@ -2,11 +2,12 @@
 import { parseArgs } from 'node:util';
 import { serveStdio } from '@modelcontextprotocol/server/stdio';
 
-import packageJson from '../../package.json' with { type: 'json' };
-import { createSupabaseApiPlatform } from '../platform/api-platform.js';
-import { createSupabaseMcpServer } from '../server.js';
-import { parseFeatureGroups } from '../util.js';
-import { parseList } from './util.js';
+import packageJson from '../package.json' with { type: 'json' };
+import { createSupabaseApiPlatform } from './platform/api-platform.js';
+import { createSupabaseMcpServer } from './server.js';
+import { startLocalHttpEntry } from './transports/local-http-entry.js';
+import { parseList } from './transports/util.js';
+import { parseFeatureGroups } from './util.js';
 
 const { version } = packageJson;
 
@@ -20,6 +21,8 @@ async function main() {
       ['content-api-url']: cliContentApiUrl,
       ['version']: showVersion,
       ['features']: cliFeatures,
+      ['http']: http,
+      ['port']: cliPort,
     },
   } = parseArgs({
     options: {
@@ -45,12 +48,35 @@ async function main() {
       ['features']: {
         type: 'string',
       },
+      ['http']: {
+        type: 'boolean',
+        default: false,
+      },
+      ['port']: {
+        type: 'string',
+        default: '3111',
+      },
     },
   });
 
   if (showVersion) {
     console.log(version);
     process.exit(0);
+  }
+
+  const features = cliFeatures ? parseList(cliFeatures) : undefined;
+
+  const contentApiUrl =
+    cliContentApiUrl ?? process.env.SUPABASE_CONTENT_API_URL;
+
+  if (http) {
+    const entry = await startLocalHttpEntry({
+      port: Number(cliPort),
+      apiUrl,
+      contentApiUrl,
+    });
+    console.error(`Supabase MCP server listening on ${entry.url}`);
+    return;
   }
 
   const accessToken = cliAccessToken ?? process.env.SUPABASE_ACCESS_TOKEN;
@@ -61,11 +87,6 @@ async function main() {
     );
     process.exit(1);
   }
-
-  const features = cliFeatures ? parseList(cliFeatures) : undefined;
-
-  const contentApiUrl =
-    cliContentApiUrl ?? process.env.SUPABASE_CONTENT_API_URL;
 
   const platform = createSupabaseApiPlatform({
     accessToken,

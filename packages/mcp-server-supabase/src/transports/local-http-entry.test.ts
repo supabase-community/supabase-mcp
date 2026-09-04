@@ -318,12 +318,17 @@ describe('startLocalHttpEntry', () => {
     });
   });
 
-  test('OAuth mode attaches its token to Management API calls', async () => {
+  test('OAuth mode reads the token source on every Management API call', async () => {
+    const issued: string[] = [];
     const oauthEntry = await startLocalHttpEntry({
       port: 0,
       apiUrl: API_URL,
       readOnly: true,
-      accessToken: async () => ACCESS_TOKEN,
+      accessToken: async () => {
+        const token = `${ACCESS_TOKEN}-${issued.length + 1}`;
+        issued.push(token);
+        return token;
+      },
       log: () => {},
     });
     cleanups.push(() => oauthEntry.close());
@@ -334,10 +339,10 @@ describe('startLocalHttpEntry', () => {
     const transport = new StreamableHTTPClientTransport(
       new URL(oauthEntry.url)
     );
-    let managementAuthorization: string | null = null;
+    const seen: Array<string | null> = [];
     mockServer.use(
       http.get(`${API_URL}/v1/projects`, ({ request }) => {
-        managementAuthorization = request.headers.get('authorization');
+        seen.push(request.headers.get('authorization'));
         return HttpResponse.json([]);
       })
     );
@@ -351,15 +356,27 @@ describe('startLocalHttpEntry', () => {
     await client.connect(transport);
     cleanups.push(() => client.close());
 
-    const result = await client.callTool({
-      name: 'list_projects',
-      arguments: {},
-    });
-    expect(result.isError).not.toBe(true);
-    expect(result.content).toEqual([
-      { type: 'text', text: JSON.stringify({ projects: [] }) },
-    ]);
-    expect(managementAuthorization).toBe(`Bearer ${ACCESS_TOKEN}`);
+    for (let call = 0; call < 2; call++) {
+      const result = await client.callTool({
+        name: 'list_projects',
+        arguments: {},
+      });
+      expect(result.isError).not.toBe(true);
+      expect(result.content).toEqual([
+        { type: 'text', text: JSON.stringify({ projects: [] }) },
+      ]);
+    }
+
+    // Every request through the entry (initialize and the SSE GET included)
+    // reads the token source, so the two Management API calls carry two
+    // distinct issued tokens. A source hoisted to startup would send the
+    // same token twice.
+    expect(seen).toHaveLength(2);
+    expect(seen[0]).not.toBe(seen[1]);
+    const bearers = issued.map((token) => `Bearer ${token}`);
+    for (const header of seen) {
+      expect(bearers).toContain(header);
+    }
   });
 
   test('close releases an in-flight request', async () => {

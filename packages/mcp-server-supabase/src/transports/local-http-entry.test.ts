@@ -1,4 +1,5 @@
 import { request as httpRequest } from 'node:http';
+import { setTimeout as sleep } from 'node:timers/promises';
 import {
   Client,
   isInputRequiredResult,
@@ -218,6 +219,85 @@ describe('startLocalHttpEntry', () => {
         result: { protocolVersion: expect.any(String) },
       });
     }
+  });
+
+  test('rejects request bodies larger than 4 MiB before calling the handler', async () => {
+    const response = await new Promise<{ status: number; body: string }>(
+      (resolve, reject) => {
+        const req = httpRequest(
+          entry.url,
+          {
+            method: 'POST',
+            headers: { ...AUTH_HEADERS, 'content-type': 'application/json' },
+          },
+          (res) => {
+            let body = '';
+            res.setEncoding('utf8');
+            res.on('data', (chunk) => (body += chunk));
+            res.on('end', () => resolve({ status: res.statusCode!, body }));
+          }
+        );
+        req.on('error', reject);
+        req.write(Buffer.alloc(4 * 1024 * 1024 + 1));
+        req.end(Buffer.alloc(1024 * 1024));
+      }
+    );
+
+    expect(response.status).toBe(413);
+    expect(JSON.parse(response.body)).toEqual({
+      error: 'payload too large',
+    });
+    expect(logLines).toEqual([]);
+  });
+
+  test('answers malformed JSON with a -32700 parse error and non-JSON bodies with 415', async () => {
+    const malformed = await fetch(entry.url, {
+      method: 'POST',
+      headers: { ...AUTH_HEADERS, 'content-type': 'application/json' },
+      body: '{',
+    });
+    expect(malformed.status).toBe(400);
+    await expect(malformed.json()).resolves.toEqual({
+      jsonrpc: '2.0',
+      error: { code: -32700, message: 'Parse error' },
+      id: null,
+    });
+
+    const plain = await fetch(entry.url, {
+      method: 'POST',
+      headers: { ...AUTH_HEADERS, 'content-type': 'text/plain' },
+      body: 'hello',
+    });
+    expect(plain.status).toBe(415);
+  });
+
+  test('keeps serving after a client drops mid-upload', async () => {
+    await new Promise<void>((resolve, reject) => {
+      const req = httpRequest(entry.url, {
+        method: 'POST',
+        headers: {
+          ...AUTH_HEADERS,
+          'content-type': 'application/json',
+          'transfer-encoding': 'chunked',
+        },
+      });
+      req.on('error', () => resolve());
+      req.on('close', () => resolve());
+      req.on('socket', (socket) => {
+        socket.on('error', reject);
+        req.write('{"jsonrpc":"2.0","id":1,', () => socket.destroy());
+      });
+    });
+    // Real delay on purpose: the entry exposes no signal for the server-side
+    // reset, and a crash surfaces as an unhandled rejection vitest reports.
+    await sleep(50);
+
+    const response = await fetch(entry.url, {
+      method: 'POST',
+      headers: { 'content-type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
+    });
+    expect(response.status).toBe(401);
   });
 
   test('close releases an in-flight request', async () => {

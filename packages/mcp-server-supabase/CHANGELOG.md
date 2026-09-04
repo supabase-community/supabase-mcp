@@ -1,5 +1,21 @@
 # Changelog
 
+## [0.12.0](https://github.com/supabase/mcp/compare/mcp-server-supabase-v0.11.0...mcp-server-supabase-v0.12.0) (2026-09-04)
+
+
+### Features
+
+* group lints in `get_advisors` response ([#390](https://github.com/supabase/mcp/issues/390)) ([48d593a](https://github.com/supabase/mcp/commit/48d593adeb0401e547caee4cdca5258cd7410ab1))
+* **mcp:** add branch cost confirmation elicitation ([#394](https://github.com/supabase/mcp/issues/394)) ([867a160](https://github.com/supabase/mcp/commit/867a1609d7dd215faf0cf7fcc44737d6304b8307))
+* **mcp:** add project cost confirmation elicitation ([#391](https://github.com/supabase/mcp/issues/391)) ([fb50882](https://github.com/supabase/mcp/commit/fb5088279b6fdc4f3049400b1f1da393fd83e2fb))
+* **mcp:** hide legacy cost tools from form-capable clients ([#411](https://github.com/supabase/mcp/issues/411)) ([2f04461](https://github.com/supabase/mcp/commit/2f04461fda022d1bde326310e641be87fccbb90c))
+
+
+### Bug Fixes
+
+* ensure correct escaping in advisor ([#407](https://github.com/supabase/mcp/issues/407)) ([a6cf4a0](https://github.com/supabase/mcp/commit/a6cf4a02c5b6427a2afdc1f031ed85498d51c336))
+* make server instructions intent-based instead of naming tools ([#372](https://github.com/supabase/mcp/issues/372)) ([fc54ea2](https://github.com/supabase/mcp/commit/fc54ea291e7c43e4501d8198d756d2c86a14538a))
+
 ## [0.11.0](https://github.com/supabase/mcp/compare/mcp-server-supabase-v0.10.0...mcp-server-supabase-v0.11.0) (2026-08-20)
 
 

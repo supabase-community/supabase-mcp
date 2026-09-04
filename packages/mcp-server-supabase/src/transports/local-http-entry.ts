@@ -1,18 +1,23 @@
 import { createHash, randomBytes } from 'node:crypto';
+import { once } from 'node:events';
 import { createServer } from 'node:http';
-import type { AddressInfo } from 'node:net';
 import { toNodeHandler } from '@modelcontextprotocol/node';
 import {
   CLIENT_INFO_META_KEY,
+  createMcpHandler,
   hostHeaderValidationResponse,
+  type Implementation,
+  isJSONRPCNotification,
+  isJSONRPCRequest,
+  isSpecType,
   localhostAllowedHostnames,
   PROTOCOL_VERSION_META_KEY,
 } from '@modelcontextprotocol/server';
 import { z } from 'zod/v4';
 
 import { createSupabaseApiPlatform } from '../platform/api-platform.js';
+import { createSupabaseMcpServer } from '../server.js';
 import { parseFeatureGroups } from '../util.js';
-import { createSupabaseMcpHandler } from './http.js';
 import { parseList } from './util.js';
 
 export type LocalHttpEntryOptions = {
@@ -32,177 +37,137 @@ const querySchema = z.object({
     .optional(),
 });
 
-export type LocalHttpEntry = {
-  url: string;
-  close: () => Promise<void>;
-};
-
-export const LOCAL_HTTP_HOST = '127.0.0.1';
-export const LOCAL_HTTP_PATH = '/mcp';
-
-function bearerToken(request: Request): string | undefined {
-  const header = request.headers.get('authorization');
-  if (!header) return undefined;
-  const [scheme, token, ...rest] = header.trim().split(/\s+/);
-  if (scheme?.toLowerCase() !== 'bearer' || !token || rest.length > 0) {
-    return undefined;
-  }
-  return token;
-}
-
-type Envelope = {
-  method?: unknown;
-  params?: {
-    _meta?: Record<string, unknown>;
-    clientInfo?: unknown;
-    protocolVersion?: unknown;
-    name?: unknown;
-  };
-};
-
-function implementationName(value: unknown): string | undefined {
-  if (typeof value !== 'object' || value === null) return undefined;
-  const { name, version } = value as { name?: unknown; version?: unknown };
-  if (typeof name !== 'string') return undefined;
-  return typeof version === 'string' ? `${name}/${version}` : name;
-}
-
 /** e.g. `2026-07-28  tools/call create_branch  claude-code/2.1.260` */
-export function describeRequest(parsedBody: unknown): string {
-  const messages = Array.isArray(parsedBody) ? parsedBody : [parsedBody];
-  let client: string | undefined;
+export function describeRequest(body: unknown): string {
+  const messages: unknown[] = Array.isArray(body) ? body : [body];
+  let client: Implementation | undefined;
   let method: string | undefined;
   let protocolVersion: string | undefined;
-  for (const message of messages as Envelope[]) {
-    if (typeof message !== 'object' || message === null) continue;
-    const { params } = message;
-    if (typeof message.method === 'string') {
-      method ??= message.method;
-      if (message.method === 'tools/call' && typeof params?.name === 'string') {
-        method = `${message.method} ${params.name}`;
-      }
-    }
-    client ??= implementationName(params?._meta?.[CLIENT_INFO_META_KEY]);
-    if (typeof params?._meta?.[PROTOCOL_VERSION_META_KEY] === 'string') {
-      protocolVersion ??= params._meta[PROTOCOL_VERSION_META_KEY] as string;
-    }
-    if (message.method === 'initialize') {
-      client ??= implementationName(params?.clientInfo);
-      if (typeof params?.protocolVersion === 'string') {
-        protocolVersion ??= params.protocolVersion;
-      }
+  for (const message of messages) {
+    if (!isJSONRPCRequest(message) && !isJSONRPCNotification(message)) continue;
+    method ??= isSpecType.CallToolRequest(message)
+      ? `${message.method} ${message.params.name}`
+      : message.method;
+    const meta = message.params?._meta;
+    const metaClient = meta?.[CLIENT_INFO_META_KEY];
+    if (isSpecType.Implementation(metaClient)) client ??= metaClient;
+    const metaVersion = meta?.[PROTOCOL_VERSION_META_KEY];
+    if (typeof metaVersion === 'string') protocolVersion ??= metaVersion;
+    if (isSpecType.InitializeRequest(message)) {
+      client ??= message.params.clientInfo;
+      protocolVersion ??= message.params.protocolVersion;
     }
   }
   return [
     (protocolVersion ?? 'legacy').padEnd(10),
     (method ?? 'unknown').padEnd(28),
-    client ?? 'unknown',
+    client
+      ? [client.name, client.version].filter(Boolean).join('/')
+      : 'unknown',
   ].join('  ');
 }
 
-export async function startLocalHttpEntry(
-  options: LocalHttpEntryOptions
-): Promise<LocalHttpEntry> {
-  const { port, apiUrl, contentApiUrl, log = console.error } = options;
-  const allowedHostnames = localhostAllowedHostnames();
-  // Signs the cost-confirmation request state for this process; a restart
-  // invalidates in-flight elicitations, which is the intended scope.
+export async function startLocalHttpEntry({
+  port,
+  apiUrl,
+  contentApiUrl,
+  log = console.error,
+}: LocalHttpEntryOptions) {
+  // Restarting the process invalidates in-flight elicitations on purpose.
   const requestStateKey = randomBytes(32);
+  const allowedHostnames = localhostAllowedHostnames();
 
-  const listener = toNodeHandler(
-    {
-      fetch: async (request, { parsedBody } = {}) => {
-        const rejected = hostHeaderValidationResponse(
-          request,
-          allowedHostnames
-        );
-        if (rejected) return rejected;
-
-        const url = new URL(request.url);
-        if (url.pathname !== LOCAL_HTTP_PATH) {
-          return Response.json({ error: 'not found' }, { status: 404 });
-        }
-
-        const accessToken = bearerToken(request);
-        if (!accessToken) {
-          return Response.json(
-            { error: 'missing bearer token' },
-            { status: 401 }
+  const server = createServer(
+    toNodeHandler(
+      {
+        fetch: async (request) => {
+          const rejected = hostHeaderValidationResponse(
+            request,
+            allowedHostnames
           );
-        }
+          if (rejected) return rejected;
 
-        const query = querySchema.safeParse(
-          Object.fromEntries(url.searchParams)
-        );
-        if (!query.success) {
-          return Response.json(
-            { error: z.prettifyError(query.error) },
-            { status: 400 }
+          const accessToken = request.headers
+            .get('authorization')
+            ?.match(/^Bearer (.+)$/i)?.[1];
+          if (!accessToken) {
+            return Response.json(
+              { error: 'missing bearer token' },
+              { status: 401 }
+            );
+          }
+
+          const url = new URL(request.url);
+          const query = querySchema.safeParse(
+            Object.fromEntries(url.searchParams)
           );
-        }
-        const {
-          project_ref: projectId,
-          read_only: readOnly,
-          features,
-        } = query.data;
-
-        const body =
-          parsedBody ??
-          (await request
-            .clone()
-            .json()
-            .catch(() => undefined));
-        log(describeRequest(body));
-
-        const platform = createSupabaseApiPlatform({ accessToken, apiUrl });
-        if (features) {
-          parseFeatureGroups(platform, features);
-        }
-        const handler = createSupabaseMcpHandler(
-          {
-            platform,
-            projectId,
-            readOnly,
+          if (!query.success) {
+            return Response.json(
+              { error: z.prettifyError(query.error) },
+              { status: 400 }
+            );
+          }
+          const {
+            project_ref: projectId,
+            read_only: readOnly,
             features,
-            contentApiUrl,
-            costConfirmation: {
-              requestStateKey,
-              // PAT mode can serve several clients with different PATs in one
-              // process, so the principal is the bearer's hash.
-              // #404 (--oauth) switches this to a per-process principal; the token refreshes, the principal must not.
-              principal: createHash('sha256').update(accessToken).digest('hex'),
-              enabledTools: ['create_project', 'create_branch'],
-            },
-          },
-          { legacy: 'stateless', onerror: console.error }
-        );
-        request.signal.addEventListener('abort', () => handler.close(), {
-          once: true,
-        });
-        return handler.fetch(request, { parsedBody });
+          } = query.data;
+
+          log(
+            describeRequest(
+              await request
+                .clone()
+                .json()
+                .catch(() => undefined)
+            )
+          );
+
+          const platform = createSupabaseApiPlatform({ accessToken, apiUrl });
+          if (features) parseFeatureGroups(platform, features);
+          const handler = createMcpHandler(
+            () =>
+              createSupabaseMcpServer({
+                platform,
+                projectId,
+                readOnly,
+                features,
+                contentApiUrl,
+                costConfirmation: {
+                  requestStateKey,
+                  // One process can serve several PATs, so the principal is the token's hash.
+                  principal: createHash('sha256')
+                    .update(accessToken)
+                    .digest('hex'),
+                  enabledTools: ['create_project', 'create_branch'],
+                },
+              }),
+            { legacy: 'stateless', onerror: console.error }
+          );
+          request.signal.addEventListener('abort', () => handler.close(), {
+            once: true,
+          });
+          return handler.fetch(request);
+        },
       },
-    },
-    { onerror: console.error }
+      { onerror: console.error }
+    )
   );
 
-  const server = createServer(listener);
+  server.listen(port, '127.0.0.1');
+  await once(server, 'listening');
+  const address = server.address();
+  if (!address || typeof address === 'string') {
+    throw new Error('expected a TCP address');
+  }
 
-  await new Promise<void>((resolve, reject) => {
-    server.once('error', reject);
-    server.listen(port, LOCAL_HTTP_HOST, () => {
-      server.off('error', reject);
-      resolve();
-    });
-  });
-
-  const { port: boundPort } = server.address() as AddressInfo;
   return {
-    url: `http://${LOCAL_HTTP_HOST}:${boundPort}${LOCAL_HTTP_PATH}`,
-    close: () =>
-      new Promise<void>((resolve, reject) => {
-        if (!server.listening) return resolve();
-        server.close((error) => (error ? reject(error) : resolve()));
-        server.closeAllConnections();
-      }),
+    url: `http://127.0.0.1:${address.port}/mcp`,
+    close: async () => {
+      server.close();
+      server.closeAllConnections();
+      await once(server, 'close');
+    },
   };
 }
+
+export type LocalHttpEntry = Awaited<ReturnType<typeof startLocalHttpEntry>>;

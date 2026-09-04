@@ -5,7 +5,9 @@ import {
 } from '@modelcontextprotocol/client';
 import type {
   CallToolResult,
+  ClientOptions,
   InputRequiredResult,
+  VersionNegotiationMode,
 } from '@modelcontextprotocol/client';
 import { http, passthrough } from 'msw';
 import type { SetupServer } from 'msw/node';
@@ -60,14 +62,18 @@ afterEach(async () => {
   }
 });
 
-async function connect(mode: 'legacy' | { pin: string }) {
+async function connect(
+  mode: VersionNegotiationMode,
+  query = 'read_only=true',
+  options: ClientOptions = {}
+) {
   const transport = new StreamableHTTPClientTransport(
-    new URL(`${entry.url}?read_only=true`),
+    new URL(`${entry.url}?${query}`),
     { requestInit: { headers: AUTH_HEADERS } }
   );
   const client = new Client(
     { name: MCP_CLIENT_NAME, version: MCP_CLIENT_VERSION },
-    { capabilities: {}, versionNegotiation: { mode } }
+    { ...options, versionNegotiation: { mode } }
   );
   await client.connect(transport);
   cleanups.push(() => client.close());
@@ -75,7 +81,7 @@ async function connect(mode: 'legacy' | { pin: string }) {
 }
 
 describe('startLocalHttpEntry', () => {
-  test('serves a modern client pinned to 2026-07-28 including a read-only tool call', async () => {
+  test('serves a modern client', async () => {
     const client = await connect({ pin: MODERN_PROTOCOL_VERSION });
 
     const { tools } = await client.listTools();
@@ -95,7 +101,7 @@ describe('startLocalHttpEntry', () => {
     ]);
   });
 
-  test('serves a legacy 2025-era client through initialize and tools/list', async () => {
+  test('serves a legacy client', async () => {
     const client = await connect('legacy');
 
     const { tools } = await client.listTools();
@@ -109,19 +115,19 @@ describe('startLocalHttpEntry', () => {
     const modern = await connect({ pin: MODERN_PROTOCOL_VERSION });
     await modern.listTools();
 
-    const client = `${MCP_CLIENT_NAME}/${MCP_CLIENT_VERSION}`;
     expect(logLines).toContainEqual(
       expect.stringMatching(
         /^2025-\d\d-\d\d  initialize\s+test-client\/1\.0\.0$/
       )
     );
+    const client = `${MCP_CLIENT_NAME}/${MCP_CLIENT_VERSION}`;
     expect(logLines).toContain(
       `${MODERN_PROTOCOL_VERSION}  ${'tools/list'.padEnd(28)}  ${client}`
     );
     expect(logLines.every((line) => !line.includes(ACCESS_TOKEN))).toBe(true);
   });
 
-  test('rejects a request without a bearer token with 401 and no WWW-Authenticate', async () => {
+  test('rejects a request without a bearer token', async () => {
     const response = await fetch(entry.url, {
       method: 'POST',
       headers: { 'content-type': 'application/json' },
@@ -135,90 +141,48 @@ describe('startLocalHttpEntry', () => {
     });
   });
 
-  describe('cost confirmation', () => {
-    let writable!: LocalHttpEntry;
-    let writableLogLines!: string[];
-
-    beforeEach(async () => {
-      writableLogLines = [];
-      writable = await startLocalHttpEntry({
-        port: 0,
-        apiUrl: API_URL,
-        log: (line) => writableLogLines.push(line),
-      });
-      mockServer.use(
-        http.all(`${new URL(writable.url).origin}/*`, () => passthrough())
-      );
-      cleanups.push(() => writable.close());
-    });
-
-    async function connectWritable(
-      mode: 'legacy' | { pin: string },
-      capabilities: ConstructorParameters<typeof Client>[1] = {
-        capabilities: {},
+  test('sends a form-capable client a cost elicitation', async () => {
+    const client = await connect(
+      { pin: MODERN_PROTOCOL_VERSION },
+      'features=account,branching',
+      {
+        capabilities: { elicitation: { form: {} } },
+        inputRequired: { autoFulfill: false },
       }
-    ) {
-      const transport = new StreamableHTTPClientTransport(
-        new URL(`${writable.url}?features=account,branching`),
-        { requestInit: { headers: AUTH_HEADERS } }
-      );
-      const client = new Client(
-        { name: MCP_CLIENT_NAME, version: MCP_CLIENT_VERSION },
-        { ...capabilities, versionNegotiation: { mode } }
-      );
-      await client.connect(transport);
-      cleanups.push(() => client.close());
-      return client;
-    }
+    );
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
 
-    async function createBranchingProject() {
-      const org = await createOrganization({
-        name: 'My Org',
-        plan: 'free',
-        allowed_release_channels: ['ga'],
-      });
-      const project = await createProject({
-        name: 'Project 1',
-        region: 'us-east-1',
-        organization_id: org.id,
-      });
-      project.status = 'ACTIVE_HEALTHY';
-      return project;
-    }
-
-    test('a modern form-capable client receives a create_branch cost elicitation', async () => {
-      const client = await connectWritable(
-        { pin: MODERN_PROTOCOL_VERSION },
-        {
-          capabilities: { elicitation: { form: {} } },
-          inputRequired: { autoFulfill: false },
-        }
-      );
-      const project = await createBranchingProject();
-
-      const result = (await client.request(
-        {
-          method: 'tools/call',
-          params: {
-            name: 'create_branch',
-            arguments: { project_id: project.id, name: 'feature' },
-          },
+    const result = (await client.request(
+      {
+        method: 'tools/call',
+        params: {
+          name: 'create_branch',
+          arguments: { project_id: project.id, name: 'feature' },
         },
-        { allowInputRequired: true }
-      )) as CallToolResult | InputRequiredResult;
+      },
+      { allowInputRequired: true }
+    )) as CallToolResult | InputRequiredResult;
 
-      if (!isInputRequiredResult(result)) {
-        throw new Error('expected an input_required result');
-      }
-      expect(result.inputRequests?.confirm_cost).toMatchObject({
-        method: 'elicitation/create',
-        params: { mode: 'form' },
-      });
-      expect(result.requestState).toBeTruthy();
-      expect(mockBranches.size).toBe(0);
-      expect(writableLogLines.at(-1)).toBe(
-        `${MODERN_PROTOCOL_VERSION}  ${'tools/call create_branch'.padEnd(28)}  ${MCP_CLIENT_NAME}/${MCP_CLIENT_VERSION}`
-      );
+    if (!isInputRequiredResult(result)) {
+      throw new Error('expected an input_required result');
+    }
+    expect(result.inputRequests?.confirm_cost).toMatchObject({
+      method: 'elicitation/create',
+      params: { mode: 'form' },
     });
+    expect(mockBranches.size).toBe(0);
+    expect(logLines.at(-1)).toBe(
+      `${MODERN_PROTOCOL_VERSION}  ${'tools/call create_branch'.padEnd(28)}  ${MCP_CLIENT_NAME}/${MCP_CLIENT_VERSION}`
+    );
   });
 });

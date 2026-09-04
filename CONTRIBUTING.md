@@ -43,7 +43,7 @@ Example client config:
 
 The dev server supports the same [query params as the hosted endpoint](https://supabase.com/docs/guides/ai-tools/mcp#configuration-options). The access token comes from the client's `Authorization` header on each request. Restart the server in your MCP client after each change.
 
-Add `--oauth` to sign in with Supabase OAuth in the browser instead. The server then attaches the token to every request itself and the client config needs no `headers`. The session is kept in `~/.supabase/mcp-oauth.json`; delete it to sign out.
+Add `--oauth` to sign in with Supabase OAuth in the browser instead. The server then attaches the token to every request itself and the client config needs no `headers`. The session is saved to `~/.supabase/mcp-oauth.json`, next to the Supabase CLI's files (`SUPABASE_HOME` overrides the directory for both). Delete that file to sign out.
 
 Flags: `--http`, `--port` (default 3111), `--oauth`, `--api-url`, `--content-api-url`, `--version`.
 

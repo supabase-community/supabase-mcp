@@ -11,6 +11,7 @@ import {
   isJSONRPCRequest,
   isSpecType,
   localhostAllowedHostnames,
+  originValidationResponse,
   PROTOCOL_VERSION_META_KEY,
 } from '@modelcontextprotocol/server';
 import { z } from 'zod/v4';
@@ -24,6 +25,8 @@ export type LocalHttpEntryOptions = {
   port: number;
   apiUrl?: string;
   contentApiUrl?: string;
+  /** OAuth mode. Supplies the token for every request. */
+  accessToken?: () => Promise<string>;
   log?: (line: string) => void;
 };
 
@@ -72,25 +75,29 @@ export async function startLocalHttpEntry({
   port,
   apiUrl,
   contentApiUrl,
+  accessToken: tokenSource,
   log = (line) =>
     console.error(`[${new Date().toLocaleTimeString('en-GB')}] ${line}`),
 }: LocalHttpEntryOptions) {
   const requestStateKey = randomBytes(32);
+  // OAuth tokens refresh, so the principal is a per-process value instead of a token hash.
+  const processPrincipal = randomBytes(16).toString('hex');
   const allowedHostnames = localhostAllowedHostnames();
 
   const server = createServer(
     toNodeHandler(
       {
         fetch: async (request) => {
-          const rejected = hostHeaderValidationResponse(
-            request,
-            allowedHostnames
-          );
+          const rejected =
+            hostHeaderValidationResponse(request, allowedHostnames) ??
+            originValidationResponse(request, []);
           if (rejected) return rejected;
 
-          const accessToken = request.headers
-            .get('authorization')
-            ?.match(/^Bearer (.+)$/i)?.[1];
+          const accessToken = tokenSource
+            ? await tokenSource()
+            : request.headers
+                .get('authorization')
+                ?.match(/^Bearer (.+)$/i)?.[1];
           if (!accessToken) {
             return Response.json(
               { error: 'missing bearer token' },
@@ -136,9 +143,9 @@ export async function startLocalHttpEntry({
                 costConfirmation: {
                   requestStateKey,
                   // One process can serve several PATs, so the principal is the token's hash.
-                  principal: createHash('sha256')
-                    .update(accessToken)
-                    .digest('hex'),
+                  principal: tokenSource
+                    ? processPrincipal
+                    : createHash('sha256').update(accessToken).digest('hex'),
                   enabledTools: ['create_project', 'create_branch'],
                 },
               }),

@@ -6,13 +6,7 @@ import packageJson from '../package.json' with { type: 'json' };
 import { createSupabaseApiPlatform } from './platform/api-platform.js';
 import { createSupabaseMcpServer } from './server.js';
 import { startLocalHttpEntry } from './transports/local-http-entry.js';
-import {
-  createFileStore,
-  createMemoryStore,
-  DEFAULT_OAUTH_STORE_PATH,
-  login,
-  logout,
-} from './transports/oauth-client.js';
+import { login } from './transports/oauth-client.js';
 import { parseList } from './transports/util.js';
 import { parseFeatureGroups } from './util.js';
 
@@ -31,9 +25,6 @@ async function main() {
       ['http']: http,
       ['port']: cliPort,
       ['oauth']: oauth,
-      ['oauth-store']: oauthStore,
-      ['oauth-callback-port']: cliCallbackPort,
-      ['logout']: doLogout,
     },
   } = parseArgs({
     options: {
@@ -71,18 +62,6 @@ async function main() {
         type: 'boolean',
         default: false,
       },
-      ['oauth-store']: {
-        type: 'string',
-        default: 'memory',
-      },
-      ['oauth-callback-port']: {
-        type: 'string',
-        default: '3112',
-      },
-      ['logout']: {
-        type: 'boolean',
-        default: false,
-      },
     },
   });
 
@@ -96,35 +75,11 @@ async function main() {
   const contentApiUrl =
     cliContentApiUrl ?? process.env.SUPABASE_CONTENT_API_URL;
 
-  // The AS issuer is the Management API origin, so --api-url selects prod or staging.
-  const oauthIssuer = () =>
-    new URL(apiUrl ?? 'https://api.supabase.com').origin;
-
-  if (doLogout) {
-    const issuer = oauthIssuer();
-    const removed = await logout({
-      issuer,
-      callbackPort: Number(cliCallbackPort),
-      store: createFileStore(),
-    });
-    console.log(
-      removed
-        ? `Signed out of ${issuer}; session removed from ${DEFAULT_OAUTH_STORE_PATH}`
-        : `No stored OAuth session for ${issuer} in ${DEFAULT_OAUTH_STORE_PATH}`
-    );
-    process.exit(0);
-  }
-
   if (http) {
-    let accessToken: (() => Promise<string>) | undefined;
-    if (oauth) {
-      const tokenSource = await login({
-        issuer: oauthIssuer(),
-        callbackPort: Number(cliCallbackPort),
-        store: oauthStore === 'file' ? createFileStore() : createMemoryStore(),
-      });
-      accessToken = tokenSource.accessToken;
-    }
+    // The hosted MCP server's OAuth discovery points at the matching Management API.
+    const mcpUrl = new URL(apiUrl ?? 'https://api.supabase.com');
+    mcpUrl.host = mcpUrl.host.replace(/^api\./, 'mcp.');
+    const accessToken = oauth ? await login(`${mcpUrl.origin}/mcp`) : undefined;
     const entry = await startLocalHttpEntry({
       port: Number(cliPort),
       apiUrl,

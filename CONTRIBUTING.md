@@ -43,9 +43,9 @@ Example client config:
 
 The dev server supports the same [query params as the hosted endpoint](https://supabase.com/docs/guides/ai-tools/mcp#configuration-options). The access token comes from the client's `Authorization` header on each request. Restart the server in your MCP client after each change.
 
-Add `--oauth` to sign in with Supabase OAuth in the browser instead. The server then attaches the token to every request itself and the client config needs no `headers`. The session lives in memory by default; `--oauth-store file` persists it in `~/.supabase/mcp-oauth.json` and `--logout` revokes it. Set `SUPABASE_MCP_NO_BROWSER=1` to print the sign-in URL instead of opening a browser.
+Add `--oauth` to sign in with Supabase OAuth in the browser instead. The server then attaches the token to every request itself and the client config needs no `headers`. The session is kept in `~/.supabase/mcp-oauth.json`; delete it to sign out.
 
-Flags: `--http`, `--port` (default 3111), `--oauth`, `--oauth-store` (`memory` or `file`), `--oauth-callback-port` (default 3112), `--logout`, `--api-url`, `--content-api-url`, `--version`.
+Flags: `--http`, `--port` (default 3111), `--oauth`, `--api-url`, `--content-api-url`, `--version`.
 
 To try the HTTP entry from a PR without cloning, run the preview build published by pkg.pr.new:
 

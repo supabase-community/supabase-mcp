@@ -4639,7 +4639,7 @@ describe('tools', () => {
       }
     });
 
-    test('tool input schema has only project_id and name properties', async () => {
+    test('tool input schema exposes project_id, name and replace, never value', async () => {
       const { client } = await setupUrlCapable();
 
       const { tools } = await client.listTools();
@@ -4652,7 +4652,8 @@ describe('tools', () => {
       expect(secretTool?.inputSchema.properties).not.toHaveProperty('value');
       expect(
         Object.keys(secretTool?.inputSchema.properties ?? {})
-      ).toHaveLength(2);
+      ).toHaveLength(3);
+      expect(secretTool?.inputSchema.properties).toHaveProperty('replace');
     });
 
     test('name starting with SUPABASE_ is rejected', async () => {
@@ -4737,7 +4738,7 @@ describe('tools', () => {
 
       const textContent = second.content.find((c: any) => c.type === 'text');
       expect((textContent as any)?.text).toContain(
-        'Secret MY_SECRET is stored'
+        'The dashboard reports an update to MY_SECRET since this request'
       );
       expect((second as any).structuredContent?.stored).toBe(true);
     });
@@ -4880,7 +4881,10 @@ describe('tools', () => {
 
       expect(result.isError).toBeFalsy();
       expect(result.content).toMatchObject([
-        { type: 'text', text: `Secret MY_SECRET is stored.` },
+        {
+          type: 'text',
+          text: `The dashboard reports an update to MY_SECRET since this request.`,
+        },
       ]);
       expect((result as any).structuredContent).toMatchObject({
         name: 'MY_SECRET',
@@ -4888,7 +4892,7 @@ describe('tools', () => {
       });
     });
 
-    test('decline and cancel return stored false', async () => {
+    test('decline and cancel return status without stored', async () => {
       const { client } = await setupUrlCapable();
 
       const org = await createOrganization({
@@ -4935,7 +4939,9 @@ describe('tools', () => {
           { allowInputRequired: true }
         )) as CallToolResult;
 
-        expect((second as any).structuredContent?.stored).toBe(false);
+        expect((second as any).structuredContent).toEqual({
+          status: action === 'decline' ? 'declined' : 'cancelled',
+        });
       }
     });
 
@@ -4976,6 +4982,51 @@ describe('tools', () => {
       expect(
         (result as any).structuredContent?.updated_seconds_ago
       ).toBeLessThan(600);
+    });
+
+    test('replace true skips resume shortcut and issues elicitation', async () => {
+      const { client } = await setupUrlCapable();
+
+      const org = await createOrganization({
+        name: 'My Org',
+        plan: 'free',
+        allowed_release_channels: ['ga'],
+      });
+      const project = await createProject({
+        name: 'Project 1',
+        region: 'us-east-1',
+        organization_id: org.id,
+      });
+      project.status = 'ACTIVE_HEALTHY';
+
+      // Secret updated 10 s ago
+      mockSecrets.set(project.id, [
+        {
+          name: 'MY_SECRET',
+          value: 'secret-value',
+          updated_at: new Date(Date.now() - 10_000).toISOString(),
+        },
+      ]);
+
+      const result = (await client.request(
+        {
+          method: 'tools/call',
+          params: {
+            name: 'create_edge_function_secret',
+            arguments: {
+              project_id: project.id,
+              name: 'MY_SECRET',
+              replace: true,
+            },
+          },
+        },
+        { allowInputRequired: true }
+      )) as CallToolResult | InputRequiredResult;
+
+      if (!isInputRequiredResult(result)) {
+        throw new Error('expected InputRequiredResult');
+      }
+      expect(result.inputRequests).toHaveProperty('store_secret');
     });
 
     test('rejects requestState minted by create_project', async () => {

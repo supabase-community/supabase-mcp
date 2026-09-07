@@ -41,6 +41,12 @@ const createEdgeFunctionSecretInputSchema = z.object({
     .refine((n) => !n.startsWith('SUPABASE_'), {
       message: 'Secret names starting with SUPABASE_ are reserved.',
     }),
+  replace: z
+    .boolean()
+    .optional()
+    .describe(
+      'Set to true to ask the user for a new value even if this secret was updated in the last 10 minutes. Default false: a recent update is reported as stored without asking again.'
+    ),
 });
 
 const createEdgeFunctionSecretOutputSchema = z.object({
@@ -83,6 +89,7 @@ export function getSecretTools({
         {
           project_id,
           name,
+          replace,
         }: z.infer<typeof createEdgeFunctionSecretInputSchema>,
         ctx: ServerContext
       ) => {
@@ -127,21 +134,26 @@ export function getSecretTools({
               isError: true,
             };
           }
-
-          const updatedAt = await secrets.getUpdatedAt(project_id, name);
-          if (updatedAt) {
-            const ageMs = Date.now() - updatedAt.getTime();
-            if (ageMs >= 0 && ageMs <= RESUME_WINDOW_SECONDS * 1000) {
-              const updated_seconds_ago = Math.floor(ageMs / 1000);
-              return {
-                content: [
-                  {
-                    type: 'text' as const,
-                    text: `Secret ${name} was stored ${updated_seconds_ago} seconds ago.`,
+          if (!replace) {
+            const updatedAt = await secrets.getUpdatedAt(project_id, name);
+            if (updatedAt) {
+              const ageMs = Date.now() - updatedAt.getTime();
+              if (ageMs >= 0 && ageMs <= RESUME_WINDOW_SECONDS * 1000) {
+                const updated_seconds_ago = Math.floor(ageMs / 1000);
+                return {
+                  content: [
+                    {
+                      type: 'text' as const,
+                      text: `The dashboard reports an update to ${name} ${updated_seconds_ago} seconds ago.`,
+                    },
+                  ],
+                  structuredContent: {
+                    name,
+                    stored: true,
+                    updated_seconds_ago,
                   },
-                ],
-                structuredContent: { name, stored: true, updated_seconds_ago },
-              };
+                };
+              }
             }
           }
 
@@ -189,10 +201,10 @@ export function getSecretTools({
             content: [
               {
                 type: 'text' as const,
-                text: 'Nothing stored. Ask the user what to change.',
+                text: 'Not confirmed. If you already saved it in the dashboard, it is stored.',
               },
             ],
-            structuredContent: { status: 'declined', stored: false },
+            structuredContent: { status: 'declined' },
           };
         }
 
@@ -201,10 +213,10 @@ export function getSecretTools({
             content: [
               {
                 type: 'text' as const,
-                text: 'Nothing stored. The user cancelled.',
+                text: 'Not confirmed. If you already saved it in the dashboard, it is stored.',
               },
             ],
-            structuredContent: { status: 'cancelled', stored: false },
+            structuredContent: { status: 'cancelled' },
           };
         }
 
@@ -214,7 +226,7 @@ export function getSecretTools({
             content: [
               {
                 type: 'text' as const,
-                text: `Secret ${name} is stored.`,
+                text: `The dashboard reports an update to ${name} since this request.`,
               },
             ],
             structuredContent: { name, stored: true },

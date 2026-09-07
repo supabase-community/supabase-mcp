@@ -120,7 +120,7 @@ const queryLogsOutputSchema = z.object({
 const getAdvisorsInputSchema = z.object({
   project_id: z.string(),
   type: z
-    .enum(['security', 'performance'])
+    .enum(['security', 'performance', 'health'])
     .describe('The type of advisors to fetch'),
 });
 
@@ -353,6 +353,9 @@ export function getDebuggingTools({
             break;
           case 'performance':
             result = await debugging.getPerformanceAdvisors(project_id);
+            break;
+          case 'health':
+            result = await debugging.getHealthAdvisors(project_id);
             break;
           default:
             throw new Error(`Unknown advisor type: ${type}`);

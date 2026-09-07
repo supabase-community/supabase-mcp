@@ -12,6 +12,7 @@ import {
   assertSuccess,
   createManagementApiClient,
 } from '../management-api/index.js';
+import { createPlatformApiClient } from '../platform-api/index.js';
 import { generatePassword } from '../password.js';
 import {
   applyMigrationOptionsSchema,
@@ -73,6 +74,10 @@ export function createSupabaseApiPlatform(
   const managementApiUrl = apiUrl ?? 'https://api.supabase.com';
 
   let managementApiClient = createManagementApiClient(
+    managementApiUrl,
+    accessToken
+  );
+  let platformApiClient = createPlatformApiClient(
     managementApiUrl,
     accessToken
   );
@@ -335,6 +340,26 @@ export function createSupabaseApiPlatform(
       assertSuccess(response, 'Failed to fetch performance advisors');
 
       return response.data;
+    },
+    async getHealthAdvisors(projectId: string) {
+      const response = await platformApiClient.GET(
+        '/platform/projects/{ref}/run-lints',
+        {
+          params: {
+            path: {
+              ref: projectId,
+            },
+          },
+        }
+      );
+
+      assertSuccess(response, 'Failed to fetch health advisors');
+
+      return {
+        lints: response.data.filter((lint) =>
+          lint.categories.includes('HEALTH')
+        ),
+      };
     },
   };
 
@@ -824,6 +849,13 @@ export function createSupabaseApiPlatform(
 
       // Re-initialize the management API client with the user agent
       managementApiClient = createManagementApiClient(
+        managementApiUrl,
+        accessToken,
+        {
+          'User-Agent': `supabase-mcp/${version} (${clientInfo.name}/${clientInfo.version})`,
+        }
+      );
+      platformApiClient = createPlatformApiClient(
         managementApiUrl,
         accessToken,
         {

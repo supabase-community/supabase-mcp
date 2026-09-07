@@ -612,6 +612,45 @@ export const mockManagementApi = [
     }
   ),
 
+  http.get<{ projectId: string }>(
+    `${API_URL}/platform/projects/:projectId/run-lints`,
+    async ({ params }) => {
+      const project = mockProjects.get(params.projectId);
+      if (!project) {
+        return HttpResponse.json(
+          { message: 'Project not found' },
+          { status: 404 }
+        );
+      }
+
+      return HttpResponse.json([
+        {
+          name: 'project_not_active',
+          title: 'Project Not Active',
+          level: 'INFO',
+          facing: 'EXTERNAL',
+          categories: ['HEALTH'],
+          description: 'The project is inactive.',
+          detail: 'Health checks cannot run while the project is inactive.',
+          remediation: 'https://supabase.com/docs/guides/platform/health',
+          cache_key: 'project_not_active',
+        },
+        {
+          name: 'unused_index',
+          title: 'Unused Index',
+          level: 'INFO',
+          facing: 'EXTERNAL',
+          categories: ['PERFORMANCE'],
+          description: 'The index is unused.',
+          detail: 'Index `idx_unused` has not been used.',
+          remediation:
+            'https://supabase.com/docs/guides/database/database-linter',
+          cache_key: 'unused_index_idx_unused',
+        },
+      ]);
+    }
+  ),
+
   /**
    * Create a new branch for a project
    */

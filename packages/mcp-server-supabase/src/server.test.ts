@@ -2958,6 +2958,24 @@ describe('tools', () => {
             ],
           };
         },
+        async getHealthAdvisors() {
+          return {
+            lints: [
+              {
+                name: 'project_not_active',
+                title: 'Project Not Active',
+                level: 'INFO',
+                facing: 'EXTERNAL',
+                categories: ['HEALTH'],
+                description: 'The project is inactive.',
+                detail:
+                  'Health checks cannot run while the project is inactive.',
+                remediation: 'https://supabase.com/docs/guides/platform/health',
+                cache_key: 'project_not_active',
+              },
+            ],
+          };
+        },
       },
     };
 
@@ -3023,6 +3041,34 @@ describe('tools', () => {
         },
       ],
     });
+
+    const { result: health } = await callTool({
+      name: 'get_advisors',
+      arguments: {
+        project_id: project.id,
+        type: 'health',
+      },
+    });
+
+    expect(health).toEqual({
+      lints: [
+        {
+          name: 'project_not_active',
+          title: 'Project Not Active',
+          level: 'INFO',
+          facing: 'EXTERNAL',
+          categories: ['HEALTH'],
+          description: 'The project is inactive.',
+          remediation: 'https://supabase.com/docs/guides/platform/health',
+          count: 1,
+          findings: [
+            {
+              detail: 'Health checks cannot run while the project is inactive.',
+            },
+          ],
+        },
+      ],
+    });
   });
 
   test('get performance advisors', async () => {
@@ -3050,6 +3096,51 @@ describe('tools', () => {
     });
 
     expect(result).toEqual({ lints: [] });
+  });
+
+  test('get health advisors', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const { result } = await callTool({
+      name: 'get_advisors',
+      arguments: {
+        project_id: project.id,
+        type: 'health',
+      },
+    });
+
+    expect(result).toEqual({
+      lints: [
+        {
+          name: 'project_not_active',
+          title: 'Project Not Active',
+          level: 'INFO',
+          facing: 'EXTERNAL',
+          categories: ['HEALTH'],
+          description: 'The project is inactive.',
+          remediation: 'https://supabase.com/docs/guides/platform/health',
+          count: 1,
+          findings: [
+            {
+              detail: 'Health checks cannot run while the project is inactive.',
+            },
+          ],
+        },
+      ],
+    });
   });
 
   test('get logs for invalid service type', async () => {
@@ -5326,6 +5417,9 @@ describe('feature groups', () => {
         getPerformanceAdvisors() {
           throw new Error('Not implemented');
         },
+        getHealthAdvisors() {
+          throw new Error('Not implemented');
+        },
       },
     };
 
@@ -5364,6 +5458,9 @@ describe('feature groups', () => {
         getPerformanceAdvisors() {
           throw new Error('Not implemented');
         },
+        getHealthAdvisors() {
+          throw new Error('Not implemented');
+        },
       },
     };
 
@@ -5397,6 +5494,9 @@ describe('feature groups', () => {
           throw new Error('Not implemented');
         },
         getPerformanceAdvisors() {
+          throw new Error('Not implemented');
+        },
+        getHealthAdvisors() {
           throw new Error('Not implemented');
         },
       },

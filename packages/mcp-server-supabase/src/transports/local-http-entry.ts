@@ -133,13 +133,17 @@ export async function startLocalHttpEntry({
                 readOnly,
                 features,
                 contentApiUrl,
-                costConfirmation: {
-                  requestStateKey,
-                  // One process can serve several PATs, so the principal is the token's hash.
-                  principal: createHash('sha256')
-                    .update(accessToken)
-                    .digest('hex'),
-                  enabledTools: ['create_project', 'create_branch'],
+                elicitation: {
+                  requestState: {
+                    key: requestStateKey,
+                    // One process can serve several PATs, so the principal is the token's hash.
+                    principal: createHash('sha256')
+                      .update(accessToken)
+                      .digest('hex'),
+                  },
+                  costConfirmation: {
+                    enabledTools: ['create_project', 'create_branch'],
+                  },
                 },
               }),
             { legacy: 'stateless', onerror: console.error }

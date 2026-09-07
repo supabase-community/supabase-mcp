@@ -1,0 +1,28 @@
+name: Check API Types
+
+on:
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5.0.1
+      - uses: jdx/mise-action@5228313ee0372e111a38da051671ca30fc5a96db # v3.6.3
+        with:
+          install: true
+          cache: true
+      - name: Install dependencies
+        run: pnpm install --ignore-scripts
+      - name: Regenerate API types
+        run: |
+          pnpm --filter @supabase/mcp-server-supabase generate:management-api-types
+          pnpm --filter @supabase/mcp-server-supabase generate:platform-api-types
+      - name: Check for diff
+        run: |
+          if ! git diff --exit-code packages/mcp-server-supabase/src/management-api/types.ts packages/mcp-server-supabase/src/platform-api/types.ts; then
+            echo "API types are out of date. Run the matching generate:*api-types command to update."
+            exit 1
+          fi

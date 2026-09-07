@@ -26,7 +26,8 @@
     "test:e2e": "vitest --project e2e",
     "test:integration": "vitest --project integration",
     "test:coverage": "vitest --coverage",
-    "generate:management-api-types": "node scripts/generate-management-api-types.mjs"
+    "generate:management-api-types": "node scripts/generate-management-api-types.mjs",
+    "generate:platform-api-types": "node scripts/generate-platform-api-types.mjs"
   },
   "files": [
     "dist/**/*"

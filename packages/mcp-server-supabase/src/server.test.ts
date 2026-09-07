@@ -6,6 +6,7 @@ import {
 import type {
   CallToolRequestParams,
   CallToolResult,
+  ClientCapabilities,
   InputRequiredResult,
 } from '@modelcontextprotocol/client';
 import { StreamTransport } from '@supabase/mcp-utils';
@@ -68,6 +69,7 @@ type SetupOptions = {
   readOnly?: boolean;
   features?: string[];
   costConfirmation?: SupabaseMcpServerOptions['costConfirmation'];
+  clientCapabilities?: ClientCapabilities;
 };
 
 /**
@@ -80,6 +82,7 @@ async function setup(options: SetupOptions = {}) {
     readOnly,
     features,
     costConfirmation,
+    clientCapabilities = {},
   } = options;
   const clientTransport = new StreamTransport();
   const serverTransport = new StreamTransport();
@@ -93,7 +96,7 @@ async function setup(options: SetupOptions = {}) {
       version: MCP_CLIENT_VERSION,
     },
     {
-      capabilities: {},
+      capabilities: clientCapabilities,
     }
   );
 
@@ -149,9 +152,12 @@ async function setup(options: SetupOptions = {}) {
   return { client, clientTransport, callTool, server, serverTransport };
 }
 
-type FormCapableSetupOptions = {
+type ModernSetupOptions = {
+  costConfirmation?: SupabaseMcpServerOptions['costConfirmation'];
+  clientCapabilities?: ClientCapabilities;
   readOnly?: boolean;
   projectId?: string;
+  secretCollection?: SupabaseMcpServerOptions['secretCollection'];
   /**
    * Registers an auto-fulfilling `elicitation/create` handler that always
    * answers with this action, driven via `client.callTool`. Omit for manual
@@ -168,6 +174,16 @@ const COST_CONFIRMATION: NonNullable<
   enabledTools: ['create_project', 'create_branch'],
 };
 
+const FORM_CAPABLE: ClientCapabilities = { elicitation: { form: {} } };
+
+const URL_CAPABLE: ClientCapabilities = { elicitation: { url: {} } };
+
+const SECRET_COLLECTION: NonNullable<
+  SupabaseMcpServerOptions['secretCollection']
+> = {
+  connectBaseUrl: 'https://supabase.com/dashboard/mcp_callback',
+};
+
 // https://blog.modelcontextprotocol.io/posts/2026-07-28-release-candidate/
 const MODERN_PROTOCOL_VERSION = '2026-07-28';
 const MCP_ENDPOINT = new URL('https://mcp.test');
@@ -175,14 +191,21 @@ const MCP_ENDPOINT = new URL('https://mcp.test');
 /**
  * Sets up an MCP client against the hosted HTTP handler (in-process, via a
  * custom `fetch`) for the `create_project`/`create_branch` cost-confirmation
- * elicitation lanes: a client pinned to the 2026-07-28 protocol, declaring
- * per-request form capability. Raw `StreamTransport` only speaks the 2025
- * era, so the form-capable lane - which depends on the per-request `_meta`
+ * elicitation lanes: a client pinned to the 2026-07-28 protocol. Raw
+ * `StreamTransport` only speaks the 2025 era, so the form-capable lane - which
+ * depends on the per-request `_meta`
  * envelope - needs the same in-process HTTP transport the hosted runtime
  * uses.
  */
-async function setupFormCapable(options: FormCapableSetupOptions = {}) {
-  const { readOnly, projectId, elicitationAction } = options;
+async function setupModern(options: ModernSetupOptions = {}) {
+  const {
+    readOnly,
+    projectId,
+    elicitationAction,
+    costConfirmation = COST_CONFIRMATION,
+    clientCapabilities = {},
+    secretCollection,
+  } = options;
 
   const platform = createSupabaseApiPlatform({
     accessToken: ACCESS_TOKEN,
@@ -202,7 +225,8 @@ async function setupFormCapable(options: FormCapableSetupOptions = {}) {
     platform,
     projectId,
     readOnly,
-    costConfirmation: COST_CONFIRMATION,
+    costConfirmation,
+    secretCollection,
   });
 
   const transport = new StreamableHTTPClientTransport(MCP_ENDPOINT, {
@@ -212,7 +236,7 @@ async function setupFormCapable(options: FormCapableSetupOptions = {}) {
   const client = new Client(
     { name: MCP_CLIENT_NAME, version: MCP_CLIENT_VERSION },
     {
-      capabilities: { elicitation: { form: {} } },
+      capabilities: clientCapabilities,
       versionNegotiation: { mode: { pin: MODERN_PROTOCOL_VERSION } },
       ...(elicitationAction === undefined && {
         inputRequired: { autoFulfill: false },
@@ -237,56 +261,12 @@ async function setupFormCapable(options: FormCapableSetupOptions = {}) {
  * Sets up an MCP client with URL elicitation capability for the
  * `create_edge_function_secret` secret-collection elicitation lane.
  */
-async function setupUrlCapable(options: FormCapableSetupOptions = {}) {
-  const { readOnly, projectId, elicitationAction } = options;
-
-  const platform = createSupabaseApiPlatform({
-    accessToken: ACCESS_TOKEN,
-    apiUrl: API_URL,
+const setupUrlCapable = (options: ModernSetupOptions = {}) =>
+  setupModern({
+    ...options,
+    clientCapabilities: URL_CAPABLE,
+    secretCollection: SECRET_COLLECTION,
   });
-
-  await platform.init?.({
-    clientInfo: { name: MCP_CLIENT_NAME, version: MCP_CLIENT_VERSION },
-    clientCapabilities: { elicitation: { url: {} } },
-  });
-
-  const handler = createSupabaseMcpHandler({
-    platform,
-    projectId,
-    readOnly,
-    costConfirmation: COST_CONFIRMATION,
-    secretCollection: {
-      connectBaseUrl: 'https://supabase.com/dashboard/mcp_callback',
-    },
-  });
-
-  const transport = new StreamableHTTPClientTransport(MCP_ENDPOINT, {
-    fetch: (url, init) => handler.fetch(new Request(url, init)),
-  });
-
-  const client = new Client(
-    { name: MCP_CLIENT_NAME, version: MCP_CLIENT_VERSION },
-    {
-      capabilities: { elicitation: { url: {} } },
-      versionNegotiation: { mode: { pin: MODERN_PROTOCOL_VERSION } },
-      ...(elicitationAction === undefined && {
-        inputRequired: { autoFulfill: false },
-      }),
-    }
-  );
-
-  if (elicitationAction !== undefined) {
-    client.setRequestHandler('elicitation/create', async () =>
-      elicitationAction === 'accept'
-        ? { action: 'accept' as const, content: {} }
-        : { action: elicitationAction }
-    );
-  }
-
-  await client.connect(transport);
-
-  return { client };
-}
 
 describe('init', () => {
   test('server returns instructions', async () => {
@@ -711,6 +691,107 @@ describe('tools', () => {
       );
     });
 
+    test('hides cost tools from a form-capable client', async () => {
+      const { client } = await setupModern({
+        clientCapabilities: FORM_CAPABLE,
+        costConfirmation: COST_CONFIRMATION,
+      });
+
+      const { tools } = await client.listTools();
+      const names = tools.map((tool) => tool.name);
+
+      expect(names).not.toContain('get_cost');
+      expect(names).not.toContain('confirm_cost');
+      expect(names).toContain('create_project');
+    });
+
+    test('omits confirm_cost_id from create_project for a form-capable client', async () => {
+      const { client } = await setupModern({
+        clientCapabilities: FORM_CAPABLE,
+      });
+
+      const { tools } = await client.listTools();
+      const createProjectTool = tools.find(
+        (tool) => tool.name === 'create_project'
+      );
+
+      expect(createProjectTool?.inputSchema.properties).not.toHaveProperty(
+        'confirm_cost_id'
+      );
+    });
+
+    test('omits confirm_cost_id from create_branch for a form-capable client', async () => {
+      const { client } = await setupModern({
+        clientCapabilities: FORM_CAPABLE,
+      });
+
+      const { tools } = await client.listTools();
+      const createBranchTool = tools.find(
+        (tool) => tool.name === 'create_branch'
+      );
+
+      expect(createBranchTool?.inputSchema.properties).not.toHaveProperty(
+        'confirm_cost_id'
+      );
+    });
+
+    test('narrows cost tools to branch while create_branch still needs confirm_cost_id', async () => {
+      const { client } = await setupModern({
+        clientCapabilities: FORM_CAPABLE,
+        costConfirmation: {
+          ...COST_CONFIRMATION,
+          enabledTools: ['create_project'],
+        },
+      });
+
+      const { tools } = await client.listTools();
+
+      for (const name of ['get_cost', 'confirm_cost']) {
+        const tool = tools.find((tool) => tool.name === name);
+        expect(tool?.inputSchema.properties?.type).toStrictEqual({
+          type: 'string',
+          enum: ['branch'],
+        });
+      }
+    });
+
+    test('lists cost tools for a 2025-era client that declares elicitation', async () => {
+      const { client } = await setup({
+        costConfirmation: COST_CONFIRMATION,
+        clientCapabilities: { elicitation: { form: {} } },
+      });
+
+      const { tools } = await client.listTools();
+      const names = tools.map((tool) => tool.name);
+
+      expect(names).toContain('get_cost');
+      expect(names).toContain('confirm_cost');
+    });
+
+    test('lists cost tools for a modern client without elicitation', async () => {
+      const { client } = await setupModern({
+        costConfirmation: COST_CONFIRMATION,
+      });
+
+      const { tools } = await client.listTools();
+      const names = tools.map((tool) => tool.name);
+
+      expect(names).toContain('get_cost');
+      expect(names).toContain('confirm_cost');
+    });
+
+    test('lists cost tools for a capability-free client', async () => {
+      const { client } = await setup({
+        costConfirmation: COST_CONFIRMATION,
+      });
+
+      const { tools } = await client.listTools();
+      const names = tools.map((tool) => tool.name);
+
+      expect(names).toContain('get_cost');
+      expect(names).toContain('confirm_cost');
+    });
+
     test('capability-free client still succeeds via get_cost -> confirm_cost -> create_project', async () => {
       const { callTool } = await setup({
         costConfirmation: COST_CONFIRMATION,
@@ -746,7 +827,9 @@ describe('tools', () => {
     });
 
     test('form-capable client: $0 creates without elicitation', async () => {
-      const { client } = await setupFormCapable();
+      const { client } = await setupModern({
+        clientCapabilities: FORM_CAPABLE,
+      });
 
       const freeOrg = await createOrganization({
         name: 'Free Org',
@@ -778,7 +861,8 @@ describe('tools', () => {
     });
 
     test('form-capable client: accept creates the project exactly once', async () => {
-      const { client } = await setupFormCapable({
+      const { client } = await setupModern({
+        clientCapabilities: FORM_CAPABLE,
         elicitationAction: 'accept',
       });
       const { org } = await createOrganizationWithBillableNextProject();
@@ -807,7 +891,8 @@ describe('tools', () => {
     });
 
     test('form-capable client: decline does not create a project', async () => {
-      const { client } = await setupFormCapable({
+      const { client } = await setupModern({
+        clientCapabilities: FORM_CAPABLE,
         elicitationAction: 'decline',
       });
       const { org } = await createOrganizationWithBillableNextProject();
@@ -827,7 +912,8 @@ describe('tools', () => {
     });
 
     test('form-capable client: cancel does not create a project', async () => {
-      const { client } = await setupFormCapable({
+      const { client } = await setupModern({
+        clientCapabilities: FORM_CAPABLE,
         elicitationAction: 'cancel',
       });
       const { org } = await createOrganizationWithBillableNextProject();
@@ -847,7 +933,9 @@ describe('tools', () => {
     });
 
     test('rejects a retry whose arguments changed since the state was minted', async () => {
-      const { client } = await setupFormCapable();
+      const { client } = await setupModern({
+        clientCapabilities: FORM_CAPABLE,
+      });
       const { org } = await createOrganizationWithBillableNextProject();
       const otherOrg = await createOrganization({
         name: 'Other Org',
@@ -903,7 +991,9 @@ describe('tools', () => {
     });
 
     test('creates without re-prompting when the quoted cost drops to zero before confirmation', async () => {
-      const { client } = await setupFormCapable();
+      const { client } = await setupModern({
+        clientCapabilities: FORM_CAPABLE,
+      });
       const { org, existingProject } =
         await createOrganizationWithBillableNextProject();
 
@@ -951,7 +1041,9 @@ describe('tools', () => {
     });
 
     test('a decline is honored even when the quoted cost changed since the state was minted', async () => {
-      const { client } = await setupFormCapable();
+      const { client } = await setupModern({
+        clientCapabilities: FORM_CAPABLE,
+      });
       const { org, existingProject } =
         await createOrganizationWithBillableNextProject();
 
@@ -3882,7 +3974,8 @@ describe('tools', () => {
     });
 
     test('form-capable client: accept creates the branch exactly once', async () => {
-      const { client } = await setupFormCapable({
+      const { client } = await setupModern({
+        clientCapabilities: FORM_CAPABLE,
         elicitationAction: 'accept',
       });
 
@@ -3922,7 +4015,8 @@ describe('tools', () => {
     });
 
     test('form-capable client: decline does not create a branch', async () => {
-      const { client } = await setupFormCapable({
+      const { client } = await setupModern({
+        clientCapabilities: FORM_CAPABLE,
         elicitationAction: 'decline',
       });
 
@@ -3950,7 +4044,8 @@ describe('tools', () => {
     });
 
     test('form-capable client: cancel does not create a branch', async () => {
-      const { client } = await setupFormCapable({
+      const { client } = await setupModern({
+        clientCapabilities: FORM_CAPABLE,
         elicitationAction: 'cancel',
       });
 
@@ -3978,7 +4073,9 @@ describe('tools', () => {
     });
 
     test('form-capable client: a non-elicitation response re-prompts without creating a branch', async () => {
-      const { client } = await setupFormCapable();
+      const { client } = await setupModern({
+        clientCapabilities: FORM_CAPABLE,
+      });
 
       const org = await createOrganization({
         name: 'My Org',
@@ -4038,7 +4135,9 @@ describe('tools', () => {
           amount: BRANCH_COST_HOURLY + 1,
         });
       try {
-        const { client } = await setupFormCapable();
+        const { client } = await setupModern({
+          clientCapabilities: FORM_CAPABLE,
+        });
 
         const org = await createOrganization({
           name: 'My Org',
@@ -4115,8 +4214,10 @@ describe('tools', () => {
       }
     });
 
-    test('form-capable client: a supplied confirm_cost_id cannot bypass the form', async () => {
-      const { client } = await setupFormCapable();
+    test('form-capable client: a supplied confirm_cost_id is rejected', async () => {
+      const { client } = await setupModern({
+        clientCapabilities: FORM_CAPABLE,
+      });
 
       const org = await createOrganization({
         name: 'My Org',
@@ -4131,8 +4232,8 @@ describe('tools', () => {
       });
       project.status = 'ACTIVE_HEALTHY';
 
-      // The correct legacy hash - even a valid confirmation ID must not
-      // let a form-capable client skip straight to creation.
+      // The correct legacy hash. The field is not part of this client's
+      // schema, so even a valid confirmation ID must not reach creation.
       const legacyConfirmCostId = await hashObject(getBranchCost());
 
       const result = (await client.request(
@@ -4150,14 +4251,17 @@ describe('tools', () => {
         { allowInputRequired: true }
       )) as CallToolResult | InputRequiredResult;
 
-      if (!isInputRequiredResult(result)) {
-        throw new Error('expected an input_required result');
+      if (isInputRequiredResult(result)) {
+        throw new Error('expected a tool error, not an input_required result');
       }
+      expect(result.isError).toBe(true);
       expect(mockBranches.size).toBe(0);
     });
 
     test('rejects a retry whose arguments changed since the state was minted', async () => {
-      const { client } = await setupFormCapable();
+      const { client } = await setupModern({
+        clientCapabilities: FORM_CAPABLE,
+      });
 
       const org = await createOrganization({
         name: 'My Org',
@@ -4225,7 +4329,8 @@ describe('tools', () => {
       });
       project.status = 'ACTIVE_HEALTHY';
 
-      const { client } = await setupFormCapable({
+      const { client } = await setupModern({
+        clientCapabilities: FORM_CAPABLE,
         projectId: project.id,
         elicitationAction: 'accept',
       });
@@ -4261,7 +4366,9 @@ describe('tools', () => {
     });
 
     test('rejects a requestState minted by create_project', async () => {
-      const { client } = await setupFormCapable();
+      const { client } = await setupModern({
+        clientCapabilities: FORM_CAPABLE,
+      });
 
       // create_project only triggers cost confirmation for a paid org's
       // additional projects, so set up a pro org with one existing project.
@@ -4330,7 +4437,9 @@ describe('tools', () => {
     });
 
     test('rejects a tampered requestState before the handler runs', async () => {
-      const { client } = await setupFormCapable();
+      const { client } = await setupModern({
+        clientCapabilities: FORM_CAPABLE,
+      });
 
       const org = await createOrganization({
         name: 'My Org',
@@ -5646,10 +5755,12 @@ describe('tools', () => {
     // query_logs).
     const registryToolNames = Object.keys(supabaseMcpToolSchemas);
     const serverToolNames = tools.map((t) => t.name);
-    // Registered only when secretCollection is configured
+    // Registered only when secretCollection is configured; get_cost/confirm_cost hidden from form-capable clients
     const conditionallyHiddenToolNames = new Set([
       'get_logs',
       'create_edge_function_secret',
+      'get_cost',
+      'confirm_cost',
     ]);
 
     const extraToolsInRegistry = registryToolNames.filter(

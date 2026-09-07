@@ -68,7 +68,7 @@ type SetupOptions = {
   platform?: SupabasePlatform;
   readOnly?: boolean;
   features?: string[];
-  costConfirmation?: SupabaseMcpServerOptions['costConfirmation'];
+  elicitation?: SupabaseMcpServerOptions['elicitation'];
   clientCapabilities?: ClientCapabilities;
 };
 
@@ -81,7 +81,7 @@ async function setup(options: SetupOptions = {}) {
     projectId,
     readOnly,
     features,
-    costConfirmation,
+    elicitation,
     clientCapabilities = {},
   } = options;
   const clientTransport = new StreamTransport();
@@ -112,7 +112,7 @@ async function setup(options: SetupOptions = {}) {
     projectId,
     readOnly,
     features,
-    costConfirmation,
+    elicitation,
   });
 
   await server.connect(serverTransport);
@@ -153,11 +153,13 @@ async function setup(options: SetupOptions = {}) {
 }
 
 type ModernSetupOptions = {
-  costConfirmation?: SupabaseMcpServerOptions['costConfirmation'];
+  elicitation?: SupabaseMcpServerOptions['elicitation'];
   clientCapabilities?: ClientCapabilities;
   readOnly?: boolean;
   projectId?: string;
-  secretCollection?: SupabaseMcpServerOptions['secretCollection'];
+  secretCollection?: NonNullable<
+    NonNullable<SupabaseMcpServerOptions['elicitation']>['secretCollection']
+  >;
   /**
    * Registers an auto-fulfilling `elicitation/create` handler that always
    * answers with this action, driven via `client.callTool`. Omit for manual
@@ -166,12 +168,17 @@ type ModernSetupOptions = {
   elicitationAction?: 'accept' | 'decline' | 'cancel';
 };
 
-const COST_CONFIRMATION: NonNullable<
-  SupabaseMcpServerOptions['costConfirmation']
-> = {
-  requestStateKey: 'a'.repeat(32),
+const ELICITATION_REQUEST_STATE: NonNullable<
+  SupabaseMcpServerOptions['elicitation']
+>['requestState'] = {
+  key: 'a'.repeat(32),
   principal: 'test-user',
-  enabledTools: ['create_project', 'create_branch'],
+};
+
+const COST_CONFIRMATION: NonNullable<
+  SupabaseMcpServerOptions['elicitation']
+>['costConfirmation'] = {
+  enabledTools: ['create_project', 'create_branch'] as const,
 };
 
 const FORM_CAPABLE: ClientCapabilities = { elicitation: { form: {} } };
@@ -179,7 +186,7 @@ const FORM_CAPABLE: ClientCapabilities = { elicitation: { form: {} } };
 const URL_CAPABLE: ClientCapabilities = { elicitation: { url: {} } };
 
 const SECRET_COLLECTION: NonNullable<
-  SupabaseMcpServerOptions['secretCollection']
+  NonNullable<SupabaseMcpServerOptions['elicitation']>['secretCollection']
 > = {
   connectUrlTemplate:
     'https://supabase.com/dashboard/project/{ref}/mcp/secrets?name={name}',
@@ -200,14 +207,16 @@ const MCP_ENDPOINT = new URL('https://mcp.test');
  */
 async function setupModern(options: ModernSetupOptions = {}) {
   const {
-    readOnly,
-    projectId,
-    elicitationAction,
-    costConfirmation = COST_CONFIRMATION,
+    elicitation = {
+      requestState: ELICITATION_REQUEST_STATE,
+      costConfirmation: COST_CONFIRMATION,
+    },
     clientCapabilities = {},
     secretCollection,
+    elicitationAction,
+    readOnly,
+    projectId,
   } = options;
-
   const platform = createSupabaseApiPlatform({
     accessToken: ACCESS_TOKEN,
     apiUrl: API_URL,
@@ -226,8 +235,9 @@ async function setupModern(options: ModernSetupOptions = {}) {
     platform,
     projectId,
     readOnly,
-    costConfirmation,
-    secretCollection,
+    elicitation: secretCollection
+      ? { ...elicitation, secretCollection }
+      : elicitation,
   });
 
   const transport = new StreamableHTTPClientTransport(MCP_ENDPOINT, {
@@ -679,7 +689,10 @@ describe('tools', () => {
 
     test('create_project advertises confirm_cost_id as optional when cost confirmation is configured', async () => {
       const { client } = await setup({
-        costConfirmation: COST_CONFIRMATION,
+        elicitation: {
+          requestState: ELICITATION_REQUEST_STATE,
+          costConfirmation: COST_CONFIRMATION,
+        },
       });
 
       const { tools } = await client.listTools();
@@ -695,9 +708,7 @@ describe('tools', () => {
     test('hides cost tools from a form-capable client', async () => {
       const { client } = await setupModern({
         clientCapabilities: FORM_CAPABLE,
-        costConfirmation: COST_CONFIRMATION,
       });
-
       const { tools } = await client.listTools();
       const names = tools.map((tool) => tool.name);
 
@@ -739,9 +750,12 @@ describe('tools', () => {
     test('narrows cost tools to branch while create_branch still needs confirm_cost_id', async () => {
       const { client } = await setupModern({
         clientCapabilities: FORM_CAPABLE,
-        costConfirmation: {
-          ...COST_CONFIRMATION,
-          enabledTools: ['create_project'],
+        elicitation: {
+          requestState: ELICITATION_REQUEST_STATE,
+          costConfirmation: {
+            ...COST_CONFIRMATION,
+            enabledTools: ['create_project'],
+          },
         },
       });
 
@@ -758,7 +772,10 @@ describe('tools', () => {
 
     test('lists cost tools for a 2025-era client that declares elicitation', async () => {
       const { client } = await setup({
-        costConfirmation: COST_CONFIRMATION,
+        elicitation: {
+          requestState: ELICITATION_REQUEST_STATE,
+          costConfirmation: COST_CONFIRMATION,
+        },
         clientCapabilities: { elicitation: { form: {} } },
       });
 
@@ -770,9 +787,7 @@ describe('tools', () => {
     });
 
     test('lists cost tools for a modern client without elicitation', async () => {
-      const { client } = await setupModern({
-        costConfirmation: COST_CONFIRMATION,
-      });
+      const { client } = await setupModern({});
 
       const { tools } = await client.listTools();
       const names = tools.map((tool) => tool.name);
@@ -783,7 +798,10 @@ describe('tools', () => {
 
     test('lists cost tools for a capability-free client', async () => {
       const { client } = await setup({
-        costConfirmation: COST_CONFIRMATION,
+        elicitation: {
+          requestState: ELICITATION_REQUEST_STATE,
+          costConfirmation: COST_CONFIRMATION,
+        },
       });
 
       const { tools } = await client.listTools();
@@ -795,7 +813,10 @@ describe('tools', () => {
 
     test('capability-free client still succeeds via get_cost -> confirm_cost -> create_project', async () => {
       const { callTool } = await setup({
-        costConfirmation: COST_CONFIRMATION,
+        elicitation: {
+          requestState: ELICITATION_REQUEST_STATE,
+          costConfirmation: COST_CONFIRMATION,
+        },
       });
 
       const freeOrg = await createOrganization({
@@ -3909,7 +3930,10 @@ describe('tools', () => {
     test('create_branch advertises confirm_cost_id as optional when cost confirmation is configured', async () => {
       const { client } = await setup({
         features: ['branching'],
-        costConfirmation: COST_CONFIRMATION,
+        elicitation: {
+          requestState: ELICITATION_REQUEST_STATE,
+          costConfirmation: COST_CONFIRMATION,
+        },
       });
 
       const { tools } = await client.listTools();
@@ -3925,7 +3949,10 @@ describe('tools', () => {
     test('capability-free client still succeeds via get_cost -> confirm_cost -> create_branch', async () => {
       const { callTool } = await setup({
         features: ['account', 'branching'],
-        costConfirmation: COST_CONFIRMATION,
+        elicitation: {
+          requestState: ELICITATION_REQUEST_STATE,
+          costConfirmation: COST_CONFIRMATION,
+        },
       });
 
       const org = await createOrganization({
@@ -4562,10 +4589,13 @@ describe('tools', () => {
 
         const handler = createSupabaseMcpHandler({
           platform,
-          costConfirmation: COST_CONFIRMATION,
-          secretCollection: {
-            connectUrlTemplate:
-              'https://supabase.com/dashboard/project/{ref}/mcp/secrets?name={name}',
+          elicitation: {
+            requestState: ELICITATION_REQUEST_STATE,
+            costConfirmation: COST_CONFIRMATION,
+            secretCollection: {
+              connectUrlTemplate:
+                'https://supabase.com/dashboard/project/{ref}/mcp/secrets?name={name}',
+            },
           },
         });
 
@@ -4962,10 +4992,13 @@ describe('tools', () => {
 
       const handler = createSupabaseMcpHandler({
         platform,
-        costConfirmation: COST_CONFIRMATION,
-        secretCollection: {
-          connectUrlTemplate:
-            'https://supabase.com/dashboard/project/{ref}/mcp/secrets?name={name}',
+        elicitation: {
+          requestState: ELICITATION_REQUEST_STATE,
+          costConfirmation: COST_CONFIRMATION,
+          secretCollection: {
+            connectUrlTemplate:
+              'https://supabase.com/dashboard/project/{ref}/mcp/secrets?name={name}',
+          },
         },
       });
 
@@ -5052,7 +5085,10 @@ describe('tools', () => {
 
       const handler = createSupabaseMcpHandler({
         platform,
-        costConfirmation: COST_CONFIRMATION,
+        elicitation: {
+          requestState: ELICITATION_REQUEST_STATE,
+          costConfirmation: COST_CONFIRMATION,
+        },
         // secretCollection NOT set
       });
 
@@ -5078,26 +5114,6 @@ describe('tools', () => {
       expect(secretTool).toBeUndefined();
     });
 
-    test('constructing server with secretCollection but no costConfirmation throws', async () => {
-      const platform = createSupabaseApiPlatform({
-        accessToken: ACCESS_TOKEN,
-        apiUrl: API_URL,
-      });
-
-      expect(() =>
-        createSupabaseMcpServer({
-          platform,
-          secretCollection: {
-            connectUrlTemplate:
-              'https://supabase.com/dashboard/project/{ref}/mcp/secrets?name={name}',
-          },
-          // costConfirmation NOT set
-        })
-      ).toThrow(
-        'secretCollection requires costConfirmation (shared requestState codec).'
-      );
-    });
-
     test('constructing server with template missing {name} placeholder throws', async () => {
       const platform = createSupabaseApiPlatform({
         accessToken: ACCESS_TOKEN,
@@ -5107,10 +5123,13 @@ describe('tools', () => {
       expect(() =>
         createSupabaseMcpServer({
           platform,
-          costConfirmation: COST_CONFIRMATION,
-          secretCollection: {
-            connectUrlTemplate:
-              'https://supabase.com/dashboard/project/{ref}/mcp/secrets',
+          elicitation: {
+            requestState: ELICITATION_REQUEST_STATE,
+            costConfirmation: COST_CONFIRMATION,
+            secretCollection: {
+              connectUrlTemplate:
+                'https://supabase.com/dashboard/project/{ref}/mcp/secrets',
+            },
           },
         })
       ).toThrow(

@@ -14,12 +14,23 @@ import { injectableTool, type ToolDefs } from './util.js';
 
 const RESUME_WINDOW_SECONDS = 600;
 
+/** Fills `{ref}` and `{name}` in a connect URL template, percent-encoding each value. */
+export function buildConnectUrl(
+  template: string,
+  ref: string,
+  name: string
+): string {
+  return template
+    .replaceAll('{ref}', encodeURIComponent(ref))
+    .replaceAll('{name}', encodeURIComponent(name));
+}
+
 type SecretToolsOptions = {
   secrets: SecretOperations;
   projectId?: string;
   readOnly?: boolean;
   codec: RequestStateCodec<CostConfirmationState>;
-  connectBaseUrl: string;
+  connectUrlTemplate: string;
 };
 
 const createEdgeFunctionSecretInputSchema = z.object({
@@ -60,7 +71,7 @@ export function getSecretTools({
   projectId,
   readOnly,
   codec,
-  connectBaseUrl,
+  connectUrlTemplate,
 }: SecretToolsOptions) {
   const project_id = projectId;
 
@@ -88,7 +99,7 @@ export function getSecretTools({
                   'Only continue if you asked your AI client to store this secret.',
                   'Return here and confirm once it is stored.',
                 ].join('\n'),
-                url: `${connectBaseUrl}?ref=${encodeURIComponent(project_id)}&name=${encodeURIComponent(name)}`,
+                url: buildConnectUrl(connectUrlTemplate, project_id, name),
               }),
             },
             requestState: await codec.mint(

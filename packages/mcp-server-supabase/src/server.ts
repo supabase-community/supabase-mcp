@@ -88,11 +88,12 @@ export type SupabaseMcpServerOptions = {
    */
   secretCollection?: {
     /**
-     * Base URL of the dashboard page that collects the secret value;
-     * `?ref=<project>&name=<secret>` is appended. Must not contain a query
-     * string or fragment.
+     * URL template of the dashboard page that collects the secret value.
+     * MUST contain the `{ref}` and `{name}` placeholders; each is replaced
+     * with the percent-encoded project ref and secret name.
+     * Example: `https://supabase.com/dashboard/project/{ref}/mcp/secrets?name={name}`.
      */
-    connectBaseUrl: string;
+    connectUrlTemplate: string;
   };
 };
 
@@ -144,6 +145,25 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
     throw new Error(
       'secretCollection requires costConfirmation (shared requestState codec).'
     );
+  }
+
+  if (secretCollection) {
+    const { connectUrlTemplate } = secretCollection;
+    let absolute = true;
+    try {
+      new URL(connectUrlTemplate);
+    } catch {
+      absolute = false;
+    }
+    if (
+      !absolute ||
+      !connectUrlTemplate.includes('{ref}') ||
+      !connectUrlTemplate.includes('{name}')
+    ) {
+      throw new Error(
+        'secretCollection.connectUrlTemplate must be an absolute URL containing the {ref} and {name} placeholders.'
+      );
+    }
   }
 
   const contentApiClientPromise = createContentApiClient(contentApiUrl, {
@@ -287,7 +307,7 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
             projectId,
             readOnly,
             codec: costConfirmationCodec,
-            connectBaseUrl: secretCollection.connectBaseUrl,
+            connectUrlTemplate: secretCollection.connectUrlTemplate,
           })
         );
       }

@@ -181,7 +181,8 @@ const URL_CAPABLE: ClientCapabilities = { elicitation: { url: {} } };
 const SECRET_COLLECTION: NonNullable<
   SupabaseMcpServerOptions['secretCollection']
 > = {
-  connectBaseUrl: 'https://supabase.com/dashboard/mcp_callback',
+  connectUrlTemplate:
+    'https://supabase.com/dashboard/project/{ref}/mcp/secrets?name={name}',
 };
 
 // https://blog.modelcontextprotocol.io/posts/2026-07-28-release-candidate/
@@ -4531,7 +4532,7 @@ describe('tools', () => {
           method: 'elicitation/create',
           params: {
             mode: 'url',
-            url: `https://supabase.com/dashboard/mcp_callback?ref=${encodeURIComponent(project.id)}&name=MY_SECRET`,
+            url: `https://supabase.com/dashboard/project/${encodeURIComponent(project.id)}/mcp/secrets?name=MY_SECRET`,
           },
         });
 
@@ -4563,7 +4564,8 @@ describe('tools', () => {
           platform,
           costConfirmation: COST_CONFIRMATION,
           secretCollection: {
-            connectBaseUrl: 'https://supabase.com/dashboard/mcp_callback',
+            connectUrlTemplate:
+              'https://supabase.com/dashboard/project/{ref}/mcp/secrets?name={name}',
           },
         });
 
@@ -4771,7 +4773,7 @@ describe('tools', () => {
         expect(second.inputRequests?.store_secret).toMatchObject({
           method: 'elicitation/create',
           params: {
-            url: `https://supabase.com/dashboard/mcp_callback?ref=${encodeURIComponent(project.id)}&name=MY_SECRET`,
+            url: `https://supabase.com/dashboard/project/${encodeURIComponent(project.id)}/mcp/secrets?name=MY_SECRET`,
           },
         });
 
@@ -4962,7 +4964,8 @@ describe('tools', () => {
         platform,
         costConfirmation: COST_CONFIRMATION,
         secretCollection: {
-          connectBaseUrl: 'https://supabase.com/dashboard/mcp_callback',
+          connectUrlTemplate:
+            'https://supabase.com/dashboard/project/{ref}/mcp/secrets?name={name}',
         },
       });
 
@@ -5085,12 +5088,33 @@ describe('tools', () => {
         createSupabaseMcpServer({
           platform,
           secretCollection: {
-            connectBaseUrl: 'https://supabase.com/dashboard/mcp_callback',
+            connectUrlTemplate:
+              'https://supabase.com/dashboard/project/{ref}/mcp/secrets?name={name}',
           },
           // costConfirmation NOT set
         })
       ).toThrow(
         'secretCollection requires costConfirmation (shared requestState codec).'
+      );
+    });
+
+    test('constructing server with template missing {name} placeholder throws', async () => {
+      const platform = createSupabaseApiPlatform({
+        accessToken: ACCESS_TOKEN,
+        apiUrl: API_URL,
+      });
+
+      expect(() =>
+        createSupabaseMcpServer({
+          platform,
+          costConfirmation: COST_CONFIRMATION,
+          secretCollection: {
+            connectUrlTemplate:
+              'https://supabase.com/dashboard/project/{ref}/mcp/secrets',
+          },
+        })
+      ).toThrow(
+        'secretCollection.connectUrlTemplate must be an absolute URL containing the {ref} and {name} placeholders.'
       );
     });
   });

@@ -614,7 +614,7 @@ export const mockManagementApi = [
 
   http.get<{ projectId: string }>(
     `${API_URL}/platform/projects/:projectId/run-lints`,
-    async ({ params }) => {
+    async ({ params, request }) => {
       const project = mockProjects.get(params.projectId);
       if (!project) {
         return HttpResponse.json(
@@ -622,6 +622,10 @@ export const mockManagementApi = [
           { status: 404 }
         );
       }
+
+      expect(request.headers.get('user-agent')).toBe(
+        `${MCP_SERVER_NAME}/${MCP_SERVER_VERSION} (${MCP_CLIENT_NAME}/${MCP_CLIENT_VERSION})`
+      );
 
       return HttpResponse.json([
         {
@@ -634,6 +638,17 @@ export const mockManagementApi = [
           detail: 'Health checks cannot run while the project is inactive.',
           remediation: 'https://supabase.com/docs/guides/platform/health',
           cache_key: 'project_not_active',
+        },
+        {
+          name: 'advisor_check_unavailable',
+          title: 'Advisor Check Unavailable',
+          level: 'WARN',
+          facing: 'EXTERNAL',
+          categories: ['HEALTH'],
+          description: 'The health advisor check is unavailable.',
+          detail: 'Database telemetry is temporarily unavailable.',
+          remediation: 'https://supabase.com/docs/guides/platform/health',
+          cache_key: 'advisor_check_unavailable',
         },
         {
           name: 'unused_index',

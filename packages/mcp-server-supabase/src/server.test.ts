@@ -2973,6 +2973,17 @@ describe('tools', () => {
                 remediation: 'https://supabase.com/docs/guides/platform/health',
                 cache_key: 'project_not_active',
               },
+              {
+                name: 'advisor_check_unavailable',
+                title: 'Advisor Check Unavailable',
+                level: 'WARN',
+                facing: 'EXTERNAL',
+                categories: ['HEALTH'],
+                description: 'The health advisor check is unavailable.',
+                detail: 'Database telemetry is temporarily unavailable.',
+                remediation: 'https://supabase.com/docs/guides/platform/health',
+                cache_key: 'advisor_check_unavailable',
+              },
             ],
           };
         },
@@ -3151,6 +3162,21 @@ describe('tools', () => {
           findings: [
             {
               detail: 'Health checks cannot run while the project is inactive.',
+            },
+          ],
+        },
+        {
+          name: 'advisor_check_unavailable',
+          title: 'Advisor Check Unavailable',
+          level: 'WARN',
+          facing: 'EXTERNAL',
+          categories: ['HEALTH'],
+          description: 'The health advisor check is unavailable.',
+          remediation: 'https://supabase.com/docs/guides/platform/health',
+          count: 1,
+          findings: [
+            {
+              detail: 'Database telemetry is temporarily unavailable.',
             },
           ],
         },

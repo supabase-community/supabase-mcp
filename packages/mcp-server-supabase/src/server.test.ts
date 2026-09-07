@@ -4509,6 +4509,62 @@ describe('tools', () => {
       expect(executeSql).toHaveBeenCalledOnce();
     });
 
+    test.each([
+      ['execute_sql', 'apply_migration'],
+      ['apply_migration', 'execute_sql'],
+    ] as const)(
+      'form-capable client: only $enabledTool elicits when the other SQL tool is disabled',
+      async (enabledTool, disabledTool) => {
+        const { client, platform } = await setupModern({
+          clientCapabilities: FORM_CAPABLE,
+          confirmation: {
+            ...COST_CONFIRMATION,
+            enabledTools: [enabledTool],
+          },
+          elicitationAction: 'decline',
+        });
+        const project = await createActiveProject();
+        await project.db.exec('create table films (id int)');
+        const executeSql = vi.spyOn(platform.database!, 'executeSql');
+        const applyMigration = vi.spyOn(platform.database!, 'applyMigration');
+        const toolCalls = {
+          execute_sql: {
+            name: 'execute_sql',
+            arguments: {
+              project_id: project.id,
+              query: 'drop table films;',
+            },
+          },
+          apply_migration: {
+            name: 'apply_migration',
+            arguments: {
+              project_id: project.id,
+              name: 'drop_films',
+              query: 'drop table films;',
+            },
+          },
+        } satisfies Record<
+          'execute_sql' | 'apply_migration',
+          CallToolRequestParams
+        >;
+        const operations = {
+          execute_sql: executeSql,
+          apply_migration: applyMigration,
+        };
+
+        const enabledResult = await client.callTool(toolCalls[enabledTool]);
+
+        expect(enabledResult.structuredContent).toEqual({
+          status: 'declined',
+        });
+        expect(operations[enabledTool]).not.toHaveBeenCalled();
+
+        await client.callTool(toolCalls[disabledTool]);
+
+        expect(operations[disabledTool]).toHaveBeenCalledOnce();
+      }
+    );
+
     test('form-capable client: accept runs destructive SQL exactly once', async () => {
       const { client, platform } = await setupModern({
         clientCapabilities: FORM_CAPABLE,
@@ -4683,6 +4739,62 @@ describe('tools', () => {
       });
 
       expect(result.structuredContent).toEqual({ status: 'declined' });
+      expect(applyMigration).not.toHaveBeenCalled();
+    });
+
+    test('rejects a retry whose migration name changed since the state was minted', async () => {
+      const { client, platform } = await setupModern({
+        clientCapabilities: FORM_CAPABLE,
+      });
+      const project = await createActiveProject();
+      const applyMigration = vi.spyOn(platform.database!, 'applyMigration');
+
+      const first = (await client.request(
+        {
+          method: 'tools/call',
+          params: {
+            name: 'apply_migration',
+            arguments: {
+              project_id: project.id,
+              name: 'drop_films',
+              query: 'drop table films;',
+            },
+          },
+        },
+        { allowInputRequired: true }
+      )) as CallToolResult | InputRequiredResult;
+      if (!isInputRequiredResult(first)) {
+        throw new Error('expected an input_required result');
+      }
+
+      const second = (await client.request(
+        {
+          method: 'tools/call',
+          params: {
+            name: 'apply_migration',
+            arguments: {
+              project_id: project.id,
+              name: 'drop_actors',
+              query: 'drop table films;',
+            },
+            inputResponses: {
+              confirm_destructive: { action: 'accept', content: {} },
+            },
+            requestState: first.requestState,
+          },
+        },
+        { allowInputRequired: true }
+      )) as CallToolResult | InputRequiredResult;
+
+      if (isInputRequiredResult(second)) {
+        throw new Error('expected a CallToolResult');
+      }
+      expect(second.content).toContainEqual({
+        type: 'text',
+        text: 'Request state arguments do not match the current arguments.',
+      });
+      expect(second.structuredContent).toEqual({ status: 'error' });
+      expect(second.isError).toBe(true);
       expect(applyMigration).not.toHaveBeenCalled();
     });
 

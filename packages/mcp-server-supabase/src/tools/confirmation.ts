@@ -102,13 +102,6 @@ export const applyMigrationStateSchema = z.object({
   queryHash: z.string(),
 }) satisfies z.ZodType<ApplyMigrationState>;
 
-export const confirmationStateSchema = z.discriminatedUnion('tool', [
-  projectCostStateSchema,
-  branchCostStateSchema,
-  executeSqlStateSchema,
-  applyMigrationStateSchema,
-]);
-
 export type CheckConfirmationStateResult =
   | { kind: 'proceed' }
   | { kind: 'reprompt'; result: InputRequiredResult }

@@ -62,17 +62,6 @@ export function isUpdateWithoutWhere(sql: string): boolean {
   );
 }
 
-export function analyzeDestructiveSql(sql: string): {
-  hasDestructiveOperations: boolean;
-  hasUpdateWithoutWhere: boolean;
-} {
-  return {
-    hasDestructiveOperations: checkDestructiveQuery(sql),
-    hasUpdateWithoutWhere: isUpdateWithoutWhere(sql),
-  };
-}
-
 export function isDestructiveSql(sql: string): boolean {
-  const analysis = analyzeDestructiveSql(sql);
-  return analysis.hasDestructiveOperations || analysis.hasUpdateWithoutWhere;
+  return checkDestructiveQuery(sql) || isUpdateWithoutWhere(sql);
 }

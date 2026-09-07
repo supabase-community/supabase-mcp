@@ -24,7 +24,8 @@ describe('createPlatformApiClient', () => {
       params: { path: { ref: 'project-ref' } },
     });
 
-    const [request] = fetch.mock.calls[0];
+    const [request] = fetch.mock.calls[0] ?? [];
+    expect(request).toBeDefined();
     const sentRequest = new Request(request);
 
     expect(sentRequest.url).toBe(

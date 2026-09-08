@@ -2958,6 +2958,9 @@ describe('tools', () => {
             ],
           };
         },
+        async getHealthAdvisors() {
+          return { lints: [] };
+        },
       },
     };
 
@@ -3050,6 +3053,51 @@ describe('tools', () => {
     });
 
     expect(result).toEqual({ lints: [] });
+  });
+
+  test('get health advisors', async () => {
+    const { callTool } = await setup();
+
+    const org = await createOrganization({
+      name: 'My Org',
+      plan: 'free',
+      allowed_release_channels: ['ga'],
+    });
+
+    const project = await createProject({
+      name: 'Project 1',
+      region: 'us-east-1',
+      organization_id: org.id,
+    });
+    project.status = 'ACTIVE_HEALTHY';
+
+    const { result } = await callTool({
+      name: 'get_advisors',
+      arguments: {
+        project_id: project.id,
+        type: 'health',
+      },
+    });
+
+    expect(result).toEqual({
+      lints: [
+        {
+          name: 'instance_db_down',
+          title: 'Database instance is down',
+          level: 'ERROR',
+          facing: 'EXTERNAL',
+          categories: ['HEALTH'],
+          description: 'The database instance is unavailable.',
+          remediation: 'https://supabase.com/docs/guides/platform/health',
+          count: 1,
+          findings: [
+            {
+              detail: 'The instance did not respond to a health check.',
+            },
+          ],
+        },
+      ],
+    });
   });
 
   test('get logs for invalid service type', async () => {
@@ -5326,6 +5374,9 @@ describe('feature groups', () => {
         getPerformanceAdvisors() {
           throw new Error('Not implemented');
         },
+        getHealthAdvisors() {
+          throw new Error('Not implemented');
+        },
       },
     };
 
@@ -5364,6 +5415,9 @@ describe('feature groups', () => {
         getPerformanceAdvisors() {
           throw new Error('Not implemented');
         },
+        getHealthAdvisors() {
+          throw new Error('Not implemented');
+        },
       },
     };
 
@@ -5397,6 +5451,9 @@ describe('feature groups', () => {
           throw new Error('Not implemented');
         },
         getPerformanceAdvisors() {
+          throw new Error('Not implemented');
+        },
+        getHealthAdvisors() {
           throw new Error('Not implemented');
         },
       },

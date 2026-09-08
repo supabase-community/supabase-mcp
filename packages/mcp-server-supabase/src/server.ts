@@ -96,7 +96,7 @@ export const instructions = `
 Here are guidelines for using Supabase tools effectively:
 
 - Before making schema changes, inspect the existing tables so you understand the current structure
-- When debugging issues, start by reading the project's logs and its security and performance advisories before making changes
+- When debugging issues, start by reading the project's logs and its security, performance, and health advisories before making changes
 - Look up the project's API URL and its publishable API keys when helping users configure client-side integrations
 
 If you have access to a local development environment with a filesystem and shell:

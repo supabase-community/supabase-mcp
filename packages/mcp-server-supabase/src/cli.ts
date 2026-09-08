@@ -23,6 +23,7 @@ async function main() {
       ['features']: cliFeatures,
       ['http']: http,
       ['port']: cliPort,
+      ['oauth']: oauth,
     },
   } = parseArgs({
     options: {
@@ -56,6 +57,10 @@ async function main() {
         type: 'string',
         default: '3111',
       },
+      ['oauth']: {
+        type: 'boolean',
+        default: false,
+      },
     },
   });
 
@@ -70,12 +75,24 @@ async function main() {
     cliContentApiUrl ?? process.env.SUPABASE_CONTENT_API_URL;
 
   if (http) {
+    const oauthAuthorizationServer = oauth
+      ? new URL(apiUrl ?? 'https://api.supabase.com')
+      : undefined;
     const entry = await startLocalHttpEntry({
       port: Number(cliPort),
       apiUrl,
       contentApiUrl,
+      oauthAuthorizationServer,
     });
     console.error(`Supabase MCP server listening on ${entry.url}`);
+    if (oauthAuthorizationServer) {
+      console.error(
+        'Your MCP client signs in with Supabase OAuth in the browser on connect.'
+      );
+      console.error(
+        'Note: signing in against api.supabase.com will currently fail (400) until platform widens its OAuth resource validation for loopback URLs; see CONTRIBUTING.md.'
+      );
+    }
     return;
   }
 

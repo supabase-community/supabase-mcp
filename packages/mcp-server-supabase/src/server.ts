@@ -7,7 +7,7 @@ import {
 import packageJson from '../package.json' with { type: 'json' };
 import { createContentApiClient } from './content-api/index.js';
 import type { SupabasePlatform } from './platform/types.js';
-import { getAccountTools } from './tools/account-tools.js';
+import { getAccountTools, getCostTools } from './tools/account-tools.js';
 import { getBranchingTools } from './tools/branching-tools.js';
 import {
   type CostConfirmationState,
@@ -202,6 +202,16 @@ export function createSupabaseMcpServer(options: SupabaseMcpServerOptions) {
                 : undefined,
           })
         );
+      } else if (
+        projectId &&
+        account &&
+        branching &&
+        enabledFeatures.has('branching')
+      ) {
+        // Without an elicitation-capable client, `create_branch` still requires
+        // a confirm_cost_id that only the cost tools produce, so keep them
+        // available in project-scoped mode even though account tools are not.
+        Object.assign(tools, getCostTools({ account }));
       }
 
       if (database && enabledFeatures.has('database')) {

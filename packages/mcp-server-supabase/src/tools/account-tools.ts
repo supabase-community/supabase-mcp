@@ -32,6 +32,10 @@ type AccountToolsOptions = {
   };
 };
 
+type CostToolsOptions = {
+  account: AccountOperations;
+};
+
 const listOrganizationsInputSchema = z.object({});
 
 const listOrganizationsOutputSchema = z.object({
@@ -246,6 +250,38 @@ export const accountToolDefs = {
   },
 } as const satisfies ToolDefs;
 
+/**
+ * Cost confirmation tools (`get_cost` and `confirm_cost`).
+ *
+ * Part of the account tools, but also registered on their own in
+ * project-scoped mode (where account tools are unavailable) so that
+ * `create_branch` remains callable: without an elicitation-capable
+ * client it still requires a `confirm_cost_id` that only these produce.
+ */
+export function getCostTools({ account }: CostToolsOptions) {
+  return {
+    get_cost: tool({
+      ...accountToolDefs.get_cost,
+      execute: async ({ type, organization_id }) => {
+        switch (type) {
+          case 'project':
+            return await getNextProjectCost(account, organization_id);
+          case 'branch':
+            return getBranchCost();
+          default:
+            throw new Error(`Unknown cost type: ${type}`);
+        }
+      },
+    }),
+    confirm_cost: tool({
+      ...accountToolDefs.confirm_cost,
+      execute: async (cost) => {
+        return { confirmation_id: await hashObject(cost) };
+      },
+    }),
+  };
+}
+
 export function getAccountTools({
   account,
   readOnly,
@@ -276,25 +312,7 @@ export function getAccountTools({
         return await account.getProject(id);
       },
     }),
-    get_cost: tool({
-      ...accountToolDefs.get_cost,
-      execute: async ({ type, organization_id }) => {
-        switch (type) {
-          case 'project':
-            return await getNextProjectCost(account, organization_id);
-          case 'branch':
-            return getBranchCost();
-          default:
-            throw new Error(`Unknown cost type: ${type}`);
-        }
-      },
-    }),
-    confirm_cost: tool({
-      ...accountToolDefs.confirm_cost,
-      execute: async (cost) => {
-        return { confirmation_id: await hashObject(cost) };
-      },
-    }),
+    ...getCostTools({ account }),
     create_project: tool({
       ...accountToolDefs.create_project,
       parameters: costConfirmation

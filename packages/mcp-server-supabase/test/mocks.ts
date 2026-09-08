@@ -635,9 +635,7 @@ export const mockManagementApi = [
 
       expect(body.data.attributes.lints).toEqual([
         { name: 'db_not_reachable' },
-        { name: 'db_connection_failing' },
         { name: 'db_connection_limit_reached' },
-        { name: 'instance_telemetry_lost' },
         { name: 'instance_db_down' },
         { name: 'instance_alert_firing' },
         { name: 'log_data_api_error_rate_high' },

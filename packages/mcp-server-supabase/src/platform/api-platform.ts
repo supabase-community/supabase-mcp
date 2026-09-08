@@ -57,9 +57,7 @@ type HealthAdvisorName =
 
 const healthAdvisorNames = [
   'db_not_reachable',
-  'db_connection_failing',
   'db_connection_limit_reached',
-  'instance_telemetry_lost',
   'instance_db_down',
   'instance_alert_firing',
   'log_data_api_error_rate_high',

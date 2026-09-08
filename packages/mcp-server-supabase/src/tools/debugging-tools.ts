@@ -124,6 +124,12 @@ const getAdvisorsInputSchema = z.object({
     .describe('The type of advisors to fetch'),
 });
 
+const legacyAdvisorsInputSchema = getAdvisorsInputSchema.extend({
+  type: z
+    .enum(['security', 'performance'])
+    .describe('The type of advisors to fetch'),
+});
+
 const getAdvisorsOutputSchema = z.object({
   result: z.unknown(),
 });
@@ -344,8 +350,14 @@ export function getDebuggingTools({
     }),
     get_advisors: injectableTool({
       ...debuggingToolDefs.get_advisors,
+      parameters: debugging.getHealthAdvisors
+        ? getAdvisorsInputSchema
+        : legacyAdvisorsInputSchema,
       inject: { project_id },
-      execute: async ({ project_id, type }) => {
+      execute: async ({
+        project_id,
+        type,
+      }: z.infer<typeof getAdvisorsInputSchema>) => {
         let result: unknown;
         switch (type) {
           case 'security':
@@ -355,6 +367,11 @@ export function getDebuggingTools({
             result = await debugging.getPerformanceAdvisors(project_id);
             break;
           case 'health':
+            if (!debugging.getHealthAdvisors) {
+              throw new Error(
+                'Health advisors are not supported by this platform'
+              );
+            }
             result = await debugging.getHealthAdvisors(project_id);
             break;
           default:

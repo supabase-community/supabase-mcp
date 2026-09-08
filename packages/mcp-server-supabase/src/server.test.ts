@@ -2885,6 +2885,46 @@ describe('tools', () => {
     ).rejects.toThrow(/too_small|at least 1 character/);
   });
 
+  test('legacy platforms advertise and run only supported advisor types', async () => {
+    const platform: SupabasePlatform = {
+      debugging: {
+        async getLogs() {
+          return [];
+        },
+        async getSecurityAdvisors() {
+          return { lints: [] };
+        },
+        async getPerformanceAdvisors() {
+          return { lints: [] };
+        },
+      },
+    };
+    const { client, callTool } = await setup({
+      platform,
+      features: ['debugging'],
+    });
+    const { tools } = await client.listTools();
+    const advisors = tools.find((tool) => tool.name === 'get_advisors');
+
+    expect(advisors?.inputSchema.properties?.type).toMatchObject({
+      enum: ['security', 'performance'],
+    });
+    for (const type of ['security', 'performance']) {
+      await expect(
+        callTool({
+          name: 'get_advisors',
+          arguments: { project_id: 'test-project', type },
+        })
+      ).resolves.toEqual({ result: { lints: [] } });
+    }
+    await expect(
+      callTool({
+        name: 'get_advisors',
+        arguments: { project_id: 'test-project', type: 'health' },
+      })
+    ).rejects.toThrow();
+  });
+
   test('get security advisors', async () => {
     const { callTool } = await setup();
 
@@ -3055,7 +3095,7 @@ describe('tools', () => {
     expect(result).toEqual({ lints: [] });
   });
 
-  test('get health advisors', async () => {
+  test('get health advisors excludes unavailable checks like Studio', async () => {
     const { callTool } = await setup();
 
     const org = await createOrganization({

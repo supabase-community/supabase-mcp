@@ -660,6 +660,19 @@ export const mockManagementApi = [
                 remediation: 'https://supabase.com/docs/guides/platform/health',
                 cache_key: 'instance_db_down',
               },
+              ...['project_not_active', 'advisor_check_unavailable'].map(
+                (name) => ({
+                  name,
+                  title: 'Health check unavailable',
+                  level: 'INFO',
+                  facing: 'EXTERNAL',
+                  categories: ['HEALTH'],
+                  description: 'The health check could not run.',
+                  detail: 'No project health assessment is available.',
+                  remediation: '',
+                  cache_key: name,
+                })
+              ),
             ],
           },
         },

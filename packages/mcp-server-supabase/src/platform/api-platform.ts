@@ -378,7 +378,14 @@ export function createSupabaseApiPlatform(
 
       assertSuccess(response, 'Failed to fetch health advisors');
 
-      return response.data.data.attributes;
+      return {
+        ...response.data.data.attributes,
+        lints: response.data.data.attributes.lints.filter(
+          ({ name }) =>
+            name !== 'project_not_active' &&
+            name !== 'advisor_check_unavailable'
+        ),
+      };
     },
   };
 

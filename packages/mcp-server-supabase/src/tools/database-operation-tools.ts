@@ -113,11 +113,11 @@ const executeSqlOutputSchema = z.object({
 });
 
 // Appended to both raw-SQL tool descriptions (execute_sql, apply_migration),
-// which forward arbitrary SQL. Shared to prevent drift. The project connects as
-// its Postgres role on shared Supabase infrastructure, so the database host's
-// filesystem and OS are not the user's — discourage server-side file/OS access.
+// which forward arbitrary SQL. Shared to prevent drift. Discourages using SQL to
+// read server-side files or run OS commands on the database host. Deployment-
+// neutral wording, since the same package ships to hosted and self-hosted.
 const HOST_BOUNDARY_NOTE =
-  " The database runs on shared Supabase infrastructure; its host filesystem and OS are not the user's. Never read server-side files or run OS commands via SQL (e.g. `COPY ... FROM '/path'`, `COPY ... FROM PROGRAM`, `pg_read_file`, `pg_ls_dir`, `lo_import`) — load external data from the client side instead.";
+  " Never read server-side files or run OS commands via SQL (e.g. `COPY ... FROM '/path'`, `COPY ... FROM PROGRAM`, `pg_read_file`, `pg_ls_dir`, `lo_import`) — load external data from the client side instead.";
 
 export const databaseToolDefs = {
   list_tables: {

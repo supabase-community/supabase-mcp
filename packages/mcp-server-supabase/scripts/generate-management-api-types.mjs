@@ -1,19 +1,19 @@
-import { writeFileSync } from "node:fs";
-import openapiTS, { astToString, UNKNOWN } from "openapi-typescript";
+import { writeFileSync } from 'node:fs';
+import openapiTS, { astToString, UNKNOWN } from 'openapi-typescript';
 
 const apiTypes = [
   {
-    specUrl: "https://api.supabase.com/api/v1-json",
-    outputPath: new URL("../src/management-api/types.ts", import.meta.url),
+    specUrl: 'https://api.supabase.com/api/v1-json',
+    outputPath: new URL('../src/management-api/types.ts', import.meta.url),
   },
   {
-    specUrl: "https://api.supabase.com/api/v2-json",
-    outputPath: new URL("../src/management-api-v2/types.ts", import.meta.url),
+    specUrl: 'https://api.supabase.com/api/v2-json',
+    outputPath: new URL('../src/management-api-v2/types.ts', import.meta.url),
   },
 ];
 
 function replaceRecursiveJsonValueWithUnknown(_, options) {
-  if (options.path?.endsWith("JsonValue_Output")) {
+  if (options.path?.endsWith('JsonValue_Output')) {
     return UNKNOWN;
   }
   return undefined;

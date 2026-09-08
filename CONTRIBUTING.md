@@ -19,14 +19,41 @@ mise install
 pnpm install
 ```
 
-To build the MCP server and watch for file changes:
+To run the MCP server locally over HTTP:
 
 ```bash
-cd packages/mcp-server-supabase
-pnpm dev
+pnpm dev:http
 ```
 
-Configure your MCP client to run the local build. You may need to restart the server in your MCP client after each change.
+Rebuilds and restarts on save. Flags pass through, e.g. `pnpm dev:http --api-url https://api.supabase.green`.
+
+Example client config:
+
+```json
+{
+  "mcpServers": {
+    "supabase-local": {
+      "type": "http",
+      "url": "http://127.0.0.1:3111/mcp?project_ref=<your project ref>",
+      "headers": { "Authorization": "Bearer ${SUPABASE_ACCESS_TOKEN}" }
+    }
+  }
+}
+```
+
+The dev server supports the same [query params as the hosted endpoint](https://supabase.com/docs/guides/ai-tools/mcp#configuration-options). The access token comes from the client's `Authorization` header on each request. Restart the server in your MCP client after each change.
+
+Flags: `--http`, `--port` (default 3111), `--api-url`, `--content-api-url`, `--version`.
+
+To try the HTTP entry from a PR without cloning, run the preview build published by pkg.pr.new:
+
+```bash
+npx https://pkg.pr.new/@supabase/mcp-server-supabase@<sha> --http
+```
+
+### Alternative: stdio
+
+The stdio transport is available without `--http`. Configure your MCP client to run the local build directly:
 
 ```json
 {
@@ -34,7 +61,7 @@ Configure your MCP client to run the local build. You may need to restart the se
     "supabase": {
       "command": "node",
       "args": [
-        "/path/to/supabase-mcp/packages/mcp-server-supabase/dist/transports/stdio.js",
+        "/path/to/supabase-mcp/packages/mcp-server-supabase/dist/cli.js",
         "--project-ref",
         "<your project ref>"
       ],
@@ -45,8 +72,6 @@ Configure your MCP client to run the local build. You may need to restart the se
   }
 }
 ```
-
-Optionally, configure `--api-url` to point at a different Supabase instance (defaults to `https://api.supabase.com`)
 
 ## Testing
 

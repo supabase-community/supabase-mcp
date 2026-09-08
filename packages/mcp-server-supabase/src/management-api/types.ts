@@ -2760,7 +2760,7 @@ export interface components {
         UpdateCustomHostnameResponse_Output: {
             /** @enum {string} */
             status: "1_not_started" | "2_initiated" | "3_challenge_verified" | "4_origin_setup_completed" | "5_services_reconfigured";
-            custom_hostname: string;
+            custom_hostname?: string;
             data: {
                 success: boolean;
                 errors: components["schemas"]["JsonValue_Output"][];
@@ -3539,6 +3539,7 @@ export interface components {
             security_captcha_secret: string | null;
             security_manual_linking_enabled: boolean | null;
             security_refresh_token_reuse_interval: number | null;
+            security_update_password_require_current_password: boolean | null;
             security_update_password_require_reauthentication: boolean | null;
             sessions_inactivity_timeout: number | null;
             sessions_single_per_user: boolean | null;
@@ -3669,6 +3670,8 @@ export interface components {
             password_required_characters?: "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ:0123456789" | "abcdefghijklmnopqrstuvwxyz:ABCDEFGHIJKLMNOPQRSTUVWXYZ:0123456789" | "abcdefghijklmnopqrstuvwxyz:ABCDEFGHIJKLMNOPQRSTUVWXYZ:0123456789:!@#$%^&*()_+-=[]{};'\\\\:\"|<>?,./`~" | "" | null;
             security_manual_linking_enabled?: boolean | null;
             security_update_password_require_reauthentication?: boolean | null;
+            /** @description Require the user's current password when updating their password. */
+            security_update_password_require_current_password?: boolean | null;
             /** @description Refresh token reuse interval in seconds. Maximum 300 seconds (5 minutes). */
             security_refresh_token_reuse_interval?: number | null;
             mailer_otp_exp?: number;
@@ -4521,7 +4524,7 @@ export interface components {
                 /** @enum {string} */
                 upstreamTarget: "main" | "canary";
             };
-            migrationVersion: string;
+            migrationVersion: string | null;
         };
         /** @example {
          *       "fileSizeLimit": 10485760,

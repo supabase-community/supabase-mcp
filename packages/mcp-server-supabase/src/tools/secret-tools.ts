@@ -38,6 +38,7 @@ const createEdgeFunctionSecretInputSchema = z.object({
   name: z
     .string()
     .max(256)
+    .regex(/\S/)
     .refine((n) => !n.startsWith('SUPABASE_'), {
       message: 'Secret names starting with SUPABASE_ are reserved.',
     }),
@@ -134,26 +135,24 @@ export function getSecretTools({
               isError: true,
             };
           }
-          if (!replace) {
-            const updatedAt = await secrets.getUpdatedAt(project_id, name);
-            if (updatedAt) {
-              const ageMs = Date.now() - updatedAt.getTime();
-              if (ageMs >= 0 && ageMs <= RESUME_WINDOW_SECONDS * 1000) {
-                const updated_seconds_ago = Math.floor(ageMs / 1000);
-                return {
-                  content: [
-                    {
-                      type: 'text' as const,
-                      text: `The dashboard reports an update to ${name} ${updated_seconds_ago} seconds ago.`,
-                    },
-                  ],
-                  structuredContent: {
-                    name,
-                    stored: true,
-                    updated_seconds_ago,
+          const updatedAt = await secrets.getUpdatedAt(project_id, name);
+          if (!replace && updatedAt) {
+            const ageMs = Date.now() - updatedAt.getTime();
+            if (ageMs >= 0 && ageMs <= RESUME_WINDOW_SECONDS * 1000) {
+              const updated_seconds_ago = Math.floor(ageMs / 1000);
+              return {
+                content: [
+                  {
+                    type: 'text' as const,
+                    text: `The dashboard reports an update to ${name} ${updated_seconds_ago} seconds ago.`,
                   },
-                };
-              }
+                ],
+                structuredContent: {
+                  name,
+                  stored: true,
+                  updated_seconds_ago,
+                },
+              };
             }
           }
 

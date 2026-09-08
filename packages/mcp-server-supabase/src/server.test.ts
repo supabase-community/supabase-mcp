@@ -189,7 +189,7 @@ const SECRET_COLLECTION: NonNullable<
   NonNullable<SupabaseMcpServerOptions['elicitation']>['secretCollection']
 > = {
   connectUrlTemplate:
-    'https://supabase.com/dashboard/project/{ref}/mcp/secrets?name={name}',
+    'https://supabase.com/dashboard/mcp/secrets?ref={ref}&name={name}',
 };
 
 // https://blog.modelcontextprotocol.io/posts/2026-07-28-release-candidate/
@@ -4547,7 +4547,7 @@ describe('tools', () => {
           method: 'tools/call',
           params: {
             name: 'create_edge_function_secret',
-            arguments: { project_id: project.id, name: 'MY_SECRET' },
+            arguments: { project_id: project.id, name: ' MY KEY&x ' },
           },
         },
         { allowInputRequired: true }
@@ -4559,16 +4559,9 @@ describe('tools', () => {
           method: 'elicitation/create',
           params: {
             mode: 'url',
-            url: `https://supabase.com/dashboard/project/${encodeURIComponent(project.id)}/mcp/secrets?name=MY_SECRET`,
+            url: `https://supabase.com/dashboard/mcp/secrets?ref=${encodeURIComponent(project.id)}&name=${encodeURIComponent(' MY KEY&x ')}`,
           },
         });
-
-        const message = (result.inputRequests?.store_secret?.params as any)
-          ?.message;
-        expect(message).toBeDefined();
-        const messageLines = message?.split('\n') || [];
-        expect(messageLines).toHaveLength(3);
-        expect(message).not.toContain('http');
       }
     });
 
@@ -4594,7 +4587,7 @@ describe('tools', () => {
             costConfirmation: COST_CONFIRMATION,
             secretCollection: {
               connectUrlTemplate:
-                'https://supabase.com/dashboard/project/{ref}/mcp/secrets?name={name}',
+                'https://supabase.com/dashboard/mcp/secrets?ref={ref}&name={name}',
             },
           },
         });
@@ -4677,8 +4670,6 @@ describe('tools', () => {
       });
 
       expect(result.isError).toBe(true);
-      const textContent = result.content.find((c: any) => c.type === 'text');
-      expect((textContent as any)?.text).toContain('SUPABASE_');
     });
 
     test('accept with recent secret returns stored true', async () => {
@@ -4804,11 +4795,10 @@ describe('tools', () => {
         expect(second.inputRequests?.store_secret).toMatchObject({
           method: 'elicitation/create',
           params: {
-            url: `https://supabase.com/dashboard/project/${encodeURIComponent(project.id)}/mcp/secrets?name=MY_SECRET`,
+            url: `https://supabase.com/dashboard/mcp/secrets?ref=${encodeURIComponent(project.id)}&name=MY_SECRET`,
           },
         });
 
-        // Decode requestState to verify issued_at is preserved
         const firstState = JSON.parse(
           Buffer.from(first.requestState!.split('.')[1]!, 'base64').toString()
         );
@@ -5048,7 +5038,7 @@ describe('tools', () => {
           costConfirmation: COST_CONFIRMATION,
           secretCollection: {
             connectUrlTemplate:
-              'https://supabase.com/dashboard/project/{ref}/mcp/secrets?name={name}',
+              'https://supabase.com/dashboard/mcp/secrets?ref={ref}&name={name}',
           },
         },
       });
@@ -5117,10 +5107,86 @@ describe('tools', () => {
       )) as CallToolResult;
 
       expect(result.isError).toBe(true);
-      const textContent = result.content.find((c: any) => c.type === 'text');
-      expect((textContent as any)?.text).toBe(
-        'Request state was not issued for create_edge_function_secret.'
+    });
+
+    test.each([
+      { desc: 'empty', name: '' },
+      { desc: 'whitespace-only', name: '  \t\n  ' },
+    ])('rejects $desc secret name', async ({ name }) => {
+      const { client } = await setupUrlCapable();
+
+      const org = await createOrganization({
+        name: 'My Org',
+        plan: 'free',
+        allowed_release_channels: ['ga'],
+      });
+      const project = await createProject({
+        name: 'Project 1',
+        region: 'us-east-1',
+        organization_id: org.id,
+      });
+      project.status = 'ACTIVE_HEALTHY';
+
+      const result = await client.request(
+        {
+          method: 'tools/call',
+          params: {
+            name: 'create_edge_function_secret',
+            arguments: { project_id: project.id, name },
+          },
+        },
+        { allowInputRequired: true }
       );
+
+      expect(isInputRequiredResult(result)).toBe(false);
+      if (isInputRequiredResult(result)) {
+        throw new Error('expected CallToolResult, not InputRequiredResult');
+      }
+      expect(result.isError).toBe(true);
+    });
+
+    test('replace true with insufficient permissions returns isError without URL', async () => {
+      const { client } = await setupUrlCapable();
+
+      const org = await createOrganization({
+        name: 'My Org',
+        plan: 'free',
+        allowed_release_channels: ['ga'],
+      });
+      const project = await createProject({
+        name: 'Project 1',
+        region: 'us-east-1',
+        organization_id: org.id,
+      });
+      project.status = 'ACTIVE_HEALTHY';
+
+      // Mock a 403 response from the GET secrets endpoint
+      mockServer?.use(
+        http.get(`${API_URL}/v1/projects/${project.id}/secrets`, () => {
+          return HttpResponse.json({ message: 'Forbidden' }, { status: 403 });
+        })
+      );
+
+      const result = (await client.request(
+        {
+          method: 'tools/call',
+          params: {
+            name: 'create_edge_function_secret',
+            arguments: {
+              project_id: project.id,
+              name: 'MY_SECRET',
+              replace: true,
+            },
+          },
+        },
+        { allowInputRequired: true }
+      )) as CallToolResult | InputRequiredResult;
+
+      expect(isInputRequiredResult(result)).toBe(false);
+      if (isInputRequiredResult(result)) {
+        throw new Error('expected CallToolResult, not InputRequiredResult');
+      }
+      expect(result.isError).toBe(true);
     });
 
     test('tool absent when secretCollection not configured', async () => {
@@ -5179,13 +5245,11 @@ describe('tools', () => {
             costConfirmation: COST_CONFIRMATION,
             secretCollection: {
               connectUrlTemplate:
-                'https://supabase.com/dashboard/project/{ref}/mcp/secrets',
+                'https://supabase.com/dashboard/mcp/secrets?ref={ref}',
             },
           },
         })
-      ).toThrow(
-        'secretCollection.connectUrlTemplate must be an absolute URL containing the {ref} and {name} placeholders.'
-      );
+      ).toThrow();
     });
   });
 

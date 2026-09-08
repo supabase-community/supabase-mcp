@@ -96,7 +96,7 @@ export type SupabaseMcpServerOptions = {
        * URL template of the dashboard page that collects the secret value.
        * MUST contain the `{ref}` and `{name}` placeholders; each is replaced
        * with the percent-encoded project ref and secret name.
-       * Example: `https://supabase.com/dashboard/project/{ref}/mcp/secrets?name={name}`.
+       * Example: `https://supabase.com/dashboard/mcp/secrets?ref={ref}&name={name}`.
        */
       connectUrlTemplate: string;
     };

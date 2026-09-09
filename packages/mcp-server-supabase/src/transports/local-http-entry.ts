@@ -24,6 +24,7 @@ export type LocalHttpEntryOptions = {
   port: number;
   apiUrl?: string;
   contentApiUrl?: string;
+  secretUrlTemplate?: string;
   log?: (line: string) => void;
 };
 
@@ -72,9 +73,27 @@ export async function startLocalHttpEntry({
   port,
   apiUrl,
   contentApiUrl,
+  secretUrlTemplate,
   log = (line) =>
     console.error(`[${new Date().toLocaleTimeString('en-GB')}] ${line}`),
 }: LocalHttpEntryOptions) {
+  if (secretUrlTemplate === undefined) {
+    switch (new URL(apiUrl ?? 'https://api.supabase.com').origin) {
+      case 'https://api.supabase.com':
+        secretUrlTemplate =
+          'https://supabase.com/dashboard/mcp/secrets?ref={ref}&name={name}';
+        break;
+      case 'https://api.supabase.green':
+        secretUrlTemplate =
+          'https://supabase.green/dashboard/mcp/secrets?ref={ref}&name={name}';
+        break;
+      default:
+        throw new Error(
+          'A custom --api-url requires an explicit --secret-url-template.'
+        );
+    }
+  }
+  const secretCollection = { connectUrlTemplate: secretUrlTemplate };
   const requestStateKey = randomBytes(32);
   const allowedHostnames = localhostAllowedHostnames();
 
@@ -133,13 +152,19 @@ export async function startLocalHttpEntry({
                 readOnly,
                 features,
                 contentApiUrl,
-                costConfirmation: {
-                  requestStateKey,
-                  // One process can serve several PATs, so the principal is the token's hash.
-                  principal: createHash('sha256')
-                    .update(accessToken)
-                    .digest('hex'),
-                  enabledTools: ['create_project', 'create_branch'],
+                elicitation: {
+                  requestState: {
+                    key: requestStateKey,
+                    ttlSeconds: 120,
+                    // One process can serve several PATs, so the principal is the token's hash.
+                    principal: createHash('sha256')
+                      .update(accessToken)
+                      .digest('hex'),
+                  },
+                  costConfirmation: {
+                    enabledTools: ['create_project', 'create_branch'],
+                  },
+                  secretCollection,
                 },
               }),
             { legacy: 'stateless', onerror: console.error }

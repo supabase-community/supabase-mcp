@@ -133,7 +133,7 @@ export async function startLocalHttpEntry({
                 readOnly,
                 features,
                 contentApiUrl,
-                costConfirmation: {
+                confirmation: {
                   requestStateKey,
                   // One process can serve several PATs, so the principal is the token's hash.
                   principal: createHash('sha256')

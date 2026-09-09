@@ -9,9 +9,9 @@ import type {
   InputRequiredResult,
   VersionNegotiationMode,
 } from '@modelcontextprotocol/client';
-import { http, passthrough } from 'msw';
+import { http, HttpResponse, passthrough } from 'msw';
 import type { SetupServer } from 'msw/node';
-import { afterEach, beforeEach, describe, expect, test } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import {
   ACCESS_TOKEN,
@@ -26,6 +26,7 @@ import {
 import {
   type LocalHttpEntry,
   startLocalHttpEntry,
+  type LocalHttpEntryOptions,
 } from './local-http-entry.js';
 
 // https://blog.modelcontextprotocol.io/posts/2026-07-28-release-candidate/
@@ -37,18 +38,32 @@ let entry!: LocalHttpEntry;
 let logLines!: string[];
 const cleanups: Array<() => Promise<void>> = [];
 
+async function startEntry(
+  options: Pick<LocalHttpEntryOptions, 'apiUrl' | 'secretUrlTemplate'> = {}
+) {
+  const started = await startLocalHttpEntry({
+    port: 0,
+    log: (line) => logLines.push(line),
+    ...options,
+  });
+  const apiOrigin = new URL(options.apiUrl ?? API_URL).origin;
+  // Let intercepted MCP traffic reach the real loopback socket.
+  mockServer.use(
+    http.all(`${new URL(started.url).origin}/*`, () => passthrough()),
+    // Modern HTTP has no legacy initialize User-Agent to assert.
+    http.get(`${apiOrigin}/v1/projects/:projectId/secrets`, ({ request }) =>
+      request.headers.get('authorization') === AUTH_HEADERS.Authorization
+        ? HttpResponse.json([])
+        : HttpResponse.json({ message: 'Unauthorized' }, { status: 401 })
+    )
+  );
+  return started;
+}
+
 beforeEach(async () => {
   mockServer = setupMockApis();
   logLines = [];
-  entry = await startLocalHttpEntry({
-    port: 0,
-    apiUrl: API_URL,
-    log: (line) => logLines.push(line),
-  });
-  // msw intercepts every fetch in-process; let traffic to the entry hit the real socket.
-  mockServer.use(
-    http.all(`${new URL(entry.url).origin}/*`, () => passthrough())
-  );
+  entry = await startEntry();
 });
 
 afterEach(async () => {
@@ -57,6 +72,7 @@ afterEach(async () => {
       await cleanup();
     }
   } finally {
+    vi.restoreAllMocks();
     await entry.close();
     mockServer.close();
   }
@@ -141,12 +157,150 @@ describe('startLocalHttpEntry', () => {
     });
   });
 
-  test('sends a form-capable client a cost elicitation', async () => {
+  test.each([
+    {
+      label: 'omitted API and template',
+      apiUrl: undefined,
+      secretUrlTemplate: undefined,
+      expectedUrl:
+        'https://supabase.com/dashboard/mcp/secrets?ref=project&name=HTTP_SECRET',
+    },
+    {
+      label: 'canonical green API',
+      apiUrl: 'HTTPS://API.SUPABASE.GREEN:443/',
+      secretUrlTemplate: undefined,
+      expectedUrl:
+        'https://supabase.green/dashboard/mcp/secrets?ref=project&name=HTTP_SECRET',
+    },
+    {
+      label: 'explicit override of the green default',
+      apiUrl: 'https://api.supabase.green',
+      secretUrlTemplate: 'https://example.com/secrets/{ref}?key={name}',
+      expectedUrl: 'https://example.com/secrets/project?key=HTTP_SECRET',
+    },
+    {
+      label: 'custom API with an explicit template',
+      apiUrl: 'http://127.0.0.1:9999',
+      secretUrlTemplate: 'http://127.0.0.1:8082/secrets/{ref}?key={name}',
+      expectedUrl: 'http://127.0.0.1:8082/secrets/project?key=HTTP_SECRET',
+    },
+  ])('uses $label for a scoped URL continuation', async (options) => {
+    await entry.close();
+    entry = await startEntry({
+      apiUrl: options.apiUrl,
+      secretUrlTemplate: options.secretUrlTemplate,
+    });
     const client = await connect(
       { pin: MODERN_PROTOCOL_VERSION },
-      'features=account,branching',
+      'project_ref=project&features=functions&read_only=false',
       {
-        capabilities: { elicitation: { form: {} } },
+        capabilities: { elicitation: { url: {} } },
+        inputRequired: { autoFulfill: false },
+      }
+    );
+    const { tools } = await client.listTools();
+    expect(tools.map((tool) => tool.name)).toContain(
+      'create_edge_function_secret'
+    );
+    const params = {
+      name: 'create_edge_function_secret',
+      arguments: { name: 'HTTP_SECRET' },
+    };
+    const first = (await client.request(
+      { method: 'tools/call', params },
+      { allowInputRequired: true }
+    )) as CallToolResult | InputRequiredResult;
+    if (!isInputRequiredResult(first)) {
+      throw new Error('expected an input_required result');
+    }
+    expect(first.inputRequests?.store_secret).toMatchObject({
+      method: 'elicitation/create',
+      params: { mode: 'url', url: options.expectedUrl },
+    });
+    const cancelled = (await client.request({
+      method: 'tools/call',
+      params: {
+        ...params,
+        requestState: first.requestState,
+        inputResponses: { store_secret: { action: 'cancel' } },
+      },
+    })) as CallToolResult;
+    expect(cancelled.structuredContent).toEqual({ status: 'cancelled' });
+  });
+
+  test('requires an explicit template for an unknown API origin', async () => {
+    await expect(
+      startLocalHttpEntry({
+        port: 0,
+        apiUrl: 'https://api.supabase.green.example.com',
+      })
+    ).rejects.toBeInstanceOf(Error);
+  });
+
+  test('does not replace an explicitly empty template with a default', async () => {
+    await entry.close();
+    entry = await startEntry({ secretUrlTemplate: '' });
+    const response = await fetch(entry.url, {
+      method: 'POST',
+      headers: { ...AUTH_HEADERS, 'content-type': 'application/json' },
+      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
+    });
+    expect(response.status).toBe(500);
+  });
+
+  test.each(['features=functions&read_only=true', 'features=database'])(
+    'does not expose secret collection with %s',
+    async (query) => {
+      const client = await connect({ pin: MODERN_PROTOCOL_VERSION }, query);
+      const { tools } = await client.listTools();
+      expect(tools.map((tool) => tool.name)).not.toContain(
+        'create_edge_function_secret'
+      );
+    }
+  );
+
+  test('keeps URL capability and metadata permission checks on the HTTP path', async () => {
+    const unsupported = await connect(
+      { pin: MODERN_PROTOCOL_VERSION },
+      'project_ref=project&features=functions'
+    );
+    const params = {
+      name: 'create_edge_function_secret',
+      arguments: { name: 'HTTP_SECRET' },
+    };
+    const unsupportedResult = await unsupported.callTool(params);
+    expect(unsupportedResult.structuredContent).toEqual({
+      status: 'unsupported_client',
+    });
+    mockServer.use(
+      http.get(`${API_URL}/v1/projects/project/secrets`, () =>
+        HttpResponse.json({ message: 'Forbidden' }, { status: 403 })
+      )
+    );
+    const client = await connect(
+      { pin: MODERN_PROTOCOL_VERSION },
+      'project_ref=project&features=functions',
+      {
+        capabilities: { elicitation: { url: {} } },
+        inputRequired: { autoFulfill: false },
+      }
+    );
+    const denied = (await client.request(
+      { method: 'tools/call', params },
+      { allowInputRequired: true }
+    )) as CallToolResult | InputRequiredResult;
+    expect(isInputRequiredResult(denied)).toBe(false);
+    expect(denied).toMatchObject({ isError: true });
+  });
+
+  test('expires shared HTTP cost and secret state after two minutes', async () => {
+    const now = Date.now();
+    const clock = vi.spyOn(Date, 'now').mockReturnValue(now);
+    const client = await connect(
+      { pin: MODERN_PROTOCOL_VERSION },
+      'features=account,branching,functions',
+      {
+        capabilities: { elicitation: { form: {}, url: {} } },
         inputRequired: { autoFulfill: false },
       }
     );
@@ -184,5 +338,45 @@ describe('startLocalHttpEntry', () => {
     expect(logLines.at(-1)).toBe(
       `${'tools/call create_branch'.padEnd(28)}  ${`${MCP_CLIENT_NAME}/${MCP_CLIENT_VERSION}`.padEnd(24)}  (${MODERN_PROTOCOL_VERSION})`
     );
+    const secret = (await client.request(
+      {
+        method: 'tools/call',
+        params: {
+          name: 'create_edge_function_secret',
+          arguments: { project_id: project.id, name: 'HTTP_SECRET' },
+        },
+      },
+      { allowInputRequired: true }
+    )) as CallToolResult | InputRequiredResult;
+    expect(secret).toMatchObject({
+      inputRequests: {
+        store_secret: { method: 'elicitation/create', params: { mode: 'url' } },
+      },
+    });
+    if (!isInputRequiredResult(secret)) {
+      throw new Error('expected an input_required result');
+    }
+    clock.mockReturnValue(now + 121_000);
+    for (const continuation of [
+      {
+        name: 'create_branch',
+        arguments: { project_id: project.id, name: 'feature' },
+        requestState: result.requestState,
+        inputResponses: { confirm_cost: { action: 'cancel' } },
+      },
+      {
+        name: 'create_edge_function_secret',
+        arguments: { project_id: project.id, name: 'HTTP_SECRET' },
+        requestState: secret.requestState,
+        inputResponses: { store_secret: { action: 'cancel' } },
+      },
+    ]) {
+      await expect(
+        client.request(
+          { method: 'tools/call', params: continuation },
+          { allowInputRequired: true }
+        )
+      ).rejects.toMatchObject({ code: -32602 });
+    }
   });
 });
